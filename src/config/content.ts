@@ -80,3 +80,21 @@ export const TRUST = {
     { value: 'Raw fresh, chilled and frozen', label: 'seafood' },
   ],
 }
+
+/** About (STORY §14; CONTENT.md "Use on site"). Vision keeps "coastal commodities" until confirm-list #4 is answered. */
+export const ABOUT = {
+  title: 'High professionalism and excellence',
+  company: [
+    'Skylark Exim, based in Visakhapatnam, Andhra Pradesh, is a trusted seafood exporter specialising in premium raw fresh, chilled and frozen seafood. With a fully integrated value chain, we ensure complete control over quality, consistency and sustainability at every stage, from sourcing to delivery.',
+    'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards. Through strategic partnerships with aquaculture farmers and a focus on responsible sourcing, we guarantee superior freshness, traceability, and product integrity across all markets.',
+    'Today, Skylark Exim is recognised as one of India’s leading and globally trusted shrimp exporters, delivering world-class seafood solutions to customers worldwide.',
+  ],
+  vision:
+    'To be a trusted global leader in the seafood export industry by delivering premium-quality, sustainably sourced seafood to international markets, while building long-term partnerships, supporting coastal commodities, and promoting responsible fishing practices for future generations.',
+  mission:
+    'Our mission is to deliver premium-quality seafood to global markets while ensuring sustainability, freshness and customer satisfaction. We are committed to building long-term relationships with our clients by maintaining the highest standards of hygiene, ethical sourcing and timely delivery.',
+  partners: [
+    { name: 'V. Yashod Kumar', initials: 'VY' },
+    { name: 'N.V. Prudhvi', initials: 'NP' },
+  ],
+}

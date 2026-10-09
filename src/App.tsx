@@ -1,6 +1,7 @@
 import { chaptersFor } from './config/chapters'
 import { useApp } from './engine/store'
 import { Film } from './film/Film'
+import { About } from './sections/About'
 import { Products } from './sections/Products'
 import { Trust } from './sections/Trust'
 import { ScrubStage } from './film/ScrubStage'
@@ -25,6 +26,7 @@ export default function App() {
         <Film chapters={chapters} />
         <Products />
         <Trust />
+        <About />
       </main>
       <Hud />
       <QuoteCta />
