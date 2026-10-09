@@ -336,8 +336,8 @@ def build_truck_reverse(C_people):
     w3 = H.person('HUM_DockW3', 'plant', 'male', coll=C_people, seed=23)
     tr = trolley('PL_PushTrolley', (0, 0, S.DZ), 0.0, C_people)
     tr.parent = w3
-    tr.location = (0, -0.95, 0)
-    tr.rotation_euler = (0, 0, D(90))
+    tr.location = (0, -1.0, 0)
+    tr.rotation_euler = (0, 0, D(-90))             # handle end toward W3
     for k, (ly, lz) in enumerate(((-0.24, 0), (0.24, 0), (-0.24, 1), (0.24, 1))):
         c = crate('PL_PushCrate%d' % k, ['blue', 'white', 'blue', 'blue'][k], (ly, 0, 0.325 + lz * 0.3), D(90), tr,
                   'ice', 600 + k)
@@ -349,6 +349,16 @@ def build_truck_reverse(C_people):
     H.jitter(w3, {'upperarm': (30, -10, 0), 'forearm': (35, 0, 0), 'spine': (6, 0, 0)}, 476, 1060, every=24, amp=4,
              seed=23)
     _lift(w3, S.DZ)
+    for sd, hy in (('L', 0.22), ('R', -0.22)):         # both hands on the push bar the whole way
+        h = bpy.data.objects.new('HUM_DockW3_Push' + sd, None)
+        C_people.objects.link(h)
+        h.parent = tr
+        h.location = (-0.62, hy, 1.0)
+        c = w3.pose.bones['forearm.' + sd].constraints.new('IK')
+        c.target = h
+        c.chain_count = 2
+        c.use_tail = True
+        H.grip(w3, sd, curl=0.8)
     w4 = H.person('HUM_DockW4', 'plant_coat', 'female', coll=C_people, seed=24)
     w4.location = (11.6, 10.2, S.DZ)
     w4.rotation_euler = (0, 0, D(200))
