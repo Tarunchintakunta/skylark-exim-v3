@@ -23,7 +23,7 @@ export const MARKETS = [
 export const start = {
   eyebrow: 'Visakhapatnam · Andhra Pradesh',
   // confirm-list #3 fallback (the drafts' "Two Origins. One Standard." is not on skylarkexim.com)
-  title: 'From the Bay of Bengal to the world.',
+  title: 'From Visakhapatnam to the world.',
   body: 'Premium raw fresh, chilled and frozen seafood, with a fully integrated value chain from sourcing to delivery.',
   ocean: { label: 'The Ocean', sub: 'Wild catch' },
   pond: { label: 'The Pond', sub: 'Farmed shrimp' },
@@ -53,7 +53,7 @@ export const film: Record<string, CaptionCopy[]> = {
   ],
   docs: [{ eyebrow: 'Export · Documentation', title: 'Paperwork, done properly.', body: 'Our documentation staff professionally prepare all necessary documents and handle logistical tracking of shipments. Compliance with export certificates (HACCP, EU, FDA, etc.).' }],
   port: [{ eyebrow: 'Export · The port', title: 'Loaded under the cranes.', body: 'Shipped in reefer containers to maintain the cold chain until the destination.' }],
-  sea: [{ eyebrow: 'Export · At sea', title: 'From Visakhapatnam to the world’s table.', note: 'Bay of Bengal · outbound' }],
+  sea: [{ eyebrow: 'Export · At sea', title: 'From Visakhapatnam to the world’s table.', note: 'Cold chain · outbound' }],
   world: [{ eyebrow: 'Export · Markets', title: 'Trusted in 16 markets.', body: MARKETS.join(' · ') }],
 }
 
