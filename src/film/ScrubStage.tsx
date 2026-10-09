@@ -27,7 +27,7 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           <img
             key={i}
             data-seg={i}
-            className={`stage__layer${m.kind === 'dom' ? ' stage__blur' : ''}`}
+            className="stage__layer"
             // only the opening poster loads up front; scrub.ts sets the rest from data-src (current + next 2)
             src={i === 0 ? posterFor(m)! : undefined}
             data-src={posterFor(m)!}
@@ -40,14 +40,6 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      {__PREVIEW__ &&
-        segs.map((s, i) =>
-          'awaiting' in s.media ? (
-            <span key={`ph${i}`} data-ph={i} className="stage__ph mono">
-              Placeholder · awaiting {s.media.awaiting}
-            </span>
-          ) : null,
-        )}
       <div className="stage__veil" />
       <div className="stage__scrim" />
     </div>

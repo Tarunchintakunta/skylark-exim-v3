@@ -32,7 +32,6 @@ const FAST = 30
 
 let segs: Segment[] = []
 let posters: (HTMLElement | null)[] = []
-let tags: (HTMLElement | null)[] = []
 let slots: Slot[] = []
 let veil: HTMLElement | null = null
 let stage: HTMLElement | null = null
@@ -54,7 +53,6 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   stage = el
   segs = segments
   posters = segments.map((_, i) => el.querySelector<HTMLElement>(`[data-seg="${i}"]`))
-  tags = segments.map((_, i) => el.querySelector<HTMLElement>(`[data-ph="${i}"]`))
   veil = el.querySelector('.stage__veil')
   slots = [...el.querySelectorAll('video')].map((v) => makeSlot(v))
   cur = -1
@@ -265,7 +263,6 @@ function clearLayers(keep: number) {
     el.style.opacity = '0'
     el.classList.remove('is-over')
   })
-  tags.forEach((el, k) => el && k !== keep && (el.style.opacity = '0'))
   over = -1
 }
 
@@ -273,8 +270,6 @@ function enter(i: number, prev: number) {
   const fromBelow = prev > i
   // coming back from the business sections (or the first frame): nothing to fade from, start clean
   if (prev < 0) clearLayers(i)
-  if (prev >= 0 && tags[prev]) tags[prev]!.style.opacity = '0'
-  if (tags[i]) tags[i]!.style.opacity = '1'
   if (prev >= 0 && posters[prev]) {
     posters[prev]!.style.opacity = '0'
     posters[prev]!.classList.remove('is-over')
