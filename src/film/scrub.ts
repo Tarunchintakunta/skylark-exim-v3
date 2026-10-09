@@ -155,9 +155,9 @@ function tick() {
   if (next && next !== want) slotFor(next, want)
   setShown(active && active.painted && !active.dead ? active : null)
 
-  // still placeholders: slow push-in
+  // placeholders (stills and the port/sea gradients): slow push-in
   const m = seg.media
-  if (m.kind === 'still') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
+  if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
   // cross-fade join: next segment's poster fades in over the last 3% of scroll (x-ship → globe: 15%)
   const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
