@@ -28,7 +28,7 @@ const haze = {
   fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = pow(1.0 - max(dot(vN, vec3(0.0, 0.0, 1.0)), 0.0), 3.0); gl_FragColor = vec4(color * i * 0.75, 1.0); }',
 }
 
-/** Scroll-driven globe: camera pulls back from the Bay of Bengal, routes draw one by one (STORY §11). */
+/** Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11). */
 function Earth({ worldIndex }: { worldIndex: number }) {
   // 2048×1024 everywhere (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
   const tex = useTexture('/textures/earth_day_2048.webp')
@@ -74,7 +74,7 @@ function Earth({ worldIndex }: { worldIndex: number }) {
         return
       }
       const p = i === worldIndex ? frame.local : 0
-      // camera: close over the Bay of Bengal → full globe
+      // camera: close over the sea off Visakhapatnam → full globe
       const k = ease(clamp01(p / 0.5))
       const d = lerp(1.45, env.mobile ? 4.6 : 4.1, k)
       camera.position.set(0, 0, d)
@@ -83,7 +83,7 @@ function Earth({ worldIndex }: { worldIndex: number }) {
       group.current.position.x = env.mobile ? 0 : lerp(0, 0.78, k)
       group.current.position.y = env.mobile ? lerp(0, 0.55, k) : 0
       originDot.current?.scale.setScalar(d / 3.2)
-      // rotate from the Bay of Bengal toward Europe, then East Asia, as routes draw
+      // rotate from the sea off Visakhapatnam toward Europe, then East Asia, as routes draw
       let lon = p < 0.45 ? lerp(88, 62, ease(p / 0.45)) : lerp(62, 104, ease(clamp01((p - 0.45) / 0.45)))
       const lat = lerp(15, 26, k)
       // ends with a slow auto-rotation while in view
