@@ -35,7 +35,7 @@ export const SHRIMP_FORMS: { name: string; options: string }[] = [
  * pass. Flip `available` once the files are in public/media; until then the slot is a typographic composition.
  */
 export const HERO: { id: string; name: string; category: Category; available: boolean }[] = [
-  { id: 'prod-tuna', name: 'Tuna', category: 'marine', available: false },
+  { id: 'prod-tuna', name: 'Tuna', category: 'marine', available: true },
   { id: 'prod-shrimp', name: 'Vannamei', category: 'shrimps', available: false },
 ]
 
