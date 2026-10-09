@@ -8,8 +8,7 @@ import { Trust } from './sections/Trust'
 import { ScrubStage } from './film/ScrubStage'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
-import { QuoteCta } from './ui/QuoteCta'
-import { StartScreen } from './ui/StartScreen'
+import { Hero } from './ui/Hero'
 
 export default function App() {
   const path = useApp((s) => s.path)
@@ -21,14 +20,13 @@ export default function App() {
       <ScrubStage chapters={chapters} />
       <Header />
       <main id="main" tabIndex={-1}>
-        <StartScreen />
+        <Hero />
         <Film chapters={chapters} />
         <Products />
         <Trust />
         <About />
         <Quote />
       </main>
-      <QuoteCta />
       <Loader />
     </>
   )
