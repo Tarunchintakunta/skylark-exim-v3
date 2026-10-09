@@ -161,9 +161,16 @@ def add_container(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
                 mb.box(cx + R @ Vector((sx * (L / 2 - 0.09), sy * (CW / 2 - 0.09), sz * (CH / 2 - 0.06))), (0.19, 0.2, 0.13), m,
                        tuple(v * 0.45 for v in color), rot=R)
     # door bars on the -X end; a reefer's refrigeration unit sits on the +X (front) wall
-    for k in (-0.75, -0.3, 0.3, 0.75):
-        mb.box(cx + R @ Vector((-L / 2 - 0.03, k, 0)), (0.06, 0.06, CH - 0.35), m, (0.35, 0.36, 0.36), rot=R)   # locking rods
-        mb.box(cx + R @ Vector((-L / 2 - 0.06, k + 0.08, -0.2)), (0.05, 0.2, 0.05), m, (0.3, 0.3, 0.3), rot=R)  # handle
+    bar = (0.24, 0.25, 0.26)
+    for k in (-0.78, -0.32, 0.32, 0.78):
+        mb.box(cx + R @ Vector((-L / 2 - 0.045, k, 0)), (0.08, 0.08, CH - 0.3), m, bar, rot=R)                   # locking bars
+        for sz in (-1, 1):
+            mb.box(cx + R @ Vector((-L / 2 - 0.04, k, sz * (CH / 2 - 0.22))), (0.1, 0.16, 0.12), m, bar, rot=R)  # cam keepers
+        mb.box(cx + R @ Vector((-L / 2 - 0.1, k + 0.12, -0.25)), (0.06, 0.3, 0.07), m, bar, rot=R)          # handle
+        mb.box(cx + R @ Vector((-L / 2 - 0.07, k + 0.06, -0.25)), (0.05, 0.08, 0.14), m, bar, rot=R)        # handle hub
+    for sy in (-1, 1):
+        for z in (-0.95, -0.3, 0.3, 0.95):
+            mb.box(cx + R @ Vector((-L / 2 - 0.04, sy * (CW / 2 - 0.13), z)), (0.08, 0.12, 0.16), m, dark, rot=R)  # hinges
     mb.box(cx + R @ Vector((-L / 2 - 0.015, 0, 0)), (0.02, 0.04, CH - 0.2), m, dark, rot=R)                     # door seam
     if reefer:
         mb.box(cx + R @ Vector((L / 2 + 0.02, 0, 0)), (0.06, CW - 0.4, CH - 0.5), m, (0.22, 0.24, 0.26), rot=R)
@@ -312,45 +319,76 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     tb.box((2.2, 0, -3.8), (2.4, 2.8, 0.05), mats['glass'])
     tb.sphere((0, 3.4, 1.6), 0.3, mats['lamp_amber'], 8)
     tb.obj(f'{name}_TrolleyBody', trolley)
-    # headblock + spreader (child of trolley; hangs on 4 cables)
-    head = empty(f'{name}_Headblock', (0, 0, -20), trolley, size=1.5)
-    hb = MB()
-    hb.box((0, 0, 0.5), (3.0, 2.2, 1.0), blue)
-    for sx in (-1.0, 1.0):
-        for sy in (-0.6, 0.6):
-            hb.cyl((sx - 0.15, sy, 0.9), (sx + 0.15, sy, 0.9), 0.35, steel, 10)
-    hb.obj(f'{name}_HeadblockBody', head)
-    # telescopic spreader at 40 ft: central chassis, two telescopic main beams the full box length, end beams with
-    # a twistlock cone at each corner casting (bottom of the twistlocks = z -1.35 below the headblock)
-    sp = MB()
+    # headblock: steel frame (two side girders + cross members) carrying four rope sheaves (axles along X)
     yel = weather(pbr('MAT_SpreaderYellow', (0.78, 0.55, 0.06), 0.45, 0.1, grime=0.45, scale=0.4), amount=0.4, z0=-1.4,
                   z1=-0.4, dirt_amount=0.3)
-    sp.box((0, 0, -0.45), (3.6, 2.3, 0.75), yel)
-    for sy in (-0.42, 0.42):
-        sp.box((0, sy, -0.75), (12.1, 0.42, 0.42), yel)          # outer telescopic beams
-        sp.box((0, sy, -0.75), (12.18, 0.3, 0.3), yel)
+    rope = pbr('MAT_WireRope', (0.07, 0.07, 0.075), 0.42, 0.75, var=0.25, bump=0.3, scale=6.0, grime=0.4)
+    head = empty(f'{name}_Headblock', (0, 0, -20), trolley, size=1.5)
+    hb = MB()
+    hb.box((0, 0, 0.06), (3.2, 2.1, 0.12), dark)                      # base plate on the spreader chassis
+    for sy in (-0.98, 0.98):
+        hb.box((0, sy, 0.6), (3.4, 0.16, 1.0), yel)                   # side girders
+        for sx in (-1.45, 0.0, 1.45):
+            hb.box((sx, sy, 0.6), (0.18, 0.2, 0.96), dark)            # stiffeners
+    for sx in (-1.62, 1.62):
+        hb.box((sx, 0, 0.6), (0.16, 2.1, 1.0), yel)                   # end plates
+    for sx in (-1.0, 1.0):
+        for sy in (-0.5, 0.5):
+            for dx in (-0.06, 0.06):
+                hb.cyl((sx + dx - 0.015, sy, 1.0), (sx + dx + 0.015, sy, 1.0), 0.42, dark, 28)   # sheave flanges
+            hb.cyl((sx - 0.05, sy, 1.0), (sx + 0.05, sy, 1.0), 0.36, rope, 28)        # rope wrap in the groove
+            hb.cyl((sx - 0.2, sy, 1.0), (sx + 0.2, sy, 1.0), 0.07, dark, 10)          # axle
+            for dx in (-0.15, 0.15):
+                hb.box((sx + dx, sy, 0.78), (0.04, 0.95, 0.5), yel)                   # guard cheeks (lower half)
+    for sx in (-1.3, 1.3):
+        for sy in (-0.7, 0.7):
+            hb.cyl((sx, sy, -0.05), (sx, sy, 0.12), 0.11, steel, 10)                  # quick-release lock pins
+    hb.obj(f'{name}_HeadblockBody', head)
+    # telescopic spreader at 40 ft: chassis, outer beams, narrower inner beams run out to the end beams, guide flippers
+    # and a twistlock housing + cone at each corner casting (bottom of the cones = z -1.35 below the headblock)
+    sp = MB()
+    sp.box((0, 0, -0.45), (3.6, 2.3, 0.75), yel)                                       # chassis
+    sp.box((0, 0, -0.06), (2.4, 1.6, 0.04), dark)
+    for sy in (-0.45, 0.45):
+        sp.box((0, sy, -0.75), (8.4, 0.48, 0.48), yel)                                 # outer beams
+        for sgn in (-1, 1):
+            sp.box((sgn * 4.95, sy, -0.75), (1.75, 0.34, 0.34), yel)                   # inner (telescoped) beams
+            sp.box((sgn * 4.95, sy, -0.575), (1.75, 0.2, 0.02), steel)                 # wear strip
+            sp.box((sgn * 4.2, sy, -0.75), (0.06, 0.52, 0.52), dark)                   # beam mouth
+    sp.cyl((-1.6, 1.0, -0.2), (1.6, 1.0, -0.2), 0.06, dark, 8)                         # hydraulic line
     for sx in (-6.0, 6.0):
-        sp.box((sx, 0, -0.82), (0.55, 2.44, 0.55), yel)          # end beams
-        for sy in (-1.08, 1.08):
-            sp.box((sx, sy, -1.12), (0.3, 0.3, 0.1), steel)      # twistlock head on the casting
-            sp.cyl((sx, sy, -1.17), (sx, sy, -1.35), 0.06, steel, 8, r2=0.03)
-            sp.box((sx + math.copysign(0.25, sx), sy, -0.9), (0.08, 0.5, 0.45), yel)   # guide flipper
-    for sx in (-1.4, 1.4):
-        for sy in (-0.9, 0.9):
-            sp.cyl((sx, sy, -0.05), (sx, sy, 0.25), 0.2, steel, 10)  # rope sheaves on the chassis
+        sg = math.copysign(1, sx)
+        sp.box((sx, 0, -0.85), (0.55, 2.62, 0.55), yel)                                # end beams
+        for sy in (-1.13, 1.13):
+            sgy = math.copysign(1, sy)
+            sp.box((sx, sy, -1.0), (0.44, 0.42, 0.26), dark)                           # twistlock housing
+            sp.cyl((sx, sy, -1.13), (sx, sy, -1.35), 0.11, steel, 12, r2=0.05)         # twistlock cone
+            sp.box((sx, sy, -1.3), (0.2, 0.09, 0.05), steel)                           # cone head
+            sp.box((sx + sg * 0.42, sy, -1.02), (0.06, 0.55, 0.5), yel,
+                   rot=Matrix.Rotation(sg * 0.35, 3, 'Y'))                             # end flipper
+            sp.box((sx - sg * 0.1, sy + sgy * 0.38, -1.02), (0.55, 0.06, 0.5), yel,
+                   rot=Matrix.Rotation(-sgy * 0.35, 3, 'X'))                           # side flipper
+            sp.cyl((sx + sg * 0.1, sy, -0.55), (sx + sg * 0.36, sy, -0.82), 0.045, steel, 8)  # flipper ram
     spreader = sp.obj(f'{name}_Spreader', head)
-    # 4 wire ropes trolley sheaves -> headblock sheaves (stretch constraints)
+    # 8 wire-rope falls: each headblock sheave carries two falls up to the trolley sheaves (stretch constraints;
+    # the rope mesh runs along +Y because STRETCH_TO stretches local Y)
     cables = []
-    for i, (sx, sy) in enumerate(((-1.0, -0.6), (1.0, -0.6), (-1.0, 0.6), (1.0, 0.6))):
-        anchor_t = empty(f'{name}_CabT{i}', (sx * 1.2, sy * 2.6, -0.2), trolley, size=0.2)
-        anchor_h = empty(f'{name}_CabH{i}', (sx, sy, 1.0), head, size=0.2)
-        c = cyl(f'{name}_Cable_{i + 1}', 0.06, 1.0, (0, 0, 0), steel, 8, origin='base')
-        cc = c.constraints.new('COPY_LOCATION')
-        cc.target = anchor_h
-        st = c.constraints.new('STRETCH_TO')
-        st.target = anchor_t
-        st.volume = 'NO_VOLUME'
-        cables.append(c)
+    i = 0
+    for sx in (-1.0, 1.0):
+        for sy in (-0.5, 0.5):
+            for k in (-1, 1):
+                anchor_t = empty(f'{name}_CabT{i}', (sx * 1.2, sy * 5.2 + k * 0.4, -0.4), trolley, size=0.2)
+                anchor_h = empty(f'{name}_CabH{i}', (sx, sy + k * 0.4, 1.0), head, size=0.2)
+                c = cyl(f'{name}_Cable_{i + 1}', 0.028, 1.0, (0, 0, 0), rope, 8, origin='base')
+                c.data.transform(Matrix.Rotation(-math.pi / 2, 4, 'X'))
+                cc = c.constraints.new('COPY_LOCATION')
+                cc.target = anchor_h
+                st = c.constraints.new('STRETCH_TO')
+                st.target = anchor_t
+                st.volume = 'NO_VOLUME'
+                st.rest_length = 1.0
+                cables.append(c)
+                i += 1
     return {'root': root, 'trolley': trolley, 'head': head, 'spreader': spreader, 'gz': gz, 'ys': ys, 'yl': yl,
             'yb': yb, 'y0': y0, 'y1': y1, 'frame': frame, 'boom': boom}
 
@@ -468,6 +506,7 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
     bm = bmesh.new()
     n = 48
     secs = []
+    wl = []
     for i in range(n + 1):
         x = -L / 2 + L * i / n
         t = (x + L / 2) / L
@@ -478,6 +517,7 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
         else:
             b = B / 2
         b = max(b, 0.25)
+        wl.append((x, b))
         zk = -11.0 if t > 0.04 else -11.0 + (0.04 - t) * 120
         zt = deck + (2.5 * ((t - 0.85) / 0.15) ** 2 if t > 0.85 else 0)
         flare = 1.0 + (0.08 if t > 0.8 else 0)
@@ -494,6 +534,22 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
     h = obj(f'{name}_Hull', me, None, parent=root)
     for p in me.polygons:
         p.use_smooth = False
+    # white water along the hull line (thin band, fades outward)
+    fb = bmesh.new()
+    uvl = fb.loops.layers.uv.new('UVMap')
+    for sy in (-1, 1):
+        rows_v = [(fb.verts.new((x, sy * (b + 0.05), 0.1)), fb.verts.new((x + (1.2 if i == n else 0), sy * (b + 1.8), 0.1)))
+                  for i, (x, b) in enumerate(wl)]
+        for i in range(n):
+            a0, a1 = rows_v[i]
+            b0, b1 = rows_v[i + 1]
+            f = fb.faces.new((a0, b0, b1, a1) if sy > 0 else (a0, a1, b1, b0))
+            for lp in f.loops:
+                lp[uvl].uv = (lp.vert.co.x / 6.0, 0.0 if lp.vert in (a0, b0) else 1.0)
+    fme = bm_to_mesh(fb, f'{name}_HullFoam')
+    fme.materials.append(hull_foam_mat())
+    fo = obj(f'{name}_HullFoam', fme, None, parent=root)
+    fo.visible_shadow = False
     # main deck plate
     box(f'{name}_DeckPlate', (L * 0.9, B - 1.0, 0.4), (-L * 0.02, 0, deck - 0.2), pbr('MAT_ShipDeck', (0.3, 0.12, 0.08), 0.6,
                                                                                     grime=0.4), 0.0, parent=root)
@@ -520,6 +576,8 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
             t_here = max(2, base_t - (1 if r in (0, rows - 1) else 0) - (rnd.random() < 0.15))
             if empty_slot and bi == empty_slot[0] and r < empty_slot[1]:
                 t_here = min(t_here, base_t - 3)   # lower rows on the quay side: the box under the slot stays in view
+            if empty_slot and bi == empty_slot[0] - 1 and r <= empty_slot[1] + 1:
+                t_here = min(t_here, base_t - 2)   # and the bay behind it: the reefer end and the doors below show
             for t in range(t_here):
                 if empty_slot and bi == empty_slot[0] and r == empty_slot[1] and t == t_here - 1:
                     slot = Vector((bx, y, deck + 0.8 + t * CH))
@@ -579,6 +637,81 @@ def bollard_mesh():
 
 
 # ---------------------------------------------------------------- tractor + skeletal trailer
+def hull_foam_mat(name='MAT_HullFoam'):
+    """Broken white water hugging the hull: noise foam, alpha fading with UV v (0 at the hull, 1 outboard)."""
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    m = new_mat(name)
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    p.inputs['Base Color'].default_value = (0.88, 0.91, 0.92, 1)
+    p.inputs['Roughness'].default_value = 0.6
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1000, 0))
+    sep = _node(nt, 'ShaderNodeSeparateXYZ', (-800, 200))
+    l.new(_sock(tc, 'UV', out=True), sep.inputs[0])
+    inv = _node(nt, 'ShaderNodeMath', (-600, 200))
+    inv.operation = 'SUBTRACT'
+    inv.inputs[0].default_value = 1.0
+    l.new(sep.outputs[1], inv.inputs[1])
+    pw = _node(nt, 'ShaderNodeMath', (-450, 200))
+    pw.operation = 'POWER'
+    pw.inputs[1].default_value = 1.6
+    l.new(inv.outputs[0], pw.inputs[0])
+    nz = _node(nt, 'ShaderNodeTexNoise', (-800, -100))
+    nz.inputs['Scale'].default_value = 1.4
+    nz.inputs['Detail'].default_value = 8
+    nz.inputs['Roughness'].default_value = 0.65
+    l.new(_sock(tc, 'Object', out=True), nz.inputs['Vector'])
+    mr = _node(nt, 'ShaderNodeMapRange', (-600, -100))
+    mr.inputs['From Min'].default_value = 0.42
+    mr.inputs['From Max'].default_value = 0.62
+    l.new(_sock(nz, 'Factor', out=True), mr.inputs['Value'])
+    mul = _node(nt, 'ShaderNodeMath', (-300, 100))
+    mul.operation = 'MULTIPLY'
+    l.new(pw.outputs[0], mul.inputs[0])
+    l.new(mr.outputs[0], mul.inputs[1])
+    l.new(mul.outputs[0], p.inputs['Alpha'])
+    return m
+
+
+def wheel_mesh(name, mats, r=0.52, w=0.3, lugs=28):
+    """Truck wheel along Y: tyre with chevron tread lugs, steel disc rim with hand holes, hub and wheel nuts."""
+    if name in bpy.data.meshes:
+        return bpy.data.meshes[name]
+    rub = mats['rubber']
+    rim = pbr('MAT_RimSteel', (0.55, 0.56, 0.55), 0.38, 0.85, grime=0.6, scale=0.6)
+    hole = pbr('MAT_RimHole', (0.01, 0.01, 0.012), 0.8)
+    mb = MB()
+    mb.cyl((0, -w / 2, 0), (0, w / 2, 0), r - 0.035, rub, 36)
+    for k in range(lugs):
+        a = 2 * math.pi * k / lugs
+        R = Matrix.Rotation(-(a + math.pi / 2), 3, 'Y')
+        for sy in (-1, 1):
+            mb.box((math.cos(a) * (r - 0.035), sy * w * 0.24, math.sin(a) * (r - 0.035)), (0.08, w * 0.44, 0.06), rub,
+                   rot=R @ Matrix.Rotation(sy * 0.3, 3, 'Z'))
+    for sy in (-1, 1):
+        y = sy * w / 2
+        mb.cyl((0, y - sy * 0.01, 0), (0, y + sy * 0.012, 0), r * 0.64, rim, 28)           # rim flange
+        mb.cyl((0, y, 0), (0, y + sy * 0.03, 0), r * 0.5, rim, 28)                          # disc
+        mb.cyl((0, y, 0), (0, y + sy * 0.075, 0), r * 0.24, rim, 16)                        # hub
+        for k in range(6):
+            a = 2 * math.pi * (k + 0.5) / 6
+            mb.cyl((math.cos(a) * r * 0.4, y + sy * 0.02, math.sin(a) * r * 0.4),
+                   (math.cos(a) * r * 0.4, y + sy * 0.033, math.sin(a) * r * 0.4), 0.045, hole, 10)   # hand holes
+        for k in range(10):
+            a = 2 * math.pi * k / 10
+            mb.cyl((math.cos(a) * r * 0.32, y + sy * 0.03, math.sin(a) * r * 0.32),
+                   (math.cos(a) * r * 0.32, y + sy * 0.06, math.sin(a) * r * 0.32), 0.022, mats['steel'], 6)  # nuts
+    o = mb.obj(f'{name}_tmp')
+    me = o.data
+    me.name = name
+    bpy.data.objects.remove(o)
+    for p in me.polygons:
+        p.use_smooth = True
+    return me
+
+
 def tractor(name, loc=(0, 0, 0), rot_z=0.0, color=(0.85, 0.85, 0.84), mats=None, driver=True):
     """Day-cab tractor unit, facing +X, origin under the rear axle at ground. Returns (root, wheels)."""
     mats = mats or M()
@@ -586,25 +719,52 @@ def tractor(name, loc=(0, 0, 0), rot_z=0.0, color=(0.85, 0.85, 0.84), mats=None,
     root = empty(name, loc, size=1.5)
     root.rotation_euler = (0, 0, rot_z)
     mb = MB()
-    mb.box((1.6, 0, 1.05), (6.2, 0.9, 0.3), mats['steel'])
-    mb.box((3.9, 0, 2.05), (2.0, 2.45, 2.3), paint)  # cab
+    dk = pbr('MAT_TruckChassis', (0.05, 0.05, 0.055), 0.55, 0.4, grime=0.5, scale=0.4)
+    alu = pbr('MAT_FuelTank', (0.72, 0.73, 0.72), 0.3, 0.9, grime=0.35, scale=0.6)
+    blk = mats['plastic_black']
+    for sy in (-0.45, 0.45):
+        mb.box((1.6, sy, 1.0), (6.4, 0.16, 0.3), dk)                             # chassis rails
+    for x in (-0.6, 1.2, 3.2):
+        mb.box((x, 0, 1.0), (0.12, 0.9, 0.22), dk)
+    mb.box((3.9, 0, 2.05), (2.0, 2.45, 2.3), paint)                              # cab-over day cab
     mb.box((3.95, 0, 1.15), (2.1, 2.48, 0.6), paint)
-    mb.box((4.92, 0, 2.5), (0.06, 2.1, 0.9), mats['glass'])  # windscreen
+    mb.box((3.75, 0, 3.38), (1.7, 2.3, 0.35), paint)                             # roof fairing
+    for sy in (-0.53, 0.53):
+        mb.box((4.92, sy, 2.55), (0.06, 1.0, 0.95), mats['glass'])              # split windscreen
+    mb.box((4.94, 0, 2.55), (0.07, 0.08, 1.0), blk)
+    mb.box((5.0, 0, 3.1), (0.25, 2.35, 0.07), blk)                               # sun visor
     for sy in (-1.23, 1.23):
-        mb.box((4.1, sy, 2.4), (1.1, 0.04, 0.7), mats['glass'])
-        mb.box((5.0, sy * 1.18, 2.6), (0.08, 0.06, 0.45), mats['plastic_black'])  # mirrors
-    mb.box((4.97, 0, 1.3), (0.06, 2.2, 0.55), mats['steel'])  # grille
-    for sy in (-0.9, 0.9):
-        mb.box((4.98, sy, 1.05), (0.04, 0.35, 0.18), mats['lamp'])
-    mb.box((2.6, 0, 3.0), (0.3, 1.0, 0.8), mats['steel'])  # exhaust/air deflector stub
-    mb.cyl((2.75, 1.0, 1.4), (2.75, 1.0, 3.6), 0.1, mats['steel'], 8)
-    mb.box((0.0, 0, 1.25), (1.6, 1.8, 0.12), mats['plastic_black'])  # fifth wheel
-    for sy in (-1.05, 1.05):
-        mb.box((2.3, sy * 1.12, 1.1), (1.4, 0.25, 0.55), mats['steel'])  # tanks
+        mb.box((4.15, sy, 2.45), (1.0, 0.04, 0.75), mats['glass'])               # door window
+        sg = math.copysign(1, sy)
+        for x in (3.3, 4.75):
+            mb.box((x, sy + sg * 0.01, 1.95), (0.025, 0.02, 2.0), blk)           # door shut lines
+        mb.box((3.45, sy + sg * 0.03, 2.0), (0.2, 0.04, 0.05), mats['steel'])    # door handle
+        for z in (0.45, 0.75):
+            mb.box((4.1, sy * 0.98, z), (0.55, 0.32, 0.05), dk)                  # steps
+        mb.beam((4.85, sy, 2.95), (5.08, sy * 1.42, 2.85), 0.035, mats['steel'])  # mirror arm
+        mb.box((5.08, sy * 1.42, 2.6), (0.07, 0.22, 0.52), blk)                  # mirror
+        mb.cyl((1.5, sg * 1.12, 0.95), (2.75, sg * 1.12, 0.95), 0.3, alu, 20)    # fuel / air tanks
+        for x in (1.75, 2.5):
+            mb.cyl((x - 0.03, sg * 1.12, 0.95), (x + 0.03, sg * 1.12, 0.95), 0.315, dk, 20)  # straps
+        mb.box((0.0, sy * 0.83, 1.12), (1.3, 0.72, 0.05), blk)                   # rear mudguards
+        mb.box((-0.62, sy * 0.83, 0.85), (0.04, 0.72, 0.55), blk)                # mud flaps
+    mb.box((5.02, 0, 0.72), (0.26, 2.5, 0.36), dk)                               # bumper
+    for sy in (-0.95, 0.95):
+        mb.box((5.12, sy, 0.8), (0.04, 0.32, 0.16), mats['lamp'])                # headlamps
+    mb.box((4.98, 0, 1.35), (0.05, 1.7, 0.62), mats['steel'])                    # grille frame
+    for k in range(5):
+        mb.box((5.01, 0, 1.12 + k * 0.115), (0.04, 1.6, 0.05), dk)               # grille slats
+    mb.cyl((2.72, 1.0, 1.3), (2.72, 1.0, 4.0), 0.09, mats['steel'], 10)          # exhaust stack
+    mb.cyl((2.72, 1.0, 2.0), (2.72, 1.0, 3.0), 0.13, alu, 12)                    # heat shield
+    mb.cyl((2.72, -1.0, 1.4), (2.72, -1.0, 3.7), 0.17, dk, 12)                   # air intake
+    mb.box((2.72, -1.0, 3.78), (0.42, 0.42, 0.16), dk)
+    mb.box((0.0, 0, 1.25), (1.4, 1.6, 0.12), blk)                                # fifth wheel
+    mb.box((-0.55, 0, 1.25), (0.5, 0.25, 0.13), dk)                              # jaw slot
+    mb.cyl((2.85, -0.3, 1.5), (0.4, -0.3, 1.45), 0.025, mats['paint_blue'], 6)   # air lines
+    mb.cyl((2.85, -0.2, 1.5), (0.4, -0.2, 1.45), 0.025, mats['lamp_red'], 6)
     body = mb.obj(f'{name}_Body', root)
     wheels = []
-    wm = cyl_mesh(f'{name}_WheelM', 0.52, 0.32, 20, axis='Y', bevel=0.04)
-    wm.materials.append(mats['rubber'])
+    wm = wheel_mesh('LIB_PortTruckWheel', mats)
     for x in (0.0, 4.0):
         for sy in (-1.0, 1.0):
             wheels.append(obj(f'{name}_Wheel', wm, None, (x, sy, 0.52), parent=root))
@@ -630,11 +790,17 @@ def skeletal_trailer(name, parent, mats=None, length=12.5):
     mb.box((-2.2, 0.9, 0.7), (0.15, 0.15, 0.9), mats['steel'])
     mb.box((-2.2, -0.9, 0.7), (0.15, 0.15, 0.9), mats['steel'])
     mb.box((-length + 0.5, 0, 0.85), (0.15, 2.4, 0.3), mats['lamp_red'])
+    blk = mats['plastic_black']
+    for sy in (-0.83, 0.83):
+        mb.box((-length + 2.9, sy, 1.1), (4.1, 0.75, 0.04), blk)                 # mudguards over the axles
+        mb.box((-length + 0.75, sy, 0.75), (0.04, 0.7, 0.55), blk)               # mud flaps
+        for x in (-length + 0.75, 0.3):
+            mb.box((x, sy * 1.36, 1.38), (0.2, 0.12, 0.12), mats['steel'])      # twistlocks at the box corners
+    for x in (-length + 2.25, -length + 3.55):
+        mb.box((x, 0, 1.0), (0.12, 2.0, 0.12), mats['steel'])                    # axle cross members
     mb.obj(f'{name}_Chassis', root)
     wheels = []
-    wm = bpy.data.meshes.get('LIB_TrailerWheel') or cyl_mesh('LIB_TrailerWheel', 0.52, 0.3, 20, axis='Y', bevel=0.04)
-    if not wm.materials:
-        wm.materials.append(mats['rubber'])
+    wm = wheel_mesh('LIB_PortTruckWheel', mats)
     for x in (-length + 1.6, -length + 2.9, -length + 4.2):
         for sy in (-1.0, -0.66, 0.66, 1.0):
             wheels.append(obj(f'{name}_Wheel', wm, None, (x, sy, 0.52), parent=root))
