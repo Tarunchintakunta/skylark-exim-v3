@@ -708,8 +708,8 @@ def wake_mat(name='MAT_WakeFoam'):
     l.new(_sock(nz, 'Factor', out=True), fm.inputs[0])
     l.new(_sock(vr, 'Distance', out=True), fm.inputs[1])
     th = _node(nt, 'ShaderNodeMapRange', (-600, 300))
-    th.inputs['From Min'].default_value = 0.08
-    th.inputs['From Max'].default_value = 0.3
+    th.inputs['From Min'].default_value = 0.12
+    th.inputs['From Max'].default_value = 0.5
     l.new(fm.outputs[0], th.inputs['Value'])
     # fade: strong at the stern (u = 0), gone by u = 1; edges soft across (v 0..1, centre 0.5)
     fu = _node(nt, 'ShaderNodeMapRange', (-900, -300))
@@ -751,7 +751,11 @@ def wake_mat(name='MAT_WakeFoam'):
     a4.operation = 'MULTIPLY'
     l.new(a3.outputs[0], a4.inputs[0])
     l.new(ce.outputs[0], a4.inputs[1])
-    l.new(a4.outputs[0], p.inputs['Alpha'])
+    a5 = _node(nt, 'ShaderNodeMath', (100, -200))
+    a5.operation = 'MULTIPLY'
+    a5.inputs[1].default_value = 0.85
+    l.new(a4.outputs[0], a5.inputs[0])
+    l.new(a5.outputs[0], p.inputs['Alpha'])
     if hasattr(m, 'surface_render_method'):
         m.surface_render_method = 'BLENDED'
     return m
@@ -787,7 +791,7 @@ def wake(name, parent, stern_x, length=320.0, w0=14.0, w1=70.0, z=0.15, kelvin=T
     strip(length, w0, w1)
     if kelvin:
         for sg in (1, -1):
-            strip(length * 0.8, w0 * 0.25, w0 * 0.9, ang=sg * math.radians(19.5), off=0.0)
+            strip(length * 0.6, w0 * 0.6, w0 * 2.4, ang=sg * math.radians(19.5), off=0.0)
     me = bm_to_mesh(bm, name)
     me.materials.append(wake_mat())
     o = obj(name, me, None, (stern_x, 0, 0), parent=parent)
