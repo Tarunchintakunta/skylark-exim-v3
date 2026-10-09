@@ -1,7 +1,7 @@
 import { film, type CaptionCopy } from './content'
 
 /**
- * Visual source of one segment. A chapter's scroll length is split evenly across its segments.
+ * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
  * - video: public/media/<id>_{1280,720}.mp4 + <id>_{1280,720}.webp first-frame posters + <id>_end_1280.webp
  * - still: a stand-in image until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
  * - gradient: deep-blue stand-in
@@ -10,7 +10,7 @@ import { film, type CaptionCopy } from './content'
  */
 export type Media =
   | { kind: 'video'; id: string; alt: string }
-  | { kind: 'still'; poster: string; alt: string }
+  | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
   | { kind: 'globe'; alt: string }
@@ -103,7 +103,11 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' }],
+    // the lab still holds "Tested before it moves." (0–20%), the cold store the freezing / packing / cold-storage captions
+    media: [
+      { kind: 'still', poster: 'ph-p-lab', span: 0.2, alt: 'A clean quality lab bench with a microscope and a test instrument.' },
+      { kind: 'still', poster: 'ph-p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' },
+    ],
     captions: caps('coldchain', [[0.02, 0.2], [0.2, 0.55], [0.55, 0.8], [0.8, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
   },
   {
