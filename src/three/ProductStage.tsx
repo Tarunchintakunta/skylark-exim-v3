@@ -73,7 +73,7 @@ export default function ProductStage({ models }: { models: ModelDef[] }) {
         dpr={env.mobile ? 1 : [1, 1.5]}
         frameloop="demand"
         gl={{ antialias: false, alpha: true }}
-        camera={{ fov: 30, position: [0, 0.4, files.length > 1 ? 6.2 : 4.4] }}
+        camera={{ fov: 30, position: [0, 0.3, files.length > 1 ? 4.9 : 3.4] }}
         shadows={false}
       >
         <ambientLight intensity={1.2} />

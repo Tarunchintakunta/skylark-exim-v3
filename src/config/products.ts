@@ -5,13 +5,13 @@ export type Category = 'marine' | 'shrimps'
 
 export interface ModelDef {
   name: string
-  /** set to the file name in public/models once the optimised GLB exists (#33); until then a DOM card is shown */
+  /** file in public/models (kohl-draft placeholders until the Blender models are approved, #33 #61 #62); DOM card if missing */
   glb?: string
 }
 
 export const CATEGORIES: Record<Category, { label: string; species: string[]; models: ModelDef[] }> = {
-  marine: { label: 'Marine Fish', species: MARINE_FISH, models: [{ name: 'Tuna' }, { name: 'Swordfish' }] },
-  shrimps: { label: 'Shrimps', species: SHRIMPS, models: [{ name: 'Shrimp' }] },
+  marine: { label: 'Marine Fish', species: MARINE_FISH, models: [{ name: 'Tuna', glb: 'tuna.glb' }, { name: 'Swordfish', glb: 'swordfish.glb' }] },
+  shrimps: { label: 'Shrimps', species: SHRIMPS, models: [{ name: 'Shrimp', glb: 'shrimp.glb' }] },
 }
 
 export const SPECIES_OFFERED = 'Litopenaeus vannamei (Vannamei) & Penaeus monodon (Black Tiger)'
