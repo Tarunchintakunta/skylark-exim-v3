@@ -154,12 +154,14 @@ def add_container(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
     for sz in (-1, 1):
         for sy in (-1, 1):
             mb.box(cx + R @ Vector((0, sy * (CW / 2 - 0.05), sz * (CH / 2 - 0.08))), (L - 0.3, 0.1, 0.16), m, dark, rot=R)
-    # door bars on the +X end
+    # door bars on the -X end; a reefer's refrigeration unit sits on the +X (front) wall
     for k in (-0.75, -0.3, 0.3, 0.75):
-        mb.box(cx + R @ Vector((L / 2 + 0.01, k, 0)), (0.05, 0.04, CH - 0.35), m, dark, rot=R)
+        mb.box(cx + R @ Vector((-L / 2 - 0.01, k, 0)), (0.05, 0.04, CH - 0.35), m, dark, rot=R)
     if reefer:
-        mb.box(cx + R @ Vector((-L / 2 - 0.02, 0, 0)), (0.06, CW - 0.4, CH - 0.5), m, (0.22, 0.24, 0.26), rot=R)
-        mb.box(cx + R @ Vector((-L / 2 - 0.04, 0.5, 0.4)), (0.05, 0.8, 0.8), m, (0.1, 0.1, 0.11), rot=R)
+        mb.box(cx + R @ Vector((L / 2 + 0.02, 0, 0)), (0.06, CW - 0.4, CH - 0.5), m, (0.22, 0.24, 0.26), rot=R)
+        mb.box(cx + R @ Vector((L / 2 + 0.04, 0.5, 0.4)), (0.05, 0.8, 0.8), m, (0.1, 0.1, 0.11), rot=R)
+        for k in range(4):
+            mb.box(cx + R @ Vector((L / 2 + 0.05, -0.6, -0.6 + k * 0.25)), (0.03, 0.7, 0.05), m, (0.4, 0.42, 0.44), rot=R)
 
 
 def container_block(name, origin, nx, ny, heights, mat, rnd, reefer_rows=(), axis_x=True, gap=(0.35, 0.35), skip=None,
