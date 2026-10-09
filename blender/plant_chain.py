@@ -159,13 +159,27 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
     return o
 
 
-CRATE_COL = {'blue': (0.075, 0.16, 0.30), 'red': (0.34, 0.075, 0.055), 'white': (0.72, 0.73, 0.71),
+CRATE_COL = {'blue': (0.05, 0.10, 0.19), 'red': (0.19, 0.065, 0.055), 'white': (0.66, 0.67, 0.65),
              'yellow': (0.6, 0.45, 0.08)}
 
 
 def crate_mat(color):
     """Desaturated, slightly scuffed HDPE crate plastic."""
     return P.grime_paint('CR_%s' % color, CRATE_COL[color], rough=0.42, grime=0.35, streak=0.15, coat=0.0, metal=0.0)
+
+
+def shrimp_fn(C):
+    import skfarm as F
+
+    def fn(name, loc, rot):
+        return F.shrimp(name, loc, rot, None, C)
+    return fn
+
+
+def fish_fn():
+    def fn(name, kind, loc, rot):
+        return L.fish(name, kind, loc, rot)
+    return fn
 
 
 def chock(name, C):
@@ -316,10 +330,16 @@ def build_truck_reverse(C_people):
     tr.parent = w3
     tr.location = (0, -0.95, 0)
     tr.rotation_euler = (0, 0, D(90))
-    H.walk_cycle(w3, 180, 300, [(180, (-6.0, 7.2)), (300, (3.5, 6.6))], stride=0.68,
+    for k, (ly, lz) in enumerate(((-0.24, 0), (0.24, 0), (-0.24, 1), (0.24, 1))):
+        c = crate('PL_PushCrate%d' % k, ['blue', 'white', 'blue', 'blue'][k], (ly, 0, 0.325 + lz * 0.3), D(90), tr,
+                  'ice', 600 + k)
+    w3_path = [(180, (-6.0, 7.2)), (300, (3.5, 6.6)), (330, (4.6, 7.0)), (400, (7.6, 10.6)), (430, (8.2, 12.3)),
+               (466, (8.2, 13.55))]
+    H.walk_cycle(w3, 180, 466, w3_path, stride=0.68,
                  base={'upperarm': (40, -8, 0), 'forearm': (40, 0, 0), 'spine': (10, 0, 0)}, arms=False)
-    for f in range(180, 301, 2):
-        w3.location.z = w3.location.z
+    H.set_pose(w3, {'upperarm': (40, -8, 0), 'forearm': (40, 0, 0), 'spine': (10, 0, 0)}, 470)
+    H.jitter(w3, {'upperarm': (30, -10, 0), 'forearm': (35, 0, 0), 'spine': (6, 0, 0)}, 476, 1060, every=24, amp=4,
+             seed=23)
     _lift(w3, S.DZ)
     w4 = H.person('HUM_DockW4', 'plant_coat', 'female', coll=C_people, seed=24)
     w4.location = (11.6, 10.2, S.DZ)
@@ -371,9 +391,14 @@ def camera_truck_reverse():
         (248, (4.65, -1.4, 2.6), (5.2, 4.0, 2.6)),
         (264, (5.9, 1.9, 2.85), (8.8, 1.0, 2.45)),
         (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY, -1.4, 2.15)),
-        (300, (9.0, 4.55, 2.85), (S.TRUCK_BAY, -1.6, 2.15)),
     ]
     for f, loc, t in keys:
+        cam.location = loc
+        cam.keyframe_insert('location', frame=f)
+        tgt.location = t
+        tgt.keyframe_insert('location', frame=f)
+    import plant_chain_b as B
+    for f, loc, t in B.CAM_KEYS:
         cam.location = loc
         cam.keyframe_insert('location', frame=f)
         tgt.location = t
@@ -413,14 +438,27 @@ def build(scene, out):
     S.exterior()
     S.dock(lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd),
            lambda n, l, r, C: trolley(n, l, r, C))
-    S.intake_shell()
-    build_truck_reverse(C_people)
-    camera_truck_reverse()
+    import skinterior as SI
+    C_in = S.coll('SET_Interior')
+    ice_m = L.ice_mesh('IN_IceBed', 0.54, 0.34, 0.05, 40, 9)
+    SI.build_all(C_in, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd),
+                 lambda n, l, r, C: trolley(n, l, r, C), shrimp_fn(C_in), fish_fn(), ice_m)
+    strips = SI._strip_curtain('PL_IntakeStrip', SI.CX - 1.55, SI.CX + 1.55, 12.0, S.DZ, S.DZ + 3.18, C_in, SI.mats())
+    SI.swing_strips(strips, [(424, 440, 8.2, 0.85, -1)])
+    SI.animate_spray(1, 1100)
+    R = build_truck_reverse(C_people)
+    import plant_chain_b as B
+    B.build_interior_people(C_people, R)
+    cam = camera_truck_reverse()
+    B.extend_camera(cam)
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
     P.look_settings('exterior', exposure=0.0)
     f0, f1 = OFFSETS[scene]
+    if scene in ('p-proc', 'p-freeze'):
+        for cn in ('SET_PlantExterior',):
+            bpy.data.collections[cn].hide_render = True
     shift_all(1 - f0)
     s.frame_start, s.frame_end = 1, f1 - f0 + 1
     s.frame_current = 1

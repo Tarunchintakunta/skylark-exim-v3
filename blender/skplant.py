@@ -129,7 +129,7 @@ def MATS():
         'panel': panel_mat(),
         'panel_grey': panel_mat('PL_PanelGrey', (0.42, 0.45, 0.48), axis='X'),
         'panel_in': panel_mat('PL_PanelInside', (0.86, 0.88, 0.89), axis='X', grime=0.08),
-        'plinth': P.tex_mat('PL_DockFace', 'concrete_floor_02', scale=0.5, sat=0.2, tint=(0.78, 0.78, 0.77), dirt=0.3),
+        'plinth': P.tex_mat('PL_DockFace', 'painted_concrete', scale=0.25, sat=0.0, tint=(0.62, 0.63, 0.63), rough=0.7, normal=0.4, dirt=0.25),
         'apron': P.tex_mat('PL_Apron', 'concrete_floor_02', scale=0.22, sat=0.5, tint=(0.95, 0.94, 0.92), dirt=0.2,
                            dirt_scale=0.04),
         'asphalt': P.tex_mat('PL_Asphalt', 'asphalt_02', scale=0.18, sat=0.4, tint=(0.8, 0.8, 0.82), macro=0.2, dirt_scale=0.03),
@@ -146,8 +146,7 @@ def MATS():
         'glass': P.plain('PL_Glass', (0.03, 0.045, 0.055), 0.03, 0.0, coat=1.0),
         'line_white': line_mat('PL_LineWhite', (0.85, 0.85, 0.82)),
         'line_yellow': line_mat('PL_LineYellow', (0.8, 0.58, 0.05)),
-        'epoxy': P.tex_mat('PL_Epoxy', 'concrete_floor_painted', scale=0.25, sat=0.15, tint=(0.72, 0.76, 0.78),
-                           rough=0.12, coat=0.8, normal=0.25, macro=0.06),
+        'epoxy': P.plain('PL_Epoxy', (0.50, 0.55, 0.58), 0.16, coat=0.7, bump=0.03, bump_scale=3),
         'curtain': P.plain('PL_StripCurtain', (0.55, 0.68, 0.74), 0.06, 0.0, alpha=0.55, coat=0.6),
         'led': P.plain('PL_LED', (1, 1, 1), 0.3, emission=(0.94, 0.97, 1.0), estr=18.0),
         'lamp_ext': P.plain('PL_WallLamp', (1, 1, 1), 0.3, emission=(1.0, 0.97, 0.92), estr=6.0),
@@ -420,8 +419,10 @@ def _yard(M, C, rnd, veg):
         else:
             T.place(tm, 'VEG_Tree', (x, -36 + rnd.uniform(-1.5, 2), 0), rnd.uniform(0.85, 1.25), coll=C, rnd=rnd)
     for i in range(7):
-        T.place(pm, 'VEG_Palm', (27 + rnd.uniform(0, 3), -30 + i * 4.5 + rnd.uniform(-1, 1), 0), rnd.uniform(0.85, 1.2),
-                coll=C, rnd=rnd)
+        y = -30 + i * 4.5 + rnd.uniform(-1, 1)
+        if abs(y + 10) < 6.5:
+            continue
+        T.place(pm, 'VEG_Palm', (27 + rnd.uniform(0, 3), y, 0), rnd.uniform(0.85, 1.2), coll=C, rnd=rnd)
     for i in range(20):
         T.place(sm, 'VEG_Shrub', (-38 + i * 3.2 + rnd.uniform(-0.8, 0.8), -33.4, 0), rnd.uniform(0.6, 1.1), coll=C, rnd=rnd)
     # neighbouring low industrial buildings far behind the trees
@@ -532,12 +533,7 @@ def dock(crate_fn, trolley_fn):
     p.box((X0 + 0.1, 6, (DZ + HT) / 2), (0.16, 12.2, HT - DZ))
     p.box((X1 - 0.1, 6, (DZ + HT) / 2), (0.16, 12.2, HT - DZ))
     p.make('PL_DockEndWalls', M['panel_in'], None, coll=C)
-    # strip curtain across the intake opening
-    p = Part()
-    for i in range(14):
-        x = TRUCK_BAY - 2.5 + i * 0.22
-        p.box((x, 12.0 + (0.015 if i % 2 else -0.015), DZ + 1.6), (0.3, 0.006, 3.15))
-    p.make('PL_StripCurtain', M['curtain'], None, coll=C)
+    # strip curtain across the intake opening: individual swinging strips, built by the scene (skinterior)
     p = Part()
     p.box((TRUCK_BAY - 1.0, 11.95, DZ + 3.26), (3.4, 0.12, 0.12))
     for sx in (-1, 1):

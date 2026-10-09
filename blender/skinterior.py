@@ -1,0 +1,626 @@
+"""Plant interior behind the dock (shared by p-intake, p-proc, p-freeze; deterministic, identical names):
+  intake  y 12-21  : boot dip, hand-wash sinks, platform scale, crate stacks, hose reels
+  wash    y 21-29  : two stainless wash tanks with spray bars and running water, inclined outfeed conveyor
+  grade   y 29-41  : long belt conveyor, roller grading machine with chutes into trays
+  process y 41-53  : four long stainless tables (peeling / deveining), one fish table, trays and ice
+  lab     y 54-60  : glazed partition + door, QC bench, scale, sample trays, cabinet, fridge
+  freeze  y 60-69  : plate freezer cabinet, IQF belt tunnel with glazing spray, trolleys of trays
+  pack    y 69-77  : packing tables, export cartons (blank labels), strapping + vacuum machines, carton stacks
+  cold    y 77-96  : insulated door + strip curtain, pallet racking both sides, wrapped pallets, light frost
+Hall x -6..22.4, floor z = DZ, ceiling z = DZ + 5.2. Centre line CX = 8.2 (behind the truck bay)."""
+import math
+import random
+import bpy
+import bmesh
+from mathutils import Vector, Matrix, Euler
+import skpbr as P
+import skplant as S
+from sktruck import Part
+
+DZ = S.DZ
+CX = S.TRUCK_BAY - 1.0
+XL, XR = -6.0, 22.4
+CEIL = DZ + 5.2
+Y_END = 84.0
+
+
+def mats():
+    M = S.MATS()
+    M.update({
+        'water': P.plain('IN_TankWater', (0.25, 0.32, 0.34), 0.02, transmission=0.85, ior=1.33),
+        'belt': P.plain('IN_BeltWhite', (0.78, 0.8, 0.8), 0.35, bump=0.2, bump_scale=60),
+        'tray_white': P.plain('IN_TrayWhite', (0.8, 0.81, 0.79), 0.35),
+        'tray_blue': P.plain('IN_TrayBlue', (0.12, 0.22, 0.38), 0.4),
+        'rubber_mat': P.plain('IN_FootDip', (0.05, 0.06, 0.07), 0.6),
+        'frost': P.plain('IN_Frost', (0.86, 0.9, 0.93), 0.6, bump=0.6, bump_scale=80),
+        'rack_blue': P.grime_paint('IN_RackBlue', (0.08, 0.2, 0.38), rough=0.4, grime=0.2, streak=0.1, coat=0.2),
+        'rack_orange': P.grime_paint('IN_RackOrange', (0.62, 0.3, 0.05), rough=0.4, grime=0.2, streak=0.1, coat=0.2),
+        'wrap': P.plain('IN_StretchWrap', (0.85, 0.88, 0.9), 0.12, alpha=0.45, coat=0.8, bump=0.2, bump_scale=6),
+        'label': P.plain('IN_LabelBlank', (0.95, 0.95, 0.94), 0.5),
+        'label_line': P.plain('IN_LabelLine', (0.45, 0.47, 0.5), 0.5),
+        'glass_clear': P.plain('IN_GlassClear', (0.85, 0.9, 0.92), 0.02, transmission=0.95, ior=1.45),
+        'tape': P.plain('IN_Tape', (0.7, 0.6, 0.42), 0.3, coat=0.4),
+        'strap': P.plain('IN_Strap', (0.75, 0.75, 0.73), 0.4),
+        'vacbag': P.plain('IN_VacBag', (0.8, 0.84, 0.86), 0.08, alpha=0.6, coat=1.0),
+        'block': P.plain('IN_FrozenBlock', (0.72, 0.74, 0.74), 0.25, coat=0.5, sss=0.2),
+    })
+    return M
+
+
+def _light(name, loc, size=(6, 3), energy=600, C=None, color=(0.93, 0.97, 1.0)):
+    ld = bpy.data.lights.new(name, 'AREA')
+    ld.shape = 'RECTANGLE'
+    ld.size, ld.size_y = size
+    ld.energy = energy
+    ld.color = color
+    lo = bpy.data.objects.new(name, ld)
+    C.objects.link(lo)
+    lo.location = loc
+    ld.use_shadow = (sum(map(ord, name)) % 2 == 0)     # half the fills cast shadows (shadow pool budget)
+    return lo
+
+
+def shell(C, M):
+    p = Part()
+    p.box(((XL + XR) / 2, 72.0, DZ / 2), (XR - XL, 24, DZ))
+    p.make('IN_FloorSlab2', M['epoxy'], None, coll=C)
+    p = Part()
+    p.box(((XL + XR) / 2, (12 + Y_END) / 2, CEIL + 0.05), (XR - XL, Y_END - 12, 0.1))
+    p.make('IN_Ceiling', M['panel_in'], None, coll=C)
+    p = Part()
+    for x in (XL, XR):
+        p.box((x, (12 + Y_END) / 2, (DZ + CEIL) / 2), (0.16, Y_END - 12, CEIL - DZ))
+    p.box(((XL + XR) / 2, Y_END, (DZ + CEIL) / 2), (XR - XL, 0.16, CEIL - DZ))
+    p.make('IN_Walls', M['panel_in'], None, coll=C)
+    p = Part()
+    for x in (XL + 0.1, XR - 0.1):
+        p.box((x, (12 + Y_END) / 2, DZ + 0.2), (0.03, Y_END - 12, 0.4))
+    p.make('IN_Kick', M['stainless'], None, coll=C)
+    # LED panels in rows + area lights
+    p = Part()
+    for y in [13.5 + i * 3.0 for i in range(24)]:
+        for x in (0.0, 5.5, 11.0, 16.5):
+            p.box((x, y, CEIL - 0.03), (1.2, 0.3, 0.03))
+    p.make('IN_LED', M['led'], None, coll=C)
+    for k, y in enumerate(range(15, 84, 6)):
+        for j, x in enumerate((2.0, 14.4)):
+            _light('IN_Area_%d_%d' % (k, j), (x, y, CEIL - 0.25), (7, 4), 420, C)
+    # floor drains along the line + wet sheen patches
+    p = Part()
+    for x in (2.0, 14.4):
+        p.box((x, 48, DZ + 0.004), (0.22, 70, 0.01))
+    p.make('IN_Drains', P.tex_mat('PL_Grate', 'metal_plate', scale=4.0, metal=1.0, tint=(0.5, 0.5, 0.5)), None, coll=C)
+    p = Part()
+    for k in range(18):
+        r = random.Random(k)
+        p.box((CX + r.uniform(-7, 7), 14 + k * 2.3, DZ + 0.002), (r.uniform(1, 3), r.uniform(0.8, 2.0), 0.002))
+    p.make('IN_WetPatches', P.plain('IN_WetFilm', (0.2, 0.22, 0.24), 0.02, alpha=0.35, coat=1.0), None, coll=C)
+
+
+def _strip_curtain(name, x0, x1, y, z0, z1, C, M, n=None):
+    """Individual PVC strips (origin at the top) so they can swing when a trolley passes."""
+    n = n or int((x1 - x0) / 0.22)
+    strips = []
+    me = None
+    for i in range(n):
+        x = x0 + (i + 0.5) * (x1 - x0) / n
+        if me is None:
+            p = Part()
+            p.box((0, 0, -(z1 - z0) / 2), (0.3, 0.006, z1 - z0))
+            o = p.make('%s_%02d' % (name, i), M['curtain'], None, coll=C)
+            me = o.data
+        else:
+            o = bpy.data.objects.new('%s_%02d' % (name, i), me)
+            C.objects.link(o)
+        o.location = (x, y + (0.012 if i % 2 else -0.012), z1)
+        strips.append(o)
+    return strips
+
+
+def swing_strips(strips, passes):
+    """passes: [(frame_in, frame_out, x_centre, half_width, direction)] -> strips in range swing open and settle."""
+    for o in strips:
+        keyed = False
+        for f_in, f_out, xc, hw, dirn in passes:
+            if abs(o.location.x - xc) > hw:
+                continue
+            for f, a in ((f_in - 4, 0.0), (f_in + 4, 1.05), (f_out, 0.95), (f_out + 8, -0.25), (f_out + 16, 0.08),
+                         (f_out + 24, 0.0)):
+                o.rotation_euler = (a * dirn, 0, 0)
+                o.keyframe_insert('rotation_euler', frame=f)
+                keyed = True
+        if not keyed:
+            o.rotation_euler = (0, 0, 0)
+
+
+def intake(C, M, crate_fn, trolley_fn):
+    # boot dip tray + foot-operated sinks + hand dryers + platform scale + hose reels + crate stacks
+    p = Part()
+    p.box((CX + 5.6, 13.3, DZ + 0.05), (1.6, 1.2, 0.1))
+    p.make('IN_BootDip', M['stainless'], None, bevel=0.01, coll=C)
+    p = Part()
+    p.box((CX + 5.6, 13.3, DZ + 0.085), (1.4, 1.0, 0.01))
+    p.make('IN_BootDipWater', M['water'], None, coll=C)
+    p = Part()
+    for k in range(4):
+        y = 13.5 + k * 1.1
+        p.box((XL + 0.45, y, DZ + 0.82), (0.55, 0.8, 0.22))
+        p.box((XL + 0.25, y, DZ + 0.4), (0.12, 0.3, 0.8))
+        p.box((XL + 0.4, y, DZ + 0.06), (0.25, 0.25, 0.06))
+        p.cyl((XL + 0.2, y, DZ + 1.05), (XL + 0.45, y, DZ + 1.15), 0.015, 8)
+    p.make('IN_Sinks', M['stainless'], None, bevel=0.01, coll=C)
+    p = Part()
+    p.box((16.0, 18.5, DZ + 0.05), (1.2, 1.2, 0.1))
+    p.box((16.0, 17.9, DZ + 0.6), (0.1, 0.1, 1.1))
+    p.box((16.0, 17.9, DZ + 1.2), (0.4, 0.15, 0.3))
+    p.make('IN_PlatformScale', M['stainless'], None, bevel=0.01, coll=C)
+    p = Part()
+    for y in (19.0, 30.0, 42.0, 56.0):
+        p.cyl((XR - 0.12, y, DZ + 1.6), (XR - 0.3, y, DZ + 1.6), 0.32, 24)
+    p.make('IN_HoseReels', M['yellow'], None, coll=C)
+    k = 0
+    for (x, y) in ((17.5, 13.2), (18.2, 13.2), (17.5, 13.9), (-3.5, 18.5), (-2.8, 18.5)):
+        for lv in range(5):
+            crate_fn('IN_Stack%02d' % k, ['blue', 'white', 'blue', 'red'][(k + lv) % 4], (x, y, DZ + lv * 0.3), 0.0, None,
+                     None, 400 + k)
+            k += 1
+    trolley_fn('IN_Trolley1', (16.4, 18.0, DZ), math.radians(80), C)
+    trolley_fn('IN_Trolley2', (-1.5, 20.0, DZ), math.radians(95), C)
+
+
+def wash(C, M, rnd, shrimp_fn):
+    """Two wash tanks with spray bars, running water and product; inclined outfeed conveyor toward the grader."""
+    for t, x in enumerate((CX - 2.6, CX + 2.6)):
+        y = 15.6
+        p = Part()
+        bm = p.bm
+        for (cx, cy, sx, sy, sz, cz) in ((0, 0, 3.2, 1.5, 0.06, 0.03), (0, 0.75, 3.2, 0.05, 0.95, 0.475),
+                                          (0, -0.75, 3.2, 0.05, 0.95, 0.475), (1.6, 0, 0.05, 1.5, 0.95, 0.475),
+                                          (-1.6, 0, 0.05, 1.5, 0.95, 0.475)):
+            p.box((x + cx, y + cy, DZ + 0.15 + cz), (sx, sy, sz))
+        for sx in (-1.45, 1.45):
+            for sy in (-0.6, 0.6):
+                p.box((x + sx, y + sy, DZ + 0.075), (0.06, 0.06, 0.15))
+        p.box((x, y - 0.78, DZ + 1.12), (3.25, 0.1, 0.04))
+        p.make('IN_Tank%d' % t, M['stainless'], None, bevel=0.008, coll=C)
+        w = Part()
+        w.box((x, y, DZ + 0.92), (3.1, 1.4, 0.02))
+        wo = w.make('IN_TankWater%d' % t, M['water'], None, coll=C)
+        # spray bar + falling water curtains
+        p = Part()
+        p.cyl((x - 1.5, y, DZ + 1.75), (x + 1.5, y, DZ + 1.75), 0.03, 10)
+        for sy in (-0.7, 0.7):
+            p.cyl((x - 1.5, y + sy * 0.0, DZ + 1.75), (x - 1.5, y + sy, DZ + 1.75), 0.02, 8)
+        for k in range(9):
+            p.cyl((x - 1.4 + k * 0.35, y, DZ + 1.75), (x - 1.4 + k * 0.35, y, DZ + 1.68), 0.012, 6)
+        for sx in (-1.6, 1.6):
+            p.cyl((x + sx, y + 0.75, DZ + 1.1), (x + sx, y + 0.75, DZ + 1.8), 0.025, 8)
+        p.make('IN_SprayBar%d' % t, M['stainless'], None, coll=C)
+        sp = Part()
+        for k in range(9):
+            xx = x - 1.4 + k * 0.35
+            sp.box((xx, y, DZ + 1.31), (0.18, 0.004, 0.72), Euler((0, 0, rnd.uniform(-0.2, 0.2))))
+        so = sp.make('IN_Spray%d' % t, _spray_mat(), None, coll=C)
+        # product in the tank (under/at the surface)
+        for k in range(60):
+            shrimp_fn('IN_TankShrimp%d_%02d' % (t, k), (x + rnd.uniform(-1.4, 1.4), y + rnd.uniform(-0.6, 0.6),
+                                                        DZ + 0.86 + rnd.uniform(-0.06, 0.04)),
+                      (rnd.uniform(0, 6.28), rnd.uniform(-0.6, 0.6), rnd.uniform(0, 6.28)))
+        # perforated baskets on the tank rim
+        p = Part()
+        for k in range(2):
+            p.box((x - 0.7 + k * 1.4, y - 0.95, DZ + 1.2), (0.55, 0.38, 0.22))
+        p.make('IN_Baskets%d' % t, M['tray_blue'], None, bevel=0.01, coll=C)
+    # inclined outfeed conveyor from between the tanks up to the grading line
+    _conveyor('IN_Outfeed', (CX, 17.2, DZ + 0.6), (CX, 20.5, DZ + 0.95), 0.6, C, M)
+
+
+_SPRAY = {}
+
+
+def _spray_mat():
+    if 'm' in _SPRAY:
+        return _SPRAY['m']
+    m = bpy.data.materials.new('IN_SprayWater')
+    m.use_nodes = True
+    m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    L = nt.links
+    p = nt.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0.9, 0.95, 0.97, 1)
+    p.inputs['Roughness'].default_value = 0.05
+    p.inputs['Transmission Weight'].default_value = 0.6
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.name = 'SprayMap'
+    mp.inputs['Scale'].default_value = (30, 30, 3)
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Detail'].default_value = 4
+    L.new(mp.outputs[0], nz.inputs['Vector'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = 0.5
+    mr.inputs['From Max'].default_value = 0.7
+    mr.inputs['To Max'].default_value = 0.7
+    L.new(nz.outputs['Fac'], mr.inputs['Value'])
+    L.new(mr.outputs[0], p.inputs['Alpha'])
+    _SPRAY['m'] = m
+    return m
+
+
+def animate_spray(f0, f1):
+    m = _SPRAY.get('m')
+    if not m:
+        return
+    sock = m.node_tree.nodes['SprayMap'].inputs['Location']
+    for f in (f0, f1):
+        sock.default_value = (0, 0, (f - f0) / 24 * 4.0)
+        sock.keyframe_insert('default_value', frame=f)
+    import sktruck
+    for fc in sktruck._fcurves(m.node_tree.animation_data.action):
+        for kp in fc.keyframe_points:
+            kp.interpolation = 'LINEAR'
+
+
+def _conveyor(name, a, b, width, C, M, legs=True):
+    a, b = Vector(a), Vector(b)
+    d = b - a
+    Lg = d.length
+    ang = math.atan2(d.z, d.y)
+    mid = (a + b) / 2
+    rot = Euler((ang, 0, 0))
+    p = Part()
+    for sx in (-1, 1):
+        p.box(mid + Vector((sx * (width / 2 + 0.04), 0, 0)), (0.05, Lg, 0.16), rot)
+    if legs:
+        n = max(2, int(Lg / 2.0) + 1)
+        for k in range(n):
+            t = k / (n - 1)
+            q = a.lerp(b, t)
+            for sx in (-1, 1):
+                p.box((q.x + sx * (width / 2 + 0.04), q.y, (DZ + q.z) / 2), (0.05, 0.05, q.z - DZ))
+    p.make(name + '_Frame', M['stainless'], None, bevel=0.005, coll=C)
+    p = Part()
+    p.box(mid + Vector((0, 0, 0.06)), (width, Lg, 0.02), rot)
+    belt = p.make(name + '_Belt', M['belt'], None, coll=C)
+    return belt
+
+
+def grading(C, M, rnd, shrimp_fn):
+    belt = _conveyor('IN_GradeBelt', (CX, 20.5, DZ + 0.95), (CX, 31.5, DZ + 0.95), 0.7, C, M)
+    # roller grader: hopper, inclined rollers in a frame, four chutes on each side into trays
+    p = Part()
+    p.box((CX, 26.5, DZ + 1.25), (1.4, 3.2, 0.08), Euler((0.06, 0, 0)))
+    for sx in (-1, 1):
+        p.box((CX + sx * 0.72, 26.5, DZ + 1.3), (0.05, 3.3, 0.5))
+    for k in range(4):
+        for sx in (-1, 1):
+            p.box((CX + sx * 1.05, 25.4 + k * 0.75, DZ + 0.95), (0.6, 0.45, 0.04), Euler((0, sx * 0.5, 0)))
+    for sx in (-0.7, 0.7):
+        for sy in (25.0, 28.0):
+            p.box((CX + sx, sy, DZ + 0.62), (0.08, 0.08, 1.24))
+    p.box((CX, 24.8, DZ + 1.75), (1.2, 0.6, 0.5))
+    p.make('IN_Grader', M['stainless'], None, bevel=0.01, coll=C)
+    p = Part()
+    for k in range(14):
+        p.cyl((CX - 0.68, 25.0 + k * 0.22, DZ + 1.32 + k * 0.012), (CX + 0.68, 25.0 + k * 0.22, DZ + 1.32 + k * 0.012), 0.045, 12)
+    rollers = p.make('IN_GraderRollers', M['steel'], None, coll=C)
+    p = Part()
+    p.box((CX + 0.0, 24.75, DZ + 2.04), (0.6, 0.4, 0.12))
+    p.make('IN_GraderMotor', P.plain('IN_MotorGrey', (0.35, 0.38, 0.4), 0.4, 0.4), None, bevel=0.02, coll=C)
+    # trays under the chutes with graded product, and stacked trays
+    for k in range(4):
+        for sx in (-1, 1):
+            tr = _tray('IN_GradeTray_%d_%d' % (k, sx > 0), (CX + sx * 1.45, 25.4 + k * 0.75, DZ + 0.7), C, M)
+            for m in range(10):
+                shrimp_fn('%s_S%02d' % (tr.name, m), (CX + sx * 1.45 + rnd.uniform(-0.18, 0.18),
+                                                     25.4 + k * 0.75 + rnd.uniform(-0.12, 0.12), DZ + 0.74),
+                          (rnd.uniform(-0.3, 0.3), rnd.uniform(-0.3, 0.3), rnd.uniform(0, 6.28)))
+    p = Part()
+    for sx in (-1, 1):
+        for k in range(4):
+            p.box((CX + sx * 1.45, 25.4 + k * 0.75, DZ + 0.34), (0.5, 0.36, 0.68))
+    p.make('IN_TrayStands', M['stainless'], None, bevel=0.01, coll=C)
+    return belt
+
+
+def _tray(name, loc, C, M, blue=False):
+    key = 'tray_mesh'
+    if key not in _SPRAY:
+        p = Part()
+        bm = p.bm
+        p.box((0, 0, 0.0), (0.5, 0.36, 0.012))
+        for (cx, cy, sx, sy) in ((0, 0.18, 0.5, 0.012), (0, -0.18, 0.5, 0.012), (0.25, 0, 0.012, 0.36), (-0.25, 0, 0.012, 0.36)):
+            p.box((cx, cy, 0.04), (sx, sy, 0.08))
+        o = p.make(name, M['tray_white'], None, coll=C)
+        _SPRAY[key] = o.data
+    else:
+        o = bpy.data.objects.new(name, _SPRAY[key])
+        C.objects.link(o)
+    o.location = loc
+    if blue:
+        o.material_slots[0].link = 'OBJECT'
+        o.material_slots[0].material = M['tray_blue']
+    return o
+
+
+def processing(C, M, rnd, shrimp_fn, fish_fn, ice_mesh):
+    """Four long stainless peeling tables (along +Y), one fish table, trays with product on ice."""
+    tables = []
+    for t, x in enumerate((CX - 6.4, CX - 3.2, CX + 3.2, CX + 6.4)):
+        y0, y1 = 32.5, 43.5
+        p = Part()
+        p.box((x, (y0 + y1) / 2, DZ + 0.9), (1.0, y1 - y0, 0.04))
+        for sx in (-0.52, 0.52):
+            p.box((x + sx, (y0 + y1) / 2, DZ + 0.95), (0.03, y1 - y0, 0.08))
+        for k in range(6):
+            yy = y0 + 0.3 + k * (y1 - y0 - 0.6) / 5
+            for sx in (-0.42, 0.42):
+                p.box((x + sx, yy, DZ + 0.45), (0.04, 0.04, 0.9))
+        p.box((x, (y0 + y1) / 2, DZ + 0.18), (0.9, y1 - y0 - 0.4, 0.02))
+        p.make('IN_Table%d' % t, M['stainless'], None, bevel=0.006, coll=C)
+        # centre gutter of crushed ice with product + work trays along both sides
+        ice = bpy.data.objects.new('IN_TableIce%d' % t, ice_mesh)
+        C.objects.link(ice)
+        ice.location = (x, (y0 + y1) / 2, DZ + 0.92)
+        ice.scale = (0.5 / 0.54, (y1 - y0) / 0.34 * 0.9, 1.2)
+        for m in range(110):
+            shrimp_fn('IN_TabShrimp%d_%03d' % (t, m), (x + rnd.uniform(-0.18, 0.18), rnd.uniform(y0 + 0.4, y1 - 0.4),
+                                                       DZ + 0.97 + rnd.uniform(0, 0.03)),
+                      (rnd.uniform(-0.4, 0.4), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)))
+        for k in range(8):
+            for sx in (-1, 1):
+                tr = _tray('IN_WorkTray_%d_%d_%d' % (t, k, sx > 0), (x + sx * 0.3, y0 + 0.9 + k * 1.2, DZ + 0.92), C, M,
+                           blue=(k + t) % 3 == 0)
+                tr.scale = (0.7, 0.8, 1)
+                for m in range(5):
+                    shrimp_fn('%s_S%d' % (tr.name, m), (x + sx * 0.3 + rnd.uniform(-0.1, 0.1),
+                                                       y0 + 0.9 + k * 1.2 + rnd.uniform(-0.08, 0.08), DZ + 0.95),
+                              (rnd.uniform(-0.3, 0.3), 0, rnd.uniform(0, 6.28)))
+        tables.append((x, y0, y1))
+    # fish table (cleaning fish) at the right wall
+    x = XR - 1.6
+    p = Part()
+    p.box((x, 38.0, DZ + 0.9), (1.2, 8.0, 0.04))
+    for k in range(4):
+        for sx in (-0.5, 0.5):
+            p.box((x + sx, 34.5 + k * 2.3, DZ + 0.45), (0.04, 0.04, 0.9))
+    p.box((x + 0.62, 38.0, DZ + 0.95), (0.03, 8.0, 0.1))
+    p.make('IN_FishTable', M['stainless'], None, bevel=0.006, coll=C)
+    ice = bpy.data.objects.new('IN_FishIce', ice_mesh)
+    C.objects.link(ice)
+    ice.location = (x, 38.0, DZ + 0.92)
+    ice.scale = (1.9, 21.0, 1.2)
+    for m in range(14):
+        fish_fn('IN_Fish%02d' % m, rnd.choice(['tuna_s', 'mackerel', 'seer', 'mackerel']),
+                (x + rnd.uniform(-0.25, 0.25), 34.7 + m * 0.48, DZ + 0.99),
+                (math.radians(90), 0, math.radians(rnd.uniform(-20, 20))))
+    # crates of iced product beside the tables, sinks, a scale on a stand
+    return tables
+
+
+def lab(C, M, rnd, shrimp_fn):
+    """Glazed lab partition across the hall at y 54 with a door at CX; bench, scale, sample trays, cabinet, fridge."""
+    y = 45.0
+    p = Part()
+    p.box(((XL + CX - 1.0) / 2, y, DZ + 0.5), (CX - 1.0 - XL, 0.12, 1.0))
+    p.box(((CX + 1.0 + XR) / 2, y, DZ + 0.5), (XR - CX - 1.0, 0.12, 1.0))
+    p.box(((XL + XR) / 2, y, CEIL - 0.6), (XR - XL, 0.12, 1.2))
+    for x in [XL + 0.1 + i * 1.8 for i in range(16)]:
+        if abs(x - CX) < 1.1:
+            continue
+        p.box((x, y, (DZ + CEIL) / 2), (0.06, 0.14, CEIL - DZ))
+    for sx in (-1, 1):
+        p.box((CX + sx * 1.0, y, (DZ + CEIL) / 2), (0.08, 0.16, CEIL - DZ))
+    p.make('IN_LabFrame', M['stainless'], None, bevel=0.005, coll=C)
+    p = Part()
+    p.box(((XL + CX - 1.0) / 2, y, (DZ + 1.0 + CEIL - 1.2) / 2), (CX - 1.0 - XL, 0.02, CEIL - DZ - 2.2))
+    p.box(((CX + 1.0 + XR) / 2, y, (DZ + 1.0 + CEIL - 1.2) / 2), (XR - CX - 1.0, 0.02, CEIL - DZ - 2.2))
+    p.make('IN_LabGlass', M['glass_clear'], None, coll=C)
+    # lab back wall (to the freezing area) with a wide opening at CX
+    yb = 51.2
+    p = Part()
+    p.box(((XL + CX - 1.4) / 2, yb, (DZ + CEIL) / 2), (CX - 1.4 - XL, 0.14, CEIL - DZ))
+    p.box(((CX + 1.4 + XR) / 2, yb, (DZ + CEIL) / 2), (XR - CX - 1.4, 0.14, CEIL - DZ))
+    p.box((CX, yb, (DZ + 3.0 + CEIL) / 2), (2.8, 0.14, CEIL - DZ - 3.0))
+    p.make('IN_LabBackWall', M['panel_in'], None, coll=C)
+    # benches along both sides, instruments
+    p = Part()
+    for x0, x1 in ((XL + 0.4, CX - 2.0), (CX + 2.0, XR - 0.4)):
+        p.box(((x0 + x1) / 2, 47.0, DZ + 0.9), (x1 - x0, 0.75, 0.04))
+        p.box(((x0 + x1) / 2, 47.0, DZ + 0.45), (x1 - x0, 0.7, 0.85))
+        p.box(((x0 + x1) / 2, 50.4, DZ + 0.9), (x1 - x0, 0.75, 0.04))
+        p.box(((x0 + x1) / 2, 50.4, DZ + 0.45), (x1 - x0, 0.7, 0.85))
+    p.make('IN_LabBenches', P.plain('IN_LabTop', (0.82, 0.83, 0.84), 0.25, coat=0.4), None, bevel=0.01, coll=C)
+    p = Part()
+    p.box((CX + 3.2, 47.0, DZ + 0.98), (0.35, 0.3, 0.12))           # balance
+    p.box((CX + 3.2, 46.95, DZ + 1.12), (0.25, 0.2, 0.16))
+    p.box((XR - 1.5, 50.4, DZ + 1.6), (1.4, 0.7, 1.4))              # fume cabinet (generic)
+    p.box((XL + 1.0, 50.5, DZ + 1.0), (0.8, 0.7, 2.0))               # fridge
+    p.box((CX - 3.5, 47.0, DZ + 1.05), (0.5, 0.4, 0.3))              # analyser box
+    p.make('IN_LabKit', P.plain('IN_LabKitGrey', (0.78, 0.8, 0.82), 0.3, 0.2), None, bevel=0.015, coll=C)
+    p = Part()
+    p.box((XR - 1.5, 50.05, DZ + 1.6), (1.2, 0.02, 0.9))
+    p.make('IN_LabCabGlass', M['glass'], None, coll=C)
+    for k in range(5):
+        tr = _tray('IN_LabTray%d' % k, (CX + 1.6 + k * 0.6, 46.95, DZ + 0.93), C, M)
+        tr.scale = (0.8, 0.8, 1)
+        for m in range(4):
+            shrimp_fn('%s_S%d' % (tr.name, m), (CX + 1.6 + k * 0.6 + rnd.uniform(-0.1, 0.1), 46.95 + rnd.uniform(-0.07, 0.07),
+                                               DZ + 0.96), (0, 0, rnd.uniform(0, 6.28)))
+    p = Part()
+    p.box((CX - 2.6, 47.0, DZ + 0.93), (0.25, 0.33, 0.012))           # blank clipboard
+    p.make('IN_Clipboard', M['label'], None, coll=C)
+
+
+def freezing(C, M, rnd, shrimp_fn):
+    """Plate freezer (left), IQF tunnel + glazing spray on a belt (right), trolleys of trays. Frost only on edges."""
+    # plate freezer: big stainless cabinet with a stack of plates visible through an open bay, hydraulic rams on top
+    x, y = CX - 4.5, 54.6
+    p = Part()
+    p.box((x, y, DZ + 1.3), (2.6, 2.2, 2.6))
+    p.make('IN_PlateFreezer', M['stainless'], None, bevel=0.02, coll=C)
+    p = Part()
+    for k in range(8):
+        p.box((x + 1.32, y, DZ + 0.4 + k * 0.26), (0.02, 1.8, 0.05))
+    for sx in (-0.6, 0.6):
+        p.cyl((x + sx, y, DZ + 2.6), (x + sx, y, DZ + 3.3), 0.09, 14)
+    p.make('IN_Plates', M['steel'], None, coll=C)
+    p = Part()                                                         # thin frost on the plate edges only
+    for k in range(8):
+        p.box((x + 1.335, y, DZ + 0.425 + k * 0.26), (0.006, 1.8, 0.012))
+    p.make('IN_PlateFrost', M['frost'], None, coll=C)
+    # IQF tunnel with the belt running through; glazing spray hood after it
+    tx = CX + 3.6
+    p = Part()
+    p.box((tx, 54.0, DZ + 1.3), (2.2, 3.6, 1.6))
+    p.make('IN_IQFTunnel', M['stainless'], None, bevel=0.03, coll=C)
+    belt = _conveyor('IN_IQFBelt', (tx, 51.6, DZ + 0.9), (tx, 59.6, DZ + 0.9), 0.9, C, M)
+    p = Part()
+    p.box((tx, 56.6, DZ + 1.55), (1.2, 1.0, 0.5))
+    for k in range(5):
+        p.cyl((tx - 0.45 + k * 0.22, 56.6, DZ + 1.3), (tx - 0.45 + k * 0.22, 56.6, DZ + 1.24), 0.012, 6)
+    p.make('IN_GlazeHood', M['stainless'], None, bevel=0.01, coll=C)
+    sp = Part()
+    for k in range(5):
+        sp.box((tx - 0.45 + k * 0.22, 56.6, DZ + 1.08), (0.16, 0.004, 0.32), Euler((0, 0, 0.6)))
+    sp.make('IN_GlazeSpray', _spray_mat(), None, coll=C)
+    # frozen product rows on the belt (glazed: glossy)
+    glazed = P.plain('IN_GlazedShrimp', (0.66, 0.68, 0.68), 0.06, coat=1.0, sss=0.2)
+    for k in range(70):
+        yy = 56.0 + (k // 7) * 0.36
+        if yy > 59.4:
+            break
+        s = shrimp_fn('IN_IQF%02d' % k, (tx - 0.36 + (k % 7) * 0.12, yy, DZ + 0.98), (0, 0, rnd.uniform(0, 6.28)))
+    # trolleys of trays (tray racks)
+    for k, (xx, yy) in enumerate(((CX - 1.2, 52.8), (CX - 2.0, 56.8), (XL + 1.3, 55.8))):
+        p = Part()
+        for sx in (-0.4, 0.4):
+            for sy in (-0.3, 0.3):
+                p.box((xx + sx, yy + sy, DZ + 0.95), (0.03, 0.03, 1.8))
+        for lv in range(9):
+            p.box((xx, yy, DZ + 0.25 + lv * 0.18), (0.82, 0.62, 0.012))
+        p.make('IN_TrayRack%d' % k, M['stainless'], None, coll=C)
+        p = Part()
+        for lv in range(9):
+            p.box((xx, yy, DZ + 0.27 + lv * 0.18), (0.74, 0.54, 0.04))
+        p.make('IN_TrayRackBlocks%d' % k, M['block'], None, bevel=0.005, coll=C)
+    # dividing wall to packing at y 69 (opening at CX)
+    p = Part()
+    p.box(((XL + CX - 1.6) / 2, 59.9, (DZ + CEIL) / 2), (CX - 1.6 - XL, 0.14, CEIL - DZ))
+    p.box(((CX + 5.4 + XR) / 2, 59.9, (DZ + CEIL) / 2), (XR - CX - 5.4, 0.14, CEIL - DZ))
+    p.box(((CX - 1.6 + CX + 5.4) / 2, 59.9, (DZ + 3.2 + CEIL) / 2), (7.0, 0.14, CEIL - DZ - 3.2))
+    p.make('IN_FreezeWall', M['panel_in'], None, coll=C)
+
+
+def packing(C, M, rnd):
+    """Packing tables with cartons (blank labels: lines only), tape, strapping machine, vacuum packer, carton stacks."""
+    carton = M['carton']
+    for t, x in enumerate((CX - 3.0, CX + 2.4)):
+        p = Part()
+        p.box((x, 62.3, DZ + 0.88), (1.2, 3.8, 0.04))
+        for sx in (-0.55, 0.55):
+            for sy in (60.6, 64.0):
+                p.box((x + sx, sy, DZ + 0.44), (0.04, 0.04, 0.88))
+        p.make('IN_PackTable%d' % t, M['stainless'], None, bevel=0.005, coll=C)
+        p = Part()
+        q = Part()
+        r = Part()
+        for k in range(5):
+            yy = 60.8 + k * 0.75
+            p.box((x, yy, DZ + 1.05), (0.55, 0.38, 0.3))
+            q.box((x - 0.276, yy, DZ + 1.08), (0.004, 0.2, 0.12))
+            for ln in range(3):
+                r.box((x - 0.279, yy, DZ + 1.11 - ln * 0.03), (0.002, 0.16, 0.006))
+        p.make('IN_PackCartons%d' % t, carton, None, bevel=0.008, coll=C)
+        q.make('IN_PackLabels%d' % t, M['label'], None, coll=C)
+        r.make('IN_PackLabelLines%d' % t, M['label_line'], None, coll=C)
+    p = Part()
+    p.box((CX + 5.5, 62.6, DZ + 0.75), (1.0, 1.4, 1.5))               # strapping machine
+    p.box((CX + 5.5, 62.6, DZ + 1.6), (1.1, 0.1, 0.25))
+    p.box((CX - 6.0, 61.8, DZ + 0.55), (1.6, 0.9, 1.1))               # vacuum packer
+    p.box((CX - 6.0, 61.8, DZ + 1.2), (1.5, 0.85, 0.2))
+    p.make('IN_PackMachines', P.plain('IN_MachineGrey', (0.62, 0.65, 0.67), 0.35, 0.3), None, bevel=0.02, coll=C)
+    p = Part()
+    for k in range(4):
+        p.box((CX - 6.4 + k * 0.28, 61.8, DZ + 1.32), (0.24, 0.6, 0.04))
+    p.make('IN_VacPacks', M['vacbag'], None, bevel=0.01, coll=C)
+    # carton stacks on pallets
+    for k, (xx, yy) in enumerate(((XL + 1.4, 61.0), (XL + 1.4, 62.5), (XR - 1.4, 61.0), (XR - 1.4, 62.6))):
+        S.pallet('IN_PackPallet%d' % k, (xx, yy, DZ), M, C, 0.0, cartons=4)
+
+
+def cold_store(C, M, rnd):
+    """Insulated door with strip curtain at y 77, racks both sides of the aisle, wrapped pallets, light frost."""
+    y0 = 65.0
+    p = Part()
+    p.box(((XL + CX - 1.8) / 2, y0, (DZ + CEIL) / 2), (CX - 1.8 - XL, 0.3, CEIL - DZ))
+    p.box(((CX + 1.8 + XR) / 2, y0, (DZ + CEIL) / 2), (XR - CX - 1.8, 0.3, CEIL - DZ))
+    p.box((CX, y0, (DZ + 3.6 + CEIL) / 2), (3.6, 0.3, CEIL - DZ - 3.6))
+    p.make('IN_ColdWall', M['panel_in'], None, coll=C)
+    p = Part()
+    p.box((CX - 3.4, y0 - 0.2, DZ + 1.8), (3.4, 0.12, 3.6))          # sliding insulated door (open, parked left)
+    p.make('IN_ColdDoor', M['panel_in'], None, bevel=0.03, coll=C)
+    p = Part()
+    p.box((CX, y0 - 0.25, DZ + 3.72), (5.8, 0.15, 0.15))
+    p.make('IN_ColdDoorRail', M['stainless'], None, coll=C)
+    strips = _strip_curtain('IN_ColdStrip', CX - 1.75, CX + 1.75, y0 + 0.18, DZ, DZ + 3.55, C, M)
+    # racks: uprights + beams (orange beams, blue uprights), five levels, both sides
+    up = Part()
+    bm_ = Part()
+    fr = Part()
+    for side, xr in ((-1, CX - 2.6), (1, CX + 2.6)):
+        for k in range(8):
+            yy = 66.5 + k * 2.4
+            for dx in (0.0, side * 1.2):
+                up.box((xr + dx, yy, DZ + 2.5), (0.09, 0.09, 5.0))
+        for lv in range(5):
+            z = DZ + 0.2 + lv * 0.98
+            for dx in (0.0, side * 1.2):
+                bm_.box((xr + dx, 66.5 + 8.4, z), (0.06, 16.8, 0.12))
+                fr.box((xr + dx, 66.5 + 8.4, z + 0.065), (0.07, 16.8, 0.008))
+    up.make('IN_RackUprights', M['rack_blue'], None, coll=C)
+    bm_.make('IN_RackBeams', M['rack_orange'], None, coll=C)
+    fr.make('IN_RackFrost', M['frost'], None, coll=C)
+    # wrapped pallets of cartons on every level
+    cart = Part()
+    wrap = Part()
+    wood = Part()
+    for side, xr in ((-1, CX - 2.6), (1, CX + 2.6)):
+        for k in range(7):
+            yy = 67.7 + k * 2.4
+            for lv in range(5):
+                if rnd.random() < 0.1:
+                    continue
+                z = DZ + 0.26 + lv * 0.98
+                xc = xr + side * 0.6
+                wood.box((xc, yy, z + 0.07), (1.0, 1.2, 0.14))
+                h = rnd.choice((0.55, 0.65, 0.7, 0.75))
+                cart.box((xc, yy, z + 0.14 + h / 2), (0.98, 1.16, h))
+                wrap.box((xc, yy, z + 0.14 + h / 2), (1.0, 1.18, h + 0.02))
+    wood.make('IN_ColdPalletWood', M['wood'], None, coll=C)
+    cart.make('IN_ColdCartons', P.plain('IN_CartonWhite', (0.80, 0.80, 0.77), 0.6, bump=0.1, bump_scale=20), None,
+              bevel=0.01, coll=C)
+    wrap.make('IN_ColdWrap', M['wrap'], None, coll=C)
+    # cold store lights: cooler and a touch dimmer
+    for k in range(4):
+        _light('IN_ColdArea%d' % k, (CX, 68 + k * 4.2, CEIL - 0.3), (3, 3), 260, C, color=(0.88, 0.94, 1.0))
+    p = Part()
+    p.box((CX, 74.5, DZ + 0.002), (2.0, 17, 0.003))
+    p.make('IN_ColdAisleFrost', P.plain('IN_FloorFrost', (0.8, 0.84, 0.87), 0.5, alpha=0.18), None, coll=C)
+    return strips
+
+
+def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11):
+    M = mats()
+    rnd = random.Random(rnd_seed)
+    shell(C, M)
+    intake(C, M, crate_fn, trolley_fn)
+    wash(C, M, rnd, shrimp_fn)
+    grading(C, M, rnd, shrimp_fn)
+    tables = processing(C, M, rnd, shrimp_fn, fish_fn, ice_mesh)
+    lab(C, M, rnd, shrimp_fn)
+    freezing(C, M, rnd, shrimp_fn)
+    packing(C, M, rnd)
+    strips = cold_store(C, M, rnd)
+    return tables, strips
