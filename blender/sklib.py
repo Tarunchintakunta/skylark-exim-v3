@@ -484,15 +484,15 @@ def textured_overrides():
     tex_pbr('MAT_Steel', 'Metal009', 1.0, rough_mul=1.0)
     tex_pbr('MAT_Rust', 'rust_coarse_01', 0.8)
     tex_pbr('MAT_Rubber', 'Rubber004', 2.0, tint=(0.03, 0.03, 0.032), tint_amount=0.8)
-    tex_pbr('MAT_PaintWhite', 'PaintedMetal004', 0.6, tint=(0.8, 0.81, 0.79), tint_amount=0.85, metal=0.1, grime=0.35, paint_mask=True)
-    tex_pbr('MAT_PaintBlue', 'PaintedMetal004', 0.6, tint=(0.04, 0.12, 0.33), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
-    tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
+    tex_pbr('MAT_PaintWhite', 'PaintedMetal004', 0.6, tint=(0.8, 0.81, 0.79), tint_amount=0.85, metal=0.1, grime=0.35, bump=0.12, paint_mask=True)
+    tex_pbr('MAT_PaintBlue', 'PaintedMetal004', 0.6, tint=(0.04, 0.12, 0.33), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
+    tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
     tex_pbr('MAT_CraneWhite', 'PaintedMetal004', 0.25, tint=(0.8, 0.81, 0.8), metal=0.15, grime=0.3, paint_mask=True)
     tex_pbr('MAT_CraneBlue', 'PaintedMetal004', 0.3, tint=(0.04, 0.17, 0.42), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
     tex_pbr('MAT_ContainerPaint', 'container_side', 0.33, attr='col', tint_amount=0.88, metal=0.2, grime=0.2)
     tex_pbr('MAT_QuayFace', 'concrete_floor_02', 0.2, tint=(0.4, 0.39, 0.36), tint_amount=0.5, grime=0.5)
     tex_pbr('MAT_InsulPanel', 'corrugated_iron_02', 0.5, tint=(0.88, 0.89, 0.9), tint_amount=0.9, metal=0.05, bump=0.25)
-    for nm, c in (('MAT_OilskinOrange', (0.85, 0.32, 0.07)), ('MAT_OilskinYellow', (0.82, 0.6, 0.12)),
+    for nm, c in (('MAT_OilskinOrange', (0.66, 0.29, 0.11)), ('MAT_OilskinYellow', (0.68, 0.53, 0.17)),
                   ('MAT_ClothNavy', (0.05, 0.07, 0.13)), ('MAT_ClothWhite', (0.84, 0.85, 0.86)), ('MAT_ClothKhaki', (0.33, 0.28, 0.19)),
                   ('MAT_ClothGrey', (0.3, 0.31, 0.32)), ('MAT_ClothBlue', (0.13, 0.22, 0.38)), ('MAT_ClothRed', (0.38, 0.09, 0.07)),
                   ('MAT_ClothGreen', (0.15, 0.24, 0.12))):
@@ -867,7 +867,7 @@ def key_vis(o, frame_on, frame_off=None):
 OUTFITS = {
     # part -> material key; extras list
     'fisherman_o': dict(top='oilskin_orange', bottom='oilskin_orange', hands='glove_teal', feet='boot_yellow',
-                        extras=['cap', 'hood']),
+                        extras=['cap']),
     'fisherman_y': dict(top='oilskin_yellow', bottom='oilskin_yellow', hands='glove_teal', feet='boot_white',
                         extras=['cap']),
     'fisherman_b': dict(top='cloth_grey', bottom='oilskin_yellow', hands='glove_blue', feet='boot_yellow',
@@ -1227,7 +1227,7 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     rnd = random.Random(seed if seed is not None else hash(name) & 0xffff)
     o = OUTFITS[outfit]
     sk = skin or mats['skin'][rnd.randrange(3)]
-    k = 1.22 if outfit.startswith('fisher') else (1.12 if outfit in ('plant', 'plant_blue', 'qc', 'cold', 'port', 'port_o') else 1.0)
+    k = 1.12 if outfit.startswith('fisher') else (1.12 if outfit in ('plant', 'plant_blue', 'qc', 'cold', 'port', 'port_o') else 1.0)
     gender = 'female' if (outfit in ('plant', 'plant_blue', 'qc', 'farm2') and rnd.random() < 0.4) else 'male'
     body, ad, skel = _body(k, round(build, 2), gender)
     arm = bpy.data.objects.new(name, ad)
