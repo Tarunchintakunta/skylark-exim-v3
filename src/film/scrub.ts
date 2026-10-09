@@ -10,7 +10,7 @@ import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
  *   once the next can play through (direction-aware, so scrolling up prefetches upwards).
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
  *   presented frame stays up instead of stalling or flashing back to the poster.
- * - The target is lerped (fast flicks become several small seeks); `fastSeek()` while the scroll is fast,
+ * - `fastSeek()` while the scroll is fast,
  *   exact `currentTime` once it settles. Frames count as presented from `requestVideoFrameCallback`.
  */
 interface Slot {
@@ -21,8 +21,6 @@ interface Slot {
   dead: boolean
   /** fired canplaythrough: safe to start the neighbour */
   ready: boolean
-  /** lerped seek target, seconds */
-  t: number
   /** last time this slot was the current clip (pool eviction) */
   used: number
 }
@@ -31,7 +29,6 @@ const FRAME = 1 / 24
 const EPS = 1 / 48
 /** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
-const LERP = 0.25
 
 let segs: Segment[] = []
 let posters: (HTMLElement | null)[] = []
@@ -45,6 +42,9 @@ let over = -1
 let hidden = false
 let isLight = false
 let lastY = 0
+/** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
+const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
+;(globalThis as { __scrub?: typeof probe }).__scrub = probe
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
@@ -70,7 +70,7 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
-  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, ready: false, t: 0, used: 0 }
+  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, ready: false, used: 0 }
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
     if (v.requestVideoFrameCallback) {
@@ -104,7 +104,6 @@ function load(s: Slot, id: string) {
   s.pending = null
   s.dead = false
   s.ready = false
-  s.t = 0
   s.v.src = clipUrl(id)
   s.v.load()
   // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives
@@ -197,6 +196,7 @@ function tick() {
     if (active) {
       active.used = clock
       seek(active, p, vel)
+      probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
     }
   }
   if (!scrolled && frame.scroll > 2) scrolled = true
@@ -207,6 +207,9 @@ function tick() {
     if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
   }
   setShown(active && active.painted && !active.dead ? active : null)
+  probe.id = want
+  probe.chapter = seg.chapter
+  probe.shown = shown !== null && shown === active
 
   // placeholders (stills and the port/sea gradients): slow push-in
   const m = seg.media
@@ -236,10 +239,8 @@ function tick() {
 function seek(s: Slot, p: number, vel: number) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
-  const target = p * Math.max(0, v.duration - FRAME)
-  // big jumps (a chapter entered mid-way, a nav click) snap; normal scrolling glides
-  s.t = Math.abs(target - s.t) > 1 ? target : s.t + (target - s.t) * LERP
-  const t = Math.abs(target - s.t) < EPS ? target : s.t
+  // no extra easing here: Lenis already smooths the scroll, a second lerp only adds lag behind the page
+  const t = p * Math.max(0, v.duration - FRAME)
   // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it
   if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) return
   if (v.seeking) {
