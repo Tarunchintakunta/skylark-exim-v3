@@ -1,6 +1,7 @@
 import { chaptersFor } from './config/chapters'
 import { useApp } from './engine/store'
 import { Film } from './film/Film'
+import { Products } from './sections/Products'
 import { ScrubStage } from './film/ScrubStage'
 import { Hud } from './ui/Hud'
 import { Loader } from './ui/Loader'
@@ -21,6 +22,7 @@ export default function App() {
         <StartScreen />
         <Rail chapters={chapters} />
         <Film chapters={chapters} />
+        <Products />
       </main>
       <Hud />
       <QuoteCta />
