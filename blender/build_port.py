@@ -299,7 +299,7 @@ for i, T in enumerate(tugs):
         T.keyframe_insert('location', frame=f)
     L.smooth_keys(T)
 # wake: churned foam behind the stern widening into streaks + Kelvin arms; bow wave; tugs throw their own wash
-wk = P.wake('SHIP_Wake', shp, -112.0, length=420.0, w0=20.0, w1=90.0)
+wk = P.wake('SHIP_Wake', shp, -112.0, length=420.0, w0=20.0, w1=90.0, kelvin=False)
 bw = P.wake('SHIP_BowWave', shp, 118.0, length=150.0, w0=6.0, w1=46.0, z=0.18, kelvin=False)
 bw.scale = (0.6, 1, 1)
 for f, sc in ((296, 0.02), (330, 0.35), (380, 0.85), (430, 1.0)):
@@ -308,7 +308,7 @@ for f, sc in ((296, 0.02), (330, 0.35), (380, 0.85), (430, 1.0)):
 L.key_vis(wk, 296)
 L.key_vis(bw, 320)
 for i, T in enumerate(tugs):
-    tw = P.wake(f'TUG{i}_Wake', T, -14.0, length=120.0, w0=5.0, w1=24.0, kelvin=True)
+    tw = P.wake(f'TUG{i}_Wake', T, -14.0, length=90.0, w0=4.0, w1=16.0, kelvin=False)
     for f, sc in ((290, 0.05), (320, 0.8), (479, 1.0)):
         tw.scale = (sc, 1, 1)
         tw.keyframe_insert('scale', frame=f)
@@ -358,7 +358,7 @@ for i in range(len(xs) - 1):
     xa, xb = xs[i], xs[i + 1]
     ya, yb = coast_y(xa), coast_y(xb)
     if abs(xa) < 350 and abs(xb) < 350:
-        ya = yb = -340.0          # behind the container yard (the yard box covers the rest)
+        ya = yb = -310.0          # behind the container yard (land tucks under the yard box)
     v = [lm.bm.verts.new((xa, Y0, QZ - 0.6)), lm.bm.verts.new((xb, Y0, QZ - 0.6)), lm.bm.verts.new((xb, yb - 25, QZ - 0.6)),
          lm.bm.verts.new((xa, ya - 25, QZ - 0.6))]
     f = lm.bm.faces.new(v)
@@ -429,6 +429,10 @@ for i, (x, y, r, Ls) in enumerate(((-400, 300, D(90), 190), (-380, 520, D(88), 9
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (-40, -92, 12), (-40, -55, 2))
 cam.data.clip_end = 30000
+# keep depth precision when the camera climbs to the top-down end (land vs sea planes would z-fight otherwise)
+for f, cs in ((1, 0.1), (288, 0.1), (336, 20.0), (420, 60.0), (479, 200.0)):
+    cam.data.clip_start = cs
+    cam.data.keyframe_insert('clip_start', frame=f)
 cam.data.dof.aperture_fstop = 8.0
 keys = [
     (1, (-40.0, -128.0, 15.0), (-42.0, -86.0, 3.0), 28),
@@ -436,7 +440,7 @@ keys = [
     (72, (-48.0, -74.0, 18.5), (-41.0, -46.0, 3.0), 28),
     (132, (-50.0, -42.0, 21.0), (-12.0, -14.0, 6.0), 26),
     (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
-    (196, (-9.0, -24.5, 6.5), (1.5, -12.5, 6.0), 34),
+    (196, (-12.0, -28.0, 8.0), (1.5, -12.5, 6.2), 30),
     (224, (-14.0, -30.0, 18.0), (2.0, -4.0, 30.0), 28),
     (256, (-45.0, -80.0, 70.0), (2.0, 12.0, 22.0), 26),
     (288, (-50.0, -115.0, 230.0), (5.0, 18.0, 10.0), 30),
