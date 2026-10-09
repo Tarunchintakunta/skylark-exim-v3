@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { MARINE_FISH, SHRIMPS } from '../config/content'
 import { CATEGORIES, SHRIMP_FORMS, STATES } from '../config/products'
 import { RFQ_TO, rfqSchema, rfqSubject, rfqSummary, type Rfq, type RfqInput } from '../config/rfq'
 import { store } from '../engine/store'
@@ -10,14 +11,25 @@ type Status = { kind: 'idle' } | { kind: 'sending' } | { kind: 'sent' } | { kind
 /** The RFQ form (STORY §15, TRD §12): validated → api/rfq (Resend) or a pre-filled mailto. Lazy chunk: zod + react-hook-form stay out of the first load. */
 export default function RfqForm() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
-  const { register, handleSubmit, control, setValue, formState: { errors } } = useForm<RfqInput, unknown, Rfq>({
+  const { prefill } = store.getState()
+  const { register, handleSubmit, control, setValue, getValues, formState: { errors } } = useForm<RfqInput, unknown, Rfq>({
     resolver: zodResolver(rfqSchema),
-    defaultValues: { category: store.getState().prefill.category ?? 'marine', species: [], forms: [], states: [] },
+    defaultValues: { category: prefill.category ?? 'marine', species: prefill.species ? [prefill.species] : [], forms: [], states: [] },
   })
   const category = useWatch({ control, name: 'category' })
 
-  // pre-fill the category from what the visitor last looked at in Products
-  useEffect(() => store.subscribe((s) => s.prefill.category && setValue('category', s.prefill.category)), [setValue])
+  // pre-fill from Products: the category last looked at, plus the species an "Enquire" button names (ticked, never unticked)
+  useEffect(
+    () =>
+      store.subscribe(({ prefill: p }, prev) => {
+        if (p === prev.prefill || !p.category) return
+        const switched = p.category !== getValues('category')
+        setValue('category', p.category)
+        if (switched) setValue('species', p.species ? [p.species] : [])
+        else if (p.species) setValue('species', [...new Set([...(getValues('species') ?? []), p.species])])
+      }),
+    [setValue, getValues],
+  )
 
   const onSubmit = async (r: Rfq) => {
     setStatus({ kind: 'sending' })
@@ -84,7 +96,7 @@ export default function RfqForm() {
           <span className="field__label">Product category</span>
         </label>
       </div>
-      {checks('species', CATEGORIES[category === 'shrimps' ? 'shrimps' : 'marine'].species, 'Species')}
+      {checks('species', category === 'shrimps' ? SHRIMPS : MARINE_FISH, 'Species')}
       {category === 'shrimps' && checks('forms', SHRIMP_FORMS.map((f) => f.name), 'Form')}
       {checks('states', STATES, 'Fresh / chilled / frozen')}
       <div className="rfq__row">

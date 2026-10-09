@@ -10,7 +10,7 @@ export interface AppState {
   /** id of the chapter currently on screen */
   chapter: string
   /** what the visitor last looked at in Products, used to pre-fill the RFQ */
-  prefill: { category?: 'marine' | 'shrimps' }
+  prefill: { category?: 'marine' | 'shrimps'; species?: string }
 }
 
 const hashPath = (): Path => (location.hash === '#pond' ? 'pond' : 'ocean')
