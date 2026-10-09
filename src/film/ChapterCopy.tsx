@@ -21,11 +21,10 @@ export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
             {c.extra === 'doc-cards' && <DocCards />}
             {c.extra === 'markets' && <MarketList />}
             {c.chips && (
-              <ul className="chips" aria-label="Species">
-                {c.chips.map((chip) => (
-                  <li className="chip mono" key={chip} data-fade>{chip}</li>
-                ))}
-              </ul>
+              <p className="caption__list" data-fade>
+                <span className="sr-only">Species: </span>
+                {c.chips.join(' · ')}
+              </p>
             )}
           </article>
         )
