@@ -12,7 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import bpy  # noqa: E402
 import bmesh  # noqa: E402
-from mathutils import Vector  # noqa: E402
+from mathutils import Vector, noise  # noqa: E402
 import sklib as L  # noqa: E402
 import sklib_sea as S  # noqa: E402
 import sklib_port as P  # noqa: E402
@@ -88,7 +88,7 @@ for i in range(4):
 # ---------------------------------------------------------------- our vessel comes home (same library vessel as o-catch)
 V = S.vessel('BOAT', (120, 30, 0), D(180), mats=mats)
 boat = V['root']
-for f, p, rz in ((1, (120, 30, 0), 182), (50, (60, 26, 0), 186), (90, (20, 10, 0), 200), (125, (5, 4.0, 0), 182), (140, (2, 3.7, 0), 180),
+for f, p, rz in ((1, (120, 34, 0), 180), (50, (68, 34, 0), 182), (90, (26, 29, 0), 196), (120, (8, 12, 0), 200), (140, (2, 3.7, 0), 180),
                  (288, (2, 3.7, 0), 180)):
     boat.location = p
     boat.rotation_euler = (0, 0, D(rz))
@@ -109,13 +109,9 @@ for ix in range(5):
                 fill=rnd.choice(['mixed', 'fish', 'tuna']), parent=boat, mats=mats, seed=k)
         k += 1
 # bow wave + wake while under way
-foam = L.pbr('MAT_Wake', (0.8, 0.86, 0.9), 0.55, var=0.5, bump=0.6, scale=0.3, alpha=0.5)
-wk = P.MB()
-for i in range(8):
-    wk.box((-12 - i * 4, 0, 0.1), (4.2, 3.0 + i * 0.9, 0.04), foam)
-wake = wk.obj('BOAT_Wake', boat)
-for f, sc in ((1, 1.0), (100, 0.6), (130, 0.01)):
-    wake.scale = (1, sc, 1)
+wake = P.wake('BOAT_Wake', boat, -11.5, length=70.0, w0=5.0, w1=22.0, z=0.12, kelvin=False)
+for f, sc in ((1, 1.0), (100, 0.7), (130, 0.15), (142, 0.01)):
+    wake.scale = (sc, 1, 1)
     wake.keyframe_insert('scale', frame=f)
 
 # ---------------------------------------------------------------- crew, hand chain, trolleys, truck
@@ -146,10 +142,21 @@ for w in workers[:3]:
 TRK = Vector((-12.0, -7.0, WZ))
 truck = PL.reefer_truck('TRK_RigidReefer', (TRK.x, TRK.y, WZ), D(-90), mats=mats)
 troot = truck['root']
-for c in truck['cargo']:
-    L.key_vis(c, 200)
+# the box is already two-thirds full of iced crates (front stacks) when the doors open; the rest go in from 200
+for i_c, c in enumerate(truck['cargo']):
+    f_in = 1 if i_c < len(truck['cargo']) * 2 // 3 else 200
+    L.key_vis(c, f_in)
     for ch in c.children:
-        L.key_vis(ch, 200)
+        L.key_vis(ch, f_in)
+# cool interior light so the load reads through the open doors
+il = bpy.data.lights.new('TRK_InteriorLight', 'AREA')
+il.size = 2.0
+il.energy = 220
+il.color = (0.85, 0.93, 1.0)
+ilo = bpy.data.objects.new('TRK_InteriorLight', il)
+s.collection.objects.link(ilo)
+ilo.parent = troot
+ilo.location = (0.5, 0, 3.4)
 for side, sgn in (('l', 1), ('r', -1)):
     h = truck['door_' + side]
     for f, a in ((1, 0), (140, 0), (152, 100), (215, 100), (226, 0)):
@@ -194,15 +201,30 @@ L.pose(drv, 'sit')
 # road, harbour buildings, ice shed, palms, parked trucks, crate stacks, lamp posts, gulls
 L.box('ROAD', (9, 160, 0.04), (TRK.x - 1.5, -80, WZ + 0.01), mats['asphalt'], 0.0)
 blds = P.MB()
+bmat = L.weather(L.pbr('MAT_Building', (0.78, 0.77, 0.72), 0.85, grime=0.6, var=0.25, bump=0.3, scale=0.5, attr='col'),
+                 streak=(0.32, 0.28, 0.22), amount=0.6, z0=WZ, z1=WZ + 2.5, dirt=(0.3, 0.25, 0.18), dirt_amount=0.6, scale=0.8)
+shut = L.weather(P.paint_attr('MAT_Shutter', 0.6, 0.3, grime=0.5, corrugate=25.0), amount=0.5, z0=WZ, z1=WZ + 2.0)
+awn = L.pbr('MAT_Awning', (0.5, 0.5, 0.5), 0.8, var=0.3, grime=0.5, attr='col')
+shut_cols = [(0.35, 0.4, 0.42), (0.55, 0.32, 0.18), (0.2, 0.35, 0.45), (0.45, 0.45, 0.4)]
+awn_cols = [(0.1, 0.3, 0.55), (0.55, 0.12, 0.08), (0.12, 0.4, 0.2), (0.7, 0.55, 0.15)]
 for i in range(10):
     for side in (-1, 1):
         x = TRK.x + side * rnd.uniform(14, 22)
         y = -20 - i * 14
         w, d, h = rnd.uniform(8, 12), rnd.uniform(8, 11), rnd.uniform(4, 8)
         col = rnd.choice([(0.82, 0.8, 0.74), (0.75, 0.78, 0.8), (0.85, 0.82, 0.7), (0.7, 0.72, 0.68)])
-        blds.box((x, y, WZ + h / 2), (w, d, h), L.pbr('MAT_Building', (0.78, 0.77, 0.72), 0.8, grime=0.5, scale=0.5, attr='col'), col)
+        blds.box((x, y, WZ + h / 2), (w, d, h), bmat, col)
+        fx = x - side * w / 2 - side * 0.03
         for k2 in range(3):
-            blds.box((x - side * w / 2 - side * 0.02, y - d / 3 + k2 * d / 3, WZ + h * 0.55), (0.05, 1.2, 1.1), mats['glass'])
+            yy = y - d / 3 + k2 * d / 3
+            blds.box((fx, yy, WZ + h * 0.62), (0.06, 1.2, 1.1), mats['glass'])
+            blds.box((fx - side * 0.02, yy, WZ + h * 0.62), (0.05, 1.5, 1.4), shut, rnd.choice(shut_cols))
+        blds.box((fx, y, WZ + 1.15), (0.08, 2.4, 2.3), shut, rnd.choice(shut_cols))       # rolling shutter / door
+        blds.box((fx - side * 0.9, y, WZ + 2.6), (1.8, d * 0.9, 0.06), awn, rnd.choice(awn_cols))  # awning
+        if h > 6:
+            blds.box((fx - side * 0.5, y, WZ + h * 0.5), (1.0, d * 0.6, 0.12), bmat, col)        # balcony slab
+            blds.box((fx - side * 0.98, y, WZ + h * 0.5 + 0.5), (0.05, d * 0.6, 0.9), mats['steel'])
+        blds.box((x, y, WZ + h + 0.4), (w * 0.2, d * 0.2, 0.8), bmat, (0.3, 0.32, 0.34))     # water tank
 blds.obj('HARBOUR_Buildings')
 shed = P.MB()
 shed.box((24, -14, WZ + 3.5), (16, 10, 0.3), L.pbr('MAT_ShedRoof', (0.55, 0.57, 0.58), 0.5, 0.6, grime=0.4, scale=0.3))
@@ -234,6 +256,105 @@ for i in range(8):
     ph = rnd.uniform(0, 6.28)
     S.flap(g, 1, 288, period=rnd.randint(9, 13), amp=32,
            path=[(cx + rad * math.cos(ph + j * 0.3), cy + rad * 0.6 * math.sin(ph + j * 0.3), cz) for j in range(20)])
+
+# ---------------------------------------------------------------- busier harbour: pennants, buoys, nets, crowds, autos, stalls, carts
+flag_cols = [(0.75, 0.2, 0.05), (0.1, 0.45, 0.2), (0.8, 0.6, 0.1), (0.6, 0.08, 0.1), (0.15, 0.3, 0.6)]
+for o in [o for o in bpy.data.objects if o.name.startswith('MOORED') and o.parent is None]:
+    for j in range(2):
+        fm = L.pbr(f'MAT_Pennant{j}_{o.name}', flag_cols[(hash(o.name) + j) % len(flag_cols)], 0.8, var=0.2, scale=4)
+        fb = bmesh.new()
+        a, b2, c2 = fb.verts.new((0, 0, 0)), fb.verts.new((0, 0, -0.5)), fb.verts.new((-0.9, 0, -0.25))
+        fb.faces.new((a, b2, c2))
+        pm = L.bm_to_mesh(fb, f'PENNANT_{o.name}_{j}')
+        pm.materials.append(fm)
+        pen = L.obj(f'PENNANT_{o.name}_{j}', pm, None, (-1.5 + j * 4.0, 0, 9.5 - j * 1.6), parent=o)
+        for f in range(1, 289, 6):
+            pen.rotation_euler = (0, 0, D(10 * math.sin(f / 5.0 + j)))
+            pen.keyframe_insert('rotation_euler', frame=f)
+    # a heap of green net on the moored deck
+    nb = bmesh.new()
+    bmesh.ops.create_icosphere(nb, subdivisions=3, radius=1.0)
+    for v in nb.verts:
+        v.co = Vector((v.co.x * 1.6, v.co.y * 1.1, max(0.0, v.co.z) * 0.55)) * (1 + 0.15 * noise.noise(v.co * 3))
+    nm_ = L.bm_to_mesh(nb, f'NETHEAP_{o.name}', smooth=True)
+    nm_.materials.append(mats['rope_green'])
+    L.obj(f'NETHEAP_{o.name}', nm_, None, (-6.5, 0.5, 1.55), parent=o)
+buoy = L.sphere_mesh('BUOY', 0.35, 12, 8)
+buoy.materials.append(L.pbr('MAT_Buoy', (0.8, 0.3, 0.05), 0.5, var=0.3, grime=0.4, coat=0.3))
+for i in range(22):
+    bx, by = rnd.uniform(-80, 140), rnd.uniform(16, 60)
+    if abs(bx - 20) < 30 and by < 40:
+        continue
+    bo_ = L.obj(f'BUOY{i}', buoy, None, (bx, by, 0.05))
+    for f in range(1, 289, 16):
+        bo_.location.z = 0.05 + 0.08 * math.sin(f / 9.0 + i)
+        bo_.keyframe_insert('location', frame=f)
+# crowd along the wharf and by the ice shed (clear of the truck road x -17..-7 and the hand chain)
+crowd_outfits = ['dock', 'dock2', 'dock', 'farm', 'dock2', 'fisherman_b', 'dock']
+placed = 0
+tries = 0
+while placed < 26 and tries < 400:
+    tries += 1
+    x, y = rnd.uniform(-60, 60), rnd.uniform(-24, -2.5)
+    if -19 < x < -5 or (-6 < x < 8 and y > -6) or (16 < x < 32 and -19 < y < -9):
+        continue
+    c = L.person(f'CROWD{placed}', rnd.choice(crowd_outfits), (x, y, WZ), D(rnd.uniform(0, 360)), seed=200 + placed, mats=mats)
+    if placed % 3 == 0:
+        L.walk(c, [(x, y), (x + rnd.uniform(-8, 8), y + rnd.uniform(-3, 3))], rnd.randint(1, 60), rnd.randint(150, 288))
+    else:
+        L.anim_poses(c, [(1, 'idle'), (rnd.randint(40, 200), 'point' if placed % 4 == 0 else 'idle'), (288, 'idle')])
+    placed += 1
+
+
+def auto_rickshaw(name, loc, rz):
+    """Three-wheeler: yellow lower body, black canvas hood, one front wheel, two rear (no markings)."""
+    mb = P.MB()
+    yel = L.weather(L.pbr('MAT_AutoYellow', (0.75, 0.6, 0.08), 0.35, grime=0.4, coat=0.4), amount=0.3, z0=0.0, z1=0.6)
+    grn = L.pbr('MAT_AutoGreen', (0.1, 0.32, 0.15), 0.4, grime=0.4, coat=0.3)
+    blk = L.pbr('MAT_AutoHood', (0.03, 0.03, 0.03), 0.8, var=0.2, scale=6)
+    mb.box((0, 0, 0.55), (2.3, 1.3, 0.5), grn)
+    mb.box((0.95, 0, 0.95), (0.5, 1.2, 0.9), yel)
+    mb.box((-0.25, 0, 1.0), (1.4, 1.3, 0.12), yel)
+    mb.box((-0.15, 0, 1.75), (2.1, 1.35, 0.1), blk)
+    for sy in (-0.64, 0.64):
+        mb.box((-0.6, sy, 1.35), (1.0, 0.04, 0.8), blk)
+        mb.cyl((0.8, sy, 1.0), (0.8, sy, 1.75), 0.025, mats['steel'], 6)
+    mb.box((1.21, 0, 1.4), (0.04, 1.1, 0.55), mats['glass'])
+    for p_ in ((1.05, 0, 0.25), (-0.8, 0.6, 0.25), (-0.8, -0.6, 0.25)):
+        mb.cyl((p_[0], p_[1] - 0.07, p_[2]), (p_[0], p_[1] + 0.07, p_[2]), 0.25, mats['rubber'], 14)
+    o = mb.obj(name, None, loc)
+    o.rotation_euler = (0, 0, rz)
+    return o
+
+
+for i, (x, y, rz) in enumerate(((-24, -18, 90), (-30, -21, 80), (6, -20, 180), (34, -6, 20))):
+    auto_rickshaw(f'AUTO{i}', (x, y, WZ), D(rz))
+# fish-sale stalls under blue tarps by the ice shed, wooden hand carts with baskets
+tarp = L.pbr('MAT_Tarp', (0.1, 0.3, 0.6), 0.7, var=0.25, grime=0.4, scale=2)
+for i, (x, y) in enumerate(((36, -10), (40, -10), (44, -10), (36, -16))):
+    st = P.MB()
+    st.box((x, y, WZ + 0.8), (3.0, 1.6, 0.08), mats['wood'])
+    for dx in (-1.4, 1.4):
+        for dy in (-0.7, 0.7):
+            st.box((x + dx, y + dy, WZ + 1.25), (0.06, 0.06, 2.5), mats['wood'])
+    tb = bmesh.new()
+    st.box((x, y, WZ + 2.55), (3.4, 2.0, 0.04), tarp)
+    for k in range(3):
+        st.cyl((x - 0.8 + k * 0.8, y, WZ + 0.84), (x - 0.8 + k * 0.8, y, WZ + 1.05), 0.28, mats['rope'], 12, r2=0.33)
+    st.obj(f'STALL{i}')
+    L.crate(f'STALL{i}_Crate', 'blue', (x + 0.5, y - 1.2, WZ), 0.3, fill='mixed', mats=mats, seed=300 + i)
+for i, (x, y, rz) in enumerate(((10, -14, 30), (-36, -4, 100), (48, -20, 200))):
+    hc_ = P.MB()
+    hc_.box((0, 0, 0.75), (2.0, 1.1, 0.08), mats['wood'])
+    for sy in (-0.55, 0.55):
+        hc_.box((0, sy, 0.9), (2.0, 0.05, 0.25), mats['wood'])
+        hc_.cyl((0.1, sy * 1.15, 0.45), (0.1, sy * 1.25, 0.45), 0.45, mats['wood'], 16)
+    hc_.box((1.5, 0.35, 0.8), (1.2, 0.06, 0.06), mats['wood'])
+    hc_.box((1.5, -0.35, 0.8), (1.2, 0.06, 0.06), mats['wood'])
+    for k in range(2):
+        hc_.cyl((-0.4 + k * 0.8, 0, 0.8), (-0.4 + k * 0.8, 0, 1.15), 0.3, mats['rope'], 12, r2=0.36)
+    o = hc_.obj(f'CART{i}', None, (x, y, WZ))
+    o.rotation_euler = (0, 0, D(rz))
 
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (60, -20, 25), (90, 25, 2))
