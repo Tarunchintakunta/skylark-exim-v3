@@ -280,7 +280,7 @@ def hdri_world(name, strength=1.0, rot_deg=0.0, sun_elev=45.0, sun_az=0.0, sun_e
     return sun
 
 
-def look_settings(kind='exterior', exposure=0.0, samples=64, haze=None):
+def look_settings(kind='exterior', exposure=0.0, samples=32, haze=None):
     s = bpy.context.scene
     s.render.engine = 'BLENDER_EEVEE'
     e = s.eevee
