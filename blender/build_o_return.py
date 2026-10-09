@@ -129,9 +129,9 @@ for i, (x, y, rz, o) in enumerate(((hc, 1.0, 90, 'fisherman_o'), (hc + 0.8, -1.2
 L.anim_poses(crew[2], [(1, 'idle'), (110, 'pull'), (125, 'pull2'), (140, 'idle')])
 L.anim_poses(crew[3], [(1, 'idle'), (100, 'point'), (130, 'idle')])
 # wharf workers
-wk_spots = [(4, -1.4, 90, 'farm'), (1.5, -1.6, 70, 'farm2'), (-1.5, -2.0, 30, 'farm3'), (-4.0, -3.5, 120, 'farm'),
-            (14, -4, 200, 'farm2'), (22, -9, 250, 'farm3'), (-22, -3, 10, 'farm'), (-30, -7, 300, 'farm2'),
-            (30, -2.5, 160, 'farm3'), (9, -12, 90, 'driver'), (-18, -14, 45, 'farm'), (38, -6, 180, 'farm2')]
+wk_spots = [(4, -1.4, 90, 'dock'), (1.5, -1.6, 70, 'dock2'), (-1.5, -2.0, 30, 'dock'), (-4.0, -3.5, 120, 'dock'),
+            (14, -4, 200, 'dock2'), (22, -9, 250, 'dock'), (-22, -3, 10, 'dock'), (-30, -7, 300, 'dock2'),
+            (30, -2.5, 160, 'dock'), (9, -12, 90, 'driver'), (-18, -14, 45, 'dock'), (38, -6, 180, 'dock2')]
 workers = []
 for i, (x, y, rz, o) in enumerate(wk_spots):
     w = L.person(f'WORKER{i}', o, (x, y, WZ), D(rz), seed=40 + i, mats=mats)
@@ -177,7 +177,7 @@ for i in range(3):
     rear = Vector((TRK.x, TRK.y + 2.8, WZ))
     path = [(2.5 - i * 1.6, -2.4), (-3 - i, -3.0 - i * 0.6), (rear.x + 1.2 - i * 0.8, rear.y + 1.4 + i * 1.3)]
     P.drive(t, path, 175 + i * 6, 212 + i * 6, ease=True, keystep=3)
-    pusher = L.person(f'PUSHER{i}', 'farm2' if i % 2 else 'farm', (path[0][0] + 1.0, path[0][1], WZ), D(180), seed=70 + i, mats=mats)
+    pusher = L.person(f'PUSHER{i}', 'dock2' if i % 2 else 'dock', (path[0][0] + 1.0, path[0][1], WZ), D(180), seed=70 + i, mats=mats)
     L.walk(pusher, [(path[0][0] + 1.1, path[0][1]), (path[1][0] + 1.1, path[1][1] + 0.3), (path[2][0] + 0.9, path[2][1] + 0.9)],
            175 + i * 6, 212 + i * 6, upper='push')
 # truck pulls away forward along the harbour road (facing -Y), one direction
