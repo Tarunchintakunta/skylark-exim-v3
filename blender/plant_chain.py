@@ -169,7 +169,16 @@ def crate_mat(color):
 
 
 def shrimp_fn(C):
-    import skfarm as F
+    try:
+        import skfarm as F          # detailed raw shrimp (lands with the farm scenes)
+    except ImportError:
+        def fn(name, loc, rot):
+            o = L.shrimp_proxy(name, loc, rot)
+            for c in o.users_collection:
+                c.objects.unlink(o)
+            C.objects.link(o)
+            return o
+        return fn
 
     def fn(name, loc, rot):
         return F.shrimp(name, loc, rot, None, C)
@@ -237,29 +246,29 @@ def build_truck_reverse(C_people):
         key_hide(c, [(1, True), (203, False)])
     H.set_pose(drv, {'thigh.L': (30, 4, 0), 'shin.L': (-40, 0, 0), 'upperarm.R': (60, -10, 0), 'forearm.R': (40, 0, 0),
                      'upperarm.L': (20, -15, 0), 'forearm.L': (30, 0, 0), 'spine': (8, 0, 0)}, 203)
-    drv.location = (7.6, -8.85, 0.45)
+    drv.location = (7.3, -8.9, 0.45)
     drv.keyframe_insert('location', frame=209)
     H.set_pose(drv, {'thigh.R': (30, 4, 0), 'shin.R': (-40, 0, 0), 'upperarm.R': (50, -10, 0), 'forearm.R': (40, 0, 0),
                      'spine': (6, 0, 0)}, 209)
-    drv.location = (7.45, -8.75, 0.0)
+    drv.location = (7.05, -8.95, 0.0)
     drv.keyframe_insert('location', frame=215)
     H.set_pose(drv, H.POSES['stand'], 215)
     # turn toward the wheel, crouch, place the chock, stand up and stay by the cab
     drv.rotation_euler = (0, 0, D(-90))
     drv.keyframe_insert('rotation_euler', frame=215)
-    drv.rotation_euler = (0, 0, D(-145))
+    drv.rotation_euler = (0, 0, D(-242))
     drv.keyframe_insert('rotation_euler', frame=222)
-    drv.location = (7.6, -8.95, 0.0)
+    drv.location = (7.45, -9.05, 0.0)
     drv.keyframe_insert('location', frame=222)
     crouch = {'spine': (32, 0, 0), 'chest': (10, 0, 0), 'head': (-12, 0, 0), 'thigh': (75, 8, 0), 'shin': (-110, 0, 0),
               'foot': (25, 0, 0), 'upperarm': (45, -6, 0), 'forearm': (30, 0, 0)}
     H.set_pose(drv, H.POSES['stand'], 222)
-    drv.location = (7.6, -8.95, -0.38)
+    drv.location = (7.5, -9.0, -0.38)
     drv.keyframe_insert('location', frame=232)
     H.set_pose(drv, crouch, 232)
     H.set_pose(drv, crouch, 240)
     drv.keyframe_insert('location', frame=240)
-    drv.location = (7.6, -8.95, 0.0)
+    drv.location = (7.45, -9.05, 0.0)
     drv.keyframe_insert('location', frame=250)
     H.set_pose(drv, H.POSES['stand'], 250)
     drv.rotation_euler = (0, 0, D(-120))
@@ -267,13 +276,11 @@ def build_truck_reverse(C_people):
     H.set_pose(drv, {'upperarm': (6, -22, 0), 'forearm': (20, 0, 0), 'head': (4, 0, 8)}, 300)
     ch = chock('TRK_Chock', C_people)
     ch.rotation_euler = (0, 0, D(-90))
-    ch.location = (7.55, -8.6, 0.85)
-    ch.keyframe_insert('location', frame=203)
-    ch.location = (7.5, -8.75, 0.55)
-    ch.keyframe_insert('location', frame=222)
-    ch.location = (8.15, -8.42, 0.0)
-    ch.keyframe_insert('location', frame=236)
-    key_hide(ch, [(1, True), (203, False)])
+    for f, loc in ((222, (7.78, -8.88, 0.85)), (228, (7.95, -8.7, 0.45)), (234, (8.12, -8.47, 0.03)),
+                   (236, (8.15, -8.42, 0.0))):
+        ch.location = loc
+        ch.keyframe_insert('location', frame=f)
+    key_hide(ch, [(1, True), (222, False)])
 
     # dock workers: two open the rear doors from inside (hands on the door handles via IK), one pushes a trolley
     # across, two wait with empty trolleys, one at the strip curtain
@@ -386,10 +393,11 @@ def camera_truck_reverse():
         (80, (23.5, -16.5, 6.0), (t80.x - 1.0, t80.y, 1.6)),
         (120, (19.0, -21.5, 7.8), (8.0, -9.5, 1.6)),
         (165, (12.5, -20.0, 5.6), (9.0, -6.0, 1.8)),
-        (200, (3.3, -12.5, 2.9), (7.4, -6.5, 1.5)),
-        (230, (3.7, -5.6, 2.5), (5.5, 0.5, 2.2)),
-        (248, (4.65, -1.4, 2.6), (5.2, 4.0, 2.6)),
-        (264, (5.9, 1.9, 2.85), (8.8, 1.0, 2.45)),
+        (200, (3.4, -13.4, 2.3), (7.5, -8.7, 1.2)),       # driver steps down from the cab
+        (222, (4.4, -12.6, 1.85), (7.9, -8.7, 0.75)),     # ... walks to the front wheel
+        (240, (4.0, -11.3, 1.6), (7.7, -8.9, 0.5)),      # chock goes under the tyre, held in frame
+        (256, (4.0, -5.0, 2.4), (6.2, 1.0, 2.3)),
+        (272, (5.9, 1.9, 2.85), (8.8, 1.0, 2.45)),
         (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY, -1.4, 2.15)),
     ]
     for f, loc, t in keys:
@@ -448,6 +456,8 @@ def build(scene, out):
     SI.swing_strips(strips, [(424, 440, 8.2, 0.85, -1)])
     SI.animate_spray(1, 1100)
     R = build_truck_reverse(C_people)
+    import plant_yard
+    plant_yard.build(C_people, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd))
     import plant_chain_b as B
     B.build_interior_people(C_people, R)
     cam = camera_truck_reverse()

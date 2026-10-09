@@ -418,3 +418,52 @@ def haze(strength=0.0015, color=(0.75, 0.82, 0.92)):
         e.volumetric_end = 600
         e.volumetric_tile_size = '16'
         e.volumetric_samples = 32
+
+
+def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale=2.5):
+    """Overlay road dust / mud on an existing material: strongest at the ground, fading out by world height `top`,
+    broken up by noise. Rewires Base Color and Roughness through a mix (idempotent per material)."""
+    if m is None or not m.use_nodes or m.get('dusted'):
+        return
+    nt = m.node_tree
+    p = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if p is None:
+        return
+    L = nt.links
+    geo = nt.nodes.new('ShaderNodeNewGeometry')
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    L.new(geo.outputs['Position'], sep.inputs[0])
+    h = nt.nodes.new('ShaderNodeMapRange')          # 1 at the ground .. 0 at `top`
+    h.inputs['From Min'].default_value = top
+    h.inputs['From Max'].default_value = 0.0
+    L.new(sep.outputs[2], h.inputs['Value'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = scale
+    nz.inputs['Detail'].default_value = 10
+    L.new(geo.outputs['Position'], nz.inputs['Vector'])
+    nm = nt.nodes.new('ShaderNodeMapRange')
+    nm.inputs['From Min'].default_value = 0.35
+    nm.inputs['From Max'].default_value = 0.65
+    L.new(nz.outputs['Fac'], nm.inputs['Value'])
+    mul = nt.nodes.new('ShaderNodeMath')
+    mul.operation = 'MULTIPLY'
+    L.new(h.outputs[0], mul.inputs[0])
+    L.new(nm.outputs[0], mul.inputs[1])
+    fac = nt.nodes.new('ShaderNodeMath')
+    fac.operation = 'MULTIPLY'
+    fac.use_clamp = True
+    fac.inputs[1].default_value = amount * 1.6
+    L.new(mul.outputs[0], fac.inputs[0])
+    for sock, val in (('Base Color', (*color, 1)), ('Roughness', rough)):
+        inp = p.inputs[sock]
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA' if sock == 'Base Color' else 'FLOAT'
+        a, b, out = (6, 7, 2) if sock == 'Base Color' else (2, 3, 0)
+        if inp.links:
+            L.new(inp.links[0].from_socket, mx.inputs[a])
+        else:
+            mx.inputs[a].default_value = inp.default_value
+        mx.inputs[b].default_value = val
+        L.new(fac.outputs[0], mx.inputs[0])
+        L.new(mx.outputs[out], inp)
+    m['dusted'] = True
