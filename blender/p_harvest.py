@@ -61,20 +61,23 @@ def net_mat():
     nt = m.node_tree
     Ln = nt.links
     p = nt.nodes['Principled BSDF']
-    p.inputs['Base Color'].default_value = (0.08, 0.12, 0.09, 1)
-    p.inputs['Roughness'].default_value = 0.5
+    p.inputs['Base Color'].default_value = (0.035, 0.07, 0.05, 1)
+    p.inputs['Roughness'].default_value = 0.45
+    p.inputs['Coat Weight'].default_value = 0.4              # wet twine
     tc = nt.nodes.new('ShaderNodeTexCoord')
     outs = []
-    for d in ('X', 'Z'):
+    for d in ('X', 'Y'):
         w = nt.nodes.new('ShaderNodeTexWave')
         w.wave_type = 'BANDS'
-        w.bands_direction = 'DIAGONAL' if d == 'X' else 'Z'
+        w.bands_direction = d
         w.wave_profile = 'SIN'
-        w.inputs['Scale'].default_value = 40.0
+        w.inputs['Scale'].default_value = 12.6           # period 2pi/(10*scale) = 5 cm mesh (UV in metres)
+        w.inputs['Distortion'].default_value = 0.6
+        w.inputs['Detail'].default_value = 0.0
         Ln.new(tc.outputs['UV'], w.inputs['Vector'])
         mr = nt.nodes.new('ShaderNodeMapRange')
-        mr.inputs['From Min'].default_value = 0.82
-        mr.inputs['From Max'].default_value = 0.92
+        mr.inputs['From Min'].default_value = 0.72
+        mr.inputs['From Max'].default_value = 0.8
         Ln.new(w.outputs['Fac'], mr.inputs['Value'])
         outs.append(mr.outputs[0])
     mx = nt.nodes.new('ShaderNodeMath')
@@ -99,6 +102,7 @@ def build(out):
     F.poles(C, rnd)
     F.feed_trays(C, rnd)
     F.palms(C, rnd, xm, ym)
+    F.groves(C, rnd)
     F.birds(C, rnd, 5, F0, F1 + 24, centre=(60, 60, 18))
     H.load(os.path.join(REPO, 'assets-src/blender/humans.blend'))
     Cp = F.coll('SET_Harvest')
@@ -224,6 +228,7 @@ def build(out):
         bag.keyframe_insert('location', frame=f)
         bag.keyframe_insert('rotation_euler', frame=f)
     smoothk(bag)
+    key_hide(bag, [(F0, False), (141, True)])
     # shrimp inside the bag disappear as the crates fill
     for n, ch in enumerate([c for c in bag.children if c.name.startswith('HV_BagShrimp')]):
         key_hide(ch, [(F0, False), (100 + (n % 4) * 9, True)])
@@ -262,10 +267,11 @@ def build(out):
                     kp.handle_left.y = kp.handle_right.y = kp.co.y
         w.rotation_euler = (0, 0, D(180 + (25 if k2 else -25)))
         w.keyframe_insert('rotation_euler', frame=62)
-        H.set_pose(w, {'spine': (10, 0, 0), 'upperarm': (75, -10, 0), 'forearm': (30, 0, 0)}, 70)
-        H.jitter(w, {'spine': (8, 0, 0), 'upperarm': (70, -10, 0), 'forearm': (35, 0, 0)}, 74, 110, every=12, amp=4,
-                 seed=k2)
-        H.set_pose(w, H.POSES['stand'], 140)
+        H.set_pose(w, {'spine': (22, 0, 0), 'upperarm': (50, -8, 0), 'forearm': (55, 0, 0), 'thigh': (12, 4, 0),
+                       'shin': (-18, 0, 0)}, 70)
+        H.set_pose(w, {'spine': (10, 0, 0), 'upperarm': (30, -12, 0), 'forearm': (60, 0, 0)}, 82)
+        rest = {'spine': (4, 0, 0), 'upperarm': (6, -18, 0), 'forearm': (24, 0, 0), 'head': (8, 0, 0)}
+        H.jitter(w, rest, 92, 140, every=16, amp=4, seed=k2)
         H.jitter(w, H.POSES['look'], 150, F1 + 10, every=24, amp=5, seed=k2 + 9)
     # two lifters raise the bag, carry it up and tip it into the crates
     for k2, side in enumerate((-1, 1)):
@@ -289,7 +295,8 @@ def build(out):
         path = [(F0, (cx - 0.3 + side * 0.9, yb + 2.1)), (50, (cx - 0.3 + side * 0.85, yb + 1.8)),
                 (80, (cx - 0.6 + side * 0.8, yb + 0.9)), (96, (cx - 2.6 + side * 0.75, yb - 0.4)),
                 (128, (cx - 1.3 + side * 0.75, yb - 0.45)), (160, (cx + 3.6 + side * 0.8, yb - 1.0))]
-        H.walk_cycle(w, F0, 160, path, stride=0.45, base={'spine': (12, 0, 0)}, arms=False, step=2)
+        H.walk_cycle(w, F0, 160, path, stride=0.45,
+                     base={'spine': (12, 0, 0), 'upperarm': (10, -16, 0), 'forearm': (30, 0, 0)}, arms=False, step=2)
         for fc in T._fcurves(w.animation_data.action):
             if fc.data_path == 'location' and fc.array_index == 2:
                 for kp in fc.keyframe_points:
@@ -382,7 +389,7 @@ def build(out):
     sun_az = 130.0
     P.hdri_world('qwantani_mid_morning_puresky_4k.hdr', strength=0.9, rot_deg=sun_az - az_h, sun_elev=el_h, sun_az=sun_az,
                  sun_energy=5.0, sun_color=(1.0, 0.92, 0.8))
-    P.look_settings('exterior', exposure=0.0, haze=(120.0, 700.0, (0.72, 0.79, 0.88), 0.22))
+    P.look_settings('exterior', exposure=0.0, haze=(160.0, 900.0, (0.64, 0.76, 0.94), 0.1))
     s.frame_start, s.frame_end = F0, F1
     s.frame_current = F0
     s.render.filepath = '//../render/p-harvest/'
@@ -448,7 +455,7 @@ def _drip_mesh():
 def _net(cx, yw, C):
     """Seine net: a ring of floats on the surface and a hanging net wall; shape key 'In' pulls it to the bank."""
     W = F.WATER
-    floats = P.plain('HV_FloatYellow', (0.75, 0.55, 0.05), 0.35, coat=0.4)
+    floats = P.plain('HV_FloatFoam', (0.62, 0.30, 0.07), 0.55, coat=0.2)   # small weathered orange foam floats
     p = Part()
     bm = p.bm
     n = 40
@@ -457,8 +464,8 @@ def _net(cx, yw, C):
         a = math.pi * i / n
         x = cx - 0.3 - math.cos(a) * 4.6
         y = yw + 1.0 + math.sin(a) * 5.0
-        top.append(bm.verts.new((x, y, W + 0.03)))
-        bot.append(bm.verts.new((x, y, W - 1.0)))
+        top.append(bm.verts.new((x, y, W + 0.38)))
+        bot.append(bm.verts.new((x, y, W - 0.7)))
     for i in range(n):
         bm.faces.new((top[i], top[i + 1], bot[i + 1], bot[i]))
     o = p.make('HV_Net', net_mat(), None, coll=C)
@@ -467,7 +474,7 @@ def _net(cx, yw, C):
     for poly in me.polygons:
         for li in poly.loop_indices:
             v = me.vertices[me.loops[li].vertex_index].co
-            uv.data[li].uv = (math.atan2(v.y - yw, v.x - cx) * 2.0, v.z)
+            uv.data[li].uv = (math.atan2(v.y - yw - 1.0, v.x - cx + 0.3) * 4.8, v.z)
     o.shape_key_add(name='Basis')
     sk = o.shape_key_add(name='In')
     for i, v in enumerate(me.vertices):
@@ -475,7 +482,7 @@ def _net(cx, yw, C):
         a = math.pi * k / n
         x = cx - 0.3 - math.cos(a) * 1.4
         y = yw + 0.6 + math.sin(a) * 1.3
-        sk.data[i].co = (x, y, v.co.z + (0.3 if v.co.z < W - 0.5 else 0.0))
+        sk.data[i].co = (x, y, v.co.z + (0.45 if v.co.z < W - 0.3 else 0.12))
     for f, v in ((1, 0.0), (60, 1.0)):
         sk.value = v
         sk.keyframe_insert('value', frame=f)
@@ -484,12 +491,16 @@ def _net(cx, yw, C):
     fl = Part()
     owner = []
     centres = []
-    for i in range(0, n + 1, 2):
-        a = math.pi * i / n
-        c0 = Vector((cx - 0.3 - math.cos(a) * 4.6, yw + 1.0 + math.sin(a) * 5.0, W + 0.02))
-        c1 = Vector((cx - 0.3 - math.cos(a) * 1.4, yw + 0.6 + math.sin(a) * 1.3, W + 0.02))
+    for i in range(0, 2 * n + 1):
+        a = math.pi * i / (2 * n)
+        c0 = Vector((cx - 0.3 - math.cos(a) * 4.6, yw + 1.0 + math.sin(a) * 5.0, W + 0.38))
+        c1 = Vector((cx - 0.3 - math.cos(a) * 1.4, yw + 0.6 + math.sin(a) * 1.3, W + 0.5))
+        tg = Vector((math.sin(a) * 4.6, math.cos(a) * 5.0, 0)).normalized() * 0.05
         before = len(fl.bm.verts)
-        fl.cyl(c0 - Vector((0, 0, 0.05)), c0 + Vector((0, 0, 0.05)), 0.07, 10)
+        if i % 3 == 0:
+            fl.cyl(c0 - tg, c0 + tg, 0.032, 8)             # float threaded on the head rope
+        else:
+            fl.cyl(c0 - tg * 4, c0 + tg * 4, 0.007, 5)     # head rope segment
         owner += [len(centres)] * (len(fl.bm.verts) - before)
         centres.append(c1 - c0)
     fo = fl.make('HV_NetFloats', floats, None, smooth=True, coll=C)
