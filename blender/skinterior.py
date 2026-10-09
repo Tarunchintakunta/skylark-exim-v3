@@ -283,7 +283,7 @@ def _conveyor(name, a, b, width, C, M, legs=True):
 
 def grading(C, M, rnd, shrimp_fn):
     belt = _conveyor('IN_GradeBelt', (CX, 20.5, DZ + 0.95), (CX, 31.5, DZ + 0.95), 0.7, C, M)
-    for k in range(150):                                   # product spread along the belt (and the outfeed)
+    for k in range(360):                                   # product spread along the belt (and the outfeed)
         y = rnd.uniform(17.4, 31.2)
         z = DZ + 1.03 if y > 20.5 else DZ + 0.66 + (y - 17.2) / 3.3 * 0.35 + 0.08
         shrimp_fn('IN_BeltShrimp%03d' % k, (CX + rnd.uniform(-0.27, 0.27), y, z),
