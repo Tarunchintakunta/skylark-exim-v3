@@ -280,7 +280,7 @@ def hdri_world(name, strength=1.0, rot_deg=0.0, sun_elev=45.0, sun_az=0.0, sun_e
     return sun
 
 
-def look_settings(kind='exterior', exposure=0.0, samples=64):
+def look_settings(kind='exterior', exposure=0.0, samples=64, haze=None):
     s = bpy.context.scene
     s.render.engine = 'BLENDER_EEVEE'
     e = s.eevee
@@ -318,12 +318,29 @@ def look_settings(kind='exterior', exposure=0.0, samples=64):
     s.render.use_overwrite = False
     # glare (subtle bloom) through the compositor
     try:
-        _bloom(s)
+        _bloom(s, haze)
     except Exception as ex:
         print('bloom skipped', ex)
 
 
-def _bloom(s):
+def hdri_sun(name):
+    """(compass azimuth deg, elevation deg) of the brightest pixel of a Poly Haven equirect HDRI (Blender mapping)."""
+    import numpy as np
+    im = bpy.data.images.load(os.path.join(CC0, 'hdri', name), check_existing=True)
+    w, h = im.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    im.pixels.foreach_get(px)
+    lum = px.reshape(h, w, 4)[:, :, :3].sum(axis=2)
+    j, i = np.unravel_index(int(np.argmax(lum)), lum.shape)
+    u, v = (i + 0.5) / w, (j + 0.5) / h
+    phi = (u - 0.5) * 2 * math.pi
+    th = (v - 0.5) * math.pi
+    x, y = -math.cos(phi) * math.cos(th), math.sin(phi) * math.cos(th)
+    return math.degrees(math.atan2(x, y)), math.degrees(th)
+
+
+def _bloom(s, haze=None):
+    """Compositor: optional aerial haze from the mist pass (haze = (start, depth, color, amount)), then subtle bloom."""
     tree = None
     if hasattr(s, 'compositing_node_group'):
         tree = bpy.data.node_groups.new('COMP_Look', 'CompositorNodeTree')
@@ -333,7 +350,25 @@ def _bloom(s):
         gl = tree.nodes.new('CompositorNodeGlare')
         out = tree.nodes.new('NodeGroupOutput')
         _glare_cfg(gl)
-        tree.links.new(rl.outputs['Image'], gl.inputs['Image'])
+        img = rl.outputs['Image']
+        if haze:
+            start, depth, color, amount = haze
+            bpy.context.view_layer.use_pass_mist = True
+            w = s.world
+            w.mist_settings.start = start
+            w.mist_settings.depth = depth
+            w.mist_settings.falloff = 'QUADRATIC'
+            mul = tree.nodes.new('ShaderNodeMath')
+            mul.operation = 'MULTIPLY'
+            mul.inputs[1].default_value = amount
+            tree.links.new(rl.outputs['Mist'], mul.inputs[0])
+            mx = tree.nodes.new('ShaderNodeMix')
+            mx.data_type = 'RGBA'
+            tree.links.new(mul.outputs[0], mx.inputs[0])
+            tree.links.new(img, mx.inputs[6])
+            mx.inputs[7].default_value = (*color, 1)
+            img = mx.outputs[2]
+        tree.links.new(img, gl.inputs['Image'])
         tree.links.new(gl.outputs['Image'], out.inputs[0])
     else:
         s.use_nodes = True
