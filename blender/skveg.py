@@ -147,14 +147,14 @@ def _frond(bm, base, direction, length, droop, rnd, leaflets=26):
         ll = 0.7 * math.sin(math.pi * min(1, t * 1.1)) + 0.15
         for s in (-1, 1):
             out = (side * s * 0.85 + tang * 0.45 - Vector((0, 0, 0.35 + rnd.uniform(0, 0.3)))).normalized()
-            w = 0.045
+            w = 0.085
             a = p
             b = p + out * ll
             n = tang * w
             bm.faces.new([bm.verts.new(x) for x in (a - n, a + n, b + n * 0.2, b - n * 0.2)])
 
 
-def palm_mesh(name='VEG_PalmMesh', h=11.0, seed=3, fronds=18):
+def palm_mesh(name='VEG_PalmMesh', h=11.0, seed=3, fronds=24):
     if name in bpy.data.meshes:
         return bpy.data.meshes[name]
     M = mats()
