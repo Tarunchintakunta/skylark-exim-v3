@@ -206,6 +206,10 @@ def proc_crew(C, rnd):
     for x, y, rz, lod in spots:
         g = 'female' if rnd.random() < 0.45 else 'male'
         w = H.person('HUM_Proc%02d' % n, 'plant', g, coll=C, seed=400 + n, lod=lod)
+        h = rnd.uniform(0.93, 1.06) * (0.95 if g == 'female' else 1.0)    # varied height and build
+        w.scale = (h * rnd.uniform(0.94, 1.1), h * rnd.uniform(0.95, 1.08), h)
+        H.grip(w, 'L', curl=rnd.uniform(0.35, 0.7))                         # working hands, not splayed
+        H.grip(w, 'R', curl=rnd.uniform(0.35, 0.7))
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz + rnd.uniform(-8, 8)))
         H.jitter(w, work, 1, 1060, every=8 + n % 5, amp=7, seed=n)

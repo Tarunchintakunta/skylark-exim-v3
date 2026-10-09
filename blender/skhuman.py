@@ -170,6 +170,26 @@ def _eye_mat():
     return m
 
 
+def _palette(m, colors):
+    """Per-person colour from a small palette (Object Info random, constant steps) into Base Color."""
+    nt = m.node_tree
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    oi = nt.nodes.new('ShaderNodeObjectInfo')
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    cr = ramp.color_ramp
+    cr.interpolation = 'CONSTANT'
+    cr.elements[0].color = (*colors[0], 1)
+    cr.elements[1].position = 1.0
+    cr.elements[1].color = (*colors[-1], 1)
+    for i, c in enumerate(colors[1:-1], 1):
+        e = cr.elements.new(i / len(colors))
+        e.color = (*c, 1)
+    nt.links.new(oi.outputs['Random'], ramp.inputs[0])
+    for lk in list(p.inputs['Base Color'].links):
+        nt.links.remove(lk)
+    nt.links.new(ramp.outputs[0], p.inputs['Base Color'])
+
+
 def _stache_mat():
     """Moustache on about half the men (Object Info random > 0.45), hidden on the rest."""
     m = bpy.data.materials.get('HUM_Stache')
@@ -194,7 +214,9 @@ def mats():
         'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.45, sss=0.15, bump=0.05, rand=0.25),
         'eye': _eye_mat(),
         'white_cotton': _mat('HUM_WhiteCotton', (0.68, 0.69, 0.68), 0.85, sheen=0.3, bump=0.12, rand=0.04, wrinkle=0.45),
-        'white_pvc': _mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
+        'white_pvc': _palette(_mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
+                              ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
+                               (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
         'boot': _mat('HUM_WhiteBoot', (0.70, 0.71, 0.69), 0.35, coat=0.2, bump=0.02),
         'nitrile_blue': _mat('HUM_NitrileBlue', (0.16, 0.33, 0.62), 0.38, coat=0.25, rand=0.06),
         'cap_white': _mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
