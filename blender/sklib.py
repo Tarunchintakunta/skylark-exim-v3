@@ -395,7 +395,7 @@ def tex_pbr(name, tset, scale=1.0, tint=None, tint_amount=0.75, rough_mul=1.0, r
         l.new(col, bw.inputs[0])
         g = _node(nt, 'ShaderNodeMath', (-500, 300))
         g.operation = 'MULTIPLY'
-        g.inputs[1].default_value = dark / max(0.08, mean)  # texture luminance normalised to 1 on average
+        g.inputs[1].default_value = dark / max(0.005, mean)  # texture luminance normalised to 1 on average
         l.new(bw.outputs[0], g.inputs[0])
         if attr:
             a = _node(nt, 'ShaderNodeAttribute', (-650, 500))
