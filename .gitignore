@@ -9,3 +9,5 @@ playwright-report
 .lighthouseci
 perf-report*.json
 .DS_Store
+review/
+.claude/worktrees/
