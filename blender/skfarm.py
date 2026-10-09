@@ -1235,7 +1235,8 @@ def shrimp_mesh():
 
 
 def shrimp(name, loc, rot, parent=None, C=None, scale=1.0):
-    o = bpy.data.objects.new(name, shrimp_mesh())
+    import skscan                     # CC BY 4.0 scan (docs/LICENSES.md) when scans.blend is built, procedural otherwise
+    o = bpy.data.objects.new(name, skscan.mesh('SCAN_Shrimp') or shrimp_mesh())
     (C or bpy.context.scene.collection).objects.link(o)
     o.parent = parent
     o.location = loc
