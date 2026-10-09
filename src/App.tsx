@@ -3,6 +3,8 @@ import { useApp } from './engine/store'
 import { Film } from './film/Film'
 import { ScrubStage } from './film/ScrubStage'
 import { Loader } from './ui/Loader'
+import { PathPill } from './ui/PathPill'
+import { StartScreen } from './ui/StartScreen'
 
 export default function App() {
   const path = useApp((s) => s.path)
@@ -11,9 +13,10 @@ export default function App() {
     <>
       <ScrubStage chapters={chapters} />
       <main id="main">
-        <h1>Skylark Exim</h1>
+        <StartScreen />
         <Film chapters={chapters} />
       </main>
+      <PathPill />
       <Loader />
     </>
   )
