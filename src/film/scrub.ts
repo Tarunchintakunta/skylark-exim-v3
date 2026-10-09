@@ -5,9 +5,12 @@ import { onTick } from '../engine/ticker'
 import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
 /**
- * Video engine (TRD §6). Two <video> decoders: the current clip and the next one (prefetched at 50%).
- * Each tick: target = p * (duration - 1/24); seek only if the decoder is idle and the target moved > 1/48 s,
- * otherwise remember the newest target and apply it on `seeked`. The poster stays visible until a frame has painted.
+ * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
+ * - The current clip loads on entry; the next starts once the current fires `canplaythrough` (the previous when scrolling up).
+ * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
+ *   presented frame stays up instead of stalling or flashing back to the poster.
+ * - The target is lerped (fast flicks become several small seeks); `fastSeek()` while the scroll is fast,
+ *   exact `currentTime` once it settles. Frames count as presented from `requestVideoFrameCallback`.
  */
 interface Slot {
   v: HTMLVideoElement
@@ -15,10 +18,19 @@ interface Slot {
   painted: boolean
   pending: number | null
   dead: boolean
+  /** fired canplaythrough: safe to start the neighbour */
+  ready: boolean
+  /** lerped seek target, seconds */
+  t: number
+  /** last time this slot was the current clip (pool eviction) */
+  used: number
 }
 
 const FRAME = 1 / 24
 const EPS = 1 / 48
+/** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
+const FAST = 30
+const LERP = 0.25
 
 let segs: Segment[] = []
 let posters: (HTMLElement | null)[] = []
@@ -31,6 +43,8 @@ let shown: Slot | null = null
 let over = -1
 let hidden = false
 let isLight = false
+let lastY = 0
+let clock = 0
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -53,7 +67,7 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
-  const s: Slot = { v, id: null, painted: false, pending: null, dead: false }
+  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, ready: false, t: 0, used: 0 }
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
     if (v.requestVideoFrameCallback) {
@@ -63,7 +77,12 @@ function makeSlot(v: HTMLVideoElement): Slot {
       setTimeout(() => !done && v.readyState >= 2 && (s.painted = true), 120)
     } else s.painted = true
   }
-  v.addEventListener('loadeddata', markPainted)
+  v.addEventListener('loadeddata', () => {
+    s.dead = false
+    markPainted()
+  })
+  v.addEventListener('canplaythrough', () => (s.ready = true))
+  v.addEventListener('error', () => (s.dead = true))
   v.addEventListener('seeked', () => {
     if (s.pending !== null && Math.abs(v.currentTime - s.pending) > EPS) {
       v.currentTime = s.pending
@@ -81,18 +100,21 @@ function load(s: Slot, id: string) {
   s.painted = false
   s.pending = null
   s.dead = false
+  s.ready = false
+  s.t = 0
   s.v.src = clipUrl(id)
   s.v.load()
-  // iOS Low Power Mode and friends: no decode → stay on posters for this clip
+  // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives
   setTimeout(() => {
     if (s.id === id && s.v.readyState < 2) s.dead = true
-  }, 1500)
+  }, 4000)
 }
 
 function release(s: Slot) {
   if (!s.id) return
   s.id = null
   s.painted = false
+  s.ready = false
   s.v.removeAttribute('src')
   s.v.load()
   s.v.style.opacity = '0'
@@ -103,16 +125,24 @@ const videoId = (i: number) => {
   return m?.kind === 'video' ? m.id : null
 }
 
-function slotFor(id: string, keep: string | null) {
-  return (
-    slots.find((s) => s.id === id) ??
-    (() => {
-      const free = (x: Slot) => x.id === null || x.id !== keep
-      const s = slots.find((x) => x.id === null) ?? slots.find((x) => free(x) && x !== shown) ?? slots.find(free)!
-      load(s, id)
-      return s
-    })()
-  )
+/** Nearest video clip from segment i in direction d (skipping stills/globe), or null. */
+function videoNear(i: number, d: 1 | -1) {
+  for (let k = i + d; k >= 0 && k < segs.length; k += d) {
+    const id = videoId(k)
+    if (id) return id
+  }
+  return null
+}
+
+/** Slot holding `id`, loading it into the least recently used slot not in `keep` if needed. */
+function slotFor(id: string, keep: (string | null)[]) {
+  const have = slots.find((s) => s.id === id)
+  if (have) return have
+  const free = slots.filter((x) => x !== shown && !keep.includes(x.id))
+  const s = free.find((x) => x.id === null) ?? free.sort((a, b) => a.used - b.used)[0]
+  if (!s) return null
+  load(s, id)
+  return s
 }
 
 function setShown(s: Slot | null) {
@@ -124,13 +154,15 @@ function setShown(s: Slot | null) {
 
 function tick() {
   if (!segs.length) return
-  // the whole film is off screen: stop all work and free decoders
+  clock++
+  const vel = Math.abs(frame.scroll - lastY)
+  lastY = frame.scroll
+  // the whole film is off screen: stop all work, keep the decoders' sources so the way back doesn't re-download
   if (frame.past !== hidden) {
     hidden = frame.past
     if (stage) stage.style.visibility = hidden ? 'hidden' : 'visible'
     if (hidden) {
       setShown(null)
-      for (const s of slots) release(s)
       clearLayers(-1)
       cur = -1
     }
@@ -146,15 +178,19 @@ function tick() {
 
   if (i !== cur) enter(i, cur)
 
-  // decoders: current + next (from 50%)
+  // decoders: current now; the neighbour in the scroll direction once the current can play through
   const want = videoId(i)
-  const next = p > 0.5 ? videoId(i + 1) : null
+  const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
+  const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
   if (want) {
-    active = slotFor(want, next)
-    seek(active, p)
+    active = slotFor(want, [ahead, behind])
+    if (active) {
+      active.used = clock
+      seek(active, p, vel)
+    }
   }
-  if (next && next !== want) slotFor(next, want)
+  if (ahead && (!want || active?.ready)) slotFor(ahead, [want, behind])
   setShown(active && active.painted && !active.dead ? active : null)
 
   // placeholders (stills and the port/sea gradients): slow push-in
@@ -182,15 +218,28 @@ function tick() {
   }
 }
 
-function seek(s: Slot, p: number) {
+function seek(s: Slot, p: number, vel: number) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
-  const t = p * Math.max(0, v.duration - FRAME)
+  const target = p * Math.max(0, v.duration - FRAME)
+  // big jumps (a chapter entered mid-way, a nav click) snap; normal scrolling glides
+  s.t = Math.abs(target - s.t) > 1 ? target : s.t + (target - s.t) * LERP
+  const t = Math.abs(target - s.t) < EPS ? target : s.t
+  // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it
+  if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) return
   if (v.seeking) {
     s.pending = t
     return
   }
-  if (Math.abs(v.currentTime - t) > EPS) v.currentTime = t
+  if (Math.abs(v.currentTime - t) <= EPS) return
+  if (vel > FAST && v.fastSeek) v.fastSeek(t)
+  else v.currentTime = t
+}
+
+function buffered(v: HTMLVideoElement, t: number) {
+  const b = v.buffered
+  for (let k = 0; k < b.length; k++) if (t >= b.start(k) - EPS && t <= b.end(k) + EPS) return true
+  return false
 }
 
 /** Every stage layer to opacity 0 except `keep`; clears the cross-fade overlay. */
