@@ -21,7 +21,9 @@ import sklib as L            # noqa: E402
 from sktruck import Part     # noqa: E402
 
 REPO = os.path.dirname(HERE)
-OFFSETS = {'truck-reverse': (1, 288), 'p-intake': (288, 479), 'p-proc': (479, 766), 'p-freeze': (766, 1053)}
+OFFSETS = {'truck-reverse': (1, 288), 'p-intake': (288, 479), 'p-proc': (479, 766), 'p-freeze': (766, 1053),
+           'p-lab': (766, 909), 'p-iqf': (910, 1053), 'p-pack': (910, 1053), 'p-store': (900, 1043),
+           'p-docs': (1100, 1243)}
 D = math.radians
 
 
@@ -489,6 +491,13 @@ def build(scene, out):
     B.build_interior_people(C_people, R)
     cam = camera_truck_reverse()
     B.extend_camera(cam)
+    import plant_cold
+    if scene in plant_cold.BEATS:                     # coldchain: one shot per caption (lab / IQF / pack / store)
+        s.camera = plant_cold.build(scene, C_people, cam)
+    if scene == 'p-docs':                             # export paperwork + sealed reefer in the yard
+        import plant_docs
+        s.camera = plant_docs.build(C_people)
+        bpy.data.collections['SET_Interior'].hide_render = True
     B.shadow_policy()
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
@@ -500,7 +509,7 @@ def build(scene, out):
         vs.exposure = ev
         vs.keyframe_insert('exposure', frame=f)
     f0, f1 = OFFSETS[scene]
-    if scene in ('p-proc', 'p-freeze'):
+    if scene in ('p-proc', 'p-freeze', 'p-lab', 'p-iqf', 'p-pack', 'p-store'):
         for cn in ('SET_PlantExterior',):
             bpy.data.collections[cn].hide_render = True
     shift_all(1 - f0)
