@@ -17,7 +17,11 @@ test('every committed media/model file is within budget', () => {
     }
     for (const f of files) {
       const kb = statSync(`${dir}/${f}`).size / 1024
-      const limit = f.endsWith('.glb') ? 1536 : f.endsWith('_720.webp') ? 40 : f.endsWith('_1280.webp') ? 90 : f.endsWith('_720.mp4') ? 1230 : f.endsWith('.mp4') ? 2300 : 1024
+      // clip tiers (redesign §2.6): ≈ 2.5 MB / 8 s at 1920 and 0.9 MB / 8 s at 960, so 12 s clips get 1.5×; posters ≤ 120 KB
+      const limit = f.endsWith('.glb') ? 1536
+        : f.endsWith('_720.webp') ? 40 : f.endsWith('.webp') ? 120
+        : f.endsWith('_1920.mp4') ? 3900 : f.endsWith('_960.mp4') ? 1400 : f.endsWith('_720.mp4') ? 1230 : f.endsWith('.mp4') ? 2300
+        : 1024
       if (kb > limit) over.push(`${f} ${kb.toFixed(0)} KB > ${limit} KB`)
     }
   }
