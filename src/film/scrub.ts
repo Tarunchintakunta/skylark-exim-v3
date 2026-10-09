@@ -131,6 +131,7 @@ function tick() {
     if (hidden) {
       setShown(null)
       for (const s of slots) release(s)
+      clearLayers(-1)
       cur = -1
     }
   }
@@ -192,8 +193,21 @@ function seek(s: Slot, p: number) {
   if (Math.abs(v.currentTime - t) > EPS) v.currentTime = t
 }
 
+/** Every stage layer to opacity 0 except `keep`; clears the cross-fade overlay. */
+function clearLayers(keep: number) {
+  posters.forEach((el, k) => {
+    if (!el || k === keep) return
+    el.style.opacity = '0'
+    el.classList.remove('is-over')
+  })
+  tags.forEach((el, k) => el && k !== keep && (el.style.opacity = '0'))
+  over = -1
+}
+
 function enter(i: number, prev: number) {
   const fromBelow = prev > i
+  // coming back from the business sections (or the first frame): nothing to fade from, start clean
+  if (prev < 0) clearLayers(i)
   if (prev >= 0 && tags[prev]) tags[prev]!.style.opacity = '0'
   if (tags[i]) tags[i]!.style.opacity = '1'
   if (prev >= 0 && posters[prev]) {
