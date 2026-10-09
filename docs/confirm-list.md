@@ -3,7 +3,7 @@ The site works without any answer (fallback in brackets). Reply with the number 
 
 1. **Grammar clean-up** of site copy (CONTENT.md "Use on site" column: same facts, fixed grammar/spelling) is OK? [fallback: use cleaned version]
 2. **Fishing gear**: the boats use **nets** (the new catch clip shows a net hauled by winch)? Copy never names the gear either way. [fallback: net clip, gear unnamed]
-3. **Tagline** "Two Origins. One Standard." (from the drafts, not on skylarkexim.com) OK as the start-screen H1? [fallback: "From the Bay of Bengal to the world."]
+3. **Tagline** "Two Origins. One Standard." (from the drafts, not on skylarkexim.com) OK as the start-screen H1? [fallback: "From Visakhapatnam to the world."]
 4. **Vision** says "supporting coastal commodities". Did you mean "coastal communities"? [fallback: keep "commodities"]
 5. Mention **"diversified commodities"** and **"culture material and solvents"** (site footer / Why Choose Us)? [fallback: omitted]
 6. **Bangkok** is listed as a separate market from Thailand on the site. Keep both (16 markets) or merge (15)? [fallback: keep 16 as listed]

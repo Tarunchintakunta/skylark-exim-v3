@@ -62,6 +62,7 @@ Use: Our mission is to deliver premium-quality seafood to global markets while e
 | Peeled & Deveined | Tail on / Tail off |
 | Pin Deveined | Tail on / Tail off |
 | Easy Peel | Vannamei / Black Tiger |
+
 (Site writes "Headon Shell on", "Headless Shell on", "PUD — Vannami". The abbreviations HOSO/HLSO and the expansion "Peeled Undeveined" are standard trade terms, not from the site: `[CONFIRM]`; safe to show the full names only.)
 **States:** Raw fresh · Chilled · Frozen.
 No count grades, sizes, MOQ or prices anywhere.

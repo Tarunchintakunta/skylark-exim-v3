@@ -25,14 +25,15 @@ Overlay layer: DOM copy, HUD, nav, CTA (transform/opacity animations only).
 | @playwright/test | 1.64.x |
 | @lhci/cli | 0.15.x |
 | @gltf-transform/cli (via npx in scripts) | 4.x |
+
 Fonts self-hosted WOFF2, subset Latin: **Sora** (display 500/600), **Inter** (body 400/500), **JetBrains Mono** (HUD/eyebrows 400). Preload only Sora 600 + Inter 400.
 
 ## 3. Folder structure
 ```
 skylark-exim-v3/
-  docs/                      # this pack (PRD, TRD, STORY, CONTENT, …)
+  docs/                      # this pack (PRD, TRD, STORY, CONTENT, …) + docs/renders/ (Blender review stills, port-preview.mp4)
   api/rfq.ts                 # Vercel function
-  assets-src/                # git-ignored masters
+  assets-src/                # git-ignored masters: video/, anchors/, models/ (raw GLB exports), blender/ (port.blend), render/ (PNG frames)
   public/ media/ models/ textures/ docs/ og/ fonts/ robots.txt sitemap.xml favicon.svg
   scripts/                   # fetch-sources, encode-clips, make-posters, optimize-glb
   src/
@@ -86,7 +87,7 @@ interface ChapterDef {
 - Lighting: `<Environment preset="city" />` or a 1k Poly Haven daylight HDRI; tone mapping ACES, exposure 1.1 for the bright globe.
 
 ## 8. Asset pipeline
-See ASSETS_SPEC.md (scripts, budgets, measured results) and BLENDER_GLB_SPEC.md. `npm run assets` = `fetch-sources.sh && encode-clips.sh && make-posters.sh && optimize-glb.sh`. A `weight.spec.ts` test fails the build if any file in `public/media` or `public/models` exceeds its budget.
+See ASSETS_SPEC.md (scripts, budgets, measured results) and BLENDER_GLB_SPEC.md. Clip sources: REUSE (skylark repo), 5 Higgsfield clips from Tarun, and 2 Blender renders (`x-cranes`, `x-ship`) that Claude builds, renders headless (`Blender -b assets-src/blender/port.blend -a`) and turns into 1080p masters in `assets-src/video/`; all clips then go through the same encode. All GLBs are built by Claude in Blender via its connector. `npm run assets` = `fetch-sources.sh && encode-clips.sh && make-posters.sh && optimize-glb.sh`. A `weight.spec.ts` test fails the build if any file in `public/media` or `public/models` exceeds its budget.
 
 ## 9. Performance budgets (acceptance)
 | Metric | Limit |
@@ -99,6 +100,7 @@ See ASSETS_SPEC.md (scripts, budgets, measured results) and BLENDER_GLB_SPEC.md.
 | Initial transfer | ≤ 3 MB (target 1.5) |
 | Full scroll transfer | ≤ 25 MB desktop, ≤ 12 MB mobile |
 | JS (gzip) initial route | ≤ 250 KB; three/R3F in a lazy chunk |
+
 Rules: animate `transform`/`opacity` only; no layout reads inside the ticker; no `filter: blur()` animations; one grain overlay as a static tiled PNG/WebP with `mix-blend-mode` (not a per-frame canvas); `will-change` only on the pinned stage and the active caption.
 
 ## 10. Accessibility

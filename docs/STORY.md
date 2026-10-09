@@ -1,6 +1,6 @@
 # STORY.md: Skylark Exim v3, final scene list
 
-Source legend: **REUSE `id`** = existing clip from github.com/Tarunchintakunta/skylark `assets/video/1080/<id>.mp4` · **NEW `id`** = new Higgsfield clip · **REGEN `id`** = replaces a clip Tarun rejected · **GLB** = React Three Fiber model · **DOM** = HTML/CSS/GSAP section.
+Source legend: **REUSE `id`** = existing clip from github.com/Tarunchintakunta/skylark `assets/video/1080/<id>.mp4` · **NEW `id`** = new Higgsfield clip (Tarun) · **REGEN `id`** = Higgsfield clip that replaces one Tarun rejected · **BLENDER `id`** = clip Claude builds, animates and renders in Blender (`BLENDER_GLB_SPEC.md` §3), encoded like every other clip · **GLB** = React Three Fiber model · **DOM** = HTML/CSS/GSAP section.
 All body copy is from `CONTENT.md` (skylarkexim.com). Headlines are editorial lines that make no factual claim. Nothing marked `[CONFIRM]` is needed for the site to work.
 
 Scroll lengths are in viewport heights (vh) on desktop; mobile uses 0.8×. Every film chapter is **pinned** (one fixed stage), and scroll progress inside the chapter drives `video.currentTime` from 0 to duration.
@@ -18,7 +18,7 @@ HUD = the fixed cold-chain readout on the right edge. It shows the **workflow st
 
 ## 1. Start screen + fork. Source: REUSE `opening` (8 s, underwater → surface; ends on harbour lights left, pond bunds right)
 - Eyebrow: `Visakhapatnam · Andhra Pradesh`
-- Headline (SplitText, line mask reveal): **Two Origins. One Standard.** `[CONFIRM]` (tagline from the earlier drafts, not on skylarkexim.com; fallback: "From the Bay of Bengal to the world.")
+- Headline (SplitText, line mask reveal): **Two Origins. One Standard.** `[CONFIRM]` (tagline from the earlier drafts, not on skylarkexim.com; fallback: "From Visakhapatnam to the world.")
 - Body: "Premium raw fresh, chilled and frozen seafood, with a fully integrated value chain from sourcing to delivery."
 - Two large buttons: **THE OCEAN** (wild catch; selected by default, left, over the harbour side of the frame) and **THE POND** (farmed shrimp; right, over the pond side). Keyboard: ←/→ to switch, Enter to begin. `aria-pressed` on the selected one.
 - Links: "Skip the story → Products" (top right, small mono) and the sticky **Request export quote** button (always visible from here on, bottom right on mobile).
@@ -85,7 +85,7 @@ HUD = the fixed cold-chain readout on the right edge. It shows the **workflow st
 
 ## THE PLANT (both paths converge on `anchor2`)
 
-### 5. Intake. Source: REGEN `p-intake` (8 s; replaces `t1`'s opening and the kohl intake Tarun rejected)
+### 5. Intake. Source: REGEN `p-intake` (8 s; replaces `t1`'s opening and the kohl intake Tarun rejected. Fallback if the regen fails: BLENDER render of the truck backed to the dock, no people, BLENDER_GLB_SPEC.md §6)
 - Headline: **Both origins arrive at one door.**
 - Body: "Our processing unit at Anandapuram, Visakhapatnam: a state-of-the-art shrimp processing facility equipped with internationally acclaimed modernized equipment."
 - Visual: truck already **backed up** flush to the dock, rear doors swing open into the plant, the driver stays **outside** by the cab in the yard, masked workers unload iced crates from the rear onto steel trolleys; camera follows a crate through the door into the white intake hall.
@@ -121,17 +121,17 @@ HUD = the fixed cold-chain readout on the right edge. It shows the **workflow st
 - Scroll: 100 vh.
 - HUD: `09 EXPORT DOCUMENTATION & LOGISTICS` · `DOCUMENTED`.
 
-### 9. The port. Source: NEW `x-cranes` (8 s)
+### 9. The port. Source: BLENDER `x-cranes` (8 s, rendered by Claude from `port.blend`, frames 1–192)
 - Headline: **Loaded under the cranes.**
 - Body: "Shipped in reefer containers to maintain the cold chain until the destination."
-- Visual: daylight container terminal, 2–3 ship-to-shore gantry cranes working one container ship; one crane lifts a white reefer container off the quay and lowers it onto the stacked deck; camera follows it up.
+- Visual: daylight container terminal, 3 ship-to-shore gantry cranes working one container ship. A white refrigerated truck drives along the quay in one direction and parks under the middle crane; its trolley runs over the truck, the spreader lowers on its cables, locks onto the white reefer container, lifts it, travels out over the ship and lowers it onto the stacked deck, while the other two cranes keep working. The container hangs on cables the whole time. Camera starts low on the quay and rises with the container. No text or logos anywhere.
 - Scroll: 140 vh.
 - HUD: `09 EXPORT` · `REEFER CONTAINER`.
 
-### 10. At sea. Source: NEW `x-ship` (8 s, chained from `x-cranes` last frame)
+### 10. At sea. Source: BLENDER `x-ship` (8 s, frames 192–383 of the same render, so it starts on `x-cranes`' last frame)
 - Headline: **From Visakhapatnam to the world's table.**
-- Body: none (let the shot breathe); a small mono line: `Bay of Bengal · outbound`.
-- Visual: camera rises to a straight-down aerial of the loaded container ship cutting a white wake across deep blue water (Mont-Fort style), then keeps rising so the ship becomes small in a field of blue.
+- Body: none (let the shot breathe); a small mono line: `Cold chain · outbound`.
+- Visual: camera rises to a straight-down aerial as the loaded container ship (colourful stacks with rows of white reefers) sails out, cutting a white wake across deep blue water (Mont-Fort style), then keeps rising so the ship becomes small in a field of bright deep blue. The last frame matches the globe's starting blue.
 - Scroll: 120 vh. Last 15% cross-fades (opacity only) into the globe, whose camera starts close over the Bay of Bengal in the same blue.
 - HUD: `09 EXPORT` · `AT SEA · COLD CHAIN`.
 
@@ -162,7 +162,7 @@ HUD = the fixed cold-chain readout on the right edge. It shows the **workflow st
 - Facts row: `700-pallet warehouse` · `16 markets` · `Raw fresh, chilled and frozen`.
 
 ### 14. About
-- Header: **High professional and excellence** (site heading, grammar-cleaned `[CONFIRM]`)
+- Header: **High professionalism and excellence** (site heading "High Professional and excellence", grammar-cleaned per CONTENT.md `[CONFIRM]`)
 - Company paragraph (CONTENT.md "Company").
 - Vision and Mission (verbatim, grammar-cleaned).
 - Managing partners: **V. Yashod Kumar** · **N.V. Prudhvi** (photos only if Tarun supplies them `[CONFIRM]`; otherwise initials monograms).
@@ -190,13 +190,15 @@ HUD = the fixed cold-chain readout on the right edge. It shows the **workflow st
 | P1 | The ponds | Pond | REGEN p-ponds | 8 s |
 | P2 | Traceable | Pond | REUSE b2 | 8 s |
 | P3 | Harvest | Pond | REUSE b3 | 8 s |
-| 5 | Intake | both | REGEN p-intake | 8 s |
+| 5 | Intake | both | REGEN p-intake (Blender fallback) | 8 s |
 | 6 | Wash · grade · process | both | REGEN p-proc | 12 s |
 | 7 | Lab · freeze · pack · cold store | both | REGEN p-freeze | 12 s |
 | 8 | Documentation | both | DOM | – |
-| 9 | Port cranes | both | NEW x-cranes | 8 s |
-| 10 | At sea (top-down) | both | NEW x-ship | 8 s |
+| 9 | Port cranes | both | BLENDER x-cranes (Claude) | 8 s |
+| 10 | At sea (top-down) | both | BLENDER x-ship (Claude) | 8 s |
 | 11 | Bright globe | both | GLB/R3F | – |
 | 12–16 | Products · Trust · About · Quote · Footer | both | GLB + DOM | – |
+
+Who makes what: Higgsfield (Tarun) = o-catch, p-ponds, p-intake, p-proc, p-freeze · Blender (Claude) = x-cranes, x-ship, all GLBs · code = globe.
 
 Dropped from the old chain and why: `b1` (too dark, no vehicles; replaced by p-ponds), `t1` (intake rebuilt per Tarun), `t2`/`t2s` (workers without masks; batch feel), `t3` (frost overdone), `t4` (dark space globe and the North America route).

@@ -13,6 +13,13 @@ Closes #
 | Transferred MB (initial / full scroll) | | |
 | Lighthouse mobile (perf / a11y / LCP / CLS) | | |
 
+## 3D / Blender (only for `3d:` and `render:` PRs)
+- Renders (3 stills in `docs/renders/`): 
+- Preview / clip link: 
+- Numbers (tris, texture size, KB from `gltf-transform inspect`, or clip KB from `encode-clips.sh`): 
+- [ ] Acceptance checks from docs/BLENDER_GLB_SPEC.md ticked (§3.7 for port renders)
+- [ ] No text, logos or numbers on any model
+
 ## Checklist
 - [ ] `npm run typecheck`
 - [ ] `npm run build`

@@ -9,7 +9,7 @@ You are building and deploying **skylark-exim-v3**: a brand-new, Awwwards-level,
 2. **Smoothness is a feature:** meet the numbers in §9 and prove them.
 3. **Git discipline:** follow `GIT_WORKFLOW.md` exactly. Never commit to or force-push `main`; never merge; only Tarun merges.
 4. **Deploy:** Vercel previews per PR; production only after Tarun says "ship it".
-5. **Media:** the pack has no videos and no .glb files. Reused clips come from github.com/Tarunchintakunta/skylark via `scripts/fetch-sources.sh`; new clips and GLBs are dropped by Tarun into `assets-src/`. Never block on a missing asset: use the placeholder rules in §6.
+5. **Media:** the pack has no videos, .blend or .glb files. Reused clips come from github.com/Tarunchintakunta/skylark via `scripts/fetch-sources.sh`. Tarun makes **5 Higgsfield clips** (o-catch, p-ponds, p-intake, p-proc, p-freeze) and drops them into `assets-src/video/`. **You build everything 3D yourself in Blender through your Blender connector** (BLENDER_GLB_SPEC.md): the tuna, swordfish and shrimp GLBs; the port & ship scene `assets-src/blender/port.blend` (quay, 3 STS gantry cranes, refrigerated truck, reefer container, container ship, keyframed crane lift and ship sail-out) which you **render and encode yourself as `x-cranes` and `x-ship`**; and the `truck`, `reefer`, `crane`, `ship` GLBs. Attach renders to each PR for Tarun's approval. Tarun's only 3D job is keeping Blender open with the MCP add-on connected. Never block on a missing asset: use the placeholder rules in §6.
 
 ## 1. First steps (in this order)
 1. Read `PRD.md`, `TRD.md`, `STORY.md`, `CONTENT.md`, `GIT_WORKFLOW.md`, then skim the rest and look at every image in `reference/`.
@@ -17,8 +17,9 @@ You are building and deploying **skylark-exim-v3**: a brand-new, Awwwards-level,
 3. Create labels and milestones, then **create all issues** from §5 (template in GIT_WORKFLOW.md). Assign milestones Day1/Day2/Day3. Mark asset-dependent ones `blocked-on-tarun` and list what file each needs.
 4. Scaffold on `chore/<n>-scaffold`: Vite + React + TS, deps from TRD §2, `vercel.json`, CI workflow, Playwright + Lighthouse CI configs, `npm run assets`. Open PR.
 5. **Connect the repo to Vercel** (Vite preset, output `dist`), confirm the PR gets a **preview URL**, and post it to Tarun.
-6. Run `scripts/fetch-sources.sh` then `npm run assets` locally (masters stay out of git), commit the optimised `public/media` outputs for the 7 reused clips on `chore/<n>-media-reused`.
-7. Build feature by feature, one issue → one branch → micro commits → one small PR each, with a preview link, screenshots and perf numbers in every PR.
+6. Run `scripts/fetch-sources.sh` then `npm run assets` locally (masters stay out of git), commit the optimised `public/media` outputs for the 7 reused clips (opening, a1, a2, a3, a4, b2, b3) on `chore/<n>-media-reused`.
+7. As soon as the repo exists, check the Blender connector (BLENDER_GLB_SPEC.md §1) and start the port scene issues in parallel with the web work: the full render takes time and is scheduled for Day 2.
+8. Build feature by feature, one issue → one branch → micro commits → one small PR each, with a preview link, screenshots and perf numbers in every PR.
 
 ## 2. Stack
 Vite 8 · React 19 · TypeScript (strict) · three 0.186 · @react-three/fiber 9 · @react-three/drei 10 · GSAP 3.15 with ScrollTrigger + SplitText (all free) + @gsap/react · Lenis 1.3 driven by `gsap.ticker` (one clock for everything) · zustand vanilla store (read through refs) · react-hook-form + zod · Vercel function for RFQ · Playwright + Lighthouse CI. No other animation libraries, no UI kits, no Tailwind requirement (CSS modules or plain CSS with tokens is fine).
@@ -34,13 +35,14 @@ Vite 8 · React 19 · TypeScript (strict) · three 0.186 · @react-three/fiber 9
 - `muted playsInline preload="auto"`, never autoplay. Each tick: `target = progress * (duration − 1/24)`; seek only if `!video.seeking` and the difference > 1/48 s; otherwise keep the latest target and apply it on `seeked`. Use `requestVideoFrameCallback` to know a frame has painted (hide the poster only then).
 - Only **current + next** clip have a `src`. Prefetch next at 50% of the current chapter. Release the old src on leave (`removeAttribute('src'); load()`).
 - **Posters first:** every chapter's `<id>_1280.webp` (720 on mobile) is an `<img>` under the video; preload all posters right after the loader. Use `<id>_end_1280.webp` when entering a chapter from below.
-- Hand-offs: chained clips share their boundary frame (instant swap at 1.0 → 0.0). `p-ponds → b2` and `x-ship → globe` cross-fade; `documentation → x-cranes` is an intentional cut (250 ms fade).
+- Hand-offs: chained clips share their boundary frame (instant swap at 1.0 → 0.0); `x-cranes → x-ship` shares frame 192 of your Blender render. `p-ponds → b2` and `x-ship → globe` cross-fade; `documentation → x-cranes` is an intentional cut (250 ms fade). If the p-intake Blender fallback is used, `anchor2 → p-intake` and `p-intake → p-proc` become cross-fades.
 
 ### GLB / 3D sections
 - One `<Canvas dpr={[1,1.5]} frameloop="demand" gl={{antialias:false, alpha:true}}>` mounted only near the globe/Products; `invalidate()` from the ticker while active, nothing while inactive.
 - `useGLTF.preload` one section ahead, `<Suspense>` with a DOM fallback card, meshopt via drei defaults, KTX2 only if the files use it.
 - Globe: bright daytime, built in code per BLENDER_GLB_SPEC.md "The globe" (NASA Blue Marble day texture, light atmosphere, light background). Routes drawn in code from `src/config/markets.ts` (lat/lon from CONTENT.md) as gold `QuadraticBezierCurve3` lines with scroll-driven draw range. **Never a dark/space globe.**
 - Products: tuna, swordfish, shrimp GLBs on a light stage, rotate ±25° with scroll, drag-to-orbit on desktop only. Mobile: dpr 1, no shadows, no drag.
+- Port and sea (scenes 9–10) are **rendered video** from your Blender scene, not realtime 3D; the `truck`/`reefer`/`crane`/`ship` GLBs are not loaded by the default site (realtime port only as a fallback, BLENDER_GLB_SPEC.md §3.8).
 
 ## 4. What to build (scene list and copy are in STORY.md: implement exactly)
 - **Intro loader**: small animated Skylark logo (SVG mark: stroke draw-in then slow pulse) + wordmark + thin brass progress bar with %. Progress = real bytes of: fonts (`document.fonts.ready`), the `opening` poster, the first ~600 KB of `opening_1280.mp4` (fetch with `Range`, or `canplaythrough`), and any GLB the start screen needs (none by default). No fake progress past the true value; minimum 300 ms on screen. Scroll is **locked** until ready (`lenis.stop()`, `overflow:hidden`, swallow keys). Then the mark flies to the header wordmark and the loader fades into the start screen (opacity/transform, 600 ms). Logo: use Tarun's SVG if provided; else trace `https://skylarkexim.com/wp-content/uploads/2025/10/Logo-11-scaled.png` into a simple SVG mark.
@@ -53,13 +55,13 @@ Vite 8 · React 19 · TypeScript (strict) · three 0.186 · @react-three/fiber 9
 - **Analytics (optional)**: Vercel Web Analytics + Speed Insights (cookieless). Track `path_selected`, `skip_story`, `rfq_open`, `rfq_submit`.
 
 ## 5. Issues to create (minimum; split further if a PR would exceed ~400 lines)
-Day1: scaffold+CI+Vercel · tokens/fonts/global styles · ticker+Lenis+ScrollTrigger engine · loader with real progress · start screen + path switching · ScrubVideo component · chapter config + ChapterCopy (SplitText) · media pipeline for reused clips · Ocean chapters O1–O4 with reused/placeholder clips · Pond chapters P1–P3 · HUD · rail + top nav + sticky CTA.
-Day2: plant chapters 5–7 · documentation interlude · port + at-sea chapters · bright globe + routes · Products (+ GLB loader, placeholders) · Trust · About · Quote/RFQ + api/rfq · footer · reduced-motion mode · mobile mode · SEO (meta, OG, JSON-LD, sitemap, robots).
-Day3: swap in each NEW/REGEN clip as Tarun delivers it (one issue per clip id: o-catch, p-ponds, p-intake, p-proc, p-freeze, x-cranes, x-ship) · swap in final GLBs (tuna, swordfish, shrimp) · perf pass · a11y pass (axe) · cross-browser (Chrome, Safari macOS/iOS, Firefox, Android Chrome) · Lighthouse report · production release checklist.
+Day1: scaffold+CI+Vercel · tokens/fonts/global styles · ticker+Lenis+ScrollTrigger engine · loader with real progress · start screen + path switching · ScrubVideo component · chapter config + ChapterCopy (SplitText) · media pipeline for reused clips · Ocean chapters O1–O4 with reused/placeholder clips · Pond chapters P1–P3 · HUD · rail + top nav + sticky CTA · **Blender** (label `3d`): `3d: port scene build` (port.blend: quay, 3 cranes, truck, reefer, ship, water, sky) · `3d: port animation + preview` (keyframes per BLENDER_GLB_SPEC §3.3, 960×540 preview for Tarun's approval).
+Day2: plant chapters 5–7 · documentation interlude · port + at-sea chapters · bright globe + routes · Products (+ GLB loader, placeholders) · Trust · About · Quote/RFQ + api/rfq · footer · reduced-motion mode · mobile mode · SEO (meta, OG, JSON-LD, sitemap, robots) · **Blender** (label `3d`): `render: x-cranes` · `render: x-ship` (full 1080p render after the preview is approved, encode, 3 stills + preview link + acceptance checklist each) · `3d: tuna` · `3d: swordfish` · `3d: shrimp` (renders in each PR) · `3d: truck` · `3d: reefer` · `3d: crane` · `3d: ship` (GLB exports from port.blend, ≤ 500 KB each).
+Day3: swap in each Higgsfield clip as Tarun delivers it (one issue per clip id: o-catch, p-ponds, p-intake, p-proc, p-freeze; label `video`, `blocked-on-tarun` until the file lands) · `render: p-intake fallback` only if Tarun asks for it (BLENDER_GLB_SPEC §6) · Blender fixes from Tarun's review · perf pass · a11y pass (axe) · cross-browser (Chrome, Safari macOS/iOS, Firefox, Android Chrome) · Lighthouse report · production release checklist.
 
 ## 6. Placeholders (so nothing blocks)
-- Missing NEW/REGEN clip → use the nearest reused clip's poster as a still with a slow 1.04 scale on scroll, and label the PR "placeholder". Specifically: o-catch → `a3` first frame; p-ponds → `b2` poster; p-intake → `anchor2` still (encode as poster); p-proc → `t2_end_1080`; p-freeze → `t3_end_1080`; x-cranes/x-ship → a CSS deep-blue gradient with the headline only. Never fall back to the rejected clips `b1`, `t1`, `t2`, `t2s`, `t3`, `t4`.
-- Missing GLB → the kohl-draft GLBs (BLENDER_GLB_SPEC.md "Option A") if Tarun drops them in; else a DOM product card with the species name.
+- Missing NEW/REGEN/BLENDER clip → use the nearest reused clip's poster as a still with a slow 1.04 scale on scroll, and label the PR "placeholder". Specifically: o-catch → `a3` first frame; p-ponds → `b2` poster; p-intake → `anchor2` still (encode as poster); p-proc → `t2_end_1080`; p-freeze → `t3_end_1080`; x-cranes/x-ship → your encoded 960×540 Blender preview once it exists (label the PR "placeholder"), before that a CSS deep-blue gradient with the headline only. Never fall back to the rejected clips `b1`, `t1`, `t2`, `t2s`, `t3`, `t4`.
+- Until your Blender-built GLB is approved → use the kohl-draft GLBs (fetch from github.com/Tarunchintakunta/skylark-exim-cinematic `public/assets/models/`); if the Blender connector is unreachable, say so to Tarun ("open Blender → N panel → BlenderMCP → Connect") and keep the placeholders, never block. Only if Blender can't be used at all, Tarun may generate x-cranes/x-ship with the appendix prompts in HIGGSFIELD_PROMPTS.md.
 
 ## 7. Design direction (award-level, consistent with the kohl draft Tarun likes; see `reference/kohl-draft-contact-sheet.jpg`)
 - **Palette** (from the kohl draft): `--deep-2 #04222c` (page), `--deep #063544`, `--bay #0e6f8e`, `--sea #2fa889`, `--brass #d7a84f` (CTA, routes, focus, active states only), `--ice #f4fafa` (text), `--steel #aab8bc`, `--ink #102024`. The globe and business sections switch to a **light** theme (`#eef5f6` background, `--ink` text, brass accents) so the end of the film opens up into daylight.
@@ -70,7 +72,7 @@ Day3: swap in each NEW/REGEN clip as Tarun delivers it (one issue per clip id: o
 - **Cursor** (desktop, fine pointer only): small 8 px brass dot + 32 px ring that lerps (via ticker) and grows on interactive elements; hidden on touch and reduced motion.
 - **Micro-interactions**: magnetic path buttons (≤ 6 px), button fill sweeps on hover, focus rings brass 2 px, form fields with floating labels, success state with a check that draws in.
 - **Sound** (optional): ambient sea/plant loop ≤ 300 KB, **off by default**, toggle in the header, remembered.
-- References and what to take from each: `docs/REFERENCES.md`.
+- References and what to take from each: `docs/reference/REFERENCES.md`.
 
 ## 8. Accessibility, mobile, SEO
 - Reduced motion → stills (posters full-screen), all copy visible, no Lenis/SplitText/parallax, globe static with routes drawn. Keyboard nav (skip links, rail, path buttons with ←/→), alt text from config, contrast ≥ 4.5:1, visible focus.
@@ -87,14 +89,15 @@ Day3: swap in each NEW/REGEN clip as Tarun delivers it (one issue per clip id: o
 | LCP / CLS | < 2.5 s / < 0.05 |
 | Initial load | ≤ 3 MB |
 | Full scroll | ≤ 25 MB desktop / ≤ 12 MB mobile |
+
 Run `tests/scroll-perf.spec.ts` (Playwright, scripted wheel scroll of both paths at 1440×900, and again at 412×915 with CDP CPU throttle 4×; collect longtask + long-animation-frame + rAF frame times), `tests/weight.spec.ts`, and Lighthouse CI. If a number fails, fix it before moving on (usual culprits: a seek per tick without the `seeking` guard, React re-render per frame, too many video srcs, uncompressed textures, a canvas rendering while off-screen).
 
-## 10. Asset step (run whenever Tarun drops files into `assets-src/`)
+## 10. Asset step (run whenever a file lands in `assets-src/`: Tarun's clips or your own Blender renders/exports)
 ```bash
 scripts/fetch-sources.sh            # reused clips + anchors from github.com/Tarunchintakunta/skylark
 scripts/encode-clips.sh [ids]       # -> public/media/<id>_1280.mp4 / _720.mp4, prints sizes and budget flags
 scripts/make-posters.sh [ids]       # -> first-frame + last-frame WebP posters
-scripts/optimize-glb.sh [names]     # -> public/models/<name>.glb (meshopt + WebP), flags > 1.5 MB
+scripts/optimize-glb.sh [names]     # -> public/models/<name>.glb (meshopt + WebP), warns > 500 KB, flags > 1.5 MB
 ```
 Needs ffmpeg (libx264, libwebp, optional libsvtav1) and Node 20+. Commit only `public/` outputs. Re-run the weight test after every asset PR.
 
@@ -103,11 +106,11 @@ Needs ffmpeg (libx264, libwebp, optional libsvtav1) and Node 20+. Commit only `p
 - Custom domain (Tarun does it, you explain): Vercel → Project → Settings → Domains → add `skylarkexim.com` and `www.skylarkexim.com`. At the domain's DNS provider (wherever skylarkexim.com is registered/hosted today): set an **A record** for `@` to exactly the IP Vercel shows on that screen (historically `76.76.21.21`; newer projects may show a different one) and a **CNAME** for `www` to the value Vercel shows (e.g. `cname.vercel-dns.com`), remove the old A/CNAME records pointing to the WordPress host, keep MX records untouched (so email at info@skylarkexim.com keeps working). Vercel issues SSL automatically once DNS propagates (minutes to 48 h). Keep the old WordPress host running until the new site is verified live.
 
 ## 12. Final report to Tarun (when done)
-Live preview/production URL · repo URL · issues closed/open · scene list with which clips are final vs placeholder · Lighthouse mobile/desktop scores · scroll-perf table (desktop + 4× throttle) · MB initial / full scroll per path (desktop + mobile) · open `[CONFIRM]` items still on fallback · anything you could not do.
+Live preview/production URL · repo URL · issues closed/open · scene list with which clips are final vs placeholder (Higgsfield and Blender) · Blender deliverables (port.blend renders, 7 GLBs with sizes) · Lighthouse mobile/desktop scores · scroll-perf table (desktop + 4× throttle) · MB initial / full scroll per path (desktop + mobile) · open `[CONFIRM]` items still on fallback · anything you could not do.
 
 ## 13. Lessons from the reference-site audit (see docs/reference/REFERENCE_AUDIT.md)
 Smoothest measured: Blackbird (2.4 MB full scroll, 0 long tasks) > Mokn > PF Energy > Mont-Fort > FacilPay > Zoi (48 MB, 30 long tasks). Copy Blackbird's discipline and Mont-Fort's look (top-down ship, bright globe). Tighten budgets accordingly:
-- Each product GLB <= 500 KB (Zoi's 4.87 MB mango compresses to ~300 KB with meshopt + WebP, so this is realistic). Globe day texture 0.5-1 MB (2048x1024 WebP/KTX2), not 4K.
+- Each GLB <= 500 KB (Zoi's 4.87 MB mango compresses to ~300 KB with meshopt + WebP, so this is realistic). Globe day texture ≤ 0.9 MB on desktop (4096 WebP) and ≤ 350 KB on mobile (2048 WebP), per ASSETS_SPEC budgets; never an 8K/uncompressed texture.
 - First screen <= 1.5 MB before the loader finishes; load the globe/products only one chapter ahead (Mont-Fort loads its earth late).
 - dpr cap 1.5 (1 on mobile), antialias off, one canvas, one ticker. No image sequences anywhere.
 - If a clip still stutters with GOP 6, keep GOP 6-8 with -bf 0 (audit test: GOP 8 = 0.76 MB vs all-intra 2.06 MB for 8 s @1280).

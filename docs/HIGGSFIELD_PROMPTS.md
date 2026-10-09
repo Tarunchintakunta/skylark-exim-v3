@@ -1,4 +1,6 @@
-# HIGGSFIELD_PROMPTS.md: the 7 new / regenerated clips
+# HIGGSFIELD_PROMPTS.md: the 5 new / regenerated clips (Tarun)
+
+**Higgsfield clips (5):** `o-catch`, `p-ponds`, `p-intake`, `p-proc`, `p-freeze`. The port and ship shots (`x-cranes`, `x-ship`) are **not** Higgsfield any more: Claude builds and renders them in Blender (BLENDER_GLB_SPEC.md §3). Their old prompts are kept in the appendix only for the case where the Blender connector can't be used at all.
 
 **Model and settings (same as the existing chain, from `manifest/chain.json`):** Seedance 2.0 (`seedance_2_0`), 16:9, mode `std`, `generate_audio: false`. Draft at 720p, master at 1080p.
 **Credit rates (from chain.json ledger, not estimates):** 720p 8 s = **36** · 1080p 8 s = **72** · 1080p 12 s = **108** · still image (cinematic_studio_2_5) ≈ 2 (ledger: 3 stills = 6). Last recorded balance in chain.json: **160 credits**, so top up before Day 1.
@@ -18,7 +20,7 @@ Shared avoid clause (append to every prompt):
 ## 1. `o-catch`: the real catch (NEW, must-have)
 - Chain: `a2` → **o-catch** → `a3`
 - `start_image`: `assets/anchors/a2_end_1080_v2.png` (open sea behind the stern)
-- `end_image`: `a3_first_1080.png` (extracted from `assets/video/1080/a3.mp4` frame 1; yellowfin in the ice hold)
+- `end_image`: `a3_first_1080.png` (frame 1 of `assets/video/1080/a3.mp4`; yellowfin in the ice hold). In the cloned skylark repo: `ffmpeg -i assets/video/1080/a3.mp4 -frames:v 1 a3_first_1080.png` (Claude's `scripts/fetch-sources.sh` makes the same file in `assets-src/anchors/`)
 - `image_references`: `assets/stills/hero.png` only if the vessel drifts off-model
 - Duration 8 s (12 s reads better if credits allow) · 1080p · Camera: swing from the wake forward along the deck to the side rail, then rise and lock overhead on the ice hold
 - Cost: draft 36 + master 72 (or 108 for 12 s)
@@ -57,6 +59,7 @@ Shared avoid clause (append to every prompt):
 
 **Accept if:** cab never enters the building · rear doors open toward the plant · driver outside · every visible worker masked, capped, gloved · last frame is clean and readable (it is p-proc's start).
 **Re-roll tips:** if the truck moves, add "the truck is parked and does not move". If masks are missing, add "every worker's mouth and nose are covered by a white surgical face mask".
+**Fallback:** p-intake stays in Higgsfield because of the people. If it still fails after 2 re-rolls, tell Claude "use Blender for intake": Claude renders the truck-backed-to-dock establishing shot itself (rear-first, cab away from the building, rear doors open, no people; BLENDER_GLB_SPEC.md §6), and p-proc is then generated without a start_image.
 
 ## 4. `p-proc`: wash, grade, process, already mid-shift, full PPE (REGEN of `t2` / `t2s`)
 - Chain: `p-intake` → **p-proc** → `p-freeze`
@@ -85,7 +88,26 @@ Shared avoid clause (append to every prompt):
 
 **Accept if:** frost is light (doors/edges only) · room looks like a working plant, not an ice cave · masks and gloves · labels are blank or illegible · last frame matches t3_end.
 
-## 6. `x-cranes`: 2–3 ship-to-shore cranes loading reefer containers (NEW)
+---
+
+## Credit plan (5 clips)
+| Clip | Draft 720p | Master 1080p | Total |
+|---|---|---|---|
+| o-catch | 36 | 72 (108 if 12 s) | 108 (144) |
+| p-ponds | 36 | 72 | 108 |
+| p-intake | 36 | 72 | 108 |
+| p-proc | 36 | 108 (12 s) | 144 |
+| p-freeze | 36 | 108 (12 s) | 144 |
+| **Total, one take each** | 180 | 432 (468 with 12 s catch) | **612** (648 with 12 s catch) |
+
+Re-roll allowance: one full extra take (draft + master) of the two riskiest clips, o-catch (108–144) and p-proc (144) = up to 288. **Budget about 900–950 credits** (648 + 288 = 936 worst case). With the last ledger balance of 160, top up by about 750–800. Skipping drafts saves 180 but every failed master then costs 72–108. `x-cranes` and `x-ship` cost **0 credits** (Blender renders).
+
+---
+
+## Appendix (only if the Blender connector is unavailable): old Higgsfield prompts for the port and ship
+Use these only if Claude reports that Blender can't be used at all and Tarun decides to generate the two shots instead. Extra cost: 108 + 108 = 216 credits (+2 for the optional still).
+
+### A1. `x-cranes`: 2–3 ship-to-shore cranes loading reefer containers (NEW)
 - Chain: documentation interlude (cut) → **x-cranes** → `x-ship`
 - `start_image`: none (text-to-video; a section cut is intended here). Optional: generate a still first (≈2 credits) with the first sentence of the prompt and use it as start_image for more control.
 - `end_image`: none (its last frame becomes `x-ship`'s start_image)
@@ -98,7 +120,7 @@ Shared avoid clause (append to every prompt):
 
 **Accept if:** at least 2 cranes visible working · container hangs from the spreader on cables the whole time · lands on the ship · final frame is a high downward view (feeds x-ship).
 
-## 7. `x-ship`: top-down aerial of the loaded ship on deep blue water (NEW, Mont-Fort style)
+### A2. `x-ship`: top-down aerial of the loaded ship on deep blue water (NEW, Mont-Fort style)
 - Chain: `x-cranes` → **x-ship** → bright globe (cross-fade in code)
 - `start_image`: last frame of your accepted `x-cranes` (`ffmpeg -sseof -0.1 -i assets-src/video/x-cranes.mp4 -update 1 -frames:v 1 assets-src/anchors/x-cranes_end.png`)
 - `end_image`: none
@@ -110,18 +132,3 @@ Shared avoid clause (append to every prompt):
 > + avoid clause + "tilted horizon, land, clouds covering the ship, ship changing shape, containers morphing, multiple ships, dusk."
 
 **Accept if:** truly top-down · water is deep blue (not grey) · final 2 s are nearly uniform blue (clean cross-fade to the globe).
-
----
-
-## Credit plan
-| Clip | Draft 720p | Master 1080p | Total |
-|---|---|---|---|
-| o-catch | 36 | 72 (108 if 12 s) | 108 (144) |
-| p-ponds | 36 | 72 | 108 |
-| p-intake | 36 | 72 | 108 |
-| p-proc | 36 | 108 (12 s) | 144 |
-| p-freeze | 36 | 108 (12 s) | 144 |
-| x-cranes | 36 | 72 | 108 |
-| x-ship | 36 | 72 | 108 |
-| **Total, one take each** | 252 | 576 | **828** (864 with 12 s catch) |
-Budget about **1,100–1,200 credits** to allow one re-roll on the two riskiest clips (o-catch, p-proc). Skipping drafts saves 252 but every failed master then costs 72–108.
