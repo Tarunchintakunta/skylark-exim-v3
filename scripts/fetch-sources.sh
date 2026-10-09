@@ -12,5 +12,5 @@ for id in opening a1 a2 a3 a4 b2 b3; do cpn "$SRC_REPO/assets/video/1080/$id.mp4
 for f in "$SRC_REPO"/assets/anchors/*_1080*.png "$SRC_REPO"/assets/stills/*.png; do cpn "$f" assets-src/anchors; done
 # a3's first frame = end_image for the new catch clip
 [ -f assets-src/anchors/a3_first_1080.png ] || ffmpeg -v error -i assets-src/video/a3.mp4 -frames:v 1 assets-src/anchors/a3_first_1080.png
-echo "Reusable masters copied. Higgsfield clips from Tarun go in assets-src/video/ by id (o-catch, p-ponds, p-intake, p-proc, p-freeze); Claude renders x-cranes and x-ship from assets-src/blender/port.blend (docs/BLENDER_GLB_SPEC.md)."
+echo "Reused masters copied (in the story: opening a1 a2 b2; a3 a4 b3 kept only as optional fallbacks). Every other scene is rendered by Claude in Blender (docs/blender/SCENES.md, scripts/scenes.sh)."
 ls assets-src/video
