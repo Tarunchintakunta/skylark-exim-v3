@@ -102,9 +102,24 @@ def build(out=OUT):
     print('OUT scans', out, {n: len(bpy.data.meshes[n].polygons) for n in SCANS})
 
 
+# the shared library's prepared scans (feat/100 prep_scans.py): 1 m long, head +X; the prawn comes in back-down
+LIB = os.path.join(os.path.dirname(CC0), 'blender', 'fish_scans.blend')
+LIB_MAP = {'SCAN_Shrimp': ('SCAN_Prawn_LOD', 0.13, 3.14159265)}   # our name: (library mesh, length m, roll to belly-down)
+
+
 def mesh(name):
     if name in bpy.data.meshes:
         return bpy.data.meshes[name]
+    if name in LIB_MAP and os.path.exists(LIB):
+        src_name, length, roll = LIB_MAP[name]
+        with bpy.data.libraries.load(LIB, link=False) as (src, dst):
+            dst.meshes = [src_name] if src_name in src.meshes else []
+        me = bpy.data.meshes.get(src_name)
+        if me is not None:
+            me = me.copy()
+            me.name = name
+            me.transform(Matrix.Rotation(roll, 4, 'X') @ Matrix.Scale(length, 4))
+            return me
     if not os.path.exists(OUT):
         return None
     with bpy.data.libraries.load(OUT, link=False) as (src, dst):
