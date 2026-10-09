@@ -1,4 +1,4 @@
-import { LABEL_FIELDS } from '../config/content'
+import { DOC_CARDS, LABEL_FIELDS } from '../config/content'
 
 /** Packing caption: a carton label that types in its field names. Field names only, never values (STORY §7). */
 export function LabelCard() {
@@ -16,5 +16,22 @@ export function LabelCard() {
         ))}
       </dl>
     </div>
+  )
+}
+
+/** Documentation interlude: three paper cards labelled by function only, no document contents (STORY §8). */
+export function DocCards() {
+  return (
+    <ul className="doc-cards" aria-label="Export paperwork">
+      {DOC_CARDS.map((c, i) => (
+        <li className="doc-card" key={c} data-card style={{ ['--i' as string]: i }}>
+          <span className="doc-card__no mono">{String(i + 1).padStart(2, '0')}</span>
+          <span className="doc-card__title mono">{c}</span>
+          <span className="doc-card__lines" aria-hidden="true">
+            <i /><i /><i /><i />
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }

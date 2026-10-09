@@ -129,7 +129,7 @@ const SHARED: ChapterDef[] = [
   {
     id: 'docs', path: 'shared', label: 'Documentation', vh: 100, joinNext: 'cut',
     media: [{ kind: 'dom', poster: 'ph-p-freeze', alt: 'Three cards: export documents, compliance, shipment tracking.' }],
-    captions: caps('docs', [[0.05, 0.95]]),
+    captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
     hud: [{ at: 0, step: '09', name: 'Export documentation & logistics', state: 'Documented' }],
   },
   {

@@ -51,6 +51,8 @@ function show(c: Cap) {
   const fades = el.querySelectorAll('[data-fade]')
   if (c.split) gsap.fromTo(c.split.lines, { yPercent: 100 }, { yPercent: 0, duration: 0.9, stagger: 0.08, ease: 'power3.out', overwrite: true })
   gsap.fromTo(fades, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, delay: 0.2, stagger: 0.05, ease: 'power3.out', overwrite: true })
+  const cards = el.querySelectorAll('[data-card]')
+  if (cards.length) gsap.fromTo(cards, { yPercent: 40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.9, stagger: 0.12, delay: 0.15, ease: 'power3.out', overwrite: true })
   if (c.typed) gsap.fromTo(c.typed.chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: 0.035, delay: 0.6, ease: 'none', overwrite: true })
 }
 

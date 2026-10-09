@@ -31,3 +31,26 @@
 .label-card__row:last-child { border-bottom: 0; }
 .label-card dt { color: var(--ink); }
 .label-card dd { margin: 0; height: 1px; background: var(--hairline-ink); transform: translateY(-4px); }
+.doc-cards { display: flex; gap: 14px; margin-top: 1.6rem; }
+.doc-card {
+  position: relative; display: grid; align-content: start; gap: 12px;
+  width: 11.5rem; aspect-ratio: 210 / 297; padding: 16px;
+  background: #f4f7f5; color: var(--ink); border-radius: 2px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4);
+  transform: rotate(calc((var(--i) - 1) * 2.2deg));
+}
+.doc-card__no { color: var(--brass-ink); }
+.doc-card__title { color: var(--ink); line-height: 1.5; }
+.doc-card__lines { display: grid; gap: 8px; margin-top: 6px; }
+.doc-card__lines i { display: block; height: 4px; background: rgba(16, 32, 36, 0.12); border-radius: 2px; }
+.doc-card__lines i:nth-child(2) { width: 82%; }
+.doc-card__lines i:nth-child(3) { width: 64%; }
+.doc-card__lines i:nth-child(4) { width: 74%; }
+@media (min-width: 1100px) {
+  /* desktop: the cards stand to the right of the copy, below the HUD */
+  .doc-cards { position: absolute; left: min(44rem, 50vw); bottom: 0; margin: 0; }
+}
+@media (max-width: 767px) {
+  .doc-card { width: 30%; padding: 10px; gap: 8px; }
+  .doc-card__title { font-size: 9px; letter-spacing: 0.1em; }
+}
