@@ -30,6 +30,7 @@ let cur = -1
 let shown: Slot | null = null
 let over = -1
 let hidden = false
+let isLight = false
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -168,6 +169,12 @@ function tick() {
     if (over !== cur) posters[over]!.style.opacity = '0'
   }
   over = o
+  // the stage turns light (no dark scrim) once the globe owns the frame
+  const light = seg.media.kind === 'globe' || (o >= 0 && segs[o].media.kind === 'globe' && a > 0.5)
+  if (light !== isLight) {
+    isLight = light
+    stage?.classList.toggle('is-light', light)
+  }
   if (o >= 0 && posters[o]) {
     posters[o]!.classList.add('is-over')
     posters[o]!.style.opacity = String(a)

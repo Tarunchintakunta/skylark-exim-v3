@@ -1,4 +1,6 @@
 import { DOC_CARDS, LABEL_FIELDS } from '../config/content'
+import { MARKET_COORDS } from '../config/markets'
+import { globeUi } from '../three/globeState'
 
 /** Packing caption: a carton label that types in its field names. Field names only, never values (STORY §7). */
 export function LabelCard() {
@@ -30,6 +32,22 @@ export function DocCards() {
           <span className="doc-card__lines" aria-hidden="true">
             <i /><i /><i /><i />
           </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** World caption: the 16 markets as real text; hover/focus highlights that route on the globe (PRD F8). */
+export function MarketList() {
+  const set = (i: number) => () => void (globeUi.highlight = i)
+  return (
+    <ul className="markets" aria-label="Markets">
+      {MARKET_COORDS.map((m, i) => (
+        <li key={m.name} data-fade>
+          <button type="button" className="markets__item mono" onMouseEnter={set(i)} onMouseLeave={set(-1)} onFocus={set(i)} onBlur={set(-1)}>
+            {m.name}
+          </button>
         </li>
       ))}
     </ul>

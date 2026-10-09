@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { useApp } from '../engine/store'
+import { GlobeLayer } from './GlobeLayer'
 import { bindStage, preloadPosters } from './scrub'
 import { posterFor, toSegments } from './segments'
 import './stage.css'
@@ -21,7 +22,12 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
       {segs.map((s, i) => {
         const m = s.media
         if (m.kind === 'gradient') return <div key={i} data-seg={i} className="stage__layer stage__gradient" />
-        if (m.kind === 'globe') return <div key={i} data-seg={i} className="stage__layer stage__light" />
+        if (m.kind === 'globe')
+          return (
+            <div key={i} data-seg={i} className="stage__layer stage__light">
+              <GlobeLayer chapters={chapters} />
+            </div>
+          )
         return (
           <img
             key={i}

@@ -54,3 +54,10 @@
   .doc-card { width: 30%; padding: 10px; gap: 8px; }
   .doc-card__title { font-size: 9px; letter-spacing: 0.1em; }
 }
+.caption--light { color: var(--ink); }
+.caption--light .caption__eyebrow { color: var(--brass-ink); }
+.caption--light .caption__body { color: var(--ink-2); }
+.markets { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 1.4rem; max-width: 40rem; pointer-events: auto; }
+.markets__item { padding: 7px 10px; border: 1px solid var(--hairline-ink); border-radius: 2px; color: var(--ink); background: rgba(238, 245, 246, 0.72); transition: border-color 0.2s, background 0.2s; }
+.markets__item:hover, .markets__item:focus-visible { border-color: var(--brass-ink); background: #fff; }
+.globe-label { display: block; padding: 3px 6px; white-space: nowrap; color: var(--ink); background: rgba(238, 245, 246, 0.82); border-radius: 2px; font-size: 10px; transform: translateY(-16px); transition: opacity 0.35s; }

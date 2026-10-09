@@ -21,7 +21,7 @@ export type Join = 'shared-frame' | 'crossfade' | 'cut'
 export interface Caption extends CaptionCopy {
   at: [number, number]
   /** DOM extra shown with the caption */
-  extra?: 'label-card' | 'doc-cards'
+  extra?: 'label-card' | 'doc-cards' | 'markets'
 }
 
 export interface ChapterDef {
@@ -36,6 +36,8 @@ export interface ChapterDef {
   hud: HudState[]
   /** how this chapter hands off to the next one */
   joinNext: Join
+  /** copy colour scheme; the globe opens into daylight */
+  theme?: 'light'
 }
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
@@ -145,9 +147,9 @@ const SHARED: ChapterDef[] = [
     hud: [{ at: 0, step: '09', name: 'Export', state: 'At sea · cold chain' }],
   },
   {
-    id: 'world', path: 'shared', label: 'The world', vh: 220, joinNext: 'cut',
+    id: 'world', path: 'shared', label: 'The world', vh: 220, joinNext: 'cut', theme: 'light',
     media: [{ kind: 'globe', alt: 'A bright daytime globe with gold routes from Visakhapatnam to 16 markets.' }],
-    captions: caps('world', [[0.05, 1]]),
+    captions: caps('world', [[0.3, 1.01]]).map((c) => ({ ...c, body: undefined, extra: 'markets' as const })),
     hud: [{ at: 0, step: '09', name: 'Export', state: '16 markets' }],
   },
 ]
