@@ -29,8 +29,8 @@ CAM_KEYS = [
     # p-proc: wash (dolly down the line) -> grading (lateral track) -> peeling tables -> lab door
     (520, (7.6, 14.0, 2.75), (9.4, 18.5, 1.95)),
     (575, (6.0, 17.6, 2.6), (8.4, 22.5, 1.9)),
-    (624, (5.3, 22.6, 2.45), (8.2, 25.6, 1.95)),
-    (671, (5.6, 28.4, 2.5), (8.2, 31.5, 1.95)),
+    (624, (4.1, 22.6, 2.5), (8.2, 25.8, 1.85)),
+    (671, (4.3, 28.6, 2.55), (8.2, 31.8, 1.85)),
     (720, (8.2, 34.0, 2.6), (8.2, 41.0, 2.0)),
     (766, (8.2, 42.6, 2.7), (8.3, 49.0, 2.15)),
     # p-freeze: lab -> plate freezer / glazing -> packing -> cold store aisle
@@ -94,6 +94,7 @@ def unload(C, R):
         a = (w.location.x, w.location.y)
         b = (t.location.x - 0.0, 2.75)
         w.animation_data_clear()
+        w.location.z = 0.0
         H.walk_cycle(w, f0, f1, [(f0, a), (f1, b)], stride=0.55, base=H.POSES['push'], arms=False)
         _lift(w)
         w.rotation_euler = (0, 0, 0)
@@ -252,7 +253,7 @@ def freeze_crew(C, rnd, crate_fn):
     p.cyl((0, -0.1, 0.4), (0, 0.15, 1.15), 0.02, 8)
     p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.01, coll=C)
     S.pallet('IN_ColdJackPallet', (0, 0.62, 0.08), M, C, 0.0, cartons=3).parent = pt
-    H.walk_cycle(cs, 960, 1070, [(960, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 74.5))], stride=0.55,
+    H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 77.5))], stride=0.55,
                  base={'upperarm.R': (40, -5, 0), 'forearm.R': (20, 0, 0)}, step=2)
     _lift(cs)
     cs.rotation_euler = (0, 0, D(180))
@@ -265,6 +266,8 @@ def build_interior_people(C, R):
     import plant_chain as PC
     crate_fn = lambda n, c, l, r, par, fill, sd: PC.crate(n, c, l, r, par, fill, sd)
     unload(C, R)
+    cold = [o for o in bpy.data.objects if o.name.startswith('IN_ColdStrip_')]
+    SI.swing_strips(cold, [(1006, 1022, CX, 0.9, 1)])
     tank_crew(C, rnd, crate_fn)
     proc_crew(C, rnd)
     freeze_crew(C, rnd, crate_fn)
@@ -293,3 +296,15 @@ def join_static_shrimp():
 
 def extend_camera(cam):
     cam.data.dof.aperture_fstop = 4.0
+
+
+SHADOW_LIGHTS = {'PL_DockArea4', 'PL_DockArea6', 'PL_DockArea7', 'IN_Area_0_0', 'IN_Area_2_1', 'IN_Area_4_0',
+                 'IN_Area_6_1', 'IN_Area_8_0', 'IN_ColdArea1'}
+
+
+def shadow_policy():
+    """Area-light shadow maps dominate EEVEE render time (24 shadowed lights ~ 4x slower). The same fixed subset
+    casts shadows in every plant scene (identical boundary frames); AO + ray-traced GI carry the rest."""
+    for o in bpy.data.objects:
+        if o.type == 'LIGHT' and o.data.type == 'AREA':
+            o.data.use_shadow = o.name in SHADOW_LIGHTS

@@ -415,7 +415,8 @@ def camera_truck_reverse():
 def shift_all(delta):
     """Shift every keyframe of every action by delta frames (scene frame = global frame + delta)."""
     acts = set()
-    for idb in list(bpy.data.objects) + list(bpy.data.materials) + list(bpy.data.lights) + list(bpy.data.cameras):
+    for idb in list(bpy.data.objects) + list(bpy.data.materials) + list(bpy.data.lights) + list(bpy.data.cameras) + \
+            list(bpy.data.scenes) + list(bpy.data.shape_keys):
         ad = getattr(idb, 'animation_data', None)
         if ad and ad.action:
             acts.add(ad.action)
@@ -451,10 +452,15 @@ def build(scene, out):
     B.build_interior_people(C_people, R)
     cam = camera_truck_reverse()
     B.extend_camera(cam)
+    B.shadow_policy()
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
     P.look_settings('exterior', exposure=0.0)
+    vs = s.view_settings          # step down the exposure as the camera goes from daylight into the lit hall
+    for f, ev in ((236, 0.0), (264, -0.3)):
+        vs.exposure = ev
+        vs.keyframe_insert('exposure', frame=f)
     f0, f1 = OFFSETS[scene]
     if scene in ('p-proc', 'p-freeze'):
         for cn in ('SET_PlantExterior',):

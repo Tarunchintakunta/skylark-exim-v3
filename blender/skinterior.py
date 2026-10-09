@@ -90,11 +90,6 @@ def shell(C, M):
     for x in (2.0, 14.4):
         p.box((x, 48, DZ + 0.004), (0.22, 70, 0.01))
     p.make('IN_Drains', P.tex_mat('PL_Grate', 'metal_plate', scale=4.0, metal=1.0, tint=(0.5, 0.5, 0.5)), None, coll=C)
-    p = Part()
-    for k in range(18):
-        r = random.Random(k)
-        p.box((CX + r.uniform(-7, 7), 14 + k * 2.3, DZ + 0.002), (r.uniform(1, 3), r.uniform(0.8, 2.0), 0.002))
-    p.make('IN_WetPatches', P.plain('IN_WetFilm', (0.2, 0.22, 0.24), 0.02, alpha=0.35, coat=1.0), None, coll=C)
 
 
 def _strip_curtain(name, x0, x1, y, z0, z1, C, M, n=None):
@@ -288,6 +283,11 @@ def _conveyor(name, a, b, width, C, M, legs=True):
 
 def grading(C, M, rnd, shrimp_fn):
     belt = _conveyor('IN_GradeBelt', (CX, 20.5, DZ + 0.95), (CX, 31.5, DZ + 0.95), 0.7, C, M)
+    for k in range(150):                                   # product spread along the belt (and the outfeed)
+        y = rnd.uniform(17.4, 31.2)
+        z = DZ + 1.03 if y > 20.5 else DZ + 0.66 + (y - 17.2) / 3.3 * 0.35 + 0.08
+        shrimp_fn('IN_BeltShrimp%03d' % k, (CX + rnd.uniform(-0.27, 0.27), y, z),
+                  (rnd.uniform(-0.3, 0.3), rnd.uniform(-0.3, 0.3), rnd.uniform(0, 6.28)))
     # roller grader: hopper, inclined rollers in a frame, four chutes on each side into trays
     p = Part()
     p.box((CX, 26.5, DZ + 1.25), (1.4, 3.2, 0.08), Euler((0.06, 0, 0)))
@@ -318,9 +318,13 @@ def grading(C, M, rnd, shrimp_fn):
                           (rnd.uniform(-0.3, 0.3), rnd.uniform(-0.3, 0.3), rnd.uniform(0, 6.28)))
     p = Part()
     for sx in (-1, 1):
-        for k in range(4):
-            p.box((CX + sx * 1.45, 25.4 + k * 0.75, DZ + 0.34), (0.5, 0.36, 0.68))
-    p.make('IN_TrayStands', M['stainless'], None, bevel=0.01, coll=C)
+        x = CX + sx * 1.45
+        p.box((x, 26.5, DZ + 0.66), (0.56, 3.2, 0.03))
+        for yy in (25.0, 28.0):
+            for dx in (-0.24, 0.24):
+                p.box((x + dx, yy, DZ + 0.33), (0.035, 0.035, 0.66))
+        p.box((x, 26.5, DZ + 0.15), (0.5, 3.0, 0.02))
+    p.make('IN_TrayStands', M['stainless'], None, bevel=0.005, coll=C)
     return belt
 
 
