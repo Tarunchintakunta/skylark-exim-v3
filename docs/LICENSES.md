@@ -21,6 +21,7 @@ rendered clips; none of them is shipped as a separate file.
 | Asset | Author | Source | Licence | Used in |
 |---|---|---|---|---|
 | "Green tiger prawn, Penaeus semisulcatus" 3D scan | ffish.asia / floraZia.com | sketchfab.com/3d-models/green-tiger-prawn-penaeus-semisulcatus-af273265e0324bc4a645ebad96c254df | CC BY 4.0 | shrimp in the p-harvest crates and net bag and on the plant-chain belts and crates (`blender/skscan.py`, decimated and relit) |
+| "Yellowfin tuna, Thunnus albacares" 3D scan | ffish.asia / floraZia.com | sketchfab.com/3d-models/yellowfin-tuna-thunnus-albacares-d4eeea976932414d91fc786ce6cec547 | CC BY 4.0 | whole fish on ice in the p-intake, p-proc and coldchain scenes (`blender/plant_chain.py`, scaled per species and relit) |
 
 No brand names, logos, lettering or numbers from any source appear in the renders.
 
