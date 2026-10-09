@@ -154,11 +154,21 @@ def add_container(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
     for sz in (-1, 1):
         for sy in (-1, 1):
             mb.box(cx + R @ Vector((0, sy * (CW / 2 - 0.05), sz * (CH / 2 - 0.08))), (L - 0.3, 0.1, 0.16), m, dark, rot=R)
+    # corner castings (the twistlock / stacking points), a touch proud of the frame
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                mb.box(cx + R @ Vector((sx * (L / 2 - 0.09), sy * (CW / 2 - 0.09), sz * (CH / 2 - 0.06))), (0.19, 0.2, 0.13), m,
+                       tuple(v * 0.45 for v in color), rot=R)
     # door bars on the -X end; a reefer's refrigeration unit sits on the +X (front) wall
     for k in (-0.75, -0.3, 0.3, 0.75):
-        mb.box(cx + R @ Vector((-L / 2 - 0.01, k, 0)), (0.05, 0.04, CH - 0.35), m, dark, rot=R)
+        mb.box(cx + R @ Vector((-L / 2 - 0.03, k, 0)), (0.06, 0.06, CH - 0.35), m, (0.35, 0.36, 0.36), rot=R)   # locking rods
+        mb.box(cx + R @ Vector((-L / 2 - 0.06, k + 0.08, -0.2)), (0.05, 0.2, 0.05), m, (0.3, 0.3, 0.3), rot=R)  # handle
+    mb.box(cx + R @ Vector((-L / 2 - 0.015, 0, 0)), (0.02, 0.04, CH - 0.2), m, dark, rot=R)                     # door seam
     if reefer:
         mb.box(cx + R @ Vector((L / 2 + 0.02, 0, 0)), (0.06, CW - 0.4, CH - 0.5), m, (0.22, 0.24, 0.26), rot=R)
+        for k in range(9):   # condenser grille slats
+            mb.box(cx + R @ Vector((L / 2 + 0.06, -0.35, -0.75 + k * 0.12)), (0.02, 1.0, 0.04), m, (0.12, 0.13, 0.14), rot=R)
         mb.box(cx + R @ Vector((L / 2 + 0.04, 0.5, 0.4)), (0.05, 0.8, 0.8), m, (0.1, 0.1, 0.11), rot=R)
         for k in range(4):
             mb.box(cx + R @ Vector((L / 2 + 0.05, -0.6, -0.6 + k * 0.25)), (0.03, 0.7, 0.05), m, (0.4, 0.42, 0.44), rot=R)
@@ -310,20 +320,31 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         for sy in (-0.6, 0.6):
             hb.cyl((sx - 0.15, sy, 0.9), (sx + 0.15, sy, 0.9), 0.35, steel, 10)
     hb.obj(f'{name}_HeadblockBody', head)
+    # telescopic spreader at 40 ft: central chassis, two telescopic main beams the full box length, end beams with
+    # a twistlock cone at each corner casting (bottom of the twistlocks = z -1.35 below the headblock)
     sp = MB()
-    sp.box((0, 0, -0.5), (4.0, 2.2, 0.7), mats['float_yellow'])
-    sp.box((0, 0, -0.75), (12.0, 0.7, 0.45), mats['float_yellow'])
+    yel = weather(pbr('MAT_SpreaderYellow', (0.78, 0.55, 0.06), 0.45, 0.1, grime=0.45, scale=0.4), amount=0.4, z0=-1.4,
+                  z1=-0.4, dirt_amount=0.3)
+    sp.box((0, 0, -0.45), (3.6, 2.3, 0.75), yel)
+    for sy in (-0.42, 0.42):
+        sp.box((0, sy, -0.75), (12.1, 0.42, 0.42), yel)          # outer telescopic beams
+        sp.box((0, sy, -0.75), (12.18, 0.3, 0.3), yel)
     for sx in (-6.0, 6.0):
-        sp.box((sx, 0, -0.85), (0.5, 2.44, 0.5), mats['float_yellow'])
-        for sy in (-1.1, 1.1):
-            sp.box((sx, sy, -1.2), (0.25, 0.25, 0.3), dark)
+        sp.box((sx, 0, -0.82), (0.55, 2.44, 0.55), yel)          # end beams
+        for sy in (-1.08, 1.08):
+            sp.box((sx, sy, -1.12), (0.3, 0.3, 0.1), steel)      # twistlock head on the casting
+            sp.cyl((sx, sy, -1.17), (sx, sy, -1.35), 0.06, steel, 8, r2=0.03)
+            sp.box((sx + math.copysign(0.25, sx), sy, -0.9), (0.08, 0.5, 0.45), yel)   # guide flipper
+    for sx in (-1.4, 1.4):
+        for sy in (-0.9, 0.9):
+            sp.cyl((sx, sy, -0.05), (sx, sy, 0.25), 0.2, steel, 10)  # rope sheaves on the chassis
     spreader = sp.obj(f'{name}_Spreader', head)
     # 4 wire ropes trolley sheaves -> headblock sheaves (stretch constraints)
     cables = []
     for i, (sx, sy) in enumerate(((-1.0, -0.6), (1.0, -0.6), (-1.0, 0.6), (1.0, 0.6))):
         anchor_t = empty(f'{name}_CabT{i}', (sx * 1.2, sy * 2.6, -0.2), trolley, size=0.2)
         anchor_h = empty(f'{name}_CabH{i}', (sx, sy, 1.0), head, size=0.2)
-        c = cyl(f'{name}_Cable_{i + 1}', 0.035, 1.0, (0, 0, 0), steel, 6, origin='base')
+        c = cyl(f'{name}_Cable_{i + 1}', 0.06, 1.0, (0, 0, 0), steel, 8, origin='base')
         cc = c.constraints.new('COPY_LOCATION')
         cc.target = anchor_h
         st = c.constraints.new('STRETCH_TO')
