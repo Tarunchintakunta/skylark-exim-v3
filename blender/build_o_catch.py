@@ -225,7 +225,7 @@ def mound_z(x, y):
 
 spill = []
 for i in range(320):
-    kind = 'tuna' if i < 6 else ('seer' if i < 12 else 'mackerel')
+    kind = 'tuna' if i < 6 else ('tuna_s' if i < 46 else ('seer' if i < 52 else 'mackerel'))
     sc = rnd.uniform(0.7, 0.85) if kind == 'tuna' else rnd.uniform(0.85, 1.15)
     a = rnd.uniform(0, 2 * math.pi)
     rr = math.sqrt(rnd.random()) * (0.9 if kind == 'tuna' else 1.25)
