@@ -148,7 +148,7 @@ for o in [ring, ringline]:
 foam_mat = L.pbr('MAT_Foam', (0.9, 0.93, 0.95), 0.6, var=0.3, bump=0.5, scale=8, alpha=0.6)
 disc = L.cyl_mesh('BOIL_disc', 1.0, 0.02, 24)
 disc.materials.append(foam_mat)
-for i in range(9):
+for i in range(0):  # flat discs read as plates; the ocean foam carries the boil
     p = (NETX + rnd.uniform(-2.6, 2.6), 9.6 + rnd.uniform(-1.8, 1.8), 0.05)
     d = L.obj(f'BOIL_{i}', disc, None, p)
     for f, sc in ((1, rnd.uniform(0.2, 0.5)), (20 + i * 3, rnd.uniform(0.7, 1.1)), (60, 0.3), (75, 0.01)):
@@ -266,7 +266,7 @@ for i in range(6):
 hold_floor = V['hold_floor']
 hx0, hx1, hy = V['hatch']
 HC = Vector(((hx0 + hx1) / 2, 0.0, DZ))
-for k, c in enumerate(row[3:]):
+for k, c in enumerate([]):  # no unheld crates in the air
     f0 = 262 + k * 18
     p0 = c.location.copy()
     path = [(f0, p0), (f0 + 6, p0 + Vector((0, 0, 0.8))), (f0 + 14, Vector((hx0 - 0.1, -0.6, DZ + 1.0))),
@@ -282,7 +282,7 @@ for ix in range(6):
     for iy in range(7):
         x = HC.x - 1.9 + ix * 0.68
         y = -1.45 + iy * 0.45
-        if abs(x - HC.x) < 0.8 and -0.6 < y < 0.4:
+        if False:  # the hold is fully stowed
             continue  # space where the chain lands its crates
         lv = 2 if (ix + iy) % 3 == 0 else 1
         for z in range(lv):
@@ -320,10 +320,10 @@ L.anim_poses(c6, [(1, 'idle'), (100, 'stand'), (176, 'pull'), (186, 'idle')])
 # the guiding crew step back as the bag comes inboard, then step in to sort (walk keys after 186)
 L.walk(r1, [(0.2, 2.25), (0.6, 1.7), (1.3, 1.25)], 150, 176)
 L.walk(r2, [(2.9, 2.2), (3.4, 1.6), (3.8, 1.0)], 155, 182)
-L.walk(c3, [(0.9, -0.3), (1.2, -0.9), (1.7, -1.1)], 176, 196)
+L.walk(c3, [(0.9, -0.3), (0.6, -1.0), (1.8, -1.4)], 176, 196)
 L.walk(c6, [(-1.2, 1.6), (-0.5, 1.2), (0.6, 0.5)], 186, 210)
 # 192-330: sorting by hand around the pile (kneel cycle), shovelling ice over the crates, passing crates
-for nm, (x, y, rot) in {'CREW_Rail1': (1.3, 1.25, -90), 'CREW_Rail2': (3.9, 0.9, -150), 'CREW_Mid': (1.8, -1.05, 80),
+for nm, (x, y, rot) in {'CREW_Rail1': (1.3, 1.25, -90), 'CREW_Rail2': (3.9, 0.9, -150), 'CREW_Mid': (1.8, -1.4, 80),
                         'CREW_Stern': (0.6, 0.45, -20)}.items():
     r = crew[nm]
     for f in (200, 383):
@@ -351,7 +351,7 @@ shovel.rotation_euler = (0, D(-90), 0)
 shovel.keyframe_insert('location', frame=197)
 shovel.keyframe_insert('rotation_euler', frame=197)
 # hand chain to the hatch: CREW_Hatch + one crewman in the hold
-L.anim_poses(c4, [(240, 'idle')] + [(f, 'pass' if (f // 9) % 2 == 0 else 'lift') for f in range(258, 340, 9)] + [(350, 'idle')])
+L.anim_poses(c4, [(240, 'idle')] + [(f, 'kneel' if (f // 14) % 2 == 0 else 'kneel2') for f in range(258, 383, 14)])
 
 # ---------------------------------------------------------------- camera (one continuous shot)
 cam = L.camera('Camera', 30, (-6, -6, 6.5), (2, 8, 0))
