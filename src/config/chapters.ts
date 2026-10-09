@@ -98,7 +98,7 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'process', path: 'shared', label: 'Process', vh: 200, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-proc', alt: 'A clean quality lab bench with a microscope and a test instrument.' }],
+    media: [{ kind: 'still', poster: 'ph-p-proc', alt: 'A processing hall: fish washed under running water on steel grading tables, staff in white coats and hairnets.' }],
     captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
   },
   {
