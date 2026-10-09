@@ -6,7 +6,8 @@ import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
- * - The current clip loads on entry; the next starts once the current fires `canplaythrough` (the previous when scrolling up).
+ * - The current clip loads on entry; the next starts once the current fires `canplaythrough`, and the one after
+ *   once the next can play through (direction-aware, so scrolling up prefetches upwards).
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
  *   presented frame stays up instead of stalling or flashing back to the poster.
  * - The target is lerped (fast flicks become several small seeks); `fastSeek()` while the scroll is fast,
@@ -134,6 +135,12 @@ function videoNear(i: number, d: 1 | -1) {
   return null
 }
 
+/** Nearest clip after the segment that plays `id`, in direction d. */
+function videoNearId(id: string, d: 1 | -1) {
+  const k = segs.findIndex((s) => s.media.kind === 'video' && s.media.id === id)
+  return k < 0 ? null : videoNear(k, d)
+}
+
 /** Slot holding `id`, loading it into the least recently used slot not in `keep` if needed. */
 function slotFor(id: string, keep: (string | null)[]) {
   const have = slots.find((s) => s.id === id)
@@ -190,7 +197,12 @@ function tick() {
       seek(active, p, vel)
     }
   }
-  if (ahead && (!want || active?.ready)) slotFor(ahead, [want, behind])
+  if (ahead && (!want || active?.ready)) {
+    const a = slotFor(ahead, [want, behind])
+    // the one after that once the next can play through too (short chapters pass in < 1 s)
+    const ahead2 = videoNearId(ahead, frame.dir < 0 ? -1 : 1)
+    if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
+  }
   setShown(active && active.painted && !active.dead ? active : null)
 
   // placeholders (stills and the port/sea gradients): slow push-in
