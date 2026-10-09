@@ -75,3 +75,17 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   expect(refetched, 'clips re-downloaded on the way back to the port').toEqual([])
   await ctx.close()
 })
+
+test('the opening clip plays on the first screen (no neighbour behind it)', async ({ browser }) => {
+  const { ctx, page } = await open(browser, 'desktop')
+  await page.mouse.move(700, 450)
+  for (let n = 0; n < 5; n++) {
+    await page.mouse.wheel(0, 100)
+    await page.waitForTimeout(100)
+  }
+  await page.waitForTimeout(800)
+  const shown = await page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => v.style.opacity === '1').map((v) => v.currentSrc))
+  expect(shown.length).toBe(1)
+  expect(shown[0]).toContain('/opening_')
+  await ctx.close()
+})
