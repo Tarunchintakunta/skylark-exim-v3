@@ -379,35 +379,70 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         p.box((cx0 + 0.35, sy * (W2 + 0.004), 1.85), (0.012, 0.012, 1.55))   # rear door seam
         p.box((cx1 - 0.5, sy * (W2 + 0.012), 1.75), (0.18, 0.02, 0.04))      # door handle
     p.make(name + '_CabSeams', M['dark'], root, coll=coll)
+    # Indian rigid-truck front (Tata LPT / Ashok Leyland style, no badges): black slatted grille panel in a bright
+    # frame, twin round headlamps in square bezels, a deep painted steel bumper with fog lamps and a blank yellow
+    # commercial plate, accent stripe under the split windscreen, roof marker lamps, big mirrors on tube arms.
     p = Part()
-    for k in range(6):
-        p.box((cx1 + 0.03, 0, 1.25 + k * 0.07), (0.03, 1.2, 0.035))
+    p.box((cx1 + 0.03, 0, 1.47), (0.03, 1.3, 0.5))                          # grille panel
+    p.box((cx1 - 0.08, 0, 2.27), (0.012, 0.05, 0.9), Euler((0, -0.16, 0)))   # windscreen centre pillar
     p.make(name + '_Grille', M['grille'], root, bevel=0.005, coll=coll)
     p = Part()
+    for k in range(7):
+        p.box((cx1 + 0.055, 0, 1.27 + k * 0.066), (0.02, 1.22, 0.026))         # slats
+    for z in (1.22, 1.73):
+        p.box((cx1 + 0.05, 0, z), (0.035, 1.34, 0.03))                         # frame top / bottom
     for sy in (-1, 1):
-        p.box((cx1 + 0.04, sy * 0.86, 1.32), (0.04, 0.34, 0.2))
-    p.make(name + '_Headlamps', M['lamp_clear'], root, bevel=0.02, coll=coll)
+        p.box((cx1 + 0.05, sy * 0.66, 1.47), (0.035, 0.03, 0.54))              # frame sides
+    p.make(name + '_GrilleFrame', M['chrome'], root, bevel=0.004, coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.box((cx1 + 0.045, sy * 1.07, 1.32), (0.04, 0.08, 0.16))
+        for dy in (0.0, 0.24):
+            p.box((cx1 + 0.035, sy * (1.06 - dy), 1.46), (0.04, 0.23, 0.23))     # square bezel
+    p.make(name + '_LampBezels', M['dark'], root, bevel=0.02, coll=coll)
+    p = Part()
+    for sy in (-1, 1):
+        for dy in (0.0, 0.24):
+            yc = sy * (1.06 - dy)
+            p.cyl((cx1 + 0.04, yc, 1.46), (cx1 + 0.07, yc, 1.46), 0.085, 20)
+        p.cyl((cx1 + 0.2, sy * 0.85, 0.86), (cx1 + 0.23, sy * 0.85, 0.86), 0.06, 16)   # fog lamps
+    p.make(name + '_Headlamps', M['lamp_clear'], root, smooth=True, coll=coll)
+    p = Part()
+    for sy in (-1, 1):
+        p.box((cx1 + 0.045, sy * 1.09, 1.72), (0.04, 0.07, 0.12))
+        p.box((cx1 - 0.25, sy * 1.12, 3.06), (0.08, 0.1, 0.06))                # roof corner markers
+    p.box((cx1 - 0.25, 0, 3.06), (0.08, 0.14, 0.06))
     p.make(name + '_FrontInd', M['lamp_amber'], root, bevel=0.01, coll=coll)
     p = Part()
-    p.box((cx1 + 0.1, 0, 0.92), (0.22, 2.36, 0.3))                         # bumper
+    for sy in (-1, 1):
+        p.box((cx1 + 0.012, sy * 0.6, 1.79), (0.01, 1.1, 0.06))                # accent stripe under the screen
+        p.box((cx1 - 0.6, sy * (W2 + 0.008), 1.79), (1.2, 0.01, 0.06))
+    p.make(name + '_Stripe', P.plain('TRK_StripeBlue', (0.03, 0.08, 0.22), 0.35, coat=0.5), root, coll=coll)
+    p = Part()
+    p.box((cx1 + 0.12, 0, 0.9), (0.26, 2.38, 0.36))                           # deep steel bumper
     for sy in (-1, 1):
         p.box((cx1 - 0.55, sy * 1.08, 0.72), (0.5, 0.26, 0.04))             # step 1
         p.box((cx1 - 0.55, sy * 1.12, 0.95), (0.5, 0.2, 0.04))
-    p.box((cx1 - 0.05, 0, 2.95), (0.3, 2.2, 0.06), Euler((0, -0.25, 0)))   # visor
-    p.make(name + '_Bumper', M['dark'], root, bevel=0.03, coll=coll)
+    p.make(name + '_Bumper', P.grime_paint('TRK_BumperPaint', (0.16, 0.17, 0.18), rough=0.45, grime=0.6, streak=0.3,
+                                           coat=0.2, metal=0.4), root, bevel=0.03, coll=coll)
+    p = Part()
+    p.box((cx1 - 0.05, 0, 2.97), (0.34, 2.24, 0.05), Euler((0, -0.28, 0)))   # sun visor
+    p.make(name + '_Visor', M['white'], root, bevel=0.02, coll=coll)
+    p = Part()
+    p.box((cx1 + 0.26, 0, 0.92), (0.012, 0.5, 0.12))
+    p.make(name + '_FrontPlate', P.plain('TRK_PlateYellow', (0.75, 0.58, 0.06), 0.4, coat=0.3), root, bevel=0.006,
+           coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.cyl((cx1 - 0.15, sy * W2, 2.6), (cx1 - 0.05, sy * (W2 + 0.45), 2.55), 0.018, 8)
-        p.cyl((cx1 - 0.15, sy * W2, 2.0), (cx1 - 0.05, sy * (W2 + 0.45), 2.1), 0.018, 8)
-        p.box((cx1 - 0.05, sy * (W2 + 0.47), 2.3), (0.08, 0.2, 0.45))         # mirror head
+        p.cyl((cx1 - 0.15, sy * W2, 2.62), (cx1 + 0.12, sy * (W2 + 0.5), 2.62), 0.02, 8)   # tube arms
+        p.cyl((cx1 - 0.15, sy * W2, 1.98), (cx1 + 0.12, sy * (W2 + 0.5), 2.0), 0.02, 8)
+        p.box((cx1 + 0.12, sy * (W2 + 0.52), 2.3), (0.09, 0.26, 0.56))        # big mirror head
+        p.box((cx1 + 0.06, sy * (W2 + 0.3), 2.85), (0.08, 0.18, 0.16))        # kerb mirror
         p.box((cx1 + 0.02, sy * 0.35, 1.84), (0.02, 0.6, 0.02), Euler((0.3 * sy, 0, 0)))  # wiper
     p.make(name + '_Mirrors', M['dark'], root, bevel=0.01, coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.box((cx1 - 0.0, sy * (W2 + 0.47), 2.3), (0.02, 0.17, 0.4))
+        p.box((cx1 + 0.17, sy * (W2 + 0.52), 2.3), (0.02, 0.22, 0.5))
+        p.box((cx1 + 0.11, sy * (W2 + 0.3), 2.85), (0.02, 0.15, 0.13))
     p.make(name + '_MirrorGlass', M['glass'], root, coll=coll)
     # driver door (right-hand drive -> the -Y side when facing +X)
     hn = name + '_CabDoorHinge'
