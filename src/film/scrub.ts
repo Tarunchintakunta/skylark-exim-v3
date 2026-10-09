@@ -6,7 +6,7 @@ import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
- * - The current clip loads on entry; the next starts once the current fires `canplaythrough`, and the one after
+ * - The current clip loads on entry; after the first scroll the next starts once the current fires `canplaythrough`, and the one after
  *   once the next can play through (direction-aware, so scrolling up prefetches upwards).
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
  *   presented frame stays up instead of stalling or flashing back to the poster.
@@ -46,6 +46,8 @@ let hidden = false
 let isLight = false
 let lastY = 0
 let clock = 0
+/** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
+let scrolled = false
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -197,7 +199,8 @@ function tick() {
       seek(active, p, vel)
     }
   }
-  if (ahead && (!want || active?.ready)) {
+  if (!scrolled && frame.scroll > 2) scrolled = true
+  if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
     // the one after that once the next can play through too (short chapters pass in < 1 s)
     const ahead2 = videoNearId(ahead, frame.dir < 0 ? -1 : 1)
