@@ -169,6 +169,23 @@ def _eye_mat():
     return m
 
 
+def _stache_mat():
+    """Moustache on about half the men (Object Info random > 0.45), hidden on the rest."""
+    m = bpy.data.materials.get('HUM_Stache')
+    if m:
+        return m
+    m = _mat('HUM_Stache', (0.02, 0.016, 0.014), 0.6, bump=0.25)
+    nt = m.node_tree
+    oi = nt.nodes.new('ShaderNodeObjectInfo')
+    gt = nt.nodes.new('ShaderNodeMath')
+    gt.operation = 'GREATER_THAN'
+    gt.inputs[1].default_value = 0.45
+    nt.links.new(oi.outputs['Random'], gt.inputs[0])
+    nt.links.new(gt.outputs[0], nt.nodes['Principled BSDF'].inputs['Alpha'])
+    m.surface_render_method = 'DITHERED'
+    return m
+
+
 def mats():
     fab = CC0 + '/tex/Fabric030/Fabric030_2K-JPG_NormalGL.jpg'
     fab2 = CC0 + '/tex/Fabric061/Fabric061_2K-JPG_NormalGL.jpg'
@@ -185,6 +202,7 @@ def mats():
         'shirt_blue': _mat('HUM_ShirtBlue', (0.22, 0.30, 0.42), 0.8, sheen=0.2, bump=0.12, rand=0.15, wrinkle=0.45),
         'trousers_dark': _mat('HUM_TrouserDark', (0.08, 0.08, 0.09), 0.75, bump=0.1, rand=0.2, wrinkle=0.45),
         'shoe': _mat('HUM_Shoe', (0.05, 0.045, 0.04), 0.45, coat=0.2),
+        'stache': _stache_mat(),
         'hair': _mat('HUM_Hair', (0.025, 0.02, 0.018), 0.5, bump=0.4, rand=0.2),
         'hivis': _mat('HUM_HiVis', (0.75, 0.85, 0.08), 0.6, emission=(0.6, 0.7, 0.05), estr=0.15, bump=0.12, wrinkle=0.45),
         'shirt_farm': _mat('HUM_ShirtFarm', (0.34, 0.27, 0.22), 0.85, sheen=0.2, bump=0.12, rand=0.35, hue_rand=0.5, wrinkle=0.45),
@@ -320,21 +338,18 @@ def _region(body, gender, piece, k):
         x, y, z = v.co.x, v.co.y, v.co.z / k
         ax = abs(x) / k
         n = v.normal
-        hand = z < 0.895 and ax > 0.30
-        forearm = ax > 0.25 and z < 1.08
         arm = ax > 0.19 and z < 1.40 and not (z < 1.0 and ax < 0.24)
+        # distance along the arm from the shoulder joint (elbow ~0.34, wrist ~0.57): cuts square to the limb
+        sa = ((ax - 0.165) * 0.387 + (z - 1.385) * -0.922) if arm or ax > 0.25 else -1.0
+        hand = sa > 0.555
         sel = False
         if piece in ('jacket', 'parka', 'shirt', 'shirt_farm'):
             top = 1.455
-            sel = 0.80 < z < top and not hand
-            if piece == 'shirt' and forearm:
-                sel = False
-            if piece == 'shirt_farm' and ax > 0.33:
-                sel = False
+            sel = 0.80 < z < top and sa < SLEEVE[piece]
             if piece == 'parka':
-                sel = 0.74 < z < 1.47 and not hand
+                sel = 0.74 < z < 1.47 and sa < SLEEVE[piece]
         elif piece == 'labcoat':
-            sel = 0.50 < z < 1.455 and not hand
+            sel = 0.50 < z < 1.455 and sa < SLEEVE[piece]
         elif piece in ('trousers', 'trousers_dark'):
             sel = 0.08 < z < 1.02 and not arm and not hand
         elif piece == 'trousers_rolled':
@@ -346,31 +361,41 @@ def _region(body, gender, piece, k):
         elif piece == 'shoes':
             sel = z < 0.105
         elif piece in ('gloves', 'gloves_rubber'):
-            sel = (z < 0.97 and ax > 0.285) if piece == 'gloves' else (z < 0.93 and ax > 0.30)
+            sel = sa > (0.50 if piece == 'gloves' else 0.44)
         elif piece == 'haircap':
             sel = (z > 1.60) or (z > 1.49 and n.y > 0.1 and ax < 0.10) or (z > 1.545 and ax > 0.055 and n.y > -0.3)
             sel = sel and ax < 0.125
         elif piece in ('hair', 'cap'):
             sel = ((z > 1.60) or (z > 1.52 and n.y > 0.3) or (z > 1.56 and ax > 0.06 and n.y > -0.2)) and ax < 0.12
+            sel = sel and not (z < 1.605 and ax > 0.07)        # ears stay bare
             if piece == 'cap':
                 sel = z > 1.60 and ax < 0.12
         elif piece == 'mask':
             sel = 1.462 < z < 1.552 and ax < 0.078 and n.y < -0.25
+        elif piece == 'stache':
+            sel = STACHE[0] < z < STACHE[1] and ax < STACHE[2] and n.y < -0.12
         elif piece == 'vest':
             sel = 0.93 < z < 1.43 and ax < 0.17 and not arm
         out.append(sel)
     return out
 
 
+STACHE = (1.505, 1.517, 0.030)       # upper lip band (z lo, z hi, half width) on the rest mesh
+SLEEVE = {'jacket': 0.545, 'parka': 0.55, 'labcoat': 0.535, 'shirt': 0.17, 'shirt_farm': 0.31}
+CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap', 'shirt', 'trousers', 'trousers_dark',
+        'shorts')
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.018, 'shoes': 0.008,
          'gloves': 0.0035, 'gloves_rubber': 0.005, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
-         'vest': 0.04}
+         'vest': 0.04, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
         'trousers_rolled': 'trousers_dark', 'shorts': 'shorts', 'boots': 'boot', 'shoes': 'shoe',
         'gloves': 'nitrile_blue', 'gloves_rubber': 'rubber_glove', 'haircap': 'cap_white', 'hair': 'hair',
-        'cap': 'cap_cloth', 'mask': 'mask_blue', 'vest': 'hivis', 'apron': 'white_pvc'}
+        'cap': 'cap_cloth', 'mask': 'mask_blue', 'vest': 'hivis', 'apron': 'white_pvc', 'stache': 'stache'}
+
+
+KH = 1.0
 
 
 def _shell(body, piece, mask, M):
@@ -385,17 +410,48 @@ def _shell(body, piece, mask, M):
     bm.verts.ensure_lookup_table()
     kill = [f for f in bm.faces if not all(mask[v.index] for v in f.verts)]
     bmesh.ops.delete(bm, geom=kill, context='FACES')
+    for _ in range(3):                      # drop one-face slivers and tags hanging off the border
+        thin = [f for f in bm.faces if sum(1 for e in f.edges if e.is_boundary) >= 2]
+        if not thin:
+            break
+        bmesh.ops.delete(bm, geom=thin, context='FACES')
     loose = [v for v in bm.verts if not v.link_faces]
     bmesh.ops.delete(bm, geom=loose, context='VERTS')
     t = THICK[piece]
     loose_cloth = piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark',
                             'trousers_rolled', 'shorts', 'vest', 'boots')
+    bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    bnd = [v for v in bm.verts if v.is_boundary]
+    for _ in range(8):                      # straighten the hem line (1D smoothing along the border)
+        new = {}
+        for v in bnd:
+            nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
+            if len(nb) == 2:
+                new[v] = v.co * 0.5 + (nb[0].co + nb[1].co) * 0.25
+        for v, c in new.items():
+            v.co = c
+    for v in bnd:
+        hit, nrm, _i, _d = bvh.find_nearest(v.co)
+        if hit is not None:
+            v.co = hit
+    # rings from the border: 0 at the hem
+    ring = {v: 0 for v in bnd}
+    front = list(bnd)
+    for r in range(1, 5):
+        nxt = []
+        for v in front:
+            for e in v.link_edges:
+                w = e.other_vert(v)
+                if w not in ring:
+                    ring[w] = r
+                    nxt.append(w)
+        front = nxt
     if loose_cloth:
-        # cloth drapes over the anatomy: push out, then relax (removes muscle detail), keep borders
+        # cloth drapes over the anatomy: push out, then relax (removes muscle detail); hems hug the body
+        hem = 0.012 if piece not in ('labcoat', 'parka') else 0.022
         for v in bm.verts:
-            v.co += v.normal * (t * 1.6)
+            v.co += v.normal * (hem if v.is_boundary else t * 1.6)
         inner = [v for v in bm.verts if not v.is_boundary]
-        bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
         for it in range(4):
             for _ in range(20):
                 bmesh.ops.smooth_vert(bm, verts=inner, factor=0.6, use_axis_x=True, use_axis_y=True, use_axis_z=True)
@@ -416,12 +472,32 @@ def _shell(body, piece, mask, M):
             a = math.atan2(v.co.y, v.co.x)
             extra = 0.010 * max(0.0, (z - 1.52) / 0.2) + 0.006 * max(0.0, v.co.y) / 0.1 \
                 + 0.004 * math.sin(a * 26) * max(0.0, (z - 1.56) / 0.12)
-        if piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark', 'shorts'):
-            extra += 0.003 * math.sin(z * 38 + v.co.x * 14) * math.sin(v.co.x * 31 + v.co.y * 23)  # folds
+        if piece in CUFF and v in ring and piece != 'haircap':
+            extra += (0.006, 0.0065, 0.005, 0.002, 0.0)[ring[v]]          # turned-back hem / cuff band
+        if piece in ('haircap', 'cap') and v in ring:
+            extra += (0.004, 0.005, 0.003, 0.0, 0.0)[ring[v]]             # elastic edge
+        if piece == 'mask':
+            extra += 0.004 + (0.002 if v in ring and ring[v] < 2 else 0.0)  # stands off the face; bound edge
+        if piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark', 'shorts',
+                     'trousers_rolled'):
+            extra += 0.002 * math.sin(z * 38 + v.co.x * 14) * math.sin(v.co.x * 31 + v.co.y * 23)  # soft folds
+            ax_ = abs(v.co.x)
+            # compression rings at the elbow and the back of the knee, drag folds from the armpit
+            sa = (ax_ - 0.165 * KH) * 0.387 + (z - 1.385 * KH) * -0.922
+            if ax_ > 0.19 * KH and z < 1.40 * KH and 0.25 * KH < sa < 0.42 * KH:
+                extra += 0.006 * max(0.0, math.sin(sa * 120)) * (1 - abs(sa - 0.335 * KH) / (0.085 * KH))
+            if piece.startswith('trousers') and 0.40 * KH < z < 0.60 * KH:
+                extra += 0.005 * max(0.0, math.sin(z * 110)) * (1 - abs(z - 0.5 * KH) / (0.1 * KH))
+            if piece in ('jacket', 'shirt', 'shirt_farm', 'parka') and 1.05 * KH < z < 1.36 * KH and ax_ > 0.08 * KH:
+                extra += 0.004 * max(0.0, math.sin((z * 0.8 + ax_ * 1.2) * 70)) * min(1.0, (ax_ - 0.08 * KH) / 0.06)
+            if piece in ('jacket', 'shirt', 'shirt_farm', 'parka') and 0.88 * KH < z < 1.02 * KH:
+                a = math.atan2(v.co.y, v.co.x)                          # gathered at the waist / apron tie
+                extra += 0.004 * max(0.0, math.sin(a * 14 + z * 9))
             if piece in ('labcoat', 'jacket', 'parka') and z < 1.25:
                 # vertical drape folds hanging from the chest, deeper toward the hem
                 a = math.atan2(v.co.y, v.co.x)
-                extra += 0.010 * min(1.0, (1.25 - z) / 0.5) * max(0.0, math.sin(a * 9 + math.sin(z * 7) * 0.8))
+                u = min(1.0, (1.25 * KH - z) / 0.5)
+                extra += 0.007 * u * u * (3 - 2 * u) * (0.5 + 0.5 * math.sin(a * 9 + math.sin(z * 7) * 0.8))
         v.co += v.normal * (t + extra)
     bm.to_mesh(me)
     bm.free()
@@ -434,7 +510,7 @@ def _shell(body, piece, mask, M):
     dt.layers_vgroup_select_src = 'ALL'
     dt.layers_vgroup_select_dst = 'NAME'
     sol = o.modifiers.new('sol', 'SOLIDIFY')
-    sol.thickness = 0.004 if piece not in ('gloves', 'mask') else 0.0015
+    sol.thickness = 0.0065 if piece not in ('gloves', 'mask', 'gloves_rubber', 'stache') else 0.0018
     sol.offset = -1
     bpy.context.view_layer.objects.active = o
     for m in list(o.modifiers):
@@ -515,6 +591,8 @@ def build_masters(out_path, level=1):
         _apply_multires(body, level)
         h = _normalize(body, eyes)
         k = h / 1.684
+        global KH
+        KH = k
         body.name = 'HUMB_' + gender
         ao = _build_armature(body, h, 'HUM_Rig_' + gender)
         _skin(body, eyes, ao, bpy.data.objects.get('HUMB_male') if gender == 'female' else None)
@@ -532,7 +610,7 @@ def build_masters(out_path, level=1):
             at.data.foreach_set('value', vals)
         pieces = {}
         regions = {}
-        need = sorted({p for ps in OUTFITS.values() for p in ps})
+        need = sorted({p for ps in OUTFITS.values() for p in ps} | {'stache'})
         for p in need:
             if p == 'apron':
                 pieces[p] = _apron(body, k, M)
@@ -540,6 +618,8 @@ def build_masters(out_path, level=1):
                 regions[p] = _region(body, gender, p, k)
                 pieces[p] = _shell(body, p, regions[p], M)
         for oname, plist in OUTFITS.items():
+            if gender == 'male' and 'mask' not in plist:
+                plist = plist + ['stache']
             parts = [body] + eyes + [pieces[p] for p in plist]
             cps = []
             for src in parts:
@@ -616,6 +696,13 @@ def person(name, outfit='plant', gender='male', loc=(0, 0, 0), rot_z=0.0, scale=
     for pb in ao.pose.bones:
         pb.rotation_mode = 'XYZ'
     ao['seed'] = seed
+    # build and proportions vary per person (callers may still override scale)
+    r = random.Random(seed * 7919 + len(name))
+    wx, hz = r.uniform(0.94, 1.08), r.uniform(0.96, 1.04)
+    ao.scale = (scale * wx, scale * wx, scale * hz)
+    hb = ao.pose.bones.get('head')
+    if hb:
+        hb.scale = (r.uniform(0.95, 1.05), r.uniform(0.96, 1.04), r.uniform(0.96, 1.05))
     set_pose(ao, {'upperarm': (4, -24, 0), 'forearm': (14, 0, 0), 'hand': (0, 0, 0)})
     return ao
 
@@ -733,7 +820,7 @@ POSES = {
                  'upperarm': (50, -8, 0), 'forearm': (20, 0, 0)},
     'carry': {'spine': (-4, 0, 0), 'upperarm': (12, -10, 0), 'forearm': (80, 0, 0)},
     'push': {'spine': (14, 0, 0), 'upperarm': (42, -6, 0), 'forearm': (35, 0, 0)},
-    'look': {'upperarm': (4, -13, 0), 'forearm': (40, 0, 0), 'head': (8, 0, 0)},
+    'look': {'upperarm': (6, -24, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
 }
 
 
@@ -760,3 +847,39 @@ if __name__ == '__main__':
     import sys
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
     build_masters(argv[0] if argv else '/tmp/humans.blend', int(argv[1]) if len(argv) > 1 else 1)
+
+
+def settle_reach(ao, f0, f1, step=2, iters=3, max_shift=0.7, z_fn=None, win=5):
+    """Move the person (root x/y) so every active IK hand actually lands on its target: no hands grasping air.
+    The per-frame correction is smoothed over time (no sliding jumps) and keyed on the root location.
+    z_fn(x, y) re-grounds the feet after the move."""
+    s = bpy.context.scene
+    iks = [(pb, c) for pb in ao.pose.bones for c in pb.constraints if c.type == 'IK' and c.target]
+    if not iks:
+        return
+    frames = list(range(f0, f1 + 1, step))
+    base = {}
+    for f in frames:
+        s.frame_set(f)
+        base[f] = ao.location.copy()
+    shift = {f: Vector((0.0, 0.0)) for f in frames}
+    for _ in range(iters):
+        raw = {}
+        for f in frames:
+            s.frame_set(f)
+            miss = [(c.target.matrix_world.translation - (ao.matrix_world @ pb.tail)) * c.influence
+                    for pb, c in iks if c.influence > 0.05]
+            m = (sum(miss, Vector()) / len(miss)).xy if miss else Vector((0.0, 0.0))
+            raw[f] = shift[f] + m
+        for k, f in enumerate(frames):                      # moving average over neighbouring samples
+            nb = [raw[frames[j]] for j in range(max(0, k - win), min(len(frames), k + win + 1))]
+            v = sum(nb, Vector((0.0, 0.0))) / len(nb)
+            shift[f] = v if v.length <= max_shift else v.normalized() * max_shift
+        for f in frames:
+            b = base[f]
+            loc = Vector((b.x + shift[f].x, b.y + shift[f].y, b.z))
+            if z_fn:
+                loc.z = b.z + z_fn(loc.x, loc.y) - z_fn(b.x, b.y)
+            ao.location = loc
+            ao.keyframe_insert('location', frame=f)
+    s.frame_set(f0)
