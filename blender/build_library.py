@@ -23,7 +23,7 @@ rnd = random.Random(1)
 
 s = L.reset()
 mats = L.M()
-L.sky(sun_elev=48, sun_rot=-50, strength=0.2, clouds=0.5, sun_strength=3.5, haze=0.15)
+L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
 L.box('LIB_Ground', (2000, 2000, 0.2), (0, 0, -0.1), mats['concrete'], 0.0)
 
 # people: every outfit in a few poses (x = 0 .. 20)
