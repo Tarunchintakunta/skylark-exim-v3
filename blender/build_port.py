@@ -178,10 +178,11 @@ SHIP_Y = 21.0
 ship = P.container_ship('SHIP', (10.0, SHIP_Y, 0.0), L=230.0, B=32.0, deck=11.0, mats=mats, rnd=rnd, empty_slot=(4, 3),
                         tiers=7, bays=13)
 # move the ship along the quay so the empty slot sits exactly under crane 2 (x = 0): no jump at release
-SHIP_X = 10.0 - ship['slot'].x
+# (container_ship returns the slot in ship-local coordinates)
+slot_local = ship['slot'].copy()
+SHIP_X = -slot_local.x
 ship['root'].location.x = SHIP_X
-ship['slot'] = ship['slot'] - Vector((ship['slot'].x, 0, 0))
-slot_local = ship['slot'] - Vector((SHIP_X, SHIP_Y, 0))  # relative to the ship root
+SLOT_W = Vector((0.0, SHIP_Y + slot_local.y, slot_local.z))   # world: bottom of the empty slot = top of the box below
 cranes = []
 cg = P.MB()
 gmat = L.weather(L.pbr('MAT_CellGuide', (0.42, 0.43, 0.42), 0.5, 0.6, grime=0.5, scale=0.5), amount=0.6, z0=0, z1=1)
@@ -213,11 +214,11 @@ def lz_head(world_bottom_of_spreader):
 
 
 truck_box_top = BOX.z + P.CH
-slot_world = ship['slot']
+slot_world = SLOT_W
 keys_t = [(1, ly(30.0)), (132, ly(30.0)), (166, ly(BOX.y)), (205, ly(BOX.y)), (236, ly(slot_world.y)), (284, ly(slot_world.y)),
           (312, ly(-12.5)), (479, ly(-12.5))]
 TOP = 36.0
-SZ = slot_world.z + P.CH     # top of the box below = where the twistlocks set the reefer's bottom castings down
+SZ = slot_world.z             # top of the box below = where the reefer's bottom castings set down
 keys_h = [(1, lz_head(TOP)), (132, lz_head(TOP)), (166, lz_head(truck_box_top + 4.0)), (178, lz_head(truck_box_top)),
           (186, lz_head(truck_box_top)), (205, lz_head(TOP)), (236, lz_head(TOP)), (248, lz_head(SZ + P.CH + 1.6)),
           (256, lz_head(SZ + P.CH + 1.5)), (264, lz_head(SZ + P.CH + 0.7)), (274, lz_head(SZ + P.CH + 0.04)),
@@ -360,18 +361,26 @@ for f in range(1, 480):
     reefer.keyframe_insert('location', frame=f)
     reefer.keyframe_insert('rotation_euler', frame=f)
 L.linear_keys(reefer)
-worst = 1e9
+# per-frame placement check (x-cranes beat): no stack vertex inside the carried box, no jump at release
+s.frame_set(236)
+stack_o = bpy.data.objects['SHIP_Stacks']
+stack_w = [stack_o.matrix_world @ v.co for v in stack_o.data.vertices]
+hx, hy = P.CL / 2 - 0.01, P.CW / 2 - 0.01
+worst, hits = 1e9, []
 for f in range(236, 289):
     s.frame_set(f)
-    bottom = reefer.matrix_world.translation.z
-    off = (reefer.matrix_world.translation - shp.matrix_world @ slot_local).xy.length
-    if off < 3.0:
-        worst = min(worst, bottom - (shp.matrix_world @ slot_local).z)
-    assert bottom >= (shp.matrix_world @ slot_local).z - 1e-3 or off > 3.0, (f, bottom)
-s.frame_set(RELEASE)
-landed = (reefer.matrix_world.translation - shp.matrix_world @ slot_local).length
-print('PLACEMENT min clearance over the slot %.3f m, landing error %.4f m' % (worst, landed))
-assert landed < 0.01
+    c = reefer.matrix_world.translation
+    zb, zt = c.z + 0.01, c.z + P.CH - 0.01
+    n = sum(1 for v in stack_w if abs(v.x - c.x) < hx and abs(v.y - c.y) < hy and zb < v.z < zt)
+    if n:
+        hits.append((f, n))
+    if abs(c.x - SLOT_W.x) < 0.5 and abs(c.y - SLOT_W.y) < 0.5:
+        worst = min(worst, c.z - SLOT_W.z)
+s.frame_set(RELEASE - 1)
+carried = reefer.matrix_world.translation.copy()
+landed = (carried - SLOT_W).length
+print('PLACEMENT min clearance over the slot %.3f m, landing error %.4f m, intersecting frames %s' % (worst, landed, hits))
+assert landed < 0.01 and not hits
 
 # ---------------------------------------------------------------- coastline, breakwaters, city (seen from the top-down end)
 def coast_y(x):
@@ -478,9 +487,10 @@ keys = [
     (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
     (186, (-12.0, -28.0, 8.0), (0.0, -12.5, 6.2), 30),
     (212, (-20.0, -34.0, 22.0), (0.0, -2.0, 30.0), 28),
-    (240, (-21.0, slot_world.y - 25.0, slot_world.z + 11.0), (0.0, slot_world.y, slot_world.z + 4.0), 34),
-    (276, (-17.0, slot_world.y - 21.0, slot_world.z + 8.0), (0.0, slot_world.y, slot_world.z + 2.6), 36),
-    (288, (-20.0, slot_world.y - 26.0, slot_world.z + 12.0), (0.0, slot_world.y, slot_world.z + 3.0), 34),
+    # seaward of crane 2's legs, so the portal bracing is not between the camera and the slot
+    (240, (-22.0, slot_world.y - 14.0, slot_world.z + 12.0), (0.0, slot_world.y, slot_world.z + 4.0), 34),
+    (276, (-16.0, slot_world.y - 11.0, slot_world.z + 7.0), (0.0, slot_world.y, slot_world.z + 2.0), 36),
+    (288, (-20.0, slot_world.y - 13.0, slot_world.z + 10.0), (0.0, slot_world.y, slot_world.z + 3.0), 34),
     (336, (14.0, SHIP_Y + 28.0, 330.0), (14.0, SHIP_Y + 30.0, 0.0), 28),
     (380, (45.0, SHIP_Y + 110.0, 400.0), (45.0, SHIP_Y + 112.0, 0.0), 28),
     (420, (95.0, SHIP_Y + 200.0, 720.0), (95.0, SHIP_Y + 202.0, 0.0), 28),
