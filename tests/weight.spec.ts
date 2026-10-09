@@ -6,24 +6,36 @@ import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 const BUDGET = { desktop: { initial: 3e6, full: 25e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
 const MB = (b: number) => +(b / 1e6).toFixed(2)
 
-test('every committed media/model file is within budget', () => {
+/**
+ * Per-file caps for everything under public/ (KB). First match wins; an unknown file type fails, so new
+ * kinds of assets need a deliberate cap. Clip tiers: 1920 ≤ 2,250, 1280 ≤ 2,300, 960 ≤ 1,400.
+ */
+const CAPS: [RegExp, number][] = [
+  [/_1920\.mp4$/, 2250],
+  [/_1280\.mp4$/, 2300],
+  [/_960\.mp4$/, 1400],
+  [/_720\.mp4$/, 1230],
+  [/_720\.webp$/, 40],
+  [/\.webp$/, 120],
+  [/\.glb$/, 1536],
+  [/\.woff2$/, 40],
+  [/\.(svg|txt)$/, 20],
+  [/\.pdf$/, 3100],
+  [/\.(ktx2|jpg|png)$/, 1024],
+]
+
+function walk(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : [`${dir}/${e.name}`]))
+}
+
+test('every file under public/ is within its per-file cap', () => {
   const over: string[] = []
-  for (const dir of ['public/media', 'public/models', 'public/textures']) {
-    let files: string[] = []
-    try {
-      files = readdirSync(dir)
-    } catch {
-      continue
-    }
-    for (const f of files) {
-      const kb = statSync(`${dir}/${f}`).size / 1024
-      // clip tiers (redesign §2.6): ≈ 2.5 MB / 8 s at 1920 and 0.9 MB / 8 s at 960, so 12 s clips get 1.5×; posters ≤ 120 KB
-      const limit = f.endsWith('.glb') ? 1536
-        : f.endsWith('_720.webp') ? 40 : f.endsWith('.webp') ? 120
-        : f.endsWith('_1920.mp4') ? 3900 : f.endsWith('_960.mp4') ? 1400 : f.endsWith('_720.mp4') ? 1230 : f.endsWith('.mp4') ? 2300
-        : 1024
-      if (kb > limit) over.push(`${f} ${kb.toFixed(0)} KB > ${limit} KB`)
-    }
+  for (const f of walk('public')) {
+    if (f.endsWith('.DS_Store')) continue
+    const cap = CAPS.find(([re]) => re.test(f))?.[1]
+    const kb = statSync(f).size / 1024
+    if (cap === undefined) over.push(`${f}: no cap for this file type`)
+    else if (kb > cap) over.push(`${f} ${kb.toFixed(0)} KB > ${cap} KB`)
   }
   expect(over).toEqual([])
 })
