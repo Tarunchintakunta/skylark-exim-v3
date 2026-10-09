@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Render one Blender scene headless (never inside an MCP call). Settings live in the .blend; preview overrides them.
 # Usage: scripts/render-scene.sh <blend> preview|full [first last]
-#   <blend> = o-catch (renders o-catch-a + o-catch-b) o-return p-ponds p-harvest truck-reverse p-intake p-proc p-freeze port (renders x-cranes + x-ship)
+#   <blend> = o-catch (renders o-catch-a + o-catch-b) o-return p-ponds p-harvest truck-reverse p-intake p-proc p-lab p-iqf p-pack p-store p-docs port (renders x-cranes + x-ship)
 #             prod-tuna prod-swordfish prod-shrimp (Products turntable fallback only)
 #   preview -> 960x540, 16 samples, no motion blur -> assets-src/render/preview/<blend>/####.png + docs/renders/<blend>-preview.mp4
 #   full    -> the .blend's saved settings (1920x1080, 24 fps)  -> assets-src/render/<dir>/####.png

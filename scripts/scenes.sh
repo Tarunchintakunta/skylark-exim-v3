@@ -13,7 +13,12 @@ SCENES=(
   "truck-reverse|truck-reverse|1|288|truck-reverse"
   "p-intake|p-intake|1|192|p-intake"
   "p-proc|p-proc|1|288|p-proc"
-  "p-freeze|p-freeze|1|288|p-freeze"
+  # coldchain: one shot per caption (lab continues p-proc; IQF, packing and cold store have their own cameras)
+  "p-lab|p-lab|1|144|p-lab"
+  "p-iqf|p-iqf|1|144|p-iqf"
+  "p-pack|p-pack|1|144|p-pack"
+  "p-store|p-store|1|144|p-store"
+  "p-docs|p-docs|1|144|p-docs"
   "x-cranes|port|1|288|port"
   "x-ship|port|288|479|port"
   # Products fallback only (PRODUCTS rule in ASSET_LIBRARY.md): 360-degree turntables on the ice bed, used if a photoreal GLB can't stay <= 500 KB
@@ -22,9 +27,9 @@ SCENES=(
   "prod-shrimp|prod-shrimp|1|120|prod-shrimp"
 )
 # Joins where the boundary frame must be shared (checked by scripts/boundary-check.sh)
-SHARED_JOINS=("o-catch-a>o-catch-b" "truck-reverse>p-intake" "p-intake>p-proc" "p-proc>p-freeze" "x-cranes>x-ship")
+SHARED_JOINS=("o-catch-a>o-catch-b" "truck-reverse>p-intake" "p-intake>p-proc" "p-proc>p-lab" "x-cranes>x-ship")
 # Joins the site cross-fades (different places or a reused Higgsfield clip on one side)
-CROSSFADE_JOINS=("a2>o-catch-a" "o-catch-b>o-return" "o-return>truck-reverse" "p-ponds>b2" "b2>p-harvest" "p-harvest>truck-reverse" "x-ship>globe")
+CROSSFADE_JOINS=("a2>o-catch-a" "o-catch-b>o-return" "o-return>truck-reverse" "p-ponds>b2" "b2>p-harvest" "p-harvest>truck-reverse" "p-lab>p-iqf" "p-iqf>p-pack" "p-pack>p-store" "x-ship>globe")
 BLENDER="${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}"
 scene_row(){ local r; for r in "${SCENES[@]}"; do [ "${r%%|*}" = "$1" ] && { echo "$r"; return 0; }; done; return 1; }
 blend_rows(){ local r i b f l d; for r in "${SCENES[@]}"; do IFS='|' read -r i b f l d <<<"$r"; if [ "$b" = "$1" ]; then echo "$r"; fi; done; return 0; }

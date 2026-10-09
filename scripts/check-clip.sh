@@ -5,7 +5,7 @@
 # Size targets per 8 s (redesign prompt §2.6): 1920 <= 2.5 MB, 960 <= 0.9 MB (scaled by clip length).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-floor(){ case "$1" in x-ship) echo 55;; p-intake|p-proc|p-freeze) echo 70;; prod-*) echo 140;; *) echo 85;; esac; }
+floor(){ case "$1" in x-ship) echo 55;; p-intake|p-proc|p-lab|p-iqf|p-pack|p-store|p-docs) echo 70;; prod-*) echo 140;; *) echo 85;; esac; }
 kb(){ echo $(( $(stat -f%z "$1" 2>/dev/null || stat -c%s "$1") / 1024 )); }
 rc=0
 for id in "$@"; do

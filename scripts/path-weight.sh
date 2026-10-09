@@ -3,8 +3,8 @@
 # Usage: scripts/path-weight.sh            Budgets (ASSETS_SPEC.md): desktop <= 25 MB, mobile <= 12 MB per path incl. ~0.7 MB JS/CSS/fonts.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-OCEAN="opening a1 a2 o-catch-a o-catch-b o-return truck-reverse p-intake p-proc p-freeze x-cranes x-ship"
-POND="opening p-ponds b2 p-harvest truck-reverse p-intake p-proc p-freeze x-cranes x-ship"
+OCEAN="opening a1 a2 o-catch-a o-catch-b o-return truck-reverse p-intake p-proc p-lab p-iqf p-pack p-store p-docs x-cranes x-ship"
+POND="opening p-ponds b2 p-harvest truck-reverse p-intake p-proc p-lab p-iqf p-pack p-store p-docs x-cranes x-ship"
 MODELS="tuna swordfish shrimp carton ice-tray"
 TURNTABLES="prod-tuna prod-swordfish prod-shrimp"   # only exist if the Products fallback is used (counted when present)
 sz(){ [ -f "$1" ] && (stat -f%z "$1" 2>/dev/null || stat -c%s "$1") || echo 0; }
