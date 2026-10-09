@@ -34,6 +34,7 @@ OUTFITS = {
     'farm': ['shirt_farm', 'shorts', 'hair', 'cap'],
     'farm_long': ['shirt_farm', 'trousers_rolled', 'hair', 'gloves_rubber'],
     'guard': ['shirt', 'trousers_dark', 'shoes', 'hair', 'cap'],
+    'farm_gloves': ['shirt_farm', 'trousers_rolled', 'hair', 'gloves'],
 }
 
 
@@ -803,6 +804,39 @@ def walk_cycle(ao, f0, f1, path, stride=0.72, base=None, arms=True, bob=0.025, p
         set_pose(ao, P, f)
         ao.location = (p.x, p.y, z0 + bob * abs(math.cos(ph)) - bob)
         ao.keyframe_insert('location', frame=f)
+
+
+def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
+    """Curl the fingers of one hand around a handle: shape key on a single-user copy of this person's mesh.
+    Fingers (everything past the knuckle line) rotate about the knuckle axis, more toward the tips.
+    The rest-pose palm faces the thigh; the curl direction was checked visually (+1 = toward the palm)."""
+    import numpy as np
+    mo = ao.children[0]
+    if mo.data.users > 1:
+        mo.data = mo.data.copy()
+    hb = ao.data.bones['hand.' + side]
+    h0, d = hb.head_local, (hb.tail_local - hb.head_local).normalized()
+    co = np.array([v.co[:] for v in mo.data.vertices])
+    rel = co - np.array(h0[:])
+    along = rel @ np.array(d[:])
+    dist = np.linalg.norm(rel - np.outer(along, np.array(d[:])), axis=1)
+    hand = (along > -0.01) & (along < 0.25) & (dist < 0.08)
+    fin = hand & (along > 0.09)
+    pts = co[fin] - co[fin].mean(axis=0)
+    _w, ev = np.linalg.eigh(pts.T @ pts)
+    nrm = Vector(ev[:, 0])
+    if nrm.x * h0.x > 0:              # palm normal points toward the body's midline (the rest palm faces the thigh)
+        nrm = -nrm
+    axis = d.cross(nrm).normalized()  # (a cross product of mirrored vectors is the mirrored rotation axis)
+    piv = h0 + d * knuckle
+    if not mo.data.shape_keys:
+        mo.shape_key_add(name='Basis')
+    sk = mo.shape_key_add(name=name or ('grip_' + side))
+    for i in np.nonzero(hand & (along > knuckle))[0]:
+        ang = curl * min(1.0, (along[i] - knuckle) / 0.07) * math.radians(105)
+        sk.data[i].co = piv + Matrix.Rotation(ang, 3, axis) @ (Vector(co[i]) - piv)
+    sk.value = 1.0
+    return sk
 
 
 def ik_hands(ao, tgt_l, tgt_r, pole_l=None, pole_r=None):
