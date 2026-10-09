@@ -61,12 +61,12 @@ const OCEAN_ONLY: ChapterDef[] = [
     captions: caps('o2', [[0.55, 1]]),
   },
   {
-    id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'shared-frame',
+    id: 'o3', path: 'ocean', label: 'On ice', vh: 140, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'a3', alt: 'Looking down into the ice hold: yellowfin tuna on crushed ice.' }],
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
-    id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'shared-frame',
+    id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'a4', alt: 'Crates go into a refrigerated truck, which drives the coast road and reverses to the lit intake door.' }],
     captions: caps('o4', [[0.1, 0.9]]),
   },
@@ -79,18 +79,24 @@ const POND_ONLY: ChapterDef[] = [
     captions: caps('p1', [[0.1, 0.92]]),
   },
   {
-    id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'shared-frame',
+    id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'b2', alt: 'A gloved hand takes a pond water sample; the meter reading goes into a logbook.' }],
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
-    id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'shared-frame',
+    id: 'p3', path: 'pond', label: 'Harvest', vh: 160, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'b3', alt: 'Shrimp go into iced crates, onto a small refrigerated truck that reverses to the plant bay.' }],
     captions: caps('p3', [[0.1, 0.9]]),
   },
 ]
 
 const SHARED: ChapterDef[] = [
+  {
+    // Both paths converge here (docs/blender/SCENES.md §6). Stand-in until the truck-reverse clip lands.
+    id: 'arrival', path: 'shared', label: 'Arrival', vh: 160, joinNext: 'shared-frame',
+    media: [{ kind: 'still', poster: 'ph-p-intake', alt: 'The white refrigerated truck reverses rear-first into a loading bay of the plant; the driver stands by the cab.' }],
+    captions: caps('arrival', [[0.1, 0.9]]),
+  },
   {
     id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'shared-frame',
     media: [{ kind: 'still', poster: 'ph-p-intake', alt: 'A refrigerated truck backed up to the lit intake door of the plant at night.' }],
@@ -112,7 +118,7 @@ const SHARED: ChapterDef[] = [
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
-    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame',
+    id: 'port', path: 'shared', label: 'The port', vh: 180, joinNext: 'shared-frame',
     media: [{ kind: 'video', id: 'x-cranes', alt: 'A white refrigerated truck parks under a ship-to-shore crane, which lifts the white reefer container on its cables onto the container ship.' }],
     captions: caps('port', [[0.1, 0.92]]),
   },
