@@ -230,14 +230,40 @@ def tree(name, loc, h=7.0, mats=None, seed=0, palm=False):
     rnd = random.Random(seed)
     mb = MB()
     if palm:
-        top = Vector((loc[0] + rnd.uniform(-0.6, 0.6), loc[1] + rnd.uniform(-0.6, 0.6), loc[2] + h))
-        mb.cyl(loc, top, 0.2, mats['trunk'], 8, r2=0.15)
-        for k in range(10):
-            a = k * 2 * math.pi / 10 + rnd.uniform(-0.2, 0.2)
-            tip = top + Vector((math.cos(a) * 3.0, math.sin(a) * 3.0, -1.2 + rnd.uniform(-0.4, 0.3)))
-            mid = top + Vector((math.cos(a) * 1.6, math.sin(a) * 1.6, 0.3))
-            mb.beam(top, mid, 0.35, mats['foliage'], h=0.05)
-            mb.beam(mid, tip, 0.3, mats['foliage'], h=0.05)
+        # coconut palm: leaning, slightly curved ringed trunk; 14 arching pinnate fronds of leaflets; nut cluster
+        lean = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), 0)).normalized() * h * rnd.uniform(0.05, 0.14)
+        base = Vector(loc)
+        pts = [base + lean * (t * t) + Vector((0, 0, h * t)) for t in [i / 8 for i in range(9)]]
+        for i in range(8):
+            mb.cyl(pts[i], pts[i + 1], 0.2 - 0.06 * i / 8, mats['trunk'], 10, r2=0.2 - 0.06 * (i + 1) / 8)
+            mb.cyl(pts[i] + (pts[i + 1] - pts[i]) * 0.5, pts[i] + (pts[i + 1] - pts[i]) * 0.56, 0.205 - 0.06 * i / 8, mats['trunk'], 10)
+        top = pts[-1]
+        frond = mats.get('palm_frond') or pbr('MAT_PalmFrond', (0.14, 0.24, 0.07), 0.55, var=0.35, bump=0.2, scale=4, grime=0.2)
+        for k in range(14):
+            a = k * 2 * math.pi / 14 + rnd.uniform(-0.15, 0.15)
+            d = Vector((math.cos(a), math.sin(a), 0))
+            side = Vector((-d.y, d.x, 0))
+            Lf = rnd.uniform(3.2, 4.4)
+            up = rnd.uniform(0.3, 0.9)
+            prev = None
+            for j in range(19):
+                t = j / 18
+                c = top + d * (Lf * t) + Vector((0, 0, up * 1.6 * t - (1.4 + up) * t * t))
+                if prev is not None:
+                    mb.beam(prev, c, 0.05, frond)
+                    if 2 <= j <= 17:
+                        ll = 0.75 * math.sin(math.pi * min(1.0, t * 1.15)) + 0.1
+                        for sg in (1, -1):
+                            tipp = c + side * (sg * ll) + Vector((0, 0, -0.35 * ll)) + d * 0.12
+                            v0 = mb.bm.verts.new(prev)
+                            v1 = mb.bm.verts.new(c)
+                            v2 = mb.bm.verts.new(tipp)
+                            f = mb.bm.faces.new((v0, v1, v2))
+                            f.material_index = mb.mi(frond)
+                prev = c
+        for k in range(5):
+            mb.sphere(top + Vector((rnd.uniform(-0.25, 0.25), rnd.uniform(-0.25, 0.25), -0.35 - rnd.uniform(0, 0.2))), 0.12,
+                      mats['trunk'], 8)
     else:
         mb.cyl(loc, (loc[0], loc[1], loc[2] + h * 0.5), 0.18, mats['trunk'], 8, r2=0.12)
         for k in range(7):
