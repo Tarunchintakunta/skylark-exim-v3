@@ -188,6 +188,7 @@ def _palette(m, colors):
     for lk in list(p.inputs['Base Color'].links):
         nt.links.remove(lk)
     nt.links.new(ramp.outputs[0], p.inputs['Base Color'])
+    return m
 
 
 def _stache_mat():
