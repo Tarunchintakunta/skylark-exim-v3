@@ -537,7 +537,7 @@ def _apron(body, k, M):
             x = (-1 + 2 * i / nx) * w * k
             # front surface of the body at this height (min y of verts in a slab) minus clearance
             ys = [v.co.y for v in body.data.vertices if abs(v.co.z - z) < 0.03 and abs(v.co.x - x) < 0.05]
-            y = (min(ys) if ys else -0.12) - 0.025
+            y = (min(ys) if ys else -0.12) - 0.042           # clear of the jacket folds
             y = min(y, -0.10 * k) if z / k < 0.85 else y
             row.append(bm.verts.new((x, y + 0.02 * (abs(x) / (w * k)) ** 2, z)))
         grid.append(row)
