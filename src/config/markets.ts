@@ -1,0 +1,21 @@
+// Globe marker coordinates from docs/CONTENT.md (display only).
+export const ORIGIN = { name: 'Visakhapatnam', lat: 17.69, lon: 83.22 }
+
+export const MARKET_COORDS: { name: string; lat: number; lon: number }[] = [
+  { name: 'China', lat: 35.0, lon: 104.0 },
+  { name: 'Europe', lat: 50.0, lon: 10.0 },
+  { name: 'Vietnam', lat: 16.0, lon: 106.0 },
+  { name: 'UAE (Sharjah)', lat: 25.35, lon: 55.39 },
+  { name: 'Turkey', lat: 39.0, lon: 35.0 },
+  { name: 'Thailand', lat: 15.0, lon: 101.0 },
+  { name: 'Taiwan', lat: 23.7, lon: 121.0 },
+  { name: 'Sri Lanka', lat: 7.9, lon: 80.7 },
+  { name: 'Malaysia', lat: 4.2, lon: 102.0 },
+  { name: 'Kuwait', lat: 29.3, lon: 47.5 },
+  { name: 'Japan', lat: 36.2, lon: 138.3 },
+  { name: 'Egypt', lat: 26.8, lon: 30.8 },
+  { name: 'Bangkok', lat: 13.75, lon: 100.5 },
+  { name: 'Algeria', lat: 28.0, lon: 2.6 },
+  { name: 'Russia', lat: 56.0, lon: 38.0 },
+  { name: 'Hong Kong', lat: 22.3, lon: 114.2 },
+]

@@ -1,0 +1,71 @@
+/* top bar */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; z-index: var(--z-chrome);
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: 68px; padding: 0 var(--gutter);
+  color: var(--ice); transition: color 0.4s var(--ease-out);
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.topbar::before {
+  content: ''; position: absolute; inset: 0 0 -24px; z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(4, 34, 44, 0.6), rgba(4, 34, 44, 0));
+  transition: opacity 0.4s;
+}
+.topbar.is-light { color: var(--ink); }
+.topbar.is-light::before { background: linear-gradient(to bottom, rgba(238, 245, 246, 0.92) 55%, rgba(238, 245, 246, 0)); }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand__mark { width: 28px; height: 28px; color: var(--brass); }
+.brand__mark svg { width: 100%; height: 100%; }
+.topbar.is-light .brand__mark { color: var(--brass-ink); }
+.brand__word { letter-spacing: 0.26em; }
+.topbar .path-pill { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+.topbar.is-light .path-pill { color: var(--ink-2); background: rgba(238, 245, 246, 0.7); border-color: var(--hairline-ink); }
+.topbar.is-light .path-pill [aria-current='true'] { color: var(--brass-ink); }
+.nav ul { display: flex; gap: clamp(14px, 2vw, 28px); }
+.nav__link { text-decoration: none; opacity: 0.82; transition: opacity 0.2s, color 0.2s; }
+.nav__link:hover { opacity: 1; color: var(--brass); }
+.topbar.is-light .nav__link:hover { color: var(--brass-ink); }
+.menu-btn { display: none; }
+
+@media (max-width: 899px) {
+  .brand__word { display: none; }
+  .menu-btn { display: inline-block; padding: 10px 4px; }
+  .nav { position: absolute; top: 64px; right: var(--gutter); display: none; padding: 16px 20px; background: var(--deep-2); border: 1px solid var(--hairline); border-radius: var(--radius); }
+  .nav.is-open { display: block; }
+  .nav ul { flex-direction: column; gap: 14px; }
+  .topbar.is-light .nav { background: var(--light); border-color: var(--hairline-ink); }
+}
+
+/* chapter rail */
+.rail { position: fixed; left: calc(var(--gutter) * 0.45); top: 50%; z-index: var(--z-chrome); transform: translateY(-50%); transition: opacity 0.3s; }
+.rail ol { display: grid; gap: 2px; }
+.rail__tick { position: relative; display: block; width: 28px; height: 14px; }
+.rail__tick::before {
+  content: ''; position: absolute; left: 4px; top: 50%; width: 10px; height: 1px;
+  background: var(--steel); opacity: 0.6; transform-origin: left; transition: transform 0.3s var(--ease-out), background 0.3s, opacity 0.3s;
+}
+.rail__tick:hover::before, .rail__tick:focus-visible::before { transform: scaleX(1.6); opacity: 1; }
+.rail__tick[aria-current='step']::before { background: var(--brass); opacity: 1; transform: scaleX(2); }
+.rail__label {
+  position: absolute; left: 34px; top: 50%; transform: translate(-6px, -50%); white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; color: var(--ice);
+  padding: 4px 8px; background: var(--hud-bg); border-radius: 2px;
+}
+.rail__tick:hover .rail__label, .rail__tick:focus-visible .rail__label { opacity: 1; transform: translate(0, -50%); }
+@media (max-width: 767px) { .rail { display: none; } }
+
+/* sticky quote CTA */
+.btn.quote-cta {
+  position: fixed; right: var(--gutter); bottom: 24px; z-index: var(--z-chrome);
+  opacity: 0; visibility: hidden; transform: translateY(12px);
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out), visibility 0.5s, color 0.35s var(--ease-out);
+}
+.quote-cta.is-ready { opacity: 1; visibility: visible; transform: none; }
+@media (max-width: 767px) {
+  .btn.quote-cta { left: 0; right: 0; bottom: 0; justify-content: center; border-radius: 0; padding: 18px; }
+}
+/* keep captions clear of the mobile CTA bar */
+@media (max-width: 767px) {
+  .caption, .start__head { bottom: 92px; }
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Encode scroll-scrub clips: assets-src/video/<id>.mp4 -> public/media/<id>_1280.mp4 + <id>_720.mp4 (+ optional AV1)
+# Inputs: reused + Higgsfield masters, and Claude's Blender renders x-cranes / x-ship (same pipeline)
 # Usage: scripts/encode-clips.sh [id ...]        (no ids = every mp4 in assets-src/video)
 # Env:   SRC=assets-src/video OUT=public/media AV1=1 (also write <id>_1280.av1.webm) FORCE=1 (re-encode)
 #        BUSY="a1 a2 ..." ids that get crf 30 + light denoise to stay under 1.5 MB
@@ -19,13 +20,13 @@ for id in "${ids[@]}"; do
   if [[ "$BUSY" == *" $id "* ]]; then crf=30; dn=",hqdn3d=1.5:1.5:4:4"; else crf=28; dn=""; fi
   d="$OUT/${id}_1280.mp4"; m="$OUT/${id}_720.mp4"
   if [ ! -f "$d" ] || [ "${FORCE:-0}" = 1 ]; then
-    ffmpeg -v error -y -i "$in" "${t[@]}" -an -vf "scale=1280:-2$dn" $X264 -crf $crf "$d"; fi
+    ffmpeg -v error -y -i "$in" ${t[@]+"${t[@]}"} -an -vf "scale=1280:-2$dn" $X264 -crf $crf "$d"; fi
   if [ ! -f "$m" ] || [ "${FORCE:-0}" = 1 ]; then
-    ffmpeg -v error -y -i "$in" "${t[@]}" -an -vf "scale=720:-2$dn" $X264 -crf $crf "$m"; fi
+    ffmpeg -v error -y -i "$in" ${t[@]+"${t[@]}"} -an -vf "scale=720:-2$dn" $X264 -crf $crf "$m"; fi
   if [ "${AV1:-0}" = 1 ]; then
     a="$OUT/${id}_1280.av1.webm"
     if [ ! -f "$a" ] || [ "${FORCE:-0}" = 1 ]; then
-      ffmpeg -v error -y -i "$in" "${t[@]}" -an -vf "scale=1280:-2$dn" -c:v libsvtav1 -crf 40 -preset 6 -g 6 -pix_fmt yuv420p "$a" 2> >(grep -v "^Svt" >&2); fi
+      ffmpeg -v error -y -i "$in" ${t[@]+"${t[@]}"} -an -vf "scale=1280:-2$dn" -c:v libsvtav1 -crf 40 -preset 6 -g 6 -pix_fmt yuv420p "$a" 2> >(grep -v "^Svt" >&2); fi
   fi
   ds=$(( $(stat -c%s "$d" 2>/dev/null || stat -f%z "$d") / 1024 )); ms=$(( $(stat -c%s "$m" 2>/dev/null || stat -f%z "$m") / 1024 ))
   # budget scales with length: 1.5 MB desktop / 0.8 MB mobile per 8 s
