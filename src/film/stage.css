@@ -9,6 +9,10 @@
 .stage__light { background: linear-gradient(180deg, var(--light) 0%, var(--light-2) 100%); }
 .stage__blur { filter: blur(14px) brightness(0.5); transform: scale(1.08); }
 .stage__veil { position: absolute; inset: 0; z-index: 3; background: var(--deep-2); opacity: 0; pointer-events: none; }
-.stage__scrim { position: absolute; inset: auto 0 0; height: 78%; z-index: 4; background: var(--scrim); pointer-events: none; }
-.stage__ph { position: absolute; right: var(--gutter); bottom: 20px; z-index: 5; padding: 6px 9px; border: 1px dashed var(--brass); color: var(--brass); background: var(--hud-bg); opacity: 0; }
-@media (max-width: 767px) { .stage__ph { bottom: 72px; } }
+.stage__scrim {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none;
+  /* bottom + left scrims keep bottom-left copy ≥ 4.5:1 even over bright plant frames */
+  background: var(--scrim), linear-gradient(90deg, rgba(4, 34, 44, 0.72) 0%, rgba(4, 34, 44, 0.35) 38%, rgba(4, 34, 44, 0) 62%);
+}
+.stage__ph { position: absolute; right: var(--gutter); top: 84px; z-index: 5; padding: 6px 9px; border: 1px dashed var(--brass); color: var(--brass); background: var(--hud-bg); opacity: 0; }
+@media (max-width: 767px) { .stage__ph { top: 96px; right: auto; left: var(--gutter); } }
