@@ -104,6 +104,7 @@ export default function ProductStage({ models }: { models: ModelDef[] }) {
           <li key={m.name} className="display">{m.name}</li>
         ))}
       </ul>
+      {files.map((m) => m.credit && <p key={m.name} className="product-stage__credit">{m.credit}</p>)}
     </div>
   )
 }

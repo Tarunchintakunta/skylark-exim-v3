@@ -7,10 +7,12 @@ export interface ModelDef {
   name: string
   /** file in public/models (kohl-draft placeholders until the Blender models are approved, #33 #61 #62); DOM card if missing */
   glb?: string
+  /** attribution shown under the stage for CC BY models */
+  credit?: string
 }
 
 export const CATEGORIES: Record<Category, { label: string; species: string[]; models: ModelDef[] }> = {
-  marine: { label: 'Marine Fish', species: MARINE_FISH, models: [{ name: 'Tuna', glb: 'tuna.glb' }, { name: 'Swordfish', glb: 'swordfish.glb' }] },
+  marine: { label: 'Marine Fish', species: MARINE_FISH, models: [{ name: 'Tuna', glb: 'tuna.glb', credit: 'Tuna 3D scan by ffish.asia / floraZia.com, CC BY 4.0' }, { name: 'Swordfish', glb: 'swordfish.glb' }] },
   shrimps: { label: 'Shrimps', species: SHRIMPS, models: [{ name: 'Shrimp', glb: 'shrimp.glb' }] },
 }
 
