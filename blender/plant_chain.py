@@ -416,7 +416,7 @@ def build(scene, out):
     S.intake_shell()
     build_truck_reverse(C_people)
     camera_truck_reverse()
-    P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=40, sun_elev=38, sun_az=145,
+    P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
     P.look_settings('exterior', exposure=0.0)
