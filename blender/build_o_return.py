@@ -73,8 +73,8 @@ for x0, n_along in ((40, 4), (-92, 3)):
         for row in range(2 if x0 > 0 else 3):
             hc = hull_cols[(k * 7) % len(hull_cols)]
             hm = S.hull_material(f'MAT_HullV{k}', white=hc[0], band=hc[1], bottom=(0.3, 0.06, 0.05), band_z=(2.25, 2.5))
-            x = x0 + a * 26 + rnd.uniform(-2, 2)
-            y = 3.8 + row * 6.9
+            x = x0 + a * 27.5 + rnd.uniform(-0.8, 0.8)
+            y = 3.9 + row * 7.3
             R = S.vessel(f'MOORED{k}', (x, y, 0), D(rnd.choice((0, 180)) + rnd.uniform(-2, 2)), mats=mats, hull=hm, detail=False)
             for f in range(1, 289, 24):
                 R['root'].rotation_euler.x = D(0.8 * math.sin(f / 19.0 + k))
@@ -88,8 +88,8 @@ for i in range(4):
 # ---------------------------------------------------------------- our vessel comes home (same library vessel as o-catch)
 V = S.vessel('BOAT', (120, 30, 0), D(180), mats=mats)
 boat = V['root']
-for f, p, rz in ((1, (120, 34, 0), 180), (50, (68, 34, 0), 182), (90, (26, 29, 0), 196), (120, (8, 12, 0), 200), (140, (2, 3.7, 0), 180),
-                 (288, (2, 3.7, 0), 180)):
+for f, p, rz in ((1, (120, 34, 0), 180), (50, (68, 34, 0), 182), (90, (26, 29, 0), 196), (120, (8, 12, 0), 200), (140, (2, 4.0, 0), 180),
+                 (288, (2, 4.0, 0), 180)):
     boat.location = p
     boat.rotation_euler = (0, 0, D(rz))
     boat.keyframe_insert('location', frame=f)
@@ -140,6 +140,10 @@ for w in workers[:3]:
     L.anim_poses(w, [(1, 'idle'), (138, 'idle')] + [(f, 'reach' if (f // 8) % 2 == 0 else 'carry') for f in range(142, 212, 8)] + [(222, 'idle')])
 # trolleys on the wharf, crates stacked on them, pushed to the truck
 TRK = Vector((-12.0, -7.0, WZ))
+L.weather(PL.panel_mat("MAT_ReeferBox", (0.84, 0.85, 0.84), 0.6, "X"), streak=(0.4, 0.35, 0.27), amount=0.45,
+          z0=1.1, z1=2.2, dirt=(0.24, 0.2, 0.15), dirt_amount=0.55)
+L.weather(L.pbr('MAT_TruckCab', (0.86, 0.87, 0.86), 0.36, 0.2, grime=0.55, coat=0.4, scale=0.6), amount=0.6, z0=0.3, z1=1.7,
+          dirt_amount=0.9)
 truck = PL.reefer_truck('TRK_RigidReefer', (TRK.x, TRK.y, WZ), D(-90), mats=mats)
 troot = truck['root']
 # the box is already two-thirds full of iced crates (front stacks) when the doors open; the rest go in from 200
@@ -306,6 +310,17 @@ while placed < 26 and tries < 400:
     placed += 1
 
 
+for i in range(26):
+    side = -1 if i % 2 else 1
+    x = (-19.3 + rnd.uniform(0.0, 0.9)) if side < 0 else (-8.5 + rnd.uniform(0.0, 3.8))   # kerbs, clear of the facades
+    y = -26 - i * 2.1 + rnd.uniform(-0.8, 0.8)
+    c = L.person(f'STREET{i}', rnd.choice(crowd_outfits), (x, y, WZ), D(rnd.uniform(0, 360)), seed=400 + i, mats=mats)
+    if i % 3 == 0:
+        L.walk(c, [(x, y), (x + rnd.uniform(-0.6, 0.6), y + rnd.choice((-7, 7)))], rnd.randint(200, 240), 288)
+    else:
+        L.anim_poses(c, [(1, 'idle'), (rnd.randint(200, 260), 'point' if i % 5 == 0 else 'idle'), (288, 'idle')])
+
+
 def auto_rickshaw(name, loc, rz):
     """Three-wheeler: yellow lower body, black canvas hood, one front wheel, two rear (no markings)."""
     mb = P.MB()
@@ -327,7 +342,8 @@ def auto_rickshaw(name, loc, rz):
     return o
 
 
-for i, (x, y, rz) in enumerate(((-24, -18, 90), (-30, -21, 80), (6, -20, 180), (34, -6, 20))):
+for i, (x, y, rz) in enumerate(((-24, -18, 90), (-30, -21, 80), (6, -20, 180), (34, -6, 20), (-6.5, -44, 95),
+                                (-6.0, -58, -85))):
     auto_rickshaw(f'AUTO{i}', (x, y, WZ), D(rz))
 # fish-sale stalls under blue tarps by the ice shed, wooden hand carts with baskets
 tarp = L.pbr('MAT_Tarp', (0.1, 0.3, 0.6), 0.7, var=0.25, grime=0.4, scale=2)
@@ -365,7 +381,8 @@ keys = [
     (130, (7.0, -7.5, WZ + 3.0), (0.0, 3.0, 2.4), 28),
     (175, (1.0, -9.0, WZ + 2.6), (-6.0, -3.0, 1.8), 28),
     (192, (-5.0, -0.5, WZ + 6.0), (TRK.x, TRK.y, WZ + 1.4), 28),
-    (210, (-15.0, 3.0, WZ + 3.4), (TRK.x, TRK.y - 1.0, WZ + 1.6), 28),
+    (204, (TRK.x + 0.8, TRK.y + 10.5, WZ + 3.3), (TRK.x, TRK.y + 0.5, WZ + 1.6), 32),
+    (216, (TRK.x + 0.3, TRK.y + 9.5, WZ + 3.1), (TRK.x, TRK.y + 0.5, WZ + 1.6), 32),
     (230, (-6.5, 3.2, WZ + 3.0), (TRK.x, TRK.y - 2.0, WZ + 1.4), 30),
 ]
 # follow the truck at a fixed offset, sampled from its evaluated path so the camera never catches up with it
@@ -374,7 +391,7 @@ for f in list(range(246, 288, 6)) + [288]:
     tp = troot.matrix_world.translation
     keys.append((f, (tp.x + 2.0, tp.y + 9.0, WZ + 3.0), (tp.x - 0.5, tp.y - 4.0, WZ + 1.5), 30))
 s.frame_set(1)
-L.cam_path(cam, keys, focus=[(1, 50.0), (72, 30.0), (130, 9.0), (175, 8.0), (230, 10.0), (288, 9.0)])
+L.cam_path(cam, keys, focus=[(1, 50.0), (72, 30.0), (130, 9.0), (175, 8.0), (204, 10.0), (216, 9.0), (230, 10.0), (288, 9.0)])
 s.camera = cam
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
