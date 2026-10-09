@@ -10,7 +10,6 @@
   display: grid; gap: 8px; text-align: left; padding: 22px 26px; min-width: 220px;
   border: 1px solid var(--hairline); border-radius: var(--radius);
   background: rgba(4, 34, 44, 0.32);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   transition: border-color 0.3s, background 0.3s;
 }
 .path-btn--pond { text-align: right; }
@@ -34,10 +33,3 @@
   .start__cue { display: none; }
 }
 
-.path-pill {
-  display: inline-flex; gap: 10px; align-items: center; padding: 9px 14px;
-  border: 1px solid var(--hairline); border-radius: 999px; background: var(--hud-bg);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); color: var(--steel);
-}
-.path-pill [aria-current='true'] { color: var(--brass); }
-.path-pill:hover { border-color: var(--brass); }

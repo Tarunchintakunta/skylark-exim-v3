@@ -6,11 +6,9 @@ import { Products } from './sections/Products'
 import { Quote } from './sections/Quote'
 import { Trust } from './sections/Trust'
 import { ScrubStage } from './film/ScrubStage'
-import { Hud } from './ui/Hud'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
 import { QuoteCta } from './ui/QuoteCta'
-import { Rail } from './ui/Rail'
 import { StartScreen } from './ui/StartScreen'
 
 export default function App() {
@@ -24,14 +22,12 @@ export default function App() {
       <Header />
       <main id="main" tabIndex={-1}>
         <StartScreen />
-        <Rail chapters={chapters} />
         <Film chapters={chapters} />
         <Products />
         <Trust />
         <About />
         <Quote />
       </main>
-      <Hud />
       <QuoteCta />
       <Loader />
     </>

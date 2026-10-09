@@ -6,10 +6,9 @@ import { frame } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import { film } from '../film/controller'
 import { Mark } from './Mark'
-import { PathPill } from './PathPill'
 import './chrome.css'
 
-/** Top bar: wordmark, Ocean ⇄ Pond pill, section nav. Switches to dark-on-light over the globe and business sections. */
+/** Top bar: wordmark and section nav. Switches to dark-on-light over the globe and business sections. */
 export function Header() {
   const root = useRef<HTMLElement>(null)
   const [open, setOpen] = useState(false)
@@ -39,7 +38,6 @@ export function Header() {
         </span>
         <span className="brand__word mono">Skylark Exim</span>
       </a>
-      <PathPill />
       <button className="menu-btn mono" aria-expanded={open} aria-controls="site-nav" onClick={() => setOpen((o) => !o)}>
         {open ? 'Close' : 'Menu'}
       </button>
