@@ -9,11 +9,13 @@ export interface AppState {
   ready: boolean
   /** id of the chapter currently on screen */
   chapter: string
+  /** what the visitor last looked at in Products, used to pre-fill the RFQ */
+  prefill: { category?: 'marine' | 'shrimps' }
 }
 
 const hashPath = (): Path => (location.hash === '#pond' ? 'pond' : 'ocean')
 
-export const store = createStore<AppState>(() => ({ path: hashPath(), ready: false, chapter: 'start' }))
+export const store = createStore<AppState>(() => ({ path: hashPath(), ready: false, chapter: 'start', prefill: {} }))
 export const useApp = <T,>(sel: (s: AppState) => T) => useStore(store, sel)
 
 /** Per-frame values. Mutable on purpose: written by the ticker, read by ticker callbacks. Never put these in React state. */
