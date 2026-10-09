@@ -1,7 +1,7 @@
 import { Center, OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { Box3, Group, Vector3 } from 'three'
+import { Box3, Group, PerspectiveCamera, Vector3 } from 'three'
 import type { ModelDef } from '../config/products'
 import { env } from '../engine/env'
 import { onTick } from '../engine/ticker'
@@ -38,6 +38,18 @@ function Model({ file, x, progress }: { file: string; x: number; progress: { cur
   )
 }
 
+/** Pull the camera back on narrow (portrait) stages so the whole row of models stays in frame. */
+function Fit({ width, z }: { width: number; z: number }) {
+  const { camera, size, invalidate } = useThree()
+  useEffect(() => {
+    const c = camera as PerspectiveCamera
+    const tanH = Math.tan((c.fov * Math.PI) / 360) * (size.width / size.height)
+    c.position.z = Math.max(z, width / 2 / tanH)
+    invalidate()
+  }, [camera, size, width, z, invalidate])
+  return null
+}
+
 export default function ProductStage({ models }: { models: ModelDef[] }) {
   const wrap = useRef<HTMLDivElement>(null)
   /** 0..1 while the stage crosses the viewport, -1 when off screen */
@@ -67,15 +79,18 @@ export default function ProductStage({ models }: { models: ModelDef[] }) {
   }, [])
   const files = models.filter((m) => m.glb)
   const gap = 2.1
+  const z = files.length > 1 ? 4.9 : 3.4
   return (
     <div className="product-stage" ref={wrap}>
       <Canvas
         dpr={env.mobile ? 1 : [1, 1.5]}
         frameloop="demand"
         gl={{ antialias: false, alpha: true }}
-        camera={{ fov: 30, position: [0, 0.3, files.length > 1 ? 4.9 : 3.4] }}
+        camera={{ fov: 30, position: [0, 0.3, z] }}
         shadows={false}
       >
+        {/* model row width: centre gap between models plus one model (1.8) and a margin for the ±25° turn */}
+        <Fit width={(files.length - 1) * gap + 2.2} z={z} />
         <ambientLight intensity={1.2} />
         <hemisphereLight args={['#ffffff', '#bcd6dc', 1]} />
         <directionalLight position={[-3, 4, 4]} intensity={2.2} />
