@@ -573,7 +573,14 @@ def M():
 def ice_mat():
     if 'MAT_Ice' in bpy.data.materials:
         return bpy.data.materials['MAT_Ice']
-    m = pbr('MAT_Ice', (0.92, 0.96, 1.0), 0.12, var=0.05, bump=0.6, scale=12, sss=0.0, transmission=0.35, ior=1.31)
+    # crushed ice: clear but frosted, faint blue, light scatters inside (reads translucent, not white plastic)
+    m = pbr('MAT_Ice', (0.93, 0.96, 0.99), 0.2, var=0.08, bump=0.5, scale=30, sss=0.0, transmission=0.85, ior=1.31,
+            rough_var=0.14)
+    p = principled(m)
+    p.inputs['Coat Weight'].default_value = 0.6
+    p.inputs['Coat Roughness'].default_value = 0.02
+    if hasattr(m, 'use_raytrace_refraction'):
+        m.use_raytrace_refraction = True
     return m
 
 
@@ -1586,12 +1593,17 @@ def ice_mesh(name, w, d, mound=0.06, res=14, seed=1):
 
 
 def ice_chunks(name, w, d, n=60, seed=2, z=0.0, size=0.025):
+    # angular, uneven shards in two or three loose layers (crushed/flake ice), not round beads
     rnd = random.Random(seed)
     bm = bmesh.new()
     for _ in range(n):
-        r = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=rnd.uniform(size * 0.5, size))
-        m = Matrix.Translation((rnd.uniform(-w / 2, w / 2), rnd.uniform(-d / 2, d / 2), z + rnd.uniform(0, size))) @ \
-            Euler((rnd.random() * 3, rnd.random() * 3, rnd.random() * 3)).to_matrix().to_4x4()
+        sz = size * rnd.uniform(0.35, 1.0)
+        r = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=sz)
+        for v in r['verts']:
+            v.co *= rnd.uniform(0.6, 1.25)
+        sc = Matrix.Diagonal((rnd.uniform(0.7, 1.4), rnd.uniform(0.6, 1.2), rnd.uniform(0.35, 0.8), 1))
+        m = Matrix.Translation((rnd.uniform(-w / 2, w / 2), rnd.uniform(-d / 2, d / 2), z + rnd.uniform(0, size * 1.6))) @ \
+            Euler((rnd.random() * 3, rnd.random() * 3, rnd.random() * 3)).to_matrix().to_4x4() @ sc
         bmesh.ops.transform(bm, matrix=m, verts=r['verts'])
     return bm_to_mesh(bm, name)
 
@@ -1606,7 +1618,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
     if 'mesh' not in _CRATE:
         _CRATE['mesh'] = crate_mesh()
         _CRATE['ice'] = ice_mesh('LIB_CrateIce', 0.54, 0.34, 0.05, 12, 3)
-        _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 140, 4, 0.0, 0.011)
+        _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 420, 4, 0.0, 0.013)
     c = obj(name, _CRATE['mesh'], None, loc, (0, 0, rot_z), parent=parent)
     if len(c.material_slots) == 0:
         c.data.materials.append(mats['crate_' + color])
@@ -1621,8 +1633,8 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
             for i in range(cnt):
                 k = rnd.choice(kinds)
                 fo = fish(f'{name}_f{i}', k, parent=c, loc=(rnd.uniform(-0.15, 0.15), rnd.uniform(-0.1, 0.1),
-                                                          level - 0.02 + rnd.uniform(0, 0.06)),
-                          rot=(D(90 + rnd.uniform(-20, 20)), 0, D(rnd.uniform(-25, 25) + (90 if fill == 'tuna' and False else 0))),
+                                                          level + 0.045 + rnd.uniform(0, 0.035)),
+                          rot=(D(rnd.choice((90, -90)) + rnd.uniform(-10, 10)), 0, D(rnd.uniform(-25, 25) + (90 if fill == 'tuna' and False else 0))),
                           scale=(0.95 if fill == 'tuna' else 1.0))
         elif fill == 'shrimp':
             for i in range(40):
@@ -1631,9 +1643,10 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
                              rot=(rnd.uniform(0, 6.28), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)))
         ice = obj(f'{name}_ice', _CRATE['ice'], mats['ice'], (0, 0, level + (0.05 if fill != 'ice' else 0.02)), parent=c)
         if fill != 'ice':
-            ice.scale = (1, 1, 0.6)
-            ice.location.z = level + 0.03
-        obj(f'{name}_icech', _CRATE['chunks'], mats['ice'], (0, 0, level + 0.07), parent=c)
+            ice.scale = (1, 1, 0.5)
+            ice.location.z = level + 0.015
+        # loose crushed ice: over the bed, between and partly over the fish
+        obj(f'{name}_icech', _CRATE['chunks'], mats['ice'], (0, 0, level + (0.055 if fill != 'ice' else 0.07)), parent=c)
     return c
 
 
@@ -1644,9 +1657,9 @@ FISH_SPECS = {
                  finlets=True, tail=0.42),
     'tuna_s': dict(L=0.55, h=0.27, w=0.2, back=(0.012, 0.025, 0.07), belly=(0.72, 0.74, 0.76), fin=(0.85, 0.62, 0.04),
                    finlets=True, tail=0.42),
-    'mackerel': dict(L=0.24, h=0.2, w=0.13, back=(0.03, 0.12, 0.13), belly=(0.78, 0.76, 0.66), fin=(0.6, 0.55, 0.35),
+    'mackerel': dict(L=0.24, h=0.2, w=0.13, back=(0.03, 0.12, 0.13), belly=(0.78, 0.76, 0.66), fin=(0.22, 0.24, 0.22),
                      finlets=False, tail=0.3, stripes=True),
-    'seer': dict(L=0.7, h=0.17, w=0.09, back=(0.09, 0.14, 0.24), belly=(0.82, 0.83, 0.84), fin=(0.25, 0.28, 0.33),
+    'seer': dict(L=0.7, h=0.16, w=0.08, back=(0.03, 0.06, 0.12), belly=(0.7, 0.72, 0.74), fin=(0.08, 0.09, 0.11),
                  finlets=True, tail=0.3),
     'ribbon': dict(L=0.8, h=0.07, w=0.025, back=(0.75, 0.78, 0.8), belly=(0.85, 0.86, 0.87), fin=(0.7, 0.72, 0.75),
                    finlets=False, tail=0.05),
@@ -1702,10 +1715,17 @@ def fish_material(kind):
         l.new(band.outputs[0], bs.inputs[0])
         col = mixrgb(nt, bs.outputs[0], col, (0.7, 0.5, 0.05), loc=(-250, -100))
     l.new(col, p.inputs['Base Color'])
-    p.inputs['Metallic'].default_value = 0.55
-    p.inputs['Roughness'].default_value = 0.22
-    p.inputs['Coat Weight'].default_value = 0.6
-    p.inputs['Coat Roughness'].default_value = 0.05
+    # silver belly is mirror-like guanine, the dark back less so; wet clearcoat and a guanine thin film on top
+    mm = _node(nt, 'ShaderNodeMapRange', (-500, -800))
+    mm.inputs['To Min'].default_value = 0.85
+    mm.inputs['To Max'].default_value = 0.45
+    l.new(mr.outputs[0], mm.inputs['Value'])
+    l.new(mm.outputs[0], p.inputs['Metallic'])
+    p.inputs['Roughness'].default_value = 0.24
+    p.inputs['Coat Weight'].default_value = 0.7
+    p.inputs['Coat Roughness'].default_value = 0.03
+    p.inputs['Thin Film Thickness'].default_value = 420.0
+    p.inputs['Thin Film IOR'].default_value = 1.45
     # scale micro-normal
     vor = _node(nt, 'ShaderNodeTexVoronoi', (-600, -650))
     vor.inputs['Scale'].default_value = 180.0
@@ -1724,8 +1744,8 @@ def fish_mesh(kind):
         return _FISH[kind]
     sp = FISH_SPECS[kind]
     bm = bmesh.new()
-    n = 28
-    seg = 14
+    n = 44
+    seg = 22
     H, W = sp['h'], sp['w']
     rings = []
     for i in range(n + 1):
@@ -1734,15 +1754,24 @@ def fish_mesh(kind):
         if kind == 'ribbon':
             prof = math.sin(math.pi * min(1, t ** 0.35)) ** 0.4
         else:
-            prof = math.sin(math.pi * (t ** 0.72)) ** 0.85
-        prof = max(prof, 0.06 if t < 0.15 else 0.02)
-        h = H * prof
-        w = W * prof * (0.75 + 0.25 * t)
-        zc = 0.004 * math.sin(math.pi * t)
+            # thin caudal peduncle, deep body, blunt rounded head that closes fast at the snout
+            prof = math.sin(math.pi * (t ** 0.78)) ** 0.62
+        prof = max(prof, 0.07 if t < 0.15 else 0.03)
+        # gill cover: a shallow step one fifth back from the snout
+        gill = 0.965 if 0.765 < t < 0.785 else 1.0
+        h = H * prof * gill
+        w = W * prof * (0.72 + 0.28 * t) * gill
+        zc = 0.006 * math.sin(math.pi * t)
         ring = []
         for j in range(seg):
             a = 2 * math.pi * j / seg
-            ring.append(bm.verts.new((x - 0.5, w / 2 * math.cos(a), zc + h / 2 * math.sin(a) * (1.0 if math.sin(a) > 0 else 0.92))))
+            sa = math.sin(a)
+            # flat-sided body (laterally compressed), keel-like belly; mouth line: lower jaw recedes near the tip
+            yy = w / 2 * math.copysign(abs(math.cos(a)) ** 0.85, math.cos(a))
+            zz = zc + h / 2 * sa * (1.0 if sa > 0 else 0.9)
+            if t > 0.93 and sa < 0:
+                zz += h * 0.18 * (t - 0.93) / 0.07
+            ring.append(bm.verts.new((x - 0.5, yy, zz)))
         rings.append(ring)
     for i in range(n):
         for j in range(seg):
@@ -1787,17 +1816,26 @@ def fish_mesh(kind):
         fin([(0.15, 0, H * 0.45), (0.9, 0, H * 0.45), (0.9, 0, H * 0.75), (0.15, 0, H * 0.55)])
     me_fins = bm_to_mesh(fins, f'LIB_Fish_{kind}_fins')
     eye = bmesh.new()
+    pup = bmesh.new()
+    er = H * 0.085
     for sy in (1, -1):
-        r = bmesh.ops.create_uvsphere(eye, u_segments=10, v_segments=6, radius=H * 0.08)
-        bmesh.ops.translate(eye, verts=r['verts'], vec=(0.9 - 0.5, sy * W * 0.36, H * 0.12))
+        # silver-gold iris disc flush with the head, black pupil dome on it
+        r = bmesh.ops.create_uvsphere(eye, u_segments=16, v_segments=8, radius=er)
+        bmesh.ops.scale(eye, verts=r['verts'], vec=(1.0, 0.35, 1.0))
+        bmesh.ops.translate(eye, verts=r['verts'], vec=(0.905 - 0.5, sy * W * 0.33, H * 0.1))
+        r = bmesh.ops.create_uvsphere(pup, u_segments=12, v_segments=6, radius=er * 0.72)
+        bmesh.ops.scale(pup, verts=r['verts'], vec=(1.0, 0.4, 1.0))
+        bmesh.ops.translate(pup, verts=r['verts'], vec=(0.905 - 0.5, sy * (W * 0.33 + er * 0.12), H * 0.1))
     me_eye = bm_to_mesh(eye, f'LIB_Fish_{kind}_eye', smooth=True)
+    me_pup = bm_to_mesh(pup, f'LIB_Fish_{kind}_pupil', smooth=True)
     mats = M()
     me_body.materials.append(fish_material(kind))
-    me_fins.materials.append(pbr(f'MAT_FishFin_{kind}', sp['fin'], 0.35, var=0.15, transmission=0.0, coat=0.3))
-    me_eye.materials.append(pbr('MAT_FishEye', (0.01, 0.01, 0.01), 0.02, coat=1.0, var=0.0, bump=0.0))
+    me_fins.materials.append(pbr(f'MAT_FishFin_{kind}', sp['fin'], 0.3, var=0.35, transmission=0.15, coat=0.5, scale=40))
+    me_eye.materials.append(pbr('MAT_FishIris', (0.62, 0.55, 0.38), 0.2, 0.9, var=0.2, bump=0.0, coat=1.0))
+    me_pup.materials.append(pbr('MAT_FishEye', (0.005, 0.005, 0.006), 0.02, coat=1.0, var=0.0, bump=0.0))
     # join into one mesh
     tmp = []
-    for me in (me_body, me_fins, me_eye):
+    for me in (me_body, me_fins, me_eye, me_pup):
         o = bpy.data.objects.new('tmp_' + me.name, me)
         bpy.context.scene.collection.objects.link(o)
         tmp.append(o)
