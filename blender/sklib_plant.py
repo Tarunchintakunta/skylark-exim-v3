@@ -63,7 +63,12 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, mats=None, ca
         mb.box((1.6, sy, 0.85), (8.4, 0.22, 0.3), dark)
     # insulated box with rounded-ish edges (corner caps) and a bottom rail
     bx = rear + BL / 2
-    mb.box((bx, 0, BZ + BH / 2), (BL, BW, BH), boxw)
+    # hollow (floor, roof, sides, front wall): the load shows through the open rear doors
+    mb.box((bx, 0, BZ + 0.04), (BL, BW, 0.08), boxw)
+    mb.box((bx, 0, BZ + BH - 0.04), (BL, BW, 0.08), boxw)
+    for sy in (-1, 1):
+        mb.box((bx, sy * (BW / 2 - 0.04), BZ + BH / 2), (BL, 0.08, BH), boxw)
+    mb.box((rear + BL - 0.04, 0, BZ + BH / 2), (0.08, BW, BH), boxw)
     for sy in (-1, 1):
         mb.box((bx, sy * (BW / 2 + 0.01), BZ + 0.08), (BL, 0.04, 0.16), mats['steel'])
         mb.box((bx, sy * (BW / 2 + 0.01), BZ + BH - 0.06), (BL, 0.04, 0.12), mats['steel'])
@@ -143,7 +148,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, mats=None, ca
             for iy in (-0.62, 0.0, 0.62):
                 for lv in range(4):
                     c = crate(f'{name}_Cargo{k}', rnd.choice(['blue', 'blue', 'white', 'red']),
-                              (rear + 0.55 + ix * 0.48 * 1.0, iy, BZ + 0.05 + lv * 0.29), D(90), parent=root, mats=mats,
+                              (rear + 0.55 + ix * 0.48 * 1.0, iy, BZ + 0.09 + lv * 0.29), D(90), parent=root, mats=mats,
                               fill=('ice' if lv == 3 else None), seed=k)
                     cargo.append(c)
                     k += 1
