@@ -15,7 +15,6 @@ export default function App() {
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
-      <a className="skip-link mono" href="#quote">Skip to quote</a>
       <ScrubStage chapters={chapters} />
       <Header />
       <main id="main" tabIndex={-1}>

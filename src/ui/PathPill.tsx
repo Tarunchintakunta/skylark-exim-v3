@@ -6,10 +6,11 @@ export function PathPill() {
   const path = useApp((s) => s.path)
   const other = path === 'ocean' ? 'pond' : 'ocean'
   return (
-    <button className="path-pill mono" onClick={() => setPath(other, true)} aria-label={`Switch to the ${other} path`}>
+    <button className="path-pill mono" onClick={() => setPath(other, true)}>
       <span aria-current={path === 'ocean'}>Ocean</span>
       <span aria-hidden="true">⇄</span>
       <span aria-current={path === 'pond'}>Pond</span>
+      <span className="sr-only">: switch to the {other} path</span>
     </button>
   )
 }
