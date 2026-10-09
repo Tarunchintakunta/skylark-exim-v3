@@ -436,13 +436,13 @@ def _apron(body, k, M):
     return o
 
 
-def build_masters(out_path):
+def build_masters(out_path, level=1):
     """Run headless once: writes humans.blend with HUM_Rig_<g> armatures and HUM_<g>_<outfit> meshes."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     M = mats()
     for gender in ('male', 'female'):
         body, eyes = _append_body(gender)
-        _apply_multires(body, 1)
+        _apply_multires(body, level)
         h = _normalize(body, eyes)
         k = h / 1.684
         body.name = 'HUMB_' + gender
@@ -508,23 +508,22 @@ def build_masters(out_path):
 _LOADED = {}
 
 
-def load(path):
-    if _LOADED.get('path') == path:
+def load(path, tag=''):
+    """Append the masters from humans.blend; tag='lo' for the low-res set (humans_lo.blend)."""
+    if _LOADED.get('path' + tag) == path:
         return
     with bpy.data.libraries.load(path, link=False) as (src, dst):
-        dst.objects = [n for n in src.objects if n.startswith('HUM_')]
-    for o in dst.objects:
-        if o.type == 'MESH':
-            _LOADED[o.name] = o.data
-        else:
-            _LOADED[o.name] = o.data
-    _LOADED['path'] = path
+        names = [n for n in src.objects if n.startswith('HUM_')]
+        dst.objects = list(names)
+    for n, o in zip(names, dst.objects):
+        _LOADED[tag + n] = o.data
+    _LOADED['path' + tag] = path
 
 
-def person(name, outfit='plant', gender='male', loc=(0, 0, 0), rot_z=0.0, scale=1.0, coll=None, seed=0):
+def person(name, outfit='plant', gender='male', loc=(0, 0, 0), rot_z=0.0, scale=1.0, coll=None, seed=0, lod=''):
     """Armature object `name` (root) + mesh child `name_mesh` sharing the outfit mesh. Returns the armature."""
-    arm = _LOADED['HUM_Rig_' + gender]
-    me = _LOADED['HUM_%s_%s' % (gender, outfit)]
+    arm = _LOADED[lod + 'HUM_Rig_' + gender]
+    me = _LOADED[lod + 'HUM_%s_%s' % (gender, outfit)]
     c = coll or bpy.context.scene.collection
     ao = bpy.data.objects.new(name, arm)
     c.objects.link(ao)
@@ -682,4 +681,4 @@ def jitter(ao, base, f0, f1, every=12, amp=6, seed=0, arms=True):
 if __name__ == '__main__':
     import sys
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-    build_masters(argv[0] if argv else '/tmp/humans.blend')
+    build_masters(argv[0] if argv else '/tmp/humans.blend', int(argv[1]) if len(argv) > 1 else 1)

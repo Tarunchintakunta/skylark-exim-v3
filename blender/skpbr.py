@@ -299,6 +299,8 @@ def look_settings(kind='exterior', exposure=0.0, samples=64, haze=None):
             rto.use_denoise = True
     if hasattr(e, 'ray_tracing_method'):
         e.ray_tracing_method = 'SCREEN'
+    if hasattr(e, 'shadow_pool_size'):
+        e.shadow_pool_size = '1024'
     if hasattr(e, 'shadow_ray_count'):
         e.shadow_ray_count = 1
     if hasattr(e, 'shadow_step_count'):
