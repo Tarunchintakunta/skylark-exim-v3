@@ -36,7 +36,7 @@ def _landing(C, x, y0, y1):
     """Low timber sampling landing at the waterline, steps up to the bund."""
     wood = P.grime_paint('SM_Wood', (0.32, 0.24, 0.16), rough=0.8, grime=0.6, streak=0.5, coat=0.0, metal=0.0)
     p = Part()
-    z = F.WATER + 0.2
+    z = F.WATER + 0.05                  # floating-deck height: the sample is an arm's length down
     for k in range(9):
         p.box((x, y0 + 0.15 + k * 0.155, z), (1.3, 0.14, 0.04))                  # deck planks
     for sx in (-0.6, 0.6):
@@ -105,7 +105,7 @@ def add(ctx):
     W = F.WATER
     x = cx + 8.5
     zd = _landing(Cp, x, yw - 0.2, yw + 1.3)
-    S = Vector((x, yw + 0.55, zd + 0.02))            # where the sampler kneels
+    S = Vector((x, yw + 1.12, zd + 0.02))            # where the sampler kneels, at the landing's front edge
 
     w = H.person('HUM_Sampler', 'farm_gloves', 'male', coll=Cp, seed=101)
     w.location = S
@@ -115,8 +115,8 @@ def add(ctx):
              'spine': (28, 0, 0), 'chest': (12, 0, 0), 'neck': (10, 0, 0), 'head': (14, 0, 0)}
     w.location.z = S.z - 0.42                        # kneeling height
     H.set_pose(w, kneel, 1)
-    H.set_pose(w, dict(kneel, spine=(42, 0, 0)), 30)
-    H.set_pose(w, dict(kneel, spine=(42, 0, 0)), 52)
+    H.set_pose(w, dict(kneel, spine=(60, 0, 0), chest=(25, 0, 0), neck=(-10, 0, 0)), 30)
+    H.set_pose(w, dict(kneel, spine=(60, 0, 0), chest=(25, 0, 0), neck=(-10, 0, 0)), 50)
     H.set_pose(w, dict(kneel, spine=(20, 0, 0), head=(18, 0, 0)), 76)
     H.set_pose(w, dict(kneel, spine=(16, 0, 0), head=(22, 0, 0)), N)
     H.grip(w, 'R')
@@ -125,13 +125,34 @@ def add(ctx):
     # the bottle and the meter move freely; each hand's IK target rides on the object it grips
     bottle = _bottle(Cp)
     meter, reading = _meter(Cp)
-    reach = S + Vector((0.12, 0.72, 0))
+    # a 1 m sampling pole with a bottle clamp: the far end dips under the surface; then the bottle comes off into the hand
+    pole = bpy.data.objects.new('SM_Pole', None)
+    Cp.objects.link(pole)
+    pp = Part()
+    pp.cyl((0, -0.06, 0), (0, 1.0, 0), 0.012, 12)
+    pp.cyl((0, 0.98, -0.03), (0, 0.98, 0.04), 0.036, 18, cap=False)
+    pp.make('SM_PoleBody', P.plain('SM_PoleAlu', (0.7, 0.71, 0.72), 0.3, 1.0), pole, smooth=True, coll=Cp)
+    pb_ = bpy.data.objects.new('SM_PoleBottle', None)
+    Cp.objects.link(pb_)
+    pb_.parent = pole
+    pb_.location = (0, 0.98, 0.0)
+    for ch in bottle.children:
+        cc = bpy.data.objects.new(ch.name + '_Pole', ch.data)
+        Cp.objects.link(cc)
+        cc.parent = pb_
+    reach = S + Vector((0.28, 1.15, W - S.z - 0.04))                   # under the surface, a metre out
+    for f, loc, pitch in ((1, S + Vector((0.26, 0.2, 0.42)), 18), (20, S + Vector((0.24, 0.24, 0.36)), -4),
+                          (32, S + Vector((0.24, 0.26, 0.24)), -21), (46, S + Vector((0.24, 0.26, 0.24)), -21),
+                          (54, S + Vector((0.24, 0.2, 0.34)), 6), (60, S + Vector((0.2, -0.25, 0.42)), 38)):
+        _key(pole, f, tuple(loc), (D(pitch), 0, 0))
+    for f in (63, N):                                    # laid down on the deck once the bottle is off
+        _key(pole, f, tuple(S + Vector((0.55, -0.45, -0.005))), (0, 0, D(-12)))
     B62 = S + Vector((0.12, 0.45, 0.6))
-    for f, loc, rx in ((1, S + Vector((0.2, 0.33, 0.4)), 0.0), (22, reach + Vector((0, 0, 0.16)), 0.2),
-                       (34, reach + Vector((0, 0.04, W - S.z - 0.03)), -0.45),
-                       (46, reach + Vector((0, 0.04, W - S.z - 0.03)), -0.45), (56, reach + Vector((0, 0, 0.2)), 0.0),
-                       (62, B62, 0.0), (N, B62 + Vector((0, 0, 0.01)), 0.0)):
-        _key(bottle, f, tuple(loc), (rx, 0, 0))
+    _key(bottle, 1, tuple(B62), (0, 0, 0))
+    _key(bottle, N, tuple(B62 + Vector((0, 0, 0.01))), (0, 0, 0))
+    import p_harvest as PH0
+    for ob, seq in ((bottle, [(1, True), (61, False)]), (pb_, [(1, False), (61, True)])):
+        PH0.key_hide(ob, seq)
     lcd_dir = Vector((0.35, 0.22, 0.0)).normalized()                 # toward the close-up camera
     yaw = math.atan2(lcd_dir.x, -lcd_dir.y)
     M122 = S + Vector((-0.05, 0.5, 0.9))
@@ -141,8 +162,10 @@ def add(ctx):
                         (104, B62 + Vector((0, 0, 0.16)), (0, 0, D(170))),
                         (122, M122, (D(-8), 0, yaw)), (N, M122 + Vector((0, 0, 0.005)), (D(-8), 0, yaw))):
         _key(meter, f, tuple(loc), rot)
-    for side, ob, off in (('R', bottle, (0.0, -0.036, -0.01)), ('L', meter, (0.0, 0.016, -0.062))):
-        t = bpy.data.objects.new('SM_Grip' + side, None)
+    for nm, side, ob, off, inf in (('R', 'R', pole, (0.0, 0.0, 0.0), ((1, 1.0), (57, 1.0), (61, 0.0))),
+                                   ('R2', 'R', bottle, (0.0, -0.036, -0.01), ((1, 0.0), (57, 0.0), (61, 1.0))),
+                                   ('L', 'L', meter, (0.0, 0.016, -0.062), ((1, 1.0),))):
+        t = bpy.data.objects.new('SM_Grip' + nm, None)
         Cp.objects.link(t)
         t.parent = ob
         t.location = off
@@ -150,6 +173,9 @@ def add(ctx):
         c.target = t
         c.chain_count = 2
         c.use_tail = True
+        for f, v in inf:
+            c.influence = v
+            c.keyframe_insert('influence', frame=f)
     reading.data.body = '7.8'
     # small drips off the bottle as it leaves the water
     import p_harvest as PH
@@ -162,7 +188,7 @@ def add(ctx):
         for f in range(46, 72, 2):
             t = ((f - 46) / 7.0 + ph) % 1.0
             u = min(1.0, max(0.0, (f - 46) / 16.0))
-            base = (reach + Vector((0, 0.04, W - S.z - 0.03))).lerp(B62, u)
+            base = reach.lerp(S + Vector((0.2, 0.6, 0.5)), u)
             d.location = base + Vector(((k % 3 - 1) * 0.01, (k % 2) * 0.008, -0.1 - t * (0.1 + (B62.z - W) * u)))
             d.keyframe_insert('location', frame=f)
         PH.key_hide(d, [(1, True), (48, False), (72, True)])
@@ -177,7 +203,7 @@ def add(ctx):
             if kp.co.x < N:
                 fc.keyframe_points.remove(kp)
     keys = [(1, S + Vector((1.5, 1.9, 0.75)), S + Vector((0.1, 0.6, 0.2))),
-            (40, S + Vector((1.35, 1.7, 0.95)), S + Vector((0.1, 0.62, 0.18))),
+            (40, S + Vector((1.45, 1.55, 0.85)), S + Vector((0.2, 0.75, 0.05))),
             (70, S + Vector((0.75, 1.0, 0.75)), S + Vector((0.1, 0.45, 0.55))),
             (100, S + Vector((0.45, 0.85, 0.85)), B62 + Vector((0, 0, 0.12))),
             (124, M122 + lcd_dir * 0.34 + Vector((0, 0, 0.03)), M122 + Vector((0, 0, 0.03))),
