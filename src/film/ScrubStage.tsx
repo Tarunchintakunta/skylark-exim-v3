@@ -6,7 +6,7 @@ import { bindStage, preloadPosters } from './scrub'
 import { posterFor, toSegments } from './segments'
 import './stage.css'
 
-/** The one fixed stage: posters under two video decoders, a veil for cuts and the bottom scrim. */
+/** The one fixed stage: posters under three video decoders (prev, current, next), a veil for cuts and the bottom scrim. */
 export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   const segs = useMemo(() => toSegments(chapters), [chapters])
   const ready = useApp((s) => s.ready)
@@ -41,6 +41,7 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           />
         )
       })}
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       {__PREVIEW__ &&
