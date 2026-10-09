@@ -88,7 +88,7 @@ def net_mat():
     return m
 
 
-def build(out):
+def build(out, scene='p-harvest'):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     s = bpy.context.scene
     rnd = random.Random(7)
@@ -464,6 +464,9 @@ def build(out):
     s.frame_start, s.frame_end = F0, F1
     s.frame_current = F0
     s.render.filepath = '//../render/p-harvest/'
+    if scene == 'p-sample':                     # the sampling beat that opens onto this frame 1
+        import p_sample
+        p_sample.add(dict(cx=cx, yb=yb, yw=yw, Cp=Cp, cam=cam, tgt=tgt))
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print('OUT built p-harvest', out)
 

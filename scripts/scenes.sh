@@ -9,6 +9,7 @@ SCENES=(
   "o-catch-b|o-catch|192|383|o-catch"
   "o-return|o-return|1|288|o-return"
   "p-ponds|p-ponds|1|192|p-ponds"
+  "b2|p-sample|1|192|p-sample"
   "p-harvest|p-harvest|1|288|p-harvest"
   "truck-reverse|truck-reverse|1|288|truck-reverse"
   "p-intake|p-intake|1|192|p-intake"
@@ -22,9 +23,9 @@ SCENES=(
   "prod-shrimp|prod-shrimp|1|120|prod-shrimp"
 )
 # Joins where the boundary frame must be shared (checked by scripts/boundary-check.sh)
-SHARED_JOINS=("o-catch-a>o-catch-b" "truck-reverse>p-intake" "p-intake>p-proc" "p-proc>p-freeze" "x-cranes>x-ship")
+SHARED_JOINS=("o-catch-a>o-catch-b" "truck-reverse>p-intake" "p-intake>p-proc" "p-proc>p-freeze" "x-cranes>x-ship" "b2>p-harvest")
 # Joins the site cross-fades (different places or a reused Higgsfield clip on one side)
-CROSSFADE_JOINS=("a2>o-catch-a" "o-catch-b>o-return" "o-return>truck-reverse" "p-ponds>b2" "b2>p-harvest" "p-harvest>truck-reverse" "x-ship>globe")
+CROSSFADE_JOINS=("a2>o-catch-a" "o-catch-b>o-return" "o-return>truck-reverse" "p-ponds>b2" "p-harvest>truck-reverse" "x-ship>globe")
 BLENDER="${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}"
 scene_row(){ local r; for r in "${SCENES[@]}"; do [ "${r%%|*}" = "$1" ] && { echo "$r"; return 0; }; done; return 1; }
 blend_rows(){ local r i b f l d; for r in "${SCENES[@]}"; do IFS='|' read -r i b f l d <<<"$r"; if [ "$b" = "$1" ]; then echo "$r"; fi; done; return 0; }
