@@ -88,7 +88,7 @@ def key_rope(f, length, swing=0.0):
     bag_parent.keyframe_insert('rotation_euler', frame=f)
 
 
-PILE = Vector((NETX + 0.8, 0.0, DZ))
+PILE = Vector((1.9, -0.3, DZ))   # clear of the king post (1.0, 1.3) and the hatch coaming (x >= 3.2)
 # boom out over the sea, net in the water
 key_aim(1, (NETX, 8.0, 9.6))
 key_aim(100, (NETX, 8.0, 9.6))
@@ -206,31 +206,58 @@ net.keyframe_insert('scale', frame=REL)
 net.scale = (0.75, 0.75, 0.55)
 net.keyframe_insert('scale', frame=REL + 8)
 # the pile: a low mound of fish mass + fish lying on it (children of the boat)
-pm = L.sphere_mesh('PILE_Mound', 1.0, 32, 16)
+import bmesh  # noqa: E402
+from mathutils import noise as _nz  # noqa: E402
+
+
+def heap_h(u):
+    # heap profile over the unit disc: tall middle, slopes running out flat onto the deck (no cake edge)
+    return max(0.0, 1 - u * u) ** 1.6
+
+
+_hb = bmesh.new()
+_rings, _seg = 14, 40
+_grid = []
+for i in range(_rings + 1):
+    u = i / _rings
+    row = []
+    for j in range(_seg if i else 1):
+        a = 2 * math.pi * j / _seg
+        x, y = u * math.cos(a), u * math.sin(a)
+        z = heap_h(u) * (1 + 0.18 * _nz.noise(Vector((x * 3, y * 3, 0.5))))
+        row.append(_hb.verts.new((x, y, z)))
+    _grid.append(row)
+for j in range(_seg):
+    _hb.faces.new((_grid[0][0], _grid[1][j], _grid[1][(j + 1) % _seg]))
+for i in range(1, _rings):
+    for j in range(_seg):
+        _hb.faces.new((_grid[i][j], _grid[i + 1][j], _grid[i + 1][(j + 1) % _seg], _grid[i][(j + 1) % _seg]))
+pm = L.bm_to_mesh(_hb, 'PILE_Mound', smooth=True)
 pm.materials.append(bpy.data.materials['MAT_FishMass'])
 pm.materials.clear()
 pm.materials.append(L.pbr('MAT_PileMass', (0.38, 0.42, 0.46), 0.3, 0.5, var=0.7, bump=1.0, scale=22, coat=0.3))
-mound = L.obj('PILE_Mound', pm, None, tuple(PILE), scale=(1.5, 1.25, 0.32), parent=boat)
-for f, sc in ((REL + 2, 0.05), (REL + 10, 0.85), (192, 1.0), (330, 0.8)):
-    mound.scale = (1.5 * max(sc, 0.3), 1.25 * max(sc, 0.3), 0.32 * sc)
+PRX, PRY, PH = 1.05, 1.0, 0.6
+mound = L.obj('PILE_Mound', pm, None, tuple(PILE), scale=(PRX, PRY, PH), parent=boat)
+for f, sc in ((REL + 2, 0.05), (REL + 10, 0.85), (192, 1.0), (330, 0.75)):
+    mound.scale = (PRX * max(sc, 0.3), PRY * max(sc, 0.3), PH * sc)
     mound.keyframe_insert('scale', frame=f)
 L.key_vis(mound, REL + 2)
 
 
 def mound_z(x, y):
-    dx, dy = (x - PILE.x) / 1.5, (y - PILE.y) / 1.25
+    dx, dy = (x - PILE.x) / PRX, (y - PILE.y) / PRY
     r2 = dx * dx + dy * dy
-    return DZ + (0.32 * math.sqrt(max(0.0, 1 - r2)) if r2 < 1 else 0.0)
+    return DZ + PH * heap_h(math.sqrt(r2))
 
 
 spill = []
-for i in range(320):
+for i in range(420):
     kind = 'tuna' if i < 6 else ('tuna_s' if i < 46 else ('seer' if i < 52 else 'mackerel'))
     sc = rnd.uniform(0.7, 0.85) if kind == 'tuna' else rnd.uniform(0.85, 1.15)
     a = rnd.uniform(0, 2 * math.pi)
-    rr = math.sqrt(rnd.random()) * (0.9 if kind == 'tuna' else 1.25)
-    land = Vector((PILE.x + rr * math.cos(a) * 1.15, PILE.y + rr * math.sin(a), 0))
-    land.z = mound_z(land.x, land.y) + (0.05 if kind != 'tuna' else 0.12)
+    rr = math.sqrt(rnd.random()) * (0.6 if kind == 'tuna' else 0.92)   # the heap stays on the mound, off the coaming
+    land = Vector((PILE.x + rr * math.cos(a) * PRX, PILE.y + rr * math.sin(a) * PRY, 0))
+    land.z = mound_z(land.x, land.y) + (rnd.uniform(0.03, 0.14) if kind != 'tuna' else 0.12)   # fish on fish
     start = Vector((PILE.x + rnd.uniform(-0.5, 0.5), PILE.y + rnd.uniform(-0.5, 0.5), DZ + rnd.uniform(0.7, 1.6)))
     fo = L.fish(f'SPILL_{i}', kind, tuple(start), (0, 0, 0), sc, parent=boat)
     f0 = REL + rnd.randint(0, 4)
@@ -248,6 +275,15 @@ for i in range(320):
     fo.keyframe_insert('location', frame=f1 + 2)
     fo.location.z = land.z
     fo.keyframe_insert('location', frame=f1 + 4)
+    if kind == 'mackerel' and i % 9 == 0 and rr > 0.35:
+        # a few slither down the side of the heap after landing
+        out = Vector((math.cos(a), math.sin(a), 0)) * rnd.uniform(0.15, 0.3)
+        end = land + out
+        end.x = PILE.x + max(-PRX * 0.97, min(PRX * 0.97, end.x - PILE.x))
+        end.y = PILE.y + max(-PRY * 0.97, min(PRY * 0.97, end.y - PILE.y))
+        end.z = mound_z(end.x, end.y) + 0.03
+        fo.location = end
+        fo.keyframe_insert('location', frame=f1 + 4 + rnd.randint(6, 16))
     L.key_vis(fo, f0)
     spill.append((fo, kind))
 for o, _ in spill:
@@ -256,7 +292,7 @@ for o, _ in spill:
 # ---------------------------------------------------------------- crates: sorting row, hand chain, hold
 row = []
 for i in range(6):
-    c = L.crate(f'SORT_Crate{i}', ['blue', 'red', 'blue', 'white', 'blue', 'red'][i], (PILE.x - 1.4 + i * 0.62, -1.75, DZ),
+    c = L.crate(f'SORT_Crate{i}', ['blue', 'red', 'blue', 'white', 'blue', 'red'][i], (PILE.x - 1.4 + i * 0.62, -2.3, DZ),
                 0.0, fill=('tuna' if i in (1, 4) else 'mixed'), parent=boat, mats=mats, seed=i)
     row.append(c)
     t_fill = 200 + i * 10
@@ -294,6 +330,17 @@ for ix in range(6):
 # ---------------------------------------------------------------- crew (orange / yellow oilskins, caps, gloves)
 P = L.person
 crew = {}
+L.POSES['haul'] = {'hips_z': 0.86, 'spine': (0, -18, 0), 'neck': (0, 12, 0), 'sh_L': (-14, -62, 0), 'sh_R': (14, -58, 0),
+                   'el_L': (0, -22, 0), 'el_R': (0, -26, 0), 'hp_L': (0, -32, 0), 'kn_L': (0, 38, 0), 'an_L': (0, -6, 0),
+                   'hp_R': (0, 22, 0), 'kn_R': (0, 30, 0), 'an_R': (0, -12, 0)}
+L.POSES['haul2'] = {'hips_z': 0.84, 'spine': (0, -27, 0), 'neck': (0, 16, 0), 'sh_L': (-14, -50, 0), 'sh_R': (14, -47, 0),
+                    'el_L': (0, -42, 0), 'el_R': (0, -46, 0), 'hp_L': (0, -26, 0), 'kn_L': (0, 40, 0), 'an_L': (0, -8, 0),
+                    'hp_R': (0, 28, 0), 'kn_R': (0, 34, 0), 'an_R': (0, -14, 0)}
+HAUL = [(-0.6, 1.55), (-0.6, 0.55), (-0.6, -0.45)]   # haul line along +Y to the starboard rail
+
+
+def haul_seq(ph, f_end=100):
+    return [(f, 'haul' if ((f - 1 - ph) // 10) % 2 == 0 else 'haul2') for f in range(1 + ph, f_end, 10)]
 
 
 def crew_member(nm, outfit, loc, rot, h=1.72, b=1.0):
@@ -309,22 +356,23 @@ L.anim_poses(w, [(1, 'idle'), (36, 'pull'), (60, 'pull2'), (84, 'pull'), (100, '
 r1 = crew_member('CREW_Rail1', 'fisherman_o', (0.2, 2.25), 90, 1.75, 1.05)
 L.anim_poses(r1, [(1, 'idle'), (40, 'reach'), (95, 'reach'), (110, 'guide'), (150, 'guide'), (170, 'reach'), (186, 'idle')])
 r2 = crew_member('CREW_Rail2', 'fisherman_y', (2.9, 2.2), 100, 1.7)
-L.anim_poses(r2, [(1, 'idle'), (42, 'point'), (90, 'idle'), (112, 'guide'), (155, 'guide'), (175, 'pull'), (186, 'idle')])
-c3 = crew_member('CREW_Mid', 'fisherman_o', (0.9, -0.3), 60, 1.74)
-L.anim_poses(c3, [(1, 'idle'), (60, 'idle'), (100, 'stand'), (150, 'idle')])
+L.anim_poses(r2, [(1, 'reach'), (42, 'guide'), (90, 'reach'), (112, 'guide'), (155, 'guide'), (175, 'pull'), (186, 'idle')])
+c3 = crew_member('CREW_Mid', 'fisherman_o', (HAUL[1][0], HAUL[1][1]), 90, 1.74)
+L.anim_poses(c3, haul_seq(0) + [(110, 'stand'), (150, 'idle')])
 c4 = crew_member('CREW_Hatch', 'fisherman_y', (5.95, 0.3), 180, 1.7)
 L.anim_poses(c4, [(1, 'idle'), (383, 'idle')])
-c5 = crew_member('CREW_Ice', 'fisherman_b', (5.3, -1.75), 180, 1.69)
-c6 = crew_member('CREW_Stern', 'fisherman_o', (-1.2, 1.6), 30, 1.71)
-L.anim_poses(c6, [(1, 'idle'), (100, 'stand'), (176, 'pull'), (186, 'idle')])
+c5 = crew_member('CREW_Ice', 'fisherman_b', (HAUL[2][0], HAUL[2][1]), 90, 1.69)
+c6 = crew_member('CREW_Stern', 'fisherman_o', (HAUL[0][0], HAUL[0][1]), 90, 1.71)
+L.anim_poses(c6, haul_seq(4) + [(110, 'stand'), (176, 'pull'), (186, 'idle')])
 # the guiding crew step back as the bag comes inboard, then step in to sort (walk keys after 186)
-L.walk(r1, [(0.2, 2.25), (0.6, 1.7), (1.3, 1.25)], 150, 176)
-L.walk(r2, [(2.9, 2.2), (3.4, 1.6), (3.8, 1.0)], 155, 182)
-L.walk(c3, [(0.9, -0.3), (0.6, -1.0), (1.8, -1.4)], 176, 196)
-L.walk(c6, [(-1.2, 1.6), (-0.5, 1.2), (0.6, 0.5)], 186, 210)
+L.walk(r1, [(0.2, 2.25), (1.2, 2.0), (2.4, 1.15)], 150, 176)
+L.walk(r2, [(2.9, 2.2), (1.8, 2.3), (0.3, 1.6), (0.5, 0.9)], 155, 182)
+L.walk(c3, [HAUL[1], (0.2, -1.0), (1.9, -1.45)], 176, 196)
+L.walk(c6, [HAUL[0], (0.0, 0.0), (0.4, -0.6)], 186, 210)
+L.walk(c5, [HAUL[2], (0.3, -1.8), (4.3, -1.8)], 112, 170)
 # 192-330: sorting by hand around the pile (kneel cycle), shovelling ice over the crates, passing crates
-for nm, (x, y, rot) in {'CREW_Rail1': (1.3, 1.25, -90), 'CREW_Rail2': (3.9, 0.9, -150), 'CREW_Mid': (1.8, -1.4, 80),
-                        'CREW_Stern': (0.6, 0.45, -20)}.items():
+for nm, (x, y, rot) in {'CREW_Rail1': (2.4, 1.15, -100), 'CREW_Rail2': (0.5, 0.9, -40), 'CREW_Mid': (1.9, -1.45, 90),
+                        'CREW_Stern': (0.4, -0.6, 0)}.items():
     r = crew[nm]
     for f in (200, 383):
         r.location = (x, y, DZ)
@@ -336,7 +384,47 @@ for nm, (x, y, rot) in {'CREW_Rail1': (1.3, 1.25, -90), 'CREW_Rail2': (3.9, 0.9,
     for f in range(200 + ph, 383, 14):
         seq.append((f, 'kneel' if (f // 14) % 2 == 0 else 'kneel2'))
     L.anim_poses(r, seq)
-L.anim_poses(c5, [(1, 'idle'), (190, 'idle')] + [(f, 'shovel' if (f // 16) % 2 == 0 else 'shovel2') for f in range(200, 383, 16)])
+L.anim_poses(c5, haul_seq(7) + [(110, 'stand'), (172, 'idle'), (190, 'idle')] +
+             [(f, 'shovel' if (f // 16) % 2 == 0 else 'shovel2') for f in range(200, 383, 16)])
+for f in (172, 383):
+    c5.rotation_euler = (0, 0, D(-90))   # faces the crate row
+    c5.keyframe_insert('rotation_euler', frame=f)
+# the haul line: float line in the water -> over the rail -> through each hauler's hands -> coiled on deck
+rope_mat = mats['rope']
+ends = []
+e_sea = L.empty('HAUL_Sea', (0, 0, 0), size=0.2)
+for f, p in ((1, (NETX - 0.4, 7.2, 0.3)), (60, (NETX - 0.3, 5.6, 0.5)), (100, (NETX - 0.3, 4.6, 1.2))):
+    e_sea.location = p
+    e_sea.keyframe_insert('location', frame=f)
+ends.append(e_sea)
+e_rail = L.empty('HAUL_Rail', (HAUL[0][0], S.hull_b(HAUL[0][0]) - 0.05, DZ + 1.05), size=0.2)
+e_rail.parent = boat
+ends.append(e_rail)
+for nm in ('CREW_Stern', 'CREW_Mid', 'CREW_Ice'):
+    e = L.empty(f'HAUL_Hands_{nm}', (0, 0, 0), size=0.1)
+    for bn, inf in (('wr_L', 1.0), ('wr_R', 0.5)):   # midway between the two fists
+        c_ = e.constraints.new('COPY_LOCATION')
+        c_.target = crew[nm]
+        c_.subtarget = bn
+        c_.head_tail = 1.0
+        c_.influence = inf
+    ends.append(e)
+e_coil = L.empty('HAUL_Coil', (HAUL[2][0], HAUL[2][1] - 1.2, DZ + 0.08), size=0.2)
+e_coil.parent = boat
+ends.append(e_coil)
+coil = L.obj('HAUL_CoilRope', L.torus_mesh('HAUL_CoilM', 0.28, 0.035, 24, 6), rope_mat, (HAUL[2][0], HAUL[2][1] - 1.35, DZ + 0.04),
+             parent=boat)
+for k in range(len(ends) - 1):
+    seg = L.cyl(f'HAUL_Line{k}', 0.016, 1.0, (0, 0, 0), rope_mat, 8, origin='base')
+    seg.data.transform(__import__('mathutils').Matrix.Rotation(-math.pi / 2, 4, 'X'))   # STRETCH_TO stretches +Y
+    cl_ = seg.constraints.new('COPY_LOCATION')
+    cl_.target = ends[k]
+    st_ = seg.constraints.new('STRETCH_TO')
+    st_.target = ends[k + 1]
+    st_.volume = 'NO_VOLUME'
+    st_.rest_length = 1.0
+    L.key_vis(seg, 1, 104)
+
 shovel = bpy.data.objects['BOAT_Shovel0']
 cs = shovel.constraints.new('CHILD_OF')
 cs.target = bpy.data.objects['CREW_Ice']
