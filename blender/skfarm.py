@@ -23,6 +23,28 @@ TOP, BOTTOM, WATER = 1.5, -0.3, 0.95
 COMPOUND = {(4, -1), (5, -1)}  # cells that are the farm yard (flat), south of the road
 
 
+def veg():
+    """Shared vegetation pool: palms of different height / frond count, broadleaf trees, shrubs."""
+    if 'palms' not in _VEG:
+        _VEG['palms'] = [V.palm_mesh(), V.palm_mesh('VEG_PalmMesh2', h=13.5, seed=8, fronds=20),
+                         V.palm_mesh('VEG_PalmTall', h=16.0, seed=21, fronds=26),
+                         V.palm_mesh('VEG_PalmYoung', h=6.5, seed=23, fronds=14)]
+        _VEG['trees'] = [V.tree_mesh(), V.tree_mesh('VEG_TreeWide', h=10.0, crown=4.6, seed=4),
+                         V.tree_mesh('VEG_TreeSmall', h=5.5, crown=2.2, seed=6, leaves=1400)]
+        _VEG['shrubs'] = [V.shrub_mesh(), V.shrub_mesh('VEG_ShrubLow', r=1.3, seed=9, leaves=900)]
+    return _VEG
+
+
+_VEG = {}
+
+
+def place(mesh, name, loc, scale, C, rnd, lean=0.09):
+    o = V.place(mesh, name, loc, scale, coll=C, rnd=rnd)
+    o.rotation_euler.x = rnd.uniform(-lean, lean)
+    o.rotation_euler.y = rnd.uniform(-lean, lean)
+    return o
+
+
 def coll(name):
     c = bpy.data.collections.get(name)
     if c is None:
@@ -308,8 +330,7 @@ def paddy_mat():
 
 def groves(C, rnd, n_clusters=70):
     """Coconut groves in the paddy, canals with a mangrove edge north and west of the farm."""
-    pm = V.palm_mesh()
-    pm2 = V.palm_mesh('VEG_PalmMesh2', h=13.5, seed=8, fronds=20)
+    VG = veg()
     xa, xb = X0 - PX / 2, X0 + (NCOL - 0.5) * PX
     yb = ROAD + NROW * PY
     g = TOP - 0.3
@@ -324,8 +345,8 @@ def groves(C, rnd, n_clusters=70):
         r = rnd.uniform(18, 40)
         for _ in range(int(r * 0.8)):
             a, d = rnd.uniform(0, 6.28), r * math.sqrt(rnd.random())
-            V.place(rnd.choice([pm, pm2]), 'VEG_Grove', (cx + math.cos(a) * d, cy + math.sin(a) * d, g),
-                    rnd.uniform(0.85, 1.35), coll=C, rnd=rnd)
+            mesh = rnd.choice(VG['palms']) if rnd.random() < 0.75 else rnd.choice(VG['trees'] + VG['shrubs'])
+            place(mesh, 'VEG_Grove', (cx + math.cos(a) * d, cy + math.sin(a) * d, g), rnd.uniform(0.8, 1.35), C, rnd)
     wm = water_mat()
     mang = V.shrub_mesh().copy()
     mang.name = 'VEG_MangroveMesh'
@@ -365,7 +386,7 @@ def water_mat():
     e.color = (0.025, 0.065, 0.055, 1)                   # blue-green
     L.new(at.outputs['Fac'], ramp.inputs[0])
     L.new(ramp.outputs[0], p.inputs['Base Color'])
-    p.inputs['Roughness'].default_value = 0.03
+    p.inputs['Roughness'].default_value = 0.075
     p.inputs['IOR'].default_value = 1.33
     p.inputs['Specular IOR Level'].default_value = 0.5
     # wind ripples (animated by the mapping location, keyed by the scene)
@@ -379,7 +400,7 @@ def water_mat():
     nz.inputs['Roughness'].default_value = 0.6
     L.new(mp.outputs[0], nz.inputs['Vector'])
     b = nt.nodes.new('ShaderNodeBump')
-    b.inputs['Strength'].default_value = 0.05
+    b.inputs['Strength'].default_value = 0.03
     b.inputs['Distance'].default_value = 0.05
     L.new(nz.outputs['Fac'], b.inputs['Height'])
     L.new(b.outputs[0], p.inputs['Normal'])
@@ -446,7 +467,7 @@ def foam_mat():
     L.new(sep.outputs[0], sx.inputs[0])
     sy = nt.nodes.new('ShaderNodeMath')
     sy.operation = 'MULTIPLY'
-    sy.inputs[1].default_value = 0.062
+    sy.inputs[1].default_value = 0.085
     L.new(sep.outputs[1], sy.inputs[0])
     cmb = nt.nodes.new('ShaderNodeCombineXYZ')
     L.new(sx.outputs[0], cmb.inputs[0])
@@ -527,7 +548,7 @@ def aerator_collection(phase=0.0, name='AER_0', f0=1, f1=600):
     bm = p.bm
     res = bmesh.ops.create_grid(bm, x_segments=4, y_segments=8, size=1.0)
     for v in res['verts']:
-        v.co = Vector((v.co.x * 4.2 * (1 + 0.5 * max(0.0, v.co.y)), (v.co.y + 0.7) * 21.0, 0.03))
+        v.co = Vector((v.co.x * 2.6 * (1 + 0.6 * (v.co.y + 1) / 2), -0.8 + (v.co.y + 1) / 2 * 13.0, 0.03))
     fo = p.make(name + '_Foam', foam_mat(), root, coll=C)
     fo.location = (0, 0, 0)
     return C
@@ -584,6 +605,82 @@ def animate_water(f0, f1):
 
 
 # ------------------------------------------------------------------ farm compound, poles, trays, palms
+def grass_tufts(C, rnd, x0, x1, y0, y1, step=1.1, p=0.4):
+    """Clumps of blade cards on the bund tops and outer slopes (one joined mesh)."""
+    bm = bmesh.new()
+    x = x0
+    while x < x1:
+        y = y0
+        while y < y1:
+            xx, yy = x + rnd.uniform(-0.5, 0.5), y + rnd.uniform(-0.5, 0.5)
+            z = height(xx, yy)
+            if z > WATER + 0.3 and abs(yy) > ROAD + 0.6 and rnd.random() < p:
+                for _ in range(rnd.randint(5, 9)):
+                    a = rnd.uniform(0, 6.28)
+                    h = rnd.uniform(0.18, 0.42)
+                    w = 0.025
+                    d = Vector((math.cos(a), math.sin(a), 0))
+                    side = Vector((-d.y, d.x, 0)) * w
+                    base = Vector((xx + rnd.uniform(-0.12, 0.12), yy + rnd.uniform(-0.12, 0.12), z - 0.02))
+                    tip = base + d * h * rnd.uniform(0.2, 0.5) + Vector((0, 0, h))
+                    bm.faces.new([bm.verts.new(v) for v in (base - side, base + side, tip)])
+            y += step
+        x += step
+    me = bpy.data.meshes.new('FARM_TuftMesh')
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(V._leaf_mat('FARM_Grass', (0.11, 0.2, 0.045), trans=0.3))
+    a = me.attributes.new('vcol', 'FLOAT_COLOR', 'POINT')
+    for i in range(len(a.data)):
+        k = rnd.uniform(0.7, 1.3)
+        a.data[i].color = (k, k * rnd.uniform(0.9, 1.1), k * 0.8, 1)
+    o = bpy.data.objects.new('FARM_Tufts', me)
+    C.objects.link(o)
+    return o
+
+
+def footpaths(C, rnd, x0, x1):
+    """Worn, compacted strips along the centre of the bunds between ponds."""
+    import skplant
+    p = Part()
+    for i in range(NCOL + 1):
+        x = X0 + (i - 0.5) * PX
+        if x0 <= x <= x1:
+            for j in range(-NROW, NROW):
+                yc = (ROAD + (j + 0.5) * PY) if j >= 0 else -(ROAD + (-1 - j + 0.5) * PY)
+                p.box((x + rnd.uniform(-0.3, 0.3), yc, TOP + 0.012), (0.7, PY * 0.9, 0.004))
+    for j in range(1, NROW):
+        for sg in (-1, 1):
+            p.box(((x0 + x1) / 2, sg * (ROAD + j * PY), TOP + 0.012), (x1 - x0, 0.7, 0.004))
+    p.make('FARM_Paths', skplant.line_mat('FARM_PathMat', (0.30, 0.25, 0.18), alpha=0.55), None, coll=C)
+
+
+def feed_cart(name, C):
+    """Two-wheel push cart with feed sacks; handle toward local +Y (the pusher), cart ahead along -Y."""
+    root = bpy.data.objects.new(name, None)
+    C.objects.link(root)
+    steel = P.grime_paint('FARM_CartSteel', (0.18, 0.2, 0.2), rough=0.5, grime=0.6, streak=0.4, coat=0.0, metal=0.5)
+    p = Part()
+    p.box((0, -1.1, 0.5), (0.8, 1.1, 0.04))
+    for sx in (-0.4, 0.4):
+        p.cyl((sx, -0.55, 0.5), (sx, 0.05, 0.95), 0.02, 8)
+        p.box((sx, -1.1, 0.62), (0.03, 1.1, 0.25))
+    p.cyl((-0.4, 0.05, 0.95), (0.4, 0.05, 0.95), 0.022, 8)
+    p.cyl((-0.48, -1.2, 0.28), (0.48, -1.2, 0.28), 0.02, 8)
+    p.make(name + '_Frame', steel, root, bevel=0.005, coll=C)
+    p = Part()
+    for sx in (-0.48, 0.48):
+        p.cyl((sx - 0.04, -1.2, 0.28), (sx + 0.04, -1.2, 0.28), 0.28, 18)
+    p.make(name + '_Wheels', P.plain('FARM_CartTyre', (0.03, 0.03, 0.03), 0.8), root, smooth=True, coll=C)
+    p = Part()
+    for k, (x, y, z) in enumerate(((-0.2, -0.85, 0.66), (0.2, -0.85, 0.66), (-0.2, -1.35, 0.66), (0.2, -1.35, 0.66),
+                                   (0.0, -1.1, 0.88))):
+        p.box((x, y, z), (0.38, 0.5, 0.22))
+    p.make(name + '_Sacks', P.plain('FARM_Sack', (0.55, 0.47, 0.33), 0.9, bump=0.6, bump_scale=60), root, bevel=0.06,
+           seg=3, coll=C)
+    return root
+
+
 def ruts(C):
     import skplant
     p = Part()
@@ -686,20 +783,24 @@ def feed_trays(C, rnd):
 
 
 def palms(C, rnd, xm, ym):
-    pm = V.palm_mesh()
-    pm2 = V.palm_mesh('VEG_PalmMesh2', h=13.5, seed=8, fronds=20)
-    tm = V.tree_mesh()
-    sm = V.shrub_mesh()
+    VG = veg()
+    pm, pm2 = VG['palms'][0], VG['palms'][1]
+    tm = VG['trees'][0]
+    sm = VG['shrubs'][0]
     for x in range(-340, 460, 11):
         for side in (7.6, -7.6):
             if rnd.random() < 0.55:
-                V.place(rnd.choice([pm, pm2]), 'VEG_RoadPalm', (x + rnd.uniform(-3, 3), side + rnd.uniform(-1, 1), TOP),
-                        rnd.uniform(0.8, 1.2), coll=C, rnd=rnd)
+                place(rnd.choice(VG['palms']), 'VEG_RoadPalm', (x + rnd.uniform(-3, 3), side + rnd.uniform(-1, 1), TOP),
+                      rnd.uniform(0.75, 1.25), C, rnd, lean=0.14)
+            elif rnd.random() < 0.18 and not (20 < x < 100):
+                place(rnd.choice(VG['trees']), 'VEG_RoadTree', (x + rnd.uniform(-3, 3), side * 1.15, TOP),
+                      rnd.uniform(0.8, 1.2), C, rnd)
             elif rnd.random() < 0.4 and not (20 < x < 100):
-                V.place(sm, 'VEG_RoadShrub', (x + rnd.uniform(-3, 3), side * 1.05, TOP), rnd.uniform(0.6, 1.2), coll=C, rnd=rnd)
+                place(rnd.choice(VG['shrubs']), 'VEG_RoadShrub', (x + rnd.uniform(-3, 3), side * 1.05, TOP),
+                      rnd.uniform(0.6, 1.3), C, rnd)
     for k in range(26):
-        V.place(rnd.choice([pm, pm2]), 'VEG_YardPalm', (xm + rnd.uniform(-34, 34), ym + rnd.uniform(-20, 20), TOP),
-                rnd.uniform(0.85, 1.25), coll=C, rnd=rnd)
+        place(rnd.choice(VG['palms'] + VG['trees'][:1]), 'VEG_YardPalm',
+              (xm + rnd.uniform(-34, 34), ym + rnd.uniform(-20, 20), TOP), rnd.uniform(0.85, 1.25), C, rnd, lean=0.12)
     # outer belts of palms and trees around the farm
     xa, xb = X0 - PX / 2, X0 + (NCOL - 0.5) * PX
     yb = ROAD + NROW * PY
@@ -713,8 +814,8 @@ def palms(C, rnd, xm, ym):
             x, y = xa - rnd.uniform(6, 50), rnd.uniform(-yb, yb)
         else:
             x, y = xb + rnd.uniform(6, 50), rnd.uniform(-yb, yb)
-        mesh = rnd.choice([pm, pm2, pm, tm])
-        V.place(mesh, 'VEG_Belt', (x, y, TOP - 0.3), rnd.uniform(0.9, 1.4), coll=C, rnd=rnd)
+        mesh = rnd.choice(VG['palms'] + VG['palms'] + VG['trees'] + VG['shrubs'])
+        place(mesh, 'VEG_Belt', (x, y, TOP - 0.3), rnd.uniform(0.85, 1.4), C, rnd, lean=0.12)
     # far horizon tree belt (large scale, cheap)
     for k in range(220):
         a = 2 * math.pi * k / 220
