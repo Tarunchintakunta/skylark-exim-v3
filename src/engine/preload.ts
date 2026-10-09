@@ -5,7 +5,7 @@
  *   Progress is the buffered share of the first HEAD_S seconds.
  * Never blocks: resolves at MAX_MS whatever is still loading.
  */
-const FACES = ['600 1em Sora', '400 1em Inter', '500 1em Inter']
+const FACES = ['400 1em "Instrument Serif"', '400 1em "Inter Tight"', '500 1em "Inter Tight"']
 const HEAD_S = 2.5
 const MAX_MS = 2500
 
