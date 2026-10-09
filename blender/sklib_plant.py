@@ -51,8 +51,8 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, mats=None, ca
     # working truck, not showroom: panel seams, grime streaks from the roof rail, road dirt up the lower sides
     paint = weather(pbr('MAT_TruckCab', cab_color, 0.32, 0.2, grime=0.3, coat=0.5, scale=0.6), amount=0.35,
                     z0=0.3, z1=1.5, dirt_amount=0.75)
-    boxw = weather(panel_mat('MAT_ReeferBox', (0.86, 0.87, 0.86), 0.6, 'X'), streak=(0.42, 0.38, 0.3), amount=0.5,
-                   z0=1.1, z1=2.3, dirt_amount=0.7)
+    boxw = weather(panel_mat("MAT_ReeferBox", (0.86, 0.87, 0.86), 0.6, "X"), streak=(0.42, 0.38, 0.3), amount=0.32,
+                   z0=1.1, z1=2.0, dirt_amount=0.45)
     dark = pbr('MAT_TruckDark', (0.06, 0.065, 0.07), 0.6, 0.3, grime=0.5)
     mb = MB()
     BL, BW, BH, BZ = 7.2, 2.5, 2.6, 1.15     # box length/width/height, floor height
