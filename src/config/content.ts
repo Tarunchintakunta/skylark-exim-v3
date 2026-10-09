@@ -98,3 +98,14 @@ export const ABOUT = {
     { name: 'N.V. Prudhvi', initials: 'NP' },
   ],
 }
+
+/** Contact (CONTENT.md "Contact"). */
+export const CONTACT = {
+  phones: [
+    { label: '+91-9000 604 070', tel: '+919000604070' },
+    { label: '+91-9885 827 318', tel: '+919885827318' },
+  ],
+  email: 'info@skylarkexim.com',
+  office: 'Sheela Nagar, Visakhapatnam, Andhra Pradesh',
+  unit: 'Abad Overseas Private Limited, S.No. 297/Part, Lodagalavanipalem, Anandapuram-Pendurthi Road, Anandapuram, Visakhapatnam-530052, Andhra Pradesh',
+}
