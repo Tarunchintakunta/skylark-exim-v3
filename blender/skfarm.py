@@ -1222,8 +1222,8 @@ def shrimp_mesh():
     me = bpy.data.meshes.new('FARM_ShrimpMesh')
     bm.to_mesh(me)
     bm.free()
-    shell = bpy.data.materials.get('FARM_ShrimpShell') or P.plain('FARM_ShrimpShell', (0.62, 0.64, 0.62), 0.22, coat=0.8,
-                                                                   sss=0.3, transmission=0.2)
+    shell = bpy.data.materials.get('FARM_ShrimpShell') or P.plain('FARM_ShrimpShell', (0.66, 0.66, 0.63), 0.25, coat=0.8,
+                                                                   sss=0.35)
     fan = P.plain('FARM_ShrimpFan', (0.32, 0.30, 0.34), 0.25, coat=0.6, sss=0.2)
     me.materials.append(shell)
     me.materials.append(fan)
