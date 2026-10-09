@@ -354,7 +354,7 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
     rnd = random.Random(seed)
     root = empty(name, (0, 0, 0), size=0.5)
     bm = bmesh.new()
-    seg, rings = 40, 26
+    seg, rings = 96, 56
     vs = []
     for i in range(rings + 1):
         t = i / rings
@@ -373,7 +373,7 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
     me.materials.append(mats['net'])
     net = obj(f'{name}_Mesh', me, None, parent=root)
     wm = net.modifiers.new('Wire', 'WIREFRAME')
-    wm.thickness = 0.02
+    wm.thickness = 0.009
     wm.use_even_offset = True
     bmc = bmesh.new()
     bmesh.ops.create_icosphere(bmc, subdivisions=4, radius=1.0)
