@@ -1,17 +1,12 @@
-import { useEffect } from 'react'
 import { chaptersFor } from './config/chapters'
-import { store, useApp } from './engine/store'
+import { useApp } from './engine/store'
 import { Film } from './film/Film'
 import { ScrubStage } from './film/ScrubStage'
+import { Loader } from './ui/Loader'
 
 export default function App() {
   const path = useApp((s) => s.path)
   const chapters = chaptersFor(path)
-  // replaced by the loader (#4)
-  useEffect(() => {
-    store.setState({ ready: true })
-    document.documentElement.dataset.ready = '1'
-  }, [])
   return (
     <>
       <ScrubStage chapters={chapters} />
@@ -19,6 +14,7 @@ export default function App() {
         <h1>Skylark Exim</h1>
         <Film chapters={chapters} />
       </main>
+      <Loader />
     </>
   )
 }
