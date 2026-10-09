@@ -335,8 +335,177 @@ def pbr(name, color, rough=0.5, metal=0.0, var=0.12, bump=0.1, scale=3.0, coat=0
     return m
 
 
+TEXDIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets-src', 'cc0', 'tex')
+
+
+def _texfile(tset, *keys):
+    d = os.path.join(TEXDIR, tset)
+    if not os.path.isdir(d):
+        return None
+    for k in keys:
+        for f in sorted(os.listdir(d)):
+            lf = f.lower()
+            if k in lf and not lf.endswith('.exr'):
+                return os.path.join(d, f)
+    return None
+
+
+def tex_pbr(name, tset, scale=1.0, tint=None, tint_amount=0.75, rough_mul=1.0, rough_add=0.0, metal=None, bump=0.4,
+            attr=None, grime=0.0, coat=0.0, dark=1.0, paint_mask=False):
+    """PBR material from a CC0 texture set in assets-src/cc0/tex/<tset> (ambientCG or Poly Haven naming), box-projected
+    in object space (no UVs needed). tint overlays a colour on the texture's luminance (keeps its wear and grime);
+    attr takes the tint per face/instance from a colour attribute. Falls back to pbr() if the set is missing."""
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    col_f = _texfile(tset, '_color', '_diff')
+    if not col_f:
+        return pbr(name, tint or (0.5, 0.5, 0.5), 0.5 * rough_mul + rough_add, metal or 0.0, attr=attr, grime=grime)
+    rough_f = _texfile(tset, '_roughness', '_rough')
+    disp_f = _texfile(tset, '_displacement', '_disp')
+    metal_f = _texfile(tset, '_metalness', '_metal_')
+    m = new_mat(name)
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1400, 0))
+    mp = _node(nt, 'ShaderNodeMapping', (-1200, 0))
+    mp.inputs['Scale'].default_value = (scale, scale, scale)
+    l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
+
+    def img(path, nonc, y):
+        n = _node(nt, 'ShaderNodeTexImage', (-950, y))
+        n.image = bpy.data.images.load(path, check_existing=True)
+        if nonc:
+            n.image.colorspace_settings.name = 'Non-Color'
+        n.projection = 'BOX'
+        n.projection_blend = 0.25
+        l.new(mp.outputs[0], n.inputs['Vector'])
+        return n
+
+    ci = img(col_f, False, 300)
+    col = ci.outputs['Color']
+    if tint is not None or attr:
+        import numpy as np
+        im = ci.image
+        px = np.empty(im.size[0] * im.size[1] * 4, dtype=np.float32)
+        im.pixels.foreach_get(px)
+        px = px.reshape(-1, 4)[::97, :3]
+        mean = float((px * np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)).sum(axis=1).mean())
+        bw = _node(nt, 'ShaderNodeRGBToBW', (-650, 300))
+        l.new(col, bw.inputs[0])
+        g = _node(nt, 'ShaderNodeMath', (-500, 300))
+        g.operation = 'MULTIPLY'
+        g.inputs[1].default_value = dark / max(0.08, mean)  # texture luminance normalised to 1 on average
+        l.new(bw.outputs[0], g.inputs[0])
+        if attr:
+            a = _node(nt, 'ShaderNodeAttribute', (-650, 500))
+            a.attribute_name = attr
+            a.attribute_type = 'GEOMETRY'
+            tcol = _sock(a, 'Color', out=True)
+        else:
+            tcol = tuple(tint)
+        mul = _node(nt, 'ShaderNodeMix', (-350, 400))
+        mul.data_type = 'RGBA'
+        mul.blend_type = 'MULTIPLY'
+        mul.inputs[0].default_value = 1.0
+        cr = _node(nt, 'ShaderNodeCombineColor', (-500, 450))
+        for i in range(3):
+            l.new(g.outputs[0], cr.inputs[i])
+        l.new(cr.outputs[0], _sock(mul, 'A', 'RGBA'))
+        if isinstance(tcol, tuple):
+            _sock(mul, 'B', 'RGBA').default_value = (*tcol, 1)
+        else:
+            l.new(tcol, _sock(mul, 'B', 'RGBA'))
+        tinted = _sock(mul, 'Result', 'RGBA', out=True)  # luminance (normalised) * tint, keeps wear and dirt
+        if paint_mask:
+            # painted metal: paint where the texture's own paint colour is (red channel dominant), bare steel in scratches
+            sep = _node(nt, 'ShaderNodeSeparateColor', (-650, 650))
+            l.new(ci.outputs['Color'], sep.inputs[0])
+            dm = _node(nt, 'ShaderNodeMath', (-500, 650))
+            dm.operation = 'SUBTRACT'
+            l.new(sep.outputs[0], dm.inputs[0])
+            l.new(sep.outputs[1], dm.inputs[1])
+            mk = _node(nt, 'ShaderNodeMapRange', (-350, 650))
+            mk.inputs['From Min'].default_value = 0.08
+            mk.inputs['From Max'].default_value = 0.3
+            l.new(dm.outputs[0], mk.inputs['Value'])
+            col = mixrgb(nt, mk.outputs[0], (0.5, 0.51, 0.52), tcol if isinstance(tcol, tuple) else (0.5, 0.5, 0.5), loc=(-200, 300))
+        else:
+            col = mixrgb(nt, tint_amount, col, tinted, loc=(-200, 300))
+    if grime > 0:
+        n2 = _node(nt, 'ShaderNodeTexNoise', (-650, -150))
+        n2.inputs['Scale'].default_value = 0.6
+        n2.inputs['Detail'].default_value = 8
+        l.new(_sock(tc, 'Object', out=True), n2.inputs['Vector'])
+        r = _node(nt, 'ShaderNodeMapRange', (-450, -150))
+        r.inputs['From Min'].default_value = 0.52
+        r.inputs['From Max'].default_value = 0.75
+        r.inputs['To Max'].default_value = grime
+        l.new(_sock(n2, 'Factor', out=True), r.inputs['Value'])
+        col = mixrgb(nt, r.outputs[0], col, (0.11, 0.08, 0.05), loc=(-100, 200))
+    l.new(col, p.inputs['Base Color'])
+    if rough_f:
+        ri = img(rough_f, True, 0)
+        rr = _node(nt, 'ShaderNodeMath', (-600, 0))
+        rr.operation = 'MULTIPLY_ADD'
+        rr.inputs[1].default_value = rough_mul
+        rr.inputs[2].default_value = rough_add
+        rr.use_clamp = True
+        l.new(ri.outputs['Color'], rr.inputs[0])
+        l.new(rr.outputs[0], p.inputs['Roughness'])
+    else:
+        p.inputs['Roughness'].default_value = 0.5 * rough_mul + rough_add
+    if metal is not None:
+        p.inputs['Metallic'].default_value = metal
+    elif metal_f:
+        mi = img(metal_f, True, -300)
+        l.new(mi.outputs['Color'], p.inputs['Metallic'])
+    if disp_f and bump > 0:
+        di = img(disp_f, True, -600)
+        b = _node(nt, 'ShaderNodeBump', (-200, -600))
+        b.inputs['Strength'].default_value = bump
+        b.inputs['Distance'].default_value = 0.02 / max(scale, 0.05)
+        l.new(di.outputs['Color'], b.inputs['Height'])
+        l.new(b.outputs[0], p.inputs['Normal'])
+    if coat:
+        p.inputs['Coat Weight'].default_value = coat
+        p.inputs['Coat Roughness'].default_value = 0.1
+    return m
+
+
+def textured_overrides():
+    """Create the CC0-textured versions of the shared materials first, so every later pbr()/M() lookup by the same
+    name gets the textured one. No-op for sets that are not on disk."""
+    if not os.path.isdir(TEXDIR):
+        return
+    tex_pbr('MAT_WetDeck', 'rubber_tiles', 1.2, tint=(0.06, 0.07, 0.075), tint_amount=0.8, rough_mul=0.45, coat=0.35, grime=0.3)
+    tex_pbr('MAT_Concrete', 'concrete_floor_02', 0.3, tint=(0.46, 0.45, 0.42), tint_amount=0.5, grime=0.3)
+    tex_pbr('MAT_Asphalt', 'asphalt_02', 0.25, tint=(0.12, 0.12, 0.125), tint_amount=0.5)
+    tex_pbr('MAT_Steel', 'Metal009', 1.0, rough_mul=1.0)
+    tex_pbr('MAT_Rust', 'rust_coarse_01', 0.8)
+    tex_pbr('MAT_Rubber', 'Rubber004', 2.0, tint=(0.03, 0.03, 0.032), tint_amount=0.8)
+    tex_pbr('MAT_PaintWhite', 'PaintedMetal004', 0.6, tint=(0.8, 0.81, 0.79), tint_amount=0.85, metal=0.1, grime=0.35, paint_mask=True)
+    tex_pbr('MAT_PaintBlue', 'PaintedMetal004', 0.6, tint=(0.04, 0.12, 0.33), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
+    tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
+    tex_pbr('MAT_CraneWhite', 'rusty_metal_02', 0.6, tint=(0.82, 0.83, 0.82), tint_amount=0.7, metal=0.15, grime=0.15)
+    tex_pbr('MAT_CraneBlue', 'PaintedMetal004', 0.3, tint=(0.04, 0.17, 0.42), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
+    tex_pbr('MAT_ContainerPaint', 'container_side', 0.33, attr='col', tint_amount=0.88, metal=0.2, grime=0.2)
+    tex_pbr('MAT_QuayFace', 'concrete_floor_02', 0.2, tint=(0.4, 0.39, 0.36), tint_amount=0.5, grime=0.5)
+    tex_pbr('MAT_InsulPanel', 'corrugated_iron_02', 0.5, tint=(0.88, 0.89, 0.9), tint_amount=0.9, metal=0.05, bump=0.25)
+    for nm, c in (('MAT_OilskinOrange', (0.85, 0.32, 0.07)), ('MAT_OilskinYellow', (0.82, 0.6, 0.12)),
+                  ('MAT_ClothNavy', (0.05, 0.07, 0.13)), ('MAT_ClothWhite', (0.84, 0.85, 0.86)), ('MAT_ClothKhaki', (0.33, 0.28, 0.19)),
+                  ('MAT_ClothGrey', (0.3, 0.31, 0.32)), ('MAT_ClothBlue', (0.13, 0.22, 0.38)), ('MAT_ClothRed', (0.38, 0.09, 0.07)),
+                  ('MAT_ClothGreen', (0.15, 0.24, 0.12))):
+        tex_pbr(nm, 'Fabric030', 4.0, tint=c, tint_amount=0.95, rough_mul=0.9, metal=0.0, bump=0.35,
+                coat=0.25 if 'Oilskin' in nm else 0.0, grime=0.3 if 'Oilskin' in nm else 0.1)
+    for nm, c in (('MAT_CrateBlue', (0.2, 0.31, 0.44)), ('MAT_CrateRed', (0.45, 0.16, 0.11)), ('MAT_CrateWhite', (0.72, 0.74, 0.72)),
+                  ('MAT_CrateYellow', (0.62, 0.52, 0.25))):
+        tex_pbr(nm, 'Plastic006', 3.0, tint=c, tint_amount=0.9, metal=0.0, grime=0.4)
+
+
 def M():
     """The shared material set (MAT_* in ASSET_LIBRARY.md)."""
+    textured_overrides()
     return {
         'paint_white': pbr('MAT_PaintWhite', (0.82, 0.83, 0.81), 0.38, grime=0.35, var=0.08),
         'paint_blue': pbr('MAT_PaintBlue', (0.03, 0.12, 0.38), 0.35, grime=0.25),
