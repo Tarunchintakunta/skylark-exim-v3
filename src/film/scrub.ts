@@ -138,7 +138,7 @@ function videoNear(i: number, d: 1 | -1) {
 function slotFor(id: string, keep: (string | null)[]) {
   const have = slots.find((s) => s.id === id)
   if (have) return have
-  const free = slots.filter((x) => x !== shown && !keep.includes(x.id))
+  const free = slots.filter((x) => x !== shown && (x.id === null || !keep.includes(x.id)))
   const s = free.find((x) => x.id === null) ?? free.sort((a, b) => a.used - b.used)[0]
   if (!s) return null
   load(s, id)
