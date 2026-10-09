@@ -89,7 +89,7 @@ for sgn in (-1, 1):
     pts = []
     for i in range(24):
         u = i / 23
-        pts.append(head + Vector((0.05 - 2.1 * u ** 1.1, sgn * (0.04 + 0.35 * math.sin(u * math.pi * 0.7)), 0.03 + 0.25 * math.sin(u * math.pi))))
+        pts.append(head + Vector((0.05 - 1.25 * u ** 1.1, sgn * (0.04 + 0.25 * math.sin(u * math.pi * 0.7)), 0.03 + 0.25 * math.sin(u * math.pi))))
     curve_tube(pts, 0.009, 0.004, LEG)
     # short antennules
     curve_tube([head + Vector((0.02, sgn * 0.02, 0.01)), head + Vector((0.12, sgn * 0.05, 0.03)), head + Vector((0.2, sgn * 0.04, 0.0))], 0.004, 0.002, LEG)
