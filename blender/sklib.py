@@ -1768,8 +1768,11 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
                 k = rnd.choice(kinds)
                 fo = fish(f'{name}_f{i}', k, parent=c, loc=(rnd.uniform(-0.15, 0.15), rnd.uniform(-0.1, 0.1),
                                                           level + 0.045 + rnd.uniform(0, 0.035)),
-                          rot=(D(rnd.choice((90, -90)) + rnd.uniform(-10, 10)), 0, D(rnd.uniform(-25, 25) + (90 if fill == 'tuna' and False else 0))),
+                          rot=(D(rnd.choice((90, -90)) + rnd.uniform(-10, 10)), 0, D(rnd.uniform(-8, 8))),
                           scale=(0.95 if fill == 'tuna' else 1.0))
+                # keep the whole fish inside the crate walls (inner 0.54 x 0.34): shrink anything longer, pull it in
+                fo.scale *= min(1.0, 0.52 / max(1e-6, fo.scale.x))
+                fo.location.x = max(-0.27 + fo.scale.x / 2, min(0.27 - fo.scale.x / 2, fo.location.x))
         elif fill == 'shrimp':
             for i in range(40):
                 shrimp_proxy(f'{name}_s{i}', parent=c, loc=(rnd.uniform(-0.22, 0.22), rnd.uniform(-0.13, 0.13),
