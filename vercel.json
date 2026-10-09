@@ -6,11 +6,20 @@
   "cleanUrls": true,
   "headers": [
     {
-      "source": "/(media|models|textures|assets|fonts)/(.*)",
+      "source": "/(assets|fonts)/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(media|models|textures)/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
         }
       ]
     },
