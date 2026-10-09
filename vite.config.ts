@@ -5,15 +5,6 @@ export default defineConfig({
   plugins: [react()],
   // preview deployments (and local) label placeholder scenes; production never does
   define: { __PREVIEW__: JSON.stringify(process.env.VERCEL_ENV !== 'production') },
-  build: {
-    target: 'es2022',
-    rollupOptions: {
-      output: {
-        // three + R3F stay in their own lazy chunk (TRD §9: initial JS ≤ 250 KB gzip)
-        manualChunks(id) {
-          if (/node_modules\/(three|@react-three)/.test(id)) return 'three'
-        },
-      },
-    },
-  },
+  // three/R3F/drei load as a lazy chunk via React.lazy (src/film/GlobeLayer.tsx); no manualChunks needed
+  build: { target: 'es2022' },
 })
