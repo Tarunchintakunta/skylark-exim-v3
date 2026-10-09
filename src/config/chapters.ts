@@ -10,7 +10,7 @@ import { COLD_STORE_TEMP, type HudState } from './hud'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string }
+  | { kind: 'video'; id: string; alt: string; awaiting?: string }
   | { kind: 'still'; poster: string; alt: string; awaiting: string }
   | { kind: 'gradient'; alt: string; awaiting: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -136,13 +136,13 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame',
-    media: [{ kind: 'gradient', awaiting: 'x-cranes', alt: 'Deep blue placeholder for the container port.' }],
+    media: [{ kind: 'video', id: 'x-cranes', awaiting: 'final x-cranes render (960×540 preview)', alt: 'A white refrigerated truck parks under a ship-to-shore crane, which lifts the white reefer container on its cables onto the container ship.' }],
     captions: caps('port', [[0.1, 0.92]]),
     hud: [{ at: 0, step: '09', name: 'Export', state: 'Reefer container' }],
   },
   {
     id: 'sea', path: 'shared', label: 'At sea', vh: 120, joinNext: 'crossfade',
-    media: [{ kind: 'gradient', awaiting: 'x-ship', alt: 'Deep blue placeholder for the container ship at sea.' }],
+    media: [{ kind: 'video', id: 'x-ship', awaiting: 'final x-ship render (960×540 preview)', alt: 'Seen from straight above, the loaded container ship sails out across deep blue water, trailing a white wake.' }],
     captions: caps('sea', [[0.1, 0.85]]),
     hud: [{ at: 0, step: '09', name: 'Export', state: 'At sea · cold chain' }],
   },
