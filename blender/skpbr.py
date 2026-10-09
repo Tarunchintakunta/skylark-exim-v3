@@ -389,7 +389,9 @@ def _glare_cfg(gl):
             setattr(gl, k, v)
         except Exception:
             pass
-    for nm, v in (('Threshold', 1.2), ('Strength', 0.12), ('Size', 0.5), ('Mix', -0.85)):
+    # Blender 5.x: the glare type is a menu input (default Streaks, which drew star crosses on sun glints)
+    for nm, v in (('Type', 'Bloom'), ('Quality', 'Medium'), ('Clamp', True), ('Maximum', 4.0),
+                  ('Threshold', 1.2), ('Strength', 0.12), ('Size', 0.5), ('Mix', -0.85)):
         if nm in gl.inputs:
             try:
                 gl.inputs[nm].default_value = v
