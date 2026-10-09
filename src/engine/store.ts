@@ -26,4 +26,6 @@ export const frame = {
   index: 0,
   /** 0..1 progress inside the active chapter */
   local: 0,
+  /** true once the whole film has scrolled away (business sections on screen) */
+  past: false,
 }

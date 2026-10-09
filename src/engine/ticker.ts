@@ -7,7 +7,7 @@ import { frame } from './store'
 gsap.registerPlugin(ScrollTrigger)
 
 type TickFn = (time: number) => void
-const subs = new Set<TickFn>()
+let subs: { fn: TickFn; order: number }[] = []
 let lenis: Lenis | null = null
 let started = false
 
@@ -32,13 +32,16 @@ function tick(time: number) {
   const y = lenis ? lenis.scroll : window.scrollY
   if (y !== frame.scroll) frame.dir = y > frame.scroll ? 1 : -1
   frame.scroll = y
-  for (const fn of subs) fn(time)
+  for (const s of subs) s.fn(time)
 }
 
-/** Register a per-frame callback. Write only to refs, style.transform/opacity, video.currentTime or three uniforms. */
-export function onTick(fn: TickFn) {
-  subs.add(fn)
-  return () => void subs.delete(fn)
+/**
+ * Register a per-frame callback. Write only to refs, style.transform/opacity, video.currentTime or three uniforms.
+ * Lower `order` runs first (the film controller uses -10 so everyone else reads this frame's chapter progress).
+ */
+export function onTick(fn: TickFn, order = 0) {
+  subs = [...subs, { fn, order }].sort((a, b) => a.order - b.order)
+  return () => void (subs = subs.filter((s) => s.fn !== fn))
 }
 
 const SCROLL_KEYS = new Set([' ', 'PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', 'Home', 'End'])
