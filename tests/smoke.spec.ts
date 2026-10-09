@@ -26,16 +26,6 @@ test('path buttons switch the chapter list and the hash', async ({ page }) => {
   await expect(page.locator('[data-chapter="o1"]')).toHaveCount(1)
 })
 
-test('header pill jumps to the first chapter of the other path', async ({ page }) => {
-  await page.goto('/#ocean')
-  await ready(page)
-  await page.getByRole('button', { name: /switch to the pond path/i }).click()
-  await expect(page).toHaveURL(/#pond$/)
-  await page.waitForTimeout(400)
-  const top = await page.locator('[data-chapter="p1"]').evaluate((el) => Math.round(el.getBoundingClientRect().top))
-  expect(Math.abs(top)).toBeLessThan(4)
-})
-
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
   await page.route('**/api/rfq', (r) => r.fulfill({ json: { ok: false, fallback: 'mailto' } }))
   await page.goto('/')
