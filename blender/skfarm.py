@@ -114,7 +114,7 @@ def terrain_mat(tex='dry_mud_field_001', scale=0.09):
     L.new(geo.outputs['Position'], sep.inputs[0])
     # wet band near the waterline: darker, glossier
     wet = nt.nodes.new('ShaderNodeMapRange')
-    wet.inputs['From Min'].default_value = WATER + 0.35
+    wet.inputs['From Min'].default_value = WATER + 0.5
     wet.inputs['From Max'].default_value = WATER - 0.05
     L.new(sep.outputs[2], wet.inputs['Value'])
     mx = nt.nodes.new('ShaderNodeMix')

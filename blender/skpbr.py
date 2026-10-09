@@ -422,7 +422,7 @@ def haze(strength=0.0015, color=(0.75, 0.82, 0.92)):
         e.volumetric_samples = 32
 
 
-def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale=2.5, zscale=1.0, tag='dusted'):
+def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale=2.5, zscale=1.0, tag='dusted', bottom=0.0):
     """Overlay road dust / mud on an existing material: strongest at the ground, fading out by world height `top`,
     broken up by noise. Rewires Base Color and Roughness through a mix (idempotent per material and tag).
     zscale < 1 stretches the noise vertically (rust / grime run-off streaks); top=1000 disables the height fade."""
@@ -438,7 +438,7 @@ def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale
     L.new(geo.outputs['Position'], sep.inputs[0])
     h = nt.nodes.new('ShaderNodeMapRange')          # 1 at the ground .. 0 at `top`
     h.inputs['From Min'].default_value = top
-    h.inputs['From Max'].default_value = 0.0
+    h.inputs['From Max'].default_value = bottom
     L.new(sep.outputs[2], h.inputs['Value'])
     nz = nt.nodes.new('ShaderNodeTexNoise')
     nz.inputs['Scale'].default_value = scale
