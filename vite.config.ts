@@ -3,6 +3,8 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react()],
+  // preview deployments (and local) label placeholder scenes; production never does
+  define: { __PREVIEW__: JSON.stringify(process.env.VERCEL_ENV !== 'production') },
   build: {
     target: 'es2022',
     rollupOptions: {

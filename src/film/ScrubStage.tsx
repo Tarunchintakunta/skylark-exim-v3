@@ -37,6 +37,14 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
       })}
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
       <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
+      {__PREVIEW__ &&
+        segs.map((s, i) =>
+          'awaiting' in s.media ? (
+            <span key={`ph${i}`} data-ph={i} className="stage__ph mono">
+              Placeholder · awaiting {s.media.awaiting}
+            </span>
+          ) : null,
+        )}
       <div className="stage__veil" />
       <div className="stage__scrim" />
     </div>
