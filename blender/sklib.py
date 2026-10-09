@@ -487,7 +487,7 @@ def textured_overrides():
     tex_pbr('MAT_PaintWhite', 'PaintedMetal004', 0.6, tint=(0.8, 0.81, 0.79), tint_amount=0.85, metal=0.1, grime=0.35, paint_mask=True)
     tex_pbr('MAT_PaintBlue', 'PaintedMetal004', 0.6, tint=(0.04, 0.12, 0.33), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
     tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
-    tex_pbr('MAT_CraneWhite', 'rusty_metal_02', 0.6, tint=(0.82, 0.83, 0.82), tint_amount=0.7, metal=0.15, grime=0.15)
+    tex_pbr('MAT_CraneWhite', 'PaintedMetal004', 0.25, tint=(0.8, 0.81, 0.8), metal=0.15, grime=0.3, paint_mask=True)
     tex_pbr('MAT_CraneBlue', 'PaintedMetal004', 0.3, tint=(0.04, 0.17, 0.42), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
     tex_pbr('MAT_ContainerPaint', 'container_side', 0.33, attr='col', tint_amount=0.88, metal=0.2, grime=0.2)
     tex_pbr('MAT_QuayFace', 'concrete_floor_02', 0.2, tint=(0.4, 0.39, 0.36), tint_amount=0.5, grime=0.5)
@@ -498,9 +498,6 @@ def textured_overrides():
                   ('MAT_ClothGreen', (0.15, 0.24, 0.12))):
         tex_pbr(nm, 'Fabric030', 4.0, tint=c, tint_amount=0.95, rough_mul=0.9, metal=0.0, bump=0.35,
                 coat=0.25 if 'Oilskin' in nm else 0.0, grime=0.3 if 'Oilskin' in nm else 0.1)
-    for nm, c in (('MAT_CrateBlue', (0.2, 0.31, 0.44)), ('MAT_CrateRed', (0.45, 0.16, 0.11)), ('MAT_CrateWhite', (0.72, 0.74, 0.72)),
-                  ('MAT_CrateYellow', (0.62, 0.52, 0.25))):
-        tex_pbr(nm, 'Plastic006', 3.0, tint=c, tint_amount=0.9, metal=0.0, grime=0.4)
 
 
 def M():
@@ -545,9 +542,9 @@ def M():
         'hivis_orange': pbr('MAT_HiVisOrange', (0.95, 0.35, 0.02), 0.6, var=0.05),
         'reflect': pbr('MAT_ReflectStripe', (0.8, 0.8, 0.8), 0.25, 0.8, var=0.0),
         'hardhat': pbr('MAT_HardHat', (0.92, 0.92, 0.9), 0.3, var=0.05, coat=0.5),
-        'crate_blue': pbr('MAT_CrateBlue', (0.1, 0.17, 0.27), 0.5, var=0.2, grime=0.45, scale=5),
-        'crate_red': pbr('MAT_CrateRed', (0.3, 0.1, 0.08), 0.5, var=0.2, grime=0.45, scale=5),
-        'crate_white': pbr('MAT_CrateWhite', (0.62, 0.64, 0.63), 0.5, var=0.15, grime=0.45, scale=5),
+        'crate_blue': pbr('MAT_CrateBlue', (0.16, 0.27, 0.4), 0.45, var=0.25, bump=0.15, grime=0.5, scale=6),
+        'crate_red': pbr('MAT_CrateRed', (0.42, 0.15, 0.1), 0.45, var=0.25, bump=0.15, grime=0.5, scale=6),
+        'crate_white': pbr('MAT_CrateWhite', (0.66, 0.68, 0.67), 0.45, var=0.2, bump=0.15, grime=0.5, scale=6),
         'crate_yellow': pbr('MAT_CrateYellow', (0.5, 0.42, 0.18), 0.5, var=0.2, grime=0.45, scale=5),
         'ice': ice_mat(),
         'water_sea': water_mat('MAT_Water_Sea', (0.004, 0.035, 0.085)),
@@ -1193,10 +1190,19 @@ def _body(bulk=1.0, build=1.0, gender='male'):
             vz[vi] = max(vz[vi], 1 if z in (0, 1, 5) else (2 if z == 4 else 0))
     # clothes stand off the skin: inflate clothed zones along the normals (oilskins more than shirts)
     if got:
+        bmc = bmesh.new()
+        bmc.from_mesh(body)
+        bmc.verts.ensure_lookup_table()
+        clothed = [bmc.verts[i] for i in range(len(vz)) if vz[i] == 1]
+        for _ in range(int(6 + 30 * (bulk - 1.0))):
+            bmesh.ops.smooth_vert(bmc, verts=clothed, factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        bmc.normal_update()
         off = {1: 0.012 + 0.12 * (bulk - 1.0), 2: 0.016}
-        for v in body.vertices:
+        for v in bmc.verts:
             if vz[v.index]:
                 v.co += v.normal * off[vz[v.index]]
+        bmc.to_mesh(body)
+        bmc.free()
     bpy.data.objects.remove(bo)
     bpy.data.objects.remove(ao)
     _BODY[key] = (body, ad, skel)
@@ -1597,7 +1603,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
     if 'mesh' not in _CRATE:
         _CRATE['mesh'] = crate_mesh()
         _CRATE['ice'] = ice_mesh('LIB_CrateIce', 0.54, 0.34, 0.05, 12, 3)
-        _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 50, 4, 0.0, 0.02)
+        _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 140, 4, 0.0, 0.011)
     c = obj(name, _CRATE['mesh'], None, loc, (0, 0, rot_z), parent=parent)
     if len(c.material_slots) == 0:
         c.data.materials.append(mats['crate_' + color])
