@@ -1223,6 +1223,9 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     """A person: one continuous subdivided skin body deformed by an armature (bones named like JOINTS), clothing
     zones as material slots, rigid accessories (caps, masks, aprons, vests, hard hats) on bones.
     Returns the armature object (the root you place and key)."""
+    if os.path.exists(HBM) and os.environ.get('SK_OLD_PEOPLE') != '1':
+        import sklib_people
+        return sklib_people.person(name, outfit, loc, rot_z, height, skin, build, seed, mats)
     mats = mats or M()
     rnd = random.Random(seed if seed is not None else hash(name) & 0xffff)
     o = OUTFITS[outfit]
