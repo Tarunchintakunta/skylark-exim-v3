@@ -1,4 +1,5 @@
-"""Prepare the photogrammetry scans in assets-src/cc0/fish/ for the scenes and the product turntables.
+"""Prepare the photogrammetry scans in assets-src/cc0/fish/ (CC BY 4.0, credited in docs/LICENSES.md) for the
+scenes and the product turntables.
 
 Each scan: import the GLB, drop the colour-checker cube, join the chunks, orient (length along +X, back up +Z, the
 flat side facing Y), centre, scale to 1 m long, give the scanned colour a wet clearcoat, and save as
