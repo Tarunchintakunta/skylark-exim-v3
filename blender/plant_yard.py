@@ -151,18 +151,27 @@ def build(C, crate):
     H.walk_cycle(pj, 120, 300, [(120, (19.5, -1.7)), (300, (14.2, -1.7))], stride=0.55,
                  base=H.POSES['push'], arms=False)
 
-    # -- yard staff: a supervisor with a clipboard watches the reverse, two workers walk the facade
-    sup = H.person('HUM_YardSup', 'driver', 'female', coll=C, seed=35)
-    sup.location = (13.6, -6.6, 0)
-    sup.rotation_euler = (0, 0, D(130))
-    H.jitter(sup, {'upperarm.L': (40, -8, 0), 'forearm.L': (85, 0, 0), 'upperarm.R': (6, -20, 0),
-                   'forearm.R': (25, 0, 0), 'head': (10, 0, 6)}, 1, 300, every=24, amp=4, seed=35)
-    clip = Part()
-    clip.box((0, 0, 0), (0.24, 0.02, 0.32))
-    cb = clip.make('YD_Clipboard', P.plain('YD_Board', (0.35, 0.24, 0.12), 0.6), sup, bevel=0.003, coll=C)
-    cb.parent_type = 'BONE'
-    cb.parent_bone = 'hand.L' if 'hand.L' in sup.data.bones else 'forearm.L'
-    cb.location = (0, 0.05, 0)
+    # -- banksman in hi-vis beside the bay (clear of the truck's path), waving it back, then stepping aside
+    sup = H.person('HUM_Banksman', 'driver', 'male', coll=C, seed=35)
+    sup.location = (12.7, -4.6, 0)
+    sup.rotation_euler = (0, 0, D(-120))                       # faces the reversing truck
+    H.jitter(sup, H.POSES['look'], 1, 118, every=24, amp=4, seed=35)
+    for k, f in enumerate(range(124, 214, 8)):                 # "keep coming": both forearms beckon in rhythm
+        a_ = 95 if k % 2 else 60
+        H.set_pose(sup, {'upperarm.L': (70, -22, 0), 'forearm.L': (a_, 0, 0), 'upperarm.R': (70, -22, 0),
+                         'forearm.R': (a_, 0, 0), 'spine': (4, 0, 0), 'head': (2, 0, 0),
+                         'thigh.L': (8, 4, 0), 'thigh.R': (-4, 4, 0)}, f)
+    H.set_pose(sup, {'upperarm.L': (85, -8, 0), 'forearm.L': (10, 0, 0), 'upperarm.R': (6, -20, 0),
+                     'forearm.R': (25, 0, 0)}, 218)              # flat palm: stop
+    H.jitter(sup, H.POSES['look'], 232, 300, every=24, amp=4, seed=38)
+    # -- worker at the dock door, watching the truck in, steps back inside before the doors swing
+    dw = H.person('HUM_DockDoor', 'plant', 'female', coll=C, seed=39)
+    dw.location = (7.75, 0.45, S.DZ)
+    dw.rotation_euler = (0, 0, D(-10))
+    H.jitter(dw, {'upperarm.R': (30, -14, 0), 'forearm.R': (95, 0, 0), 'upperarm.L': (6, -18, 0),
+                  'forearm.L': (25, 0, 0), 'head': (6, 0, -10)}, 1, 236, every=20, amp=4, seed=39)
+    H.walk_cycle(dw, 238, 262, [(238, (7.75, 0.45)), (262, (6.3, 2.7))], stride=0.6)
+    H.jitter(dw, H.POSES['stand'], 266, 300, every=24, amp=3, seed=40)
     for nm, out, gnd, path, sd in (('HUM_YardW1', 'guard', 'male', [(40, (-10.5, -4.8)), (288, (3.0, -4.6))], 36),
                                    ('HUM_YardW2', 'farm', 'male', [(40, (-11.4, -5.6)), (288, (2.1, -5.5))], 37)):
         w = H.person(nm, out, gnd, coll=C, seed=sd)
@@ -174,6 +183,56 @@ def build(C, crate):
         if not n.startswith('TRK_') or any(t in n for t in ('Glass', 'Lamp', 'Refl', 'Interior', 'FloorAlu', 'Plate')):
             continue
         if 'Tyre' in n:
-            P.add_dust(m, top=1.25, color=(0.23, 0.17, 0.11), amount=0.75, rough=0.95, scale=6.0)
+            P.add_dust(m, top=1.25, color=(0.23, 0.17, 0.11), amount=0.8, rough=0.95, scale=6.0)
         else:
-            P.add_dust(m, top=1.6, color=(0.50, 0.42, 0.31), amount=0.55, rough=0.9, scale=2.2)
+            P.add_dust(m, top=1.9, color=(0.46, 0.38, 0.28), amount=0.7, rough=0.9, scale=2.2)
+        if any(t in n for t in ('Chassis', 'DarkGrey', 'Bumper', 'UnitGrey')):
+            P.add_dust(m, top=1000, color=(0.20, 0.085, 0.035), amount=0.28, rough=0.8, scale=5.0, zscale=0.12,
+                       tag='rusted')
+    P.add_dust(bpy.data.materials.get('PL_Rubber'), top=1000, color=(0.32, 0.31, 0.29), amount=0.5, rough=0.9,
+               scale=9.0, tag='scuffed')
+    _stains(C)
+
+
+def _stain_mat(name, color, rough, scale, stretch, thr):
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    L = nt.links
+    p = nt.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (*color, 1)
+    p.inputs['Roughness'].default_value = rough
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (scale, scale * stretch, scale)
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Detail'].default_value = 8
+    L.new(mp.outputs[0], nz.inputs['Vector'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = thr
+    mr.inputs['From Max'].default_value = thr + 0.3
+    mr.inputs['To Max'].default_value = 0.45
+    L.new(nz.outputs['Fac'], mr.inputs['Value'])
+    L.new(mr.outputs[0], p.inputs['Alpha'])
+    return m
+
+
+def _stains(C):
+    """Oil drips where trucks park, tyre marks fanning out of the bays (thin decal slabs on the apron)."""
+    oil = _stain_mat('YD_Oil', (0.02, 0.018, 0.016), 0.18, 0.9, 1.0, 0.5)
+    tyre = _stain_mat('YD_TyreMark', (0.03, 0.03, 0.03), 0.75, 1.4, 0.08, 0.48)
+    for bx in S.BAYS:
+        p = Part()
+        for dy in (-5.2, -7.6):
+            p.box((bx, dy, 0.006), (1.6, 1.8, 0.004))
+        o = p.make('YD_Oil_%d' % int(bx * 10), oil, None, coll=C)
+        o.rotation_euler.z = 0.0
+        q = Part()
+        for sy in (-0.92, 0.92):
+            q.box((bx + sy, -6.5, 0.005), (0.55, 9.0, 0.004))
+        q.make('YD_TyreMarks_%d' % int(bx * 10), tyre, None, coll=C)

@@ -422,10 +422,11 @@ def haze(strength=0.0015, color=(0.75, 0.82, 0.92)):
         e.volumetric_samples = 32
 
 
-def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale=2.5):
+def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale=2.5, zscale=1.0, tag='dusted'):
     """Overlay road dust / mud on an existing material: strongest at the ground, fading out by world height `top`,
-    broken up by noise. Rewires Base Color and Roughness through a mix (idempotent per material)."""
-    if m is None or not m.use_nodes or m.get('dusted'):
+    broken up by noise. Rewires Base Color and Roughness through a mix (idempotent per material and tag).
+    zscale < 1 stretches the noise vertically (rust / grime run-off streaks); top=1000 disables the height fade."""
+    if m is None or not m.use_nodes or m.get(tag):
         return
     nt = m.node_tree
     p = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None)
@@ -442,7 +443,11 @@ def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale
     nz = nt.nodes.new('ShaderNodeTexNoise')
     nz.inputs['Scale'].default_value = scale
     nz.inputs['Detail'].default_value = 10
-    L.new(geo.outputs['Position'], nz.inputs['Vector'])
+    vm = nt.nodes.new('ShaderNodeVectorMath')
+    vm.operation = 'MULTIPLY'
+    vm.inputs[1].default_value = (1.0, 1.0, zscale)
+    L.new(geo.outputs['Position'], vm.inputs[0])
+    L.new(vm.outputs[0], nz.inputs['Vector'])
     nm = nt.nodes.new('ShaderNodeMapRange')
     nm.inputs['From Min'].default_value = 0.35
     nm.inputs['From Max'].default_value = 0.65
@@ -468,4 +473,4 @@ def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale
         mx.inputs[b].default_value = val
         L.new(fac.outputs[0], mx.inputs[0])
         L.new(mx.outputs[out], inp)
-    m['dusted'] = True
+    m[tag] = True
