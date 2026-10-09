@@ -220,8 +220,8 @@ def build(out):
     bag = _bag(cx, yw, Cp, rnd)
     # bag path: under water -> lifted out dripping (55-80) -> carried up the bank to the crates (80-96) -> tipped
     pts = [(F0, (cx - 0.2, yw + 2.4, WATER - 0.12), 0.0), (48, (cx - 0.3, yw + 1.6, WATER - 0.08), 0.0),
-           (62, (cx - 0.4, yw + 1.0, WATER + 0.25), 0.0), (78, (cx - 0.6, yw + 0.2, WATER + 0.85), 0.0),
-           (92, (cx - 2.4, yb - 0.9, TOP + 0.95), 0.0), (102, (cx - 2.7, yb - 1.25, TOP + 0.8), 1.2),
+           (62, (cx - 0.4, yw + 1.0, WATER + 0.35), 0.0), (78, (cx - 0.6, yw + 0.2, WATER + 1.12), 0.0),
+           (92, (cx - 2.4, yb - 0.9, TOP + 1.2), 0.0), (102, (cx - 2.7, yb - 1.25, TOP + 0.8), 1.2),
            (128, (cx - 1.3, yb - 1.25, TOP + 0.8), 1.4), (140, (cx - 0.4, yb - 0.4, TOP + 0.9), 0.0)]
     for f, loc, tip in pts:
         bag.location = loc
@@ -241,7 +241,7 @@ def build(out):
         for f in range(56, 100, 2):
             t = ((f - 56) / 10.0 + ph) % 1.0
             bl = _bag_at(pts, f)
-            d.location = (bl[0] + rnd.uniform(-0.25, 0.25), bl[1] + rnd.uniform(-0.2, 0.2), bl[2] - 0.35 - t * 0.9)
+            d.location = (bl[0] + rnd.uniform(-0.25, 0.25), bl[1] + rnd.uniform(-0.2, 0.2), bl[2] - 0.45 - t * 0.9)
             d.keyframe_insert('location', frame=f)
         key_hide(d, [(F0, True), (58, False), (98, True)])
 
@@ -290,37 +290,48 @@ def build(out):
         rest = {'spine': (4, 0, 0), 'upperarm': (6, -18, 0), 'forearm': (24, 0, 0), 'head': (8, 0, 0)}
         H.jitter(w, rest, 92, 140, every=16, amp=4, seed=k2)
         H.jitter(w, H.POSES['look'], 150, F1 + 10, every=24, amp=5, seed=k2 + 9)
-    # two lifters raise the bag, carry it up and tip it into the crates
+    # two lifters raise the bag, carry it up and tip it into the crates: lifter 0 hauls on the mouth rope with both
+    # hands, lifter 1 takes the weight under the belly; both stay at arm's length from the bag along its path
+    lifters = []
+    grips = (((-0.03, 0.0, MOUTH_HANG + 0.2), (0.02, 0.0, MOUTH_HANG + 0.1)),        # rope, hand over hand
+             ((0.27, -0.17, 0.08), (0.17, -0.25, -0.05)))                             # belly / under the bag
+    offs = ((-0.40, -0.50), (0.46, -0.42))
     for k2, side in enumerate((-1, 1)):
         w = worker('HUM_Lifter%d' % k2, 'farm_long' if k2 else 'farm', 'male', 70 + k2)
-        hand = bpy.data.objects.new('HV_BagHand%d' % k2, None)
-        Cp.objects.link(hand)
-        hand.parent = bag
-        hand.location = (side * 0.32, 0, 0.32)
-        ik = w.pose.bones['forearm.R' if side > 0 else 'forearm.L'].constraints.new('IK')
-        ik.target = hand
-        ik.chain_count = 2
-        ik.use_tail = True
-        ik2 = w.pose.bones['forearm.L' if side > 0 else 'forearm.R'].constraints.new('IK')
-        ik2.target = hand
-        ik2.chain_count = 2
-        ik2.use_tail = True
-        for c in (ik, ik2):
-            for f, v in ((F0, 0.0), (52, 0.0), (58, 1.0), (128, 1.0), (134, 0.0)):
-                c.influence = v
-                c.keyframe_insert('influence', frame=f)
-        path = [(F0, (cx - 0.3 + side * 0.9, yb + 2.1)), (50, (cx - 0.3 + side * 0.85, yb + 1.8)),
-                (80, (cx - 0.6 + side * 0.8, yb + 0.9)), (96, (cx - 2.6 + side * 0.75, yb - 0.4)),
-                (128, (cx - 1.3 + side * 0.75, yb - 0.45)), (160, (cx + 3.6 + side * 0.8, yb - 1.0))]
+        lifters.append(w)
+        for hs, gl in zip(('L', 'R') if k2 == 0 else ('R', 'L'), grips[k2]):
+            hand = bpy.data.objects.new('HV_BagHand%d%s' % (k2, hs), None)
+            Cp.objects.link(hand)
+            hand.parent = bag
+            hand.location = gl
+            ik = w.pose.bones['forearm.' + hs].constraints.new('IK')
+            ik.target = hand
+            ik.chain_count = 2
+            ik.use_tail = True
+            # lifter 1 lets go of the belly as lifter 0 tips the bag by the rope
+            for f, v in (((F0, 0.0), (50, 0.0), (56, 1.0), (128, 1.0), (134, 0.0)) if k2 == 0 else
+                         ((F0, 0.0), (50, 0.0), (56, 1.0), (92, 1.0), (98, 0.0))):
+                ik.influence = v
+                ik.keyframe_insert('influence', frame=f)
+            H.grip(w, hs, curl=0.85)
+        ox, oy = offs[k2]
+        path = [(f, (loc[0] + ox, loc[1] + oy)) for f, loc, _ in pts if f <= 128]
+        path = [(F0, (path[0][1][0], path[0][1][1] - 0.2))] + path[1:]
+        path.append((160, (cx + 3.6 + side * 0.8, yb - 1.0)))
         H.walk_cycle(w, F0, 160, path, stride=0.45,
-                     base={'spine': (12, 0, 0), 'upperarm': (10, -16, 0), 'forearm': (30, 0, 0)}, arms=False, step=2)
+                     base={'spine': (24 if k2 else 12, 0, 0), 'thigh': (14 if k2 else 0, 3, 0),
+                           'shin': (-18 if k2 else 0, 0, 0), 'upperarm': (10, -16, 0), 'forearm': (30, 0, 0)},
+                     arms=False, step=2)
         for fc in T._fcurves(w.animation_data.action):
             if fc.data_path == 'location' and fc.array_index == 2:
                 for kp in fc.keyframe_points:
                     xy = _path_at(path, kp.co.x)
                     kp.co.y += z_at(*xy)
                     kp.handle_left.y = kp.handle_right.y = kp.co.y
+        if k2:
+            H.set_pose(w, {'spine': (14, 0, 0), 'upperarm': (8, -14, 0), 'forearm': (35, 0, 0), 'head': (12, 0, 0)}, 102)
         H.jitter(w, H.POSES['stand'], 162, F1 + 10, every=24, amp=4, seed=k2 + 30)
+    _ripples(Cp, [bpy.data.objects[n] for n in ('HUM_Wader0', 'HUM_Wader1')] + lifters, z_at, WATER)
     # ice scooper at the crates
     w = worker('HUM_Scooper', 'farm_long', 'female', 80)
     w.location = (cx - 2.0, yb - 2.15, TOP)
@@ -374,6 +385,10 @@ def build(out):
                 c.keyframe_insert('influence', frame=f)
         key_hide(cr, [(F0, False), (fs + 52, True)])
         key_hide(loaded[slot], [(F0, True), (fs + 52, False)])
+    # every hand on the net rope, the bag or a crate handle: move the bodies until the IK hands land (2 fps check)
+    for n_, a_, b_ in (('HUM_Wader0', F0, 90), ('HUM_Wader1', F0, 90), ('HUM_Lifter0', 44, 136), ('HUM_Lifter1', 44, 100),
+                       ('HUM_Carrier0', 140, 210), ('HUM_Carrier1', 152, 222)):
+        H.settle_reach(bpy.data.objects[n_], a_, b_, iters=5, max_shift=0.35, z_fn=z_at if 'Carrier' not in n_ else None)
     # driver waiting by the cab, then gets in
     drv = worker('HUM_Driver', 'driver', 'male', 99)
     drv.location = (tx0 + 5.2, -0.4, TOP)
@@ -564,37 +579,309 @@ def _net(cx, yw, C):
     return o
 
 
+def _bag_mesh_mat():
+    """Fine diamond-mesh knotless netting (about 2 cm), wet dark-green twine; alpha + bump from the twine mask."""
+    m = bpy.data.materials.get('FARM_BagMesh')
+    if m:
+        return m
+    m = bpy.data.materials.new('FARM_BagMesh')
+    m.use_nodes = True
+    m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    Ln = nt.links
+    p = nt.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0.03, 0.065, 0.045, 1)
+    p.inputs['Roughness'].default_value = 0.35
+    p.inputs['Coat Weight'].default_value = 0.5
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Rotation'].default_value = (0, 0, math.radians(45))     # diamonds, not squares
+    Ln.new(tc.outputs['UV'], mp.inputs['Vector'])
+    outs = []
+    for d in ('X', 'Y'):
+        w = nt.nodes.new('ShaderNodeTexWave')
+        w.wave_type = 'BANDS'
+        w.bands_direction = d
+        w.wave_profile = 'SIN'
+        w.inputs['Scale'].default_value = 30.0
+        w.inputs['Distortion'].default_value = 0.4
+        w.inputs['Detail'].default_value = 0.0
+        Ln.new(mp.outputs[0], w.inputs['Vector'])
+        mr = nt.nodes.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = 0.84
+        mr.inputs['From Max'].default_value = 0.93
+        Ln.new(w.outputs['Fac'], mr.inputs['Value'])
+        outs.append(mr.outputs[0])
+    mx = nt.nodes.new('ShaderNodeMath')
+    mx.operation = 'MAXIMUM'
+    Ln.new(outs[0], mx.inputs[0])
+    Ln.new(outs[1], mx.inputs[1])
+    Ln.new(mx.outputs[0], p.inputs['Alpha'])
+    b = nt.nodes.new('ShaderNodeBump')
+    b.inputs['Strength'].default_value = 0.7
+    b.inputs['Distance'].default_value = 0.003
+    Ln.new(mx.outputs[0], b.inputs['Height'])
+    Ln.new(b.outputs[0], p.inputs['Normal'])
+    return m
+
+
+def _mass_mat():
+    """Packed live shrimp seen through the mesh: wet translucent grey bodies with pink-brown banding."""
+    m = bpy.data.materials.get('HV_ShrimpMass')
+    if m:
+        return m
+    m = bpy.data.materials.new('HV_ShrimpMass')
+    m.use_nodes = True
+    nt = m.node_tree
+    Ln = nt.links
+    p = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (1.0, 1.0, 2.2)
+    Ln.new(tc.outputs['Object'], mp.inputs['Vector'])
+    vo = nt.nodes.new('ShaderNodeTexVoronoi')
+    vo.inputs['Scale'].default_value = 26.0
+    vo.inputs['Randomness'].default_value = 1.0
+    Ln.new(mp.outputs[0], vo.inputs['Vector'])
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    ramp.color_ramp.elements[0].color = (0.30, 0.31, 0.29, 1)
+    ramp.color_ramp.elements[1].color = (0.46, 0.33, 0.27, 1)
+    e = ramp.color_ramp.elements.new(0.55)
+    e.color = (0.40, 0.40, 0.37, 1)
+    Ln.new(vo.outputs['Color'], ramp.inputs[0])
+    band = nt.nodes.new('ShaderNodeTexWave')                   # body segments
+    band.inputs['Scale'].default_value = 60.0
+    band.inputs['Distortion'].default_value = 3.0
+    Ln.new(mp.outputs[0], band.inputs['Vector'])
+    bm_ = nt.nodes.new('ShaderNodeMix')
+    bm_.data_type = 'RGBA'
+    bm_.blend_type = 'MULTIPLY'
+    bm_.inputs[0].default_value = 0.35
+    Ln.new(ramp.outputs[0], bm_.inputs[6])
+    Ln.new(band.outputs['Color'], bm_.inputs[7])
+    Ln.new(bm_.outputs[2], p.inputs['Base Color'])
+    p.inputs['Roughness'].default_value = 0.22
+    p.inputs['Coat Weight'].default_value = 0.7
+    p.inputs['Subsurface Weight'].default_value = 0.25
+    p.inputs['Subsurface Scale'].default_value = 0.01
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.8
+    bp.inputs['Distance'].default_value = 0.01
+    Ln.new(vo.outputs['Distance'], bp.inputs['Height'])
+    Ln.new(bp.outputs[0], p.inputs['Normal'])
+    return m
+
+
+# cod-end shapes (local, origin = bag centre): 'rest' slumped in the water, 'hang' sagging by gravity from the mouth
+BAG_SHAPES = {'rest': (0.20, 0.50, 0.42, 0.76), 'hang': (0.42, 0.95, 0.30, 0.72)}   # mouth z, length, belly r, belly u
+MOUTH_HANG = 0.42
+
+
+def _bag_profile(shape, u):
+    mz, ln, rb, ub = BAG_SHAPES[shape]
+    z = mz - ln * u
+    if u <= ub:
+        r = 0.05 + (rb - 0.05) * math.sin(0.5 * math.pi * u / ub) ** 0.8
+    else:
+        q = (u - ub) / (1 - ub)
+        r = rb * math.sqrt(max(0.0, 1 - q * q))
+    return r, z
+
+
 def _bag(cx, yw, C, rnd):
-    """Net bag (cod end) full of shrimp; lifted out at 55-80."""
+    """Net bag (cod end) full of shrimp: soft diamond-mesh sack; slumped in the water, sags from the mouth when
+    lifted (55-62), shrimp press through the mesh, rope cinch at the mouth. Lifted out at 55-80."""
     root = bpy.data.objects.new('HV_Bag', None)
     C.objects.link(root)
-    p = Part()
-    bm = p.bm
-    bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=0.45)
-    for v in bm.verts:
-        v.co.z = v.co.z * 0.75 if v.co.z < 0 else v.co.z * 0.35
-        v.co.x *= 1.1
-    o = p.make('HV_BagNet', net_mat(), root, smooth=True, coll=C)
-    me = o.data
-    uv = me.uv_layers.new(name='UV')
-    for poly in me.polygons:
-        for li in poly.loop_indices:
-            v = me.vertices[me.loops[li].vertex_index].co
-            uv.data[li].uv = (math.atan2(v.y, v.x) * 0.3, v.z * 0.7)    # ~7 cm cod-end mesh
-    for m in range(120):                 # packed against the mesh so they read through it
-        while True:
-            q = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 0.2)))
-            if 0.2 < q.length < 1:
-                break
-        q = q.normalized() * rnd.uniform(0.7, 0.97)
-        F.shrimp('HV_BagShrimp%02d' % m, (q.x * 0.44, q.y * 0.37, q.z * 0.29), (rnd.uniform(0, 6.3), rnd.uniform(0, 6.3),
-                 rnd.uniform(0, 6.3)), parent=root, C=C, scale=rnd.uniform(0.95, 1.2))
+    root.scale = (0.82, 0.82, 0.82)               # ~80 cm cod end, a two-man lift
+    nr, npf = 32, 24
+    waves = [(rnd.randint(3, 9), rnd.uniform(4, 16), rnd.uniform(0, 6.3), rnd.uniform(0.015, 0.03)) for _ in range(5)]
+
+    def lump(th, u):                       # shrimp bodies pushing the soft mesh out
+        return 1 + sum(a * math.sin(k * th + f * u + ph) for k, f, ph, a in waves) * min(1.0, u * 4)
+
+    def build(name, mat, shrink, cap):
+        bm = bmesh.new()
+        rings = []
+        for j in range(npf):
+            u = j / npf
+            ring = []
+            for i in range(nr):
+                th = 2 * math.pi * i / nr
+                ring.append(bm.verts.new((0, 0, 0)))
+            rings.append(ring)
+        tip = bm.verts.new((0, 0, 0))
+        for j in range(npf - 1):
+            for i in range(nr):
+                bm.faces.new((rings[j][i], rings[j][(i + 1) % nr], rings[j + 1][(i + 1) % nr], rings[j + 1][i]))
+        for i in range(nr):
+            bm.faces.new((rings[-1][i], rings[-1][(i + 1) % nr], tip))
+        if cap:
+            bm.faces.new(list(reversed(rings[0])))
+        me = bpy.data.meshes.new(name)
+        bm.to_mesh(me)
+        bm.free()
+        o = bpy.data.objects.new(name, me)
+        C.objects.link(o)
+        o.parent = root
+        me.materials.append(mat)
+
+        def co(shape):
+            out = []
+            for j in range(npf):
+                u = j / npf
+                r, z = _bag_profile(shape, u)
+                for i in range(nr):
+                    th = 2 * math.pi * i / nr
+                    rr = r * lump(th, u) * shrink
+                    out.append(Vector((math.cos(th) * rr * 1.06, math.sin(th) * rr, z if shrink == 1 else z - 0.02)))
+            out.append(Vector((0, 0, _bag_profile(shape, 1.0)[1] * (1 if shrink == 1 else 0.97))))
+            return out
+        rest, hang = co('rest'), co('hang')
+        for v, c in zip(me.vertices, rest):
+            v.co = c
+        o.shape_key_add(name='Basis')
+        k = o.shape_key_add(name='Hang')
+        for i, c in enumerate(hang):
+            k.data[i].co = c
+        uv = me.uv_layers.new(name='UV')
+        for poly in me.polygons:
+            for li in poly.loop_indices:
+                vi = me.loops[li].vertex_index
+                j, i = divmod(vi, nr)
+                th = 2 * math.pi * i / nr
+                if vi == len(me.vertices) - 1:
+                    j, th = npf, 0.0
+                # seam: the last column wraps to 2*pi so the diamonds stay continuous
+                if poly.vertices[:] and max(me.loops[l2].vertex_index % nr for l2 in poly.loop_indices) == nr - 1 \
+                        and min(me.loops[l2].vertex_index % nr for l2 in poly.loop_indices) == 0 and i == 0:
+                    th = 2 * math.pi
+                uv.data[li].uv = (th * 0.29, j / npf * 1.05)
+        for f, v in ((F0, 0.0), (52, 0.0), (62, 1.0)):
+            k.value = v
+            k.keyframe_insert('value', frame=f)
+        for poly in me.polygons:
+            poly.use_smooth = True
+        return o
+    build('HV_BagNet', _bag_mesh_mat(), 1.0, False)
+    mass = build('HV_BagMass', _mass_mat(), 0.93, True)
+    # bag empties as it is tipped into the crates
+    for f, sc in ((F0, 1.0), (100, 1.0), (128, 0.25)):
+        mass.scale = (sc, sc, sc)
+        mass.keyframe_insert('scale', frame=f)
+    key_hide(mass, [(F0, False), (129, True)], children=False)
+    # rope: cinch ring round the mouth and a short haul rope up to the hands (moves with the mouth)
+    rp = Part()
+    for i in range(14):
+        a0, a1 = 2 * math.pi * i / 14, 2 * math.pi * (i + 1) / 14
+        rp.cyl((math.cos(a0) * 0.055, math.sin(a0) * 0.05, 0.2), (math.cos(a1) * 0.055, math.sin(a1) * 0.05, 0.2), 0.008, 6)
+    pts = [(0, 0, 0.2), (0.01, 0.0, 0.3), (-0.005, 0.01, 0.4), (0.0, 0.0, 0.46)]
+    for a, b in zip(pts, pts[1:]):
+        rp.cyl(a, b, 0.009, 6)
+    ro = rp.make('HV_BagRope', P.plain('HV_RopeBlue', (0.08, 0.17, 0.30), 0.7, bump=0.4), root, smooth=True, coll=C)
+    ro.shape_key_add(name='Basis')
+    kr = ro.shape_key_add(name='Hang')
+    for i, v in enumerate(ro.data.vertices):
+        kr.data[i].co = v.co + Vector((0, 0, MOUTH_HANG - 0.2))
+    for f, v in ((F0, 0.0), (52, 0.0), (62, 1.0)):
+        kr.value = v
+        kr.keyframe_insert('value', frame=f)
+    # shrimp pressed against the mesh (hang shape), shown once the bag hangs
+    for m in range(70):
+        u = rnd.uniform(0.35, 0.97)
+        th = rnd.uniform(0, 2 * math.pi)
+        r, z = _bag_profile('hang', u)
+        rr = r * lump(th, u) * 0.95
+        loc = (math.cos(th) * rr * 1.06, math.sin(th) * rr, z)
+        sh = F.shrimp('HV_BagShrimp%02d' % m, loc, (rnd.uniform(-0.6, 0.6), rnd.uniform(-0.6, 0.6), th + math.pi / 2 +
+                      rnd.uniform(-0.8, 0.8)), parent=root, C=C, scale=rnd.uniform(0.9, 1.15))
+        key_hide(sh, [(F0, True), (61, False)], children=False)
     # a few shrimp flick (small rotation jitter)
-    for ch in list(root.children)[1:12]:
-        for f in range(50, 100, 3):
+    for ch in [c for c in root.children if c.name.startswith('HV_BagShrimp')][:12]:
+        for f in range(62, 100, 3):
             ch.rotation_euler.x += rnd.uniform(-0.5, 0.5)
             ch.keyframe_insert('rotation_euler', frame=f)
+    # water streaming off the belly while it hangs: thin falling threads (stretch + flicker)
+    wm = P.plain('HV_WaterThread', (0.8, 0.85, 0.85), 0.02, transmission=0.9, ior=1.33)
+    for k in range(7):
+        th = rnd.uniform(0, 2 * math.pi)
+        u = rnd.uniform(0.82, 0.98)
+        r, z = _bag_profile('hang', u)
+        tp = Part()
+        tp.cyl((0, 0, 0), (0, 0, -1.0), rnd.uniform(0.0018, 0.003), 5)
+        t = tp.make('HV_BagStream%d' % k, wm, root, coll=C)
+        t.location = (math.cos(th) * r * 0.9, math.sin(th) * r * 0.9, z)
+        for f in range(56, 102, 3):
+            ln = (0.0 if f < 60 else rnd.uniform(0.12, 0.38)) * (1.0 if f < 88 else max(0.0, (100 - f) / 12))
+            t.scale = (1, 1, max(0.01, ln))
+            t.keyframe_insert('scale', frame=f)
+        key_hide(t, [(F0, True), (60, False), (100, True)], children=False)
     return root
+
+
+def _ripples(C, people, z_at, W):
+    """Rings spreading on the water round each person standing in it (follow x/y, shown only while wet)."""
+    m = bpy.data.materials.get('HV_Ripple')
+    if not m:
+        m = bpy.data.materials.new('HV_Ripple')
+        m.use_nodes = True
+        m.surface_render_method = 'DITHERED'
+        nt = m.node_tree
+        Ln = nt.links
+        p = nt.nodes['Principled BSDF']
+        p.inputs['Base Color'].default_value = (0.05, 0.055, 0.04, 1)
+        p.inputs['Roughness'].default_value = 0.03
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        wv = nt.nodes.new('ShaderNodeTexWave')
+        wv.name = 'Rings'
+        wv.wave_type = 'RINGS'
+        wv.inputs['Scale'].default_value = 1.6
+        wv.inputs['Distortion'].default_value = 1.2
+        wv.inputs['Detail'].default_value = 1.0
+        Ln.new(tc.outputs['Object'], wv.inputs['Vector'])
+        ln = nt.nodes.new('ShaderNodeVectorMath')
+        ln.operation = 'LENGTH'
+        Ln.new(tc.outputs['Object'], ln.inputs[0])
+        fd = nt.nodes.new('ShaderNodeMapRange')
+        fd.inputs['From Min'].default_value = 0.95
+        fd.inputs['From Max'].default_value = 0.25
+        fd.inputs['To Max'].default_value = 0.7
+        Ln.new(ln.outputs['Value'], fd.inputs['Value'])
+        Ln.new(fd.outputs[0], p.inputs['Alpha'])
+        b = nt.nodes.new('ShaderNodeBump')
+        b.inputs['Strength'].default_value = 0.5
+        b.inputs['Distance'].default_value = 0.01
+        Ln.new(wv.outputs['Fac'], b.inputs['Height'])
+        Ln.new(b.outputs[0], p.inputs['Normal'])
+        sock = wv.inputs['Phase Offset']
+        for f, v in ((F0, 0.0), (F1, -90.0)):
+            sock.default_value = v
+            sock.keyframe_insert('default_value', frame=f)
+        for fc in T._fcurves(nt.animation_data.action):
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
+    bm = bmesh.new()
+    bmesh.ops.create_circle(bm, cap_ends=True, segments=24, radius=1.0)
+    me = bpy.data.meshes.new('HV_RippleDisc')
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(m)
+    for w in people:
+        o = bpy.data.objects.new(w.name + '_Ripple', me)
+        C.objects.link(o)
+        o.location = (0, 0, W + 0.004)
+        c = o.constraints.new('COPY_LOCATION')
+        c.target = w
+        c.use_z = False
+        prev = None
+        for f in range(F0, F1 + 1, 4):
+            bpy.context.scene.frame_set(f)
+            x, y = w.matrix_world.translation.x, w.matrix_world.translation.y
+            wet = z_at(x, y) < W - 0.05
+            if wet != prev:
+                key_hide(o, [(f, not wet)], children=False)
+                prev = wet
+    bpy.context.scene.frame_set(F0)
 
 
 if __name__ == '__main__':
