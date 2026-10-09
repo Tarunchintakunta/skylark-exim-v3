@@ -262,7 +262,7 @@ def _dress(name, root, mats, deck_z, L, R, wx1):
                   (cx + rnd.uniform(-0.03, 0.03), cy, deck_z + lvl * 0.29), rnd.uniform(-0.06, 0.06), parent=root, mats=mats)
             k += 1
     bucket = cyl_mesh(f'{name}_Bucket', 0.16, 0.32, 16, r2=0.19, origin='base')
-    bucket.materials.append(pbr('MAT_BucketBlue', (0.05, 0.2, 0.5), 0.45))
+    bucket.materials.append(pbr('MAT_BucketBlue', (0.12, 0.2, 0.3), 0.5, grime=0.4))
     for (bx, by) in ((-2.0, -1.4), (6.0, 0.4), (-4.6, 0.9)):
         obj(f'{name}_Bucket', bucket, None, (bx, by, deck_z), parent=root)
     basket = cyl_mesh(f'{name}_Basket', 0.28, 0.3, 18, r2=0.32, origin='base')

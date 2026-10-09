@@ -345,19 +345,19 @@ def M():
         'rust': pbr('MAT_Rust', (0.28, 0.12, 0.05), 0.8, grime=0.4),
         'rubber': pbr('MAT_Rubber', (0.025, 0.025, 0.027), 0.75, var=0.1),
         'glass': pbr('MAT_Glass', (0.05, 0.08, 0.1), 0.04, 0.0, var=0.0, bump=0.0, coat=0.0),
-        'wetdeck': pbr('MAT_WetDeck', (0.035, 0.055, 0.075), 0.14, 0.0, var=0.3, bump=0.15, scale=1.5, grime=0.3, coat=0.4),
+        'wetdeck': pbr('MAT_WetDeck', (0.05, 0.06, 0.065), 0.2, 0.0, var=0.35, bump=0.35, scale=2.5, grime=0.5, coat=0.35),
         'concrete': pbr('MAT_Concrete', (0.4, 0.395, 0.375), 0.85, var=0.18, bump=0.25, scale=0.8, grime=0.35),
         'asphalt': pbr('MAT_Asphalt', (0.11, 0.11, 0.115), 0.85, var=0.2, bump=0.25, scale=0.6, grime=0.2),
         'rope': pbr('MAT_Rope', (0.32, 0.27, 0.18), 0.9, var=0.25),
         'rope_green': pbr('MAT_RopeGreen', (0.06, 0.2, 0.15), 0.85, var=0.25),
-        'net': pbr('MAT_Net', (0.23, 0.2, 0.14), 0.85, var=0.3, bump=0.0),
-        'float_yellow': pbr('MAT_FloatYellow', (0.85, 0.6, 0.02), 0.35, var=0.1, coat=0.4),
-        'oilskin_orange': pbr('MAT_OilskinOrange', (0.8, 0.27, 0.05), 0.42, var=0.2, coat=0.2, bump=0.12, scale=6, grime=0.2),
-        'oilskin_yellow': pbr('MAT_OilskinYellow', (0.8, 0.55, 0.05), 0.42, var=0.2, coat=0.2, bump=0.12, scale=6, grime=0.2),
+        'net': pbr('MAT_Net', (0.07, 0.11, 0.09), 0.8, var=0.35, bump=0.0, grime=0.3),
+        'float_yellow': pbr('MAT_FloatYellow', (0.72, 0.36, 0.1), 0.5, var=0.25, coat=0.2, grime=0.45, scale=6),
+        'oilskin_orange': pbr('MAT_OilskinOrange', (0.62, 0.22, 0.07), 0.45, var=0.25, coat=0.25, bump=0.25, scale=9, grime=0.45),
+        'oilskin_yellow': pbr('MAT_OilskinYellow', (0.62, 0.45, 0.1), 0.45, var=0.25, coat=0.25, bump=0.25, scale=9, grime=0.45),
         'glove_blue': pbr('MAT_NitrileGlove', (0.08, 0.3, 0.75), 0.35, var=0.05, coat=0.3),
-        'glove_teal': pbr('MAT_GloveTeal', (0.05, 0.38, 0.4), 0.4, var=0.05, coat=0.3),
-        'boot_white': pbr('MAT_BootWhite', (0.85, 0.85, 0.82), 0.3, var=0.05, coat=0.3),
-        'boot_yellow': pbr('MAT_BootYellow', (0.8, 0.55, 0.05), 0.35, coat=0.3),
+        'glove_teal': pbr('MAT_GloveTeal', (0.08, 0.26, 0.28), 0.45, var=0.15, coat=0.2, grime=0.3),
+        'boot_white': pbr('MAT_BootWhite', (0.78, 0.78, 0.75), 0.35, var=0.1, coat=0.3, grime=0.3),
+        'boot_yellow': pbr('MAT_BootYellow', (0.6, 0.45, 0.12), 0.4, coat=0.2, grime=0.4),
         'boot_black': pbr('MAT_BootBlack', (0.03, 0.03, 0.03), 0.4, coat=0.3),
         'cloth_white': pbr('MAT_ClothWhite', (0.86, 0.87, 0.88), 0.8, var=0.06, bump=0.05, scale=8),
         'cloth_navy': pbr('MAT_ClothNavy', (0.04, 0.06, 0.13), 0.8, var=0.12, scale=8),
@@ -375,10 +375,10 @@ def M():
         'hivis_orange': pbr('MAT_HiVisOrange', (0.95, 0.35, 0.02), 0.6, var=0.05),
         'reflect': pbr('MAT_ReflectStripe', (0.8, 0.8, 0.8), 0.25, 0.8, var=0.0),
         'hardhat': pbr('MAT_HardHat', (0.92, 0.92, 0.9), 0.3, var=0.05, coat=0.5),
-        'crate_blue': pbr('MAT_CrateBlue', (0.04, 0.18, 0.55), 0.4, var=0.12, grime=0.15),
-        'crate_red': pbr('MAT_CrateRed', (0.55, 0.05, 0.04), 0.4, var=0.12, grime=0.15),
-        'crate_white': pbr('MAT_CrateWhite', (0.85, 0.86, 0.84), 0.4, var=0.08, grime=0.2),
-        'crate_yellow': pbr('MAT_CrateYellow', (0.85, 0.6, 0.05), 0.4, var=0.1, grime=0.15),
+        'crate_blue': pbr('MAT_CrateBlue', (0.1, 0.17, 0.27), 0.5, var=0.2, grime=0.45, scale=5),
+        'crate_red': pbr('MAT_CrateRed', (0.3, 0.1, 0.08), 0.5, var=0.2, grime=0.45, scale=5),
+        'crate_white': pbr('MAT_CrateWhite', (0.62, 0.64, 0.63), 0.5, var=0.15, grime=0.45, scale=5),
+        'crate_yellow': pbr('MAT_CrateYellow', (0.5, 0.42, 0.18), 0.5, var=0.2, grime=0.45, scale=5),
         'ice': ice_mat(),
         'water_sea': water_mat('MAT_Water_Sea', (0.004, 0.035, 0.085)),
         'water_harbour': water_mat('MAT_Water_Harbour', (0.01, 0.06, 0.06)),
@@ -673,9 +673,6 @@ OUTFITS = {
                    extras=['vest', 'hardhat']),
 }
 
-JOINTS = ['hips', 'spine', 'neck', 'sh_L', 'el_L', 'wr_L', 'sh_R', 'el_R', 'wr_R', 'hp_L', 'kn_L', 'an_L', 'hp_R',
-          'kn_R', 'an_R']
-
 _PART_MESH = {}
 
 
@@ -740,132 +737,253 @@ def _torso_mesh(name, w, d, h, waist=0.8):
     return bm_to_mesh(bm, name, smooth=True)
 
 
+
+
+# ---- skeleton (standing, facing +X, metres, feet on z=0) -> one continuous skin-modifier body, armature, auto weights
+SKEL = {
+    'pelvis': ((0.0, 0.0, 0.95), (0.15, 0.19)), 'waist': ((0.0, 0.0, 1.12), (0.14, 0.17)),
+    'chest': ((0.0, 0.0, 1.32), (0.15, 0.2)), 'neckb': ((0.0, 0.0, 1.49), (0.065, 0.065)),
+    'head': ((0.015, 0.0, 1.62), (0.095, 0.085)), 'headt': ((0.0, 0.0, 1.73), (0.06, 0.06)),
+    'sh_L': ((0.0, 0.2, 1.43), (0.075, 0.075)), 'el_L': ((-0.02, 0.22, 1.15), (0.056, 0.056)),
+    'wr_L': ((0.02, 0.23, 0.9), (0.04, 0.036)), 'ht_L': ((0.04, 0.23, 0.8), (0.036, 0.024)),
+    'sh_R': ((0.0, -0.2, 1.43), (0.075, 0.075)), 'el_R': ((-0.02, -0.22, 1.15), (0.056, 0.056)),
+    'wr_R': ((0.02, -0.23, 0.9), (0.04, 0.036)), 'ht_R': ((0.04, -0.23, 0.8), (0.036, 0.024)),
+    'hp_L': ((0.0, 0.1, 0.9), (0.105, 0.105)), 'kn_L': ((0.025, 0.11, 0.5), (0.07, 0.07)),
+    'an_L': ((0.0, 0.11, 0.09), (0.05, 0.05)), 'to_L': ((0.19, 0.11, 0.04), (0.045, 0.055)),
+    'hp_R': ((0.0, -0.1, 0.9), (0.105, 0.105)), 'kn_R': ((0.025, -0.11, 0.5), (0.07, 0.07)),
+    'an_R': ((0.0, -0.11, 0.09), (0.05, 0.05)), 'to_R': ((0.19, -0.11, 0.04), (0.045, 0.055)),
+}
+SKEL_EDGES = [('pelvis', 'waist'), ('waist', 'chest'), ('chest', 'neckb'), ('neckb', 'head'), ('head', 'headt')] + \
+    [e for s in 'LR' for e in (('chest', f'sh_{s}'), (f'sh_{s}', f'el_{s}'), (f'el_{s}', f'wr_{s}'), (f'wr_{s}', f'ht_{s}'),
+                               ('pelvis', f'hp_{s}'), (f'hp_{s}', f'kn_{s}'), (f'kn_{s}', f'an_{s}'), (f'an_{s}', f'to_{s}'))]
+# bone name -> (head point, tail point, parent, kind)  kind: down / up / fwd (roll convention used by pose())
+BONES = {
+    'hips': ('pelvis', 'waist', None, 'up'), 'spine': ('waist', 'neckb', 'hips', 'up'), 'neck': ('neckb', 'headt', 'spine', 'up'),
+}
+for _s in 'LR':
+    BONES.update({f'sh_{_s}': (f'sh_{_s}', f'el_{_s}', 'spine', 'down'), f'el_{_s}': (f'el_{_s}', f'wr_{_s}', f'sh_{_s}', 'down'),
+                  f'wr_{_s}': (f'wr_{_s}', f'ht_{_s}', f'el_{_s}', 'down'), f'hp_{_s}': (f'hp_{_s}', f'kn_{_s}', 'hips', 'down'),
+                  f'kn_{_s}': (f'kn_{_s}', f'an_{_s}', f'hp_{_s}', 'down'), f'an_{_s}': (f'an_{_s}', f'to_{_s}', f'kn_{_s}', 'fwd')})
+JOINTS = list(BONES)
+# skeleton point -> clothing zone (0 top, 1 bottom, 2 skin, 3 hands, 4 feet)
+ZONE = {'pelvis': 1, 'waist': 0, 'chest': 0, 'neckb': 2, 'head': 2, 'headt': 2}
+for _s in 'LR':
+    ZONE.update({f'sh_{_s}': 0, f'el_{_s}': 0, f'wr_{_s}': 3, f'ht_{_s}': 3, f'hp_{_s}': 1, f'kn_{_s}': 1, f'an_{_s}': 4,
+                 f'to_{_s}': 4})
+_BODY = {}
+
+
+def _seg_dist(p, a, b):
+    ab = b - a
+    t = max(0.0, min(1.0, (p - a).dot(ab) / max(1e-9, ab.length_squared)))
+    return (a + ab * t - p).length, t
+
+
+def _body(bulk=1.0, build=1.0):
+    """Rigged base body for one (bulk, build) variant: returns (mesh, armature data). Built once, shared by people."""
+    key = (round(bulk, 2), round(build, 2))
+    if key in _BODY:
+        return _BODY[key]
+    names = list(SKEL)
+    bm = bmesh.new()
+    vs = {}
+    for n in names:
+        p, r = SKEL[n]
+        vs[n] = bm.verts.new((p[0], p[1] * (build if n[:2] in ('sh', 'el', 'wr', 'ht') else 1.0), p[2]))
+    for a, b in SKEL_EDGES:
+        bm.edges.new((vs[a], vs[b]))
+    me = bpy.data.meshes.new('BODY_skel')
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new('BODY_tmp', me)
+    bpy.context.scene.collection.objects.link(o)
+    sk = o.modifiers.new('Skin', 'SKIN')
+    sk.use_smooth_shade = True
+    sk.branch_smoothing = 0.6
+    for i, n in enumerate(names):
+        r = SKEL[n][1]
+        limb = n[:2] in ('sh', 'el', 'wr', 'hp', 'kn')
+        k = bulk if (limb or n in ('waist', 'chest', 'pelvis')) else 1.0
+        rv = me.skin_vertices[0].data[i]
+        rv.radius = (r[0] * k * (build if n in ('chest', 'waist', 'pelvis') else 1.0), r[1] * k * build)
+        rv.use_root = (n == 'pelvis')
+    ss = o.modifiers.new('Sub', 'SUBSURF')
+    ss.levels = 2
+    dg = bpy.context.evaluated_depsgraph_get()
+    body = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
+    body.name = f'BODY_{key[0]}_{key[1]}'
+    bpy.data.objects.remove(o)
+    bpy.data.meshes.remove(me)
+    # armature
+    ad = bpy.data.armatures.new(f'RIG_{key[0]}_{key[1]}')
+    ao = bpy.data.objects.new('RIG_tmp', ad)
+    bpy.context.scene.collection.objects.link(ao)
+    bo = bpy.data.objects.new('BODY_tmp2', body)
+    bpy.context.scene.collection.objects.link(bo)
+    for ob in bpy.context.view_layer.objects:
+        ob.select_set(False)
+    ao.select_set(True)
+    bpy.context.view_layer.objects.active = ao
+    if True:
+        bpy.ops.object.mode_set(mode='EDIT')
+        for bn, (h, t, par, kind) in BONES.items():
+            eb = ad.edit_bones.new(bn)
+            eb.head = Vector(SKEL[h][0])
+            eb.tail = Vector(SKEL[t][0])
+            if par:
+                eb.parent = ad.edit_bones[par]
+            eb.align_roll({'down': (0, 1, 0), 'up': (0, -1, 0), 'fwd': (0, 0, 1)}[kind])
+        bpy.ops.object.mode_set(mode='OBJECT')
+    for ob in bpy.context.view_layer.objects:
+        ob.select_set(False)
+    bo.select_set(True)
+    ao.select_set(True)
+    bpy.context.view_layer.objects.active = ao
+    with bpy.context.temp_override(active_object=ao, object=ao, selected_objects=[bo, ao], selected_editable_objects=[bo, ao]):
+        bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    bo.select_set(False)
+    ao.select_set(False)
+    # clothing zones from the strongest bone weight per face: 0 torso, 1 legs, 2 skin, 3 hands, 4 boots, 5 sleeves
+    zb = {'hips': 1, 'spine': 0, 'neck': 2}
+    for sd in 'LR':
+        zb.update({f'sh_{sd}': 5, f'el_{sd}': 5, f'wr_{sd}': 3, f'hp_{sd}': 1, f'kn_{sd}': 1, f'an_{sd}': 4})
+    gname = {g.index: g.name for g in bo.vertex_groups}
+    vbest = []
+    for v in body.vertices:
+        best, bw = 'spine', -1.0
+        for g in v.groups:
+            if g.weight > bw:
+                best, bw = gname[g.group], g.weight
+        vbest.append(best)
+    for f in body.polygons:
+        cnt = {}
+        for vi in f.vertices:
+            cnt[vbest[vi]] = cnt.get(vbest[vi], 0) + 1
+        bn = max(cnt, key=cnt.get)
+        z = zb.get(bn, 0)
+        c = f.center
+        if bn.startswith('kn') and c.z < 0.36:
+            z = 4
+        if bn == 'spine' and c.z > 1.47:
+            z = 2
+        if bn == 'hips' and c.z > 1.02:
+            z = 0
+        f.material_index = z
+        f.use_smooth = True
+    bpy.data.objects.remove(bo)
+    bpy.data.objects.remove(ao)
+    _BODY[key] = (body, ad)
+    return body, ad
+
+
+def _bone_attach(o, arm, bone, world):
+    """Parent o to a bone keeping the given rest-pose world matrix (arm at the origin, rest pose)."""
+    o.parent = arm
+    o.parent_type = 'BONE'
+    o.parent_bone = bone
+    pb = arm.data.bones[bone]
+    o.matrix_parent_inverse = (pb.matrix_local @ Matrix.Translation((0, pb.length, 0))).inverted()
+    o.matrix_basis = world
+
+
 def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=None, build=1.0, seed=None, mats=None):
-    """Proportioned human made of rigid segments under joint empties (pose by rotating the joints).
-    Returns the root empty; joints are children named <name>_<joint>."""
+    """A person: one continuous subdivided skin body deformed by an armature (bones named like JOINTS), clothing
+    zones as material slots, rigid accessories (caps, masks, aprons, vests, hard hats) on bones.
+    Returns the armature object (the root you place and key)."""
     mats = mats or M()
     rnd = random.Random(seed if seed is not None else hash(name) & 0xffff)
     o = OUTFITS[outfit]
     sk = skin or mats['skin'][rnd.randrange(3)]
-    top, bot = mats[o['top']], mats[o['bottom']]
-    hands = sk if o['hands'] == 'skin' else mats[o['hands']]
-    feet = mats[o['feet']]
-    s = height / 1.72
-    b = build
-    root = empty(name, loc, size=0.4)
-    root.rotation_euler = (0, 0, rot_z)
-    root.scale = (s, s, s)
-    J = {}
-    J['hips'] = empty(f'{name}_hips', (0, 0, 0.94), root, size=0.15)
-    J['spine'] = empty(f'{name}_spine', (0, 0, 0.0), J['hips'], size=0.15)
-    J['neck'] = empty(f'{name}_neck', (0, 0, 0.5), J['spine'], size=0.1)
-    for side, y in (('L', 1), ('R', -1)):
-        J[f'sh_{side}'] = empty(f'{name}_sh_{side}', (0, 0.2 * y * b, 0.44), J['spine'], size=0.1)
-        J[f'el_{side}'] = empty(f'{name}_el_{side}', (0, 0, -0.29), J[f'sh_{side}'], size=0.08)
-        J[f'wr_{side}'] = empty(f'{name}_wr_{side}', (0, 0, -0.26), J[f'el_{side}'], size=0.06)
-        J[f'hp_{side}'] = empty(f'{name}_hp_{side}', (0, 0.095 * y * b, -0.02), J['hips'], size=0.1)
-        J[f'kn_{side}'] = empty(f'{name}_kn_{side}', (0, 0, -0.45), J[f'hp_{side}'], size=0.08)
-        J[f'an_{side}'] = empty(f'{name}_an_{side}', (0, 0, -0.43), J[f'kn_{side}'], size=0.06)
-    for j in J.values():
-        j.hide_render = True
-        j.rotation_mode = 'XYZ'
-    tm = _part_mesh(('torso', round(b, 2)), lambda: _torso_mesh('BODY_torso', 0.36 * b, 0.22 * b, 0.5))
-    obj(f'{name}_torso', tm.copy() if False else tm, None, (0, 0, 0.0), parent=J['spine']).data = tm
-    _set_mat(f'{name}_torso', top)
-    pm = _part_mesh(('pelvis', round(b, 2)), lambda: _torso_mesh('BODY_pelvis', 0.33 * b, 0.21 * b, 0.2, waist=1.0))
-    obj(f'{name}_pelvis', pm, None, (0, 0, -0.12), parent=J['hips'])
-    _set_mat(f'{name}_pelvis', bot)
-    hm = _part_mesh('head', lambda: sphere_mesh('BODY_head', 0.1, 16, 12))
-    obj(f'{name}_head', hm, None, (0.0, 0, 0.13), scale=(1.05, 0.9, 1.15), parent=J['neck'])
-    _set_mat(f'{name}_head', sk)
-    fm = _part_mesh('face', _face_mesh)
-    obj(f'{name}_face', fm, None, (0.0, 0, 0.13), parent=J['neck'])
-    _set_mat(f'{name}_face', sk)
-    nm = _part_mesh('neckm', lambda: cyl_mesh('BODY_neck', 0.05, 0.12, 12))
-    obj(f'{name}_neckm', nm, None, (0, 0, 0.02), parent=J['neck'])
-    _set_mat(f'{name}_neckm', sk)
-    k = 1.28 if outfit.startswith('fisher') else (1.15 if outfit in ('plant', 'plant_blue', 'qc', 'cold', 'port', 'port_o') else 1.0)
-    ua = _part_mesh(('uarm', round(b, 2), k), lambda: _limb('BODY_uarm', 0.058 * b * k, 0.05 * b * k, 0.3))
-    fa = _part_mesh(('farm', round(b, 2), k), lambda: _limb('BODY_farm', 0.05 * b * k, 0.042 * b * k, 0.27))
-    hd = _part_mesh('hand', lambda: box_mesh('BODY_hand', (0.05, 0.09, 0.15), 0.022, 3))
-    th = _part_mesh(('thigh', round(b, 2), k), lambda: _limb('BODY_thigh', 0.085 * b * k ** 0.5, 0.065 * b * k, 0.47))
-    sh = _part_mesh(('shin', round(b, 2), k), lambda: _limb('BODY_shin', 0.065 * b * k, 0.055 * b * k, 0.45))
-    ft = _part_mesh('foot', lambda: box_mesh('BODY_foot', (0.26, 0.1, 0.09), 0.035, 3))
-    bootm = _part_mesh('boot', lambda: _limb('BODY_boot', 0.062, 0.058, 0.3))
-    for side in 'LR':
-        obj(f'{name}_uarm_{side}', ua, None, (0, 0, 0), parent=J[f'sh_{side}'])
-        _set_mat(f'{name}_uarm_{side}', top)
-        obj(f'{name}_farm_{side}', fa, None, (0, 0, 0), parent=J[f'el_{side}'])
-        _set_mat(f'{name}_farm_{side}', top if 'coat' in o['extras'] or outfit.startswith(('fisher', 'plant', 'cold', 'port'))
-                 else sk)
-        obj(f'{name}_hand_{side}', hd, None, (0.0, 0, -0.07), parent=J[f'wr_{side}'])
-        _set_mat(f'{name}_hand_{side}', hands)
-        obj(f'{name}_thigh_{side}', th, None, (0, 0, 0), parent=J[f'hp_{side}'])
-        _set_mat(f'{name}_thigh_{side}', bot)
-        obj(f'{name}_shin_{side}', sh, None, (0, 0, 0), parent=J[f'kn_{side}'])
-        _set_mat(f'{name}_shin_{side}', bot)
-        obj(f'{name}_boot_{side}', bootm, None, (0, 0, -0.14), parent=J[f'kn_{side}'])
-        _set_mat(f'{name}_boot_{side}', feet)
-        obj(f'{name}_foot_{side}', ft, None, (0.05, 0, -0.035), parent=J[f'an_{side}'])
-        _set_mat(f'{name}_foot_{side}', feet)
-        # joint caps hide the seams between rigid segments
-        for jn, rr, m in (('sh', 0.068, top), ('el', 0.05, top), ('kn', 0.066, bot), ('wr', 0.04, hands)):
-            jm = _part_mesh(('joint', rr, k), lambda rr=rr: sphere_mesh('BODY_joint', rr * k, 12, 8))
-            obj(f'{name}_{jn}cap_{side}', jm, None, (0, 0, 0), parent=J[f'{jn}_{side}'])
-            _set_mat(f'{name}_{jn}cap_{side}', m if jn != 'el' or k > 1.0 else sk)
+    k = 1.22 if outfit.startswith('fisher') else (1.12 if outfit in ('plant', 'plant_blue', 'qc', 'cold', 'port', 'port_o') else 1.0)
+    body, ad = _body(k, round(build, 2))
+    arm = bpy.data.objects.new(name, ad)
+    _link(arm)
+    bo = bpy.data.objects.new(f'{name}_body', body)
+    _link(bo)
+    bo.parent = arm
+    mod = bo.modifiers.new('Rig', 'ARMATURE')
+    mod.object = arm
+    ex0 = o['extras']
+    torso = mats[o['bottom']] if 'bib' in ex0 else mats[o['top']]
+    sleeves = mats[o['top']]
+    legs = mats[o['bottom']]
+    if 'coat' in ex0:
+        torso = sleeves = mats['cloth_white']
+    if 'jacket' in ex0:
+        torso = sleeves = mats['cloth_navy']
+    if 'vest' in ex0:
+        torso = mats['hivis'] if rnd.random() < 0.6 else mats['hivis_orange']
+    zm = [torso, legs, sk, sk if o['hands'] == 'skin' else mats[o['hands']], mats[o['feet']], sleeves]
+    if len(body.materials) == 0:
+        for m in zm:
+            body.materials.append(m)
+    for i, m in enumerate(zm):
+        bo.material_slots[i].link = 'OBJECT'
+        bo.material_slots[i].material = m
     ex = o['extras']
+    H = lambda n: Vector(SKEL[n][0])
+
+    def acc(nm, me, mat, bone, pos, scale=(1, 1, 1), rot=(0, 0, 0)):
+        a = bpy.data.objects.new(f'{name}_{nm}', me)
+        _link(a)
+        if a.data and len(a.material_slots) == 0 and len(me.materials) == 0:
+            me.materials.append(mat)
+        if len(a.material_slots):
+            a.material_slots[0].link = 'OBJECT'
+            a.material_slots[0].material = mat
+        _bone_attach(a, arm, bone, Matrix.Translation(pos) @ Euler(rot).to_matrix().to_4x4() @ Matrix.Diagonal((*scale, 1)))
+        return a
+
+    hp = H('head')
+    acc('face', _part_mesh('face', _face_mesh), sk, 'neck', hp + Vector((0.0, 0, 0)))
     if 'cap' in ex:
-        cm = _part_mesh('cap', _cap_mesh)
-        obj(f'{name}_cap', cm, None, (0.0, 0, 0.19), parent=J['neck'])
-        _set_mat(f'{name}_cap', mats['cap_grey'] if rnd.random() < 0.6 else mats['cloth_navy'])
+        acc('cap', _part_mesh('cap', _cap_mesh), mats['cap_grey'] if rnd.random() < 0.6 else mats['cloth_navy'], 'neck',
+            hp + Vector((-0.005, 0, 0.055)), (0.95, 0.95, 0.95))
     elif 'haircap' in ex:
-        hc = _part_mesh('haircap', lambda: sphere_mesh('BODY_haircap', 0.115, 16, 10))
-        obj(f'{name}_haircap', hc, None, (-0.01, 0, 0.17), scale=(1.05, 0.95, 0.85), parent=J['neck'])
-        _set_mat(f'{name}_haircap', mats['haircap'])
+        acc('haircap', _part_mesh('haircap', lambda: sphere_mesh('BODY_haircap', 0.105, 16, 10)), mats['haircap'], 'neck',
+            hp + Vector((-0.012, 0, 0.035)), (1.05, 1.0, 0.85))
     elif 'hardhat' in ex:
-        hh = _part_mesh('hardhat', _hardhat_mesh)
-        obj(f'{name}_hardhat', hh, None, (0.0, 0, 0.19), parent=J['neck'])
-        _set_mat(f'{name}_hardhat', mats['hardhat'] if rnd.random() < 0.5 else mats['float_yellow'])
+        acc('hardhat', _part_mesh('hardhat', _hardhat_mesh), mats['hardhat'] if rnd.random() < 0.5 else mats['float_yellow'],
+            'neck', hp + Vector((0.0, 0, 0.06)))
     else:
-        hr = _part_mesh('hair', lambda: sphere_mesh('BODY_hair', 0.105, 16, 10))
-        obj(f'{name}_hair', hr, None, (-0.012, 0, 0.165), scale=(1.05, 0.95, 0.75), parent=J['neck'])
-        _set_mat(f'{name}_hair', mats['hair'])
+        acc('hair', _part_mesh('hair', lambda: sphere_mesh('BODY_hair', 0.098, 16, 10)), mats['hair'], 'neck',
+            hp + Vector((-0.015, 0, 0.03)), (1.05, 1.0, 0.8))
     if 'mask' in ex:
-        mm = _part_mesh('mask', lambda: box_mesh('BODY_mask', (0.06, 0.15, 0.09), 0.025, 3))
-        obj(f'{name}_mask', mm, None, (0.08, 0, 0.09), parent=J['neck'])
-        _set_mat(f'{name}_mask', mats['mask'])
+        acc('mask', _part_mesh('mask', lambda: box_mesh('BODY_mask', (0.05, 0.15, 0.085), 0.024, 3)), mats['mask'], 'neck',
+            hp + Vector((0.075, 0, -0.035)))
     if 'apron' in ex or 'apron_blue' in ex:
-        am = _part_mesh('apron', lambda: box_mesh('BODY_apron', (0.03, 0.34, 0.95), 0.012, 2))
-        obj(f'{name}_apron', am, None, (0.125 * b, 0, -0.08), parent=J['hips'])
-        _set_mat(f'{name}_apron', mats['apron_blue' if 'apron_blue' in ex else 'apron'])
-    if 'bib' in ex:
-        bb = _part_mesh('bib', lambda: box_mesh('BODY_bib', (0.25, 0.33, 0.32), 0.05, 3))
-        obj(f'{name}_bib', bb, None, (0.0, 0, 0.16), parent=J['spine'])
-        _set_mat(f'{name}_bib', bot)
+        acc('apron', _part_mesh(('apron', k), lambda: box_mesh('BODY_apron', (0.025, 0.36, 0.95), 0.012, 2)),
+            mats['apron_blue' if 'apron_blue' in ex else 'apron'], 'hips', Vector((0.15 * k, 0, 0.82)))
     if 'coat' in ex or 'jacket' in ex:
-        ck = _part_mesh('coat', lambda: _torso_mesh('BODY_coat', 0.39, 0.25, 0.85, waist=0.95))
-        obj(f'{name}_coat', ck, None, (0, 0, -0.38), parent=J['spine'])
-        _set_mat(f'{name}_coat', mats['cloth_white'] if 'coat' in ex else mats['cloth_navy'])
+        acc('coat', _part_mesh(('skirt', k), lambda: cyl_mesh('BODY_skirt', 0.2 * k, 0.5 if 'coat' in ex else 0.22, 20,
+                                                              r2=0.17 * k, origin='center')),
+            mats['cloth_white'] if 'coat' in ex else mats['cloth_navy'], 'hips', Vector((0, 0, 0.72 if 'coat' in ex else 0.95)))
     if 'hood' in ex:
-        hm2 = _part_mesh('hood', lambda: box_mesh('BODY_hood', (0.2, 0.3, 0.12), 0.05, 3))
-        obj(f'{name}_hood', hm2, None, (-0.06, 0, 0.47), parent=J['spine'])
-        _set_mat(f'{name}_hood', top)
+        acc('hood', _part_mesh('hood', lambda: sphere_mesh('BODY_hood', 0.1, 12, 8)), mats[o['top']], 'spine',
+            Vector((-0.1, 0, 1.47)), (0.8, 1.6, 0.8))
     if 'vest' in ex:
-        vm = _part_mesh(('vest', round(b, 2)), lambda: _torso_mesh('BODY_vest', 0.375 * b, 0.235 * b, 0.42, waist=0.85))
-        obj(f'{name}_vest', vm, None, (0, 0, 0.03), parent=J['spine'])
-        _set_mat(f'{name}_vest', mats['hivis'] if rnd.random() < 0.6 else mats['hivis_orange'])
-        st = _part_mesh(('vstripe', round(b, 2)), lambda: _torso_mesh('BODY_vstripe', 0.38 * b, 0.24 * b, 0.04, 1.0))
-        obj(f'{name}_vstripe', st, None, (0, 0, 0.22), parent=J['spine'])
-        _set_mat(f'{name}_vstripe', mats['reflect'])
-    root['joints'] = JOINTS
-    pose(root, 'stand')
-    return root
+        acc('vstripe', _part_mesh(('vstripe', k), lambda: torus_mesh('BODY_vstripe', 0.17, 0.012, 24, 6)), mats['reflect'],
+            'spine', Vector((0, 0, 1.27)), (0.95 * k, 1.12 * k, 1))
+    s = height / 1.72
+    arm.location = loc
+    arm.rotation_euler = (0, 0, rot_z)
+    arm.scale = (s, s, s)
+    arm['joints'] = JOINTS
+    if arm.pose is None or len(arm.pose.bones) == 0:
+        bpy.context.view_layer.update()
+    pose(arm, 'stand')
+    return arm
+
+
+def bone_target(root, j):
+    """(object, subtarget) for constraints that follow a joint (e.g. a tool in the hand)."""
+    return root, j
 
 
 def _set_mat(oname, m):
     o = bpy.data.objects[oname]
     if len(o.material_slots) == 0:
-        o.data.materials.append(m) if len(o.data.materials) == 0 else None
+        o.data.materials.append(m)
     o.material_slots[0].link = 'OBJECT'
     o.material_slots[0].material = m
 
@@ -977,7 +1095,19 @@ WALK = [
 
 
 def _joint(root, j):
-    return bpy.data.objects.get(f'{root.name}_{j}')
+    return root.pose.bones.get(j) if root.pose else None
+
+
+def _bone_euler(j, r):
+    """POSES are written as rotations about the body's axes (X forward, Y left, Z up) of a limb hanging down;
+    convert to the bone's local euler for the roll convention set in _body()."""
+    rx, ry, rz = D(r[0]), D(r[1]), D(r[2])
+    kind = BONES[j][3]
+    if kind == 'down':
+        return (rx, -rz, ry)
+    if kind == 'up':
+        return (rx, rz, -ry)
+    return (-ry, rx, rz)
 
 
 def pose(root, p, frame=None, upper_only=False, overrides=None):
@@ -988,16 +1118,16 @@ def pose(root, p, frame=None, upper_only=False, overrides=None):
     for j in JOINTS:
         if upper_only and j in ('hips', 'hp_L', 'kn_L', 'an_L', 'hp_R', 'kn_R', 'an_R'):
             continue
-        o = _joint(root, j)
-        if o is None:
+        pb = _joint(root, j)
+        if pb is None:
             continue
-        r = spec.get(j, (0, 0, 0))
-        o.rotation_euler = (D(r[0]), D(r[1]), D(r[2]))
+        pb.rotation_mode = 'XYZ'
+        pb.rotation_euler = _bone_euler(j, spec.get(j, (0, 0, 0)))
         if frame is not None:
-            o.keyframe_insert('rotation_euler', frame=frame)
+            pb.keyframe_insert('rotation_euler', frame=frame)
     if not upper_only:
         h = _joint(root, 'hips')
-        h.location.z = spec.get('hips_z', 0.94)
+        h.location = (0, spec.get('hips_z', 0.94) - 0.94, 0)
         if frame is not None:
             h.keyframe_insert('location', frame=frame)
 
@@ -1133,7 +1263,6 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
         _CRATE['ice'] = ice_mesh('LIB_CrateIce', 0.54, 0.34, 0.05, 12, 3)
         _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 50, 4, 0.0, 0.02)
     c = obj(name, _CRATE['mesh'], None, loc, (0, 0, rot_z), parent=parent)
-    c.data.materials.clear() if False else None
     if len(c.material_slots) == 0:
         c.data.materials.append(mats['crate_' + color])
     c.material_slots[0].link = 'OBJECT'
@@ -1322,15 +1451,11 @@ def fish_mesh(kind):
     me_fins.materials.append(pbr(f'MAT_FishFin_{kind}', sp['fin'], 0.35, var=0.15, transmission=0.0, coat=0.3))
     me_eye.materials.append(pbr('MAT_FishEye', (0.01, 0.01, 0.01), 0.02, coat=1.0, var=0.0, bump=0.0))
     # join into one mesh
-    bmj = bmesh.new()
-    for me in (me_body, me_fins, me_eye):
-        bmj.from_mesh(me) if False else None
     tmp = []
     for me in (me_body, me_fins, me_eye):
         o = bpy.data.objects.new('tmp_' + me.name, me)
         bpy.context.scene.collection.objects.link(o)
         tmp.append(o)
-    bmj.free()
     j = join(tmp, f'LIB_Fish_{kind}')
     me = j.data
     bpy.data.objects.remove(j)

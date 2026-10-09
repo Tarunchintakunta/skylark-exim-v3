@@ -11,3 +11,4 @@ perf-report*.json
 .DS_Store
 /review/
 .claude/worktrees/
+__pycache__/
