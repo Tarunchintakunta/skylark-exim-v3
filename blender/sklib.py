@@ -489,7 +489,15 @@ def textured_overrides():
     tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
     tex_pbr('MAT_CraneWhite', 'PaintedMetal004', 0.25, tint=(0.8, 0.81, 0.8), metal=0.15, grime=0.3, paint_mask=True)
     tex_pbr('MAT_CraneBlue', 'PaintedMetal004', 0.3, tint=(0.04, 0.17, 0.42), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
+    # weathered crane paint: rust runs from the bolted joints, grime low down
+    for nm in ('MAT_CraneWhite', 'MAT_CraneBlue'):
+        weather(bpy.data.materials[nm], streak=(0.3, 0.16, 0.07), amount=0.55, z0=0.0, z1=8.0, dirt_amount=0.4, scale=0.7)
+    stains(bpy.data.materials['MAT_Asphalt'], oil=0.55, tyre=0.5)
+    stains(bpy.data.materials['MAT_Concrete'], oil=0.4, tyre=0.3)
     tex_pbr('MAT_ContainerPaint', 'container_side', 0.33, attr='col', tint_amount=0.88, metal=0.2, grime=0.2)
+    corrugate(bpy.data.materials['MAT_ContainerPaint'], 0.28, 0.6)
+    weather(bpy.data.materials['MAT_ContainerPaint'], streak=(0.25, 0.12, 0.05), amount=0.5, z0=0.0, z1=1.0,
+            dirt_amount=0.0, scale=2.0)
     tex_pbr('MAT_QuayFace', 'concrete_floor_02', 0.2, tint=(0.4, 0.39, 0.36), tint_amount=0.5, grime=0.5)
     tex_pbr('MAT_InsulPanel', 'corrugated_iron_02', 0.5, tint=(0.88, 0.89, 0.9), tint_amount=0.9, metal=0.05, bump=0.25)
     for nm, c in (('MAT_OilskinOrange', (0.66, 0.29, 0.11)), ('MAT_OilskinYellow', (0.68, 0.53, 0.17)),
@@ -618,6 +626,81 @@ def weather(m, streak=(0.22, 0.13, 0.07), amount=0.55, z0=0.0, z1=1.0, dirt=(0.1
     col = mixrgb(nt, dm2.outputs[0], col, dirt, loc=(-700, -1500))
     l.new(col, p.inputs['Base Color'])
     m['weathered'] = 1
+    return m
+
+
+def stains(m, oil=0.6, tyre=0.45, scale=1.0, axis='X'):
+    """Ground wear on an existing material: dark oil blotches and long tyre marks running along `axis`."""
+    if m.get('stained'):
+        return m
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    src = p.inputs['Base Color'].links[0].from_socket
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1800, -2300))
+    # oil: sparse soft blotches
+    n1 = _node(nt, 'ShaderNodeTexNoise', (-1500, -2300))
+    n1.inputs['Scale'].default_value = 0.35 * scale
+    n1.inputs['Detail'].default_value = 6
+    l.new(_sock(tc, 'Object', out=True), n1.inputs['Vector'])
+    r1 = _node(nt, 'ShaderNodeMapRange', (-1300, -2300))
+    r1.inputs['From Min'].default_value = 0.62
+    r1.inputs['From Max'].default_value = 0.72
+    r1.inputs['To Max'].default_value = oil
+    l.new(_sock(n1, 'Factor', out=True), r1.inputs['Value'])
+    col = mixrgb(nt, r1.outputs[0], src, (0.02, 0.02, 0.02), loc=(-900, -2300))
+    # tyre marks: noise stretched along the driving direction
+    mp = _node(nt, 'ShaderNodeMapping', (-1500, -2600))
+    mp.inputs['Scale'].default_value = ((0.04, 2.2, 1.0) if axis == 'X' else (2.2, 0.04, 1.0))
+    l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
+    n2 = _node(nt, 'ShaderNodeTexNoise', (-1300, -2600))
+    n2.inputs['Scale'].default_value = 2.0 * scale
+    n2.inputs['Detail'].default_value = 4
+    l.new(mp.outputs[0], n2.inputs['Vector'])
+    r2 = _node(nt, 'ShaderNodeMapRange', (-1100, -2600))
+    r2.inputs['From Min'].default_value = 0.58
+    r2.inputs['From Max'].default_value = 0.7
+    r2.inputs['To Max'].default_value = tyre
+    l.new(_sock(n2, 'Factor', out=True), r2.inputs['Value'])
+    col = mixrgb(nt, r2.outputs[0], col, (0.04, 0.04, 0.045), loc=(-700, -2500))
+    l.new(col, p.inputs['Base Color'])
+    m['stained'] = 1
+    return m
+
+
+def corrugate(m, pitch=0.3, strength=0.5):
+    """Trapezoid corrugation bump for container walls (ridges along both horizontal axes, object space metres)."""
+    if m.get('corrugated'):
+        return m
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1800, -2900))
+    outs = []
+    for k, ax in enumerate(('X', 'Y')):
+        wv = _node(nt, 'ShaderNodeTexWave', (-1500, -2900 - 200 * k))
+        wv.wave_type = 'BANDS'
+        wv.bands_direction = ax
+        wv.wave_profile = 'TRI'
+        wv.inputs['Scale'].default_value = 1.0 / pitch / 6.2832 * 6.2832 / 2.0
+        l.new(_sock(tc, 'Object', out=True), wv.inputs['Vector'])
+        cl = _node(nt, 'ShaderNodeMapRange', (-1300, -2900 - 200 * k))
+        cl.inputs['From Min'].default_value = 0.25
+        cl.inputs['From Max'].default_value = 0.75
+        l.new(_sock(wv, 'Factor', out=True), cl.inputs['Value'])
+        outs.append(cl.outputs[0])
+    mx = _node(nt, 'ShaderNodeMath', (-1100, -3000))
+    mx.operation = 'MAXIMUM'
+    l.new(outs[0], mx.inputs[0])
+    l.new(outs[1], mx.inputs[1])
+    b = _node(nt, 'ShaderNodeBump', (-800, -3000))
+    b.inputs['Strength'].default_value = strength
+    b.inputs['Distance'].default_value = 0.04
+    l.new(mx.outputs[0], b.inputs['Height'])
+    if p.inputs['Normal'].links:
+        l.new(p.inputs['Normal'].links[0].from_socket, b.inputs['Normal'])
+    l.new(b.outputs[0], p.inputs['Normal'])
+    m['corrugated'] = 1
     return m
 
 

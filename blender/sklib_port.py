@@ -215,20 +215,27 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         mb.box((0, y, gz - 1.0), (2 * legx + 1.8, 1.8, 2.0), white)
         mb.beam((-legx, y, 21), (legx, y, gz - 2.2), 0.6, white)
         mb.beam((legx, y, 21), (-legx, y, gz - 2.2), 0.6, white)
-    # girder (land) + boom (sea) as two trusses each side of the trolley path
+    # girder (land) on the frame; the boom (sea side) is its own object on a hinge at y1 so it can be raised
     gx = 3.6
     th = 3.6
     y0, y1 = yl - back, ys + 2
     yb = ys + out
+    H = Vector((0, y1, gz))
+    bmb = MB()
+    sh = lambda p: Vector(p) - H
     for sx in (-gx, gx):
         mb.truss((sx, y0, gz), (sx, y1, gz), (0, 0, th), 0.9, white, int((y1 - y0) / 4.5), 0.9, 0.35)
-        mb.truss((sx, y1, gz), (sx, yb, gz + 0.5), (0, 0, th - 0.6), 0.9, white, int((yb - y1) / 4.5), 0.85, 0.3)
-        mb.box((sx, (y0 + yb) / 2, gz + 0.2), (0.3, yb - y0, 0.3), steel)  # trolley rail
+        bmb.truss(sh((sx, y1, gz)), sh((sx, yb, gz + 0.5)), (0, 0, th - 0.6), 0.9, white, int((yb - y1) / 4.5), 0.85, 0.3)
+        mb.box((sx, (y0 + y1) / 2, gz + 0.2), (0.3, y1 - y0, 0.3), steel)  # trolley rail
+        bmb.box(sh((sx, (y1 + yb) / 2, gz + 0.2)), (0.3, yb - y1, 0.3), steel)
     # cross ties between the two trusses (top)
     for y in range(int(y0), int(yb), 6):
-        zt = gz + th if y < y1 else gz + th - 0.1
-        mb.beam((-gx, y, zt), (gx, y, zt), 0.35, white)
-        mb.beam((-gx, y, zt), (gx, y + 6, zt), 0.25, white)
+        if y < y1:
+            mb.beam((-gx, y, gz + th), (gx, y, gz + th), 0.35, white)
+            mb.beam((-gx, y, gz + th), (gx, y + 6, gz + th), 0.25, white)
+        else:
+            bmb.beam(sh((-gx, y, gz + th - 0.1)), sh((gx, y, gz + th - 0.1)), 0.35, white)
+            bmb.beam(sh((-gx, y, gz + th - 0.1)), sh((gx, min(yb, y + 6), gz + th - 0.1)), 0.25, white)
     # A-frame / apex with forestays and backstays
     apex = Vector((0, ys - 4, gz + 28))
     for sx in (-legx, legx):
@@ -236,8 +243,9 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         mb.beam((sx, yl + 6, gz), apex + Vector((sx * 0.25, -1, 0)), 1.1, white)
     mb.box(apex + Vector((0, -0.5, 0)), (2 * legx * 0.25 + 2, 3, 2), white)
     for sx in (-gx, gx):
+        # forestays ride with the boom (they swing up with it); backstays stay on the frame
         for yy in (ys + out * 0.5, ys + out * 0.92):
-            mb.cyl(apex + Vector((sx * 0.4, 0.8, 0.3)), (sx, yy, gz + th - 0.6), 0.16, steel, 8)
+            bmb.cyl(sh(apex + Vector((sx * 0.4, 0.8, 0.3))), sh((sx, yy, gz + th - 0.6)), 0.16, steel, 8)
         mb.cyl(apex + Vector((sx * 0.4, -1.5, 0.3)), (sx, y0 + 2, gz + th), 0.18, steel, 8)
     # machinery house on the girder (backreach side)
     mh_y = yl - back / 2 + 1
@@ -253,10 +261,14 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         mb.box((legx + 1.6, yl + 2.6 * sy, z + 4.4), (1.2, 1.2, 0.1), steel)
         mb.cyl((legx + 2.15, yl - 2.2 * sy, z + 1.0), (legx + 2.15, yl + 2.2 * sy, z + 5.4), 0.035, mats['paint_blue'], 6)
     for sx in (-gx - 1.3, gx + 1.3):
-        mb.box((sx, (y0 + yb) / 2, gz - 0.1), (1.0, yb - y0, 0.08), steel)
-        mb.cyl((sx + math.copysign(0.45, sx), y0, gz + 1.0), (sx + math.copysign(0.45, sx), yb, gz + 1.0), 0.03, blue, 6)
+        rx = sx + math.copysign(0.45, sx)
+        mb.box((sx, (y0 + y1) / 2, gz - 0.1), (1.0, y1 - y0, 0.08), steel)
+        bmb.box(sh((sx, (y1 + yb) / 2, gz - 0.1)), (1.0, yb - y1, 0.08), steel)
+        mb.cyl((rx, y0, gz + 1.0), (rx, y1, gz + 1.0), 0.03, blue, 6)
+        bmb.cyl(sh((rx, y1, gz + 1.0)), sh((rx, yb, gz + 1.0)), 0.03, blue, 6)
         for y in range(int(y0), int(yb), 3):
-            mb.cyl((sx + math.copysign(0.45, sx), y, gz - 0.1), (sx + math.copysign(0.45, sx), y, gz + 1.0), 0.025, blue, 5)
+            (mb if y < y1 else bmb).cyl(Vector((rx, y, gz - 0.1)) - (H if y >= y1 else Vector()),
+                                        Vector((rx, y, gz + 1.0)) - (H if y >= y1 else Vector()), 0.025, blue, 5)
     # festoon cable loops under the girder
     for k in range(6):
         y = y0 + 4 + k * 2.2
@@ -265,10 +277,15 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     lights = [apex + Vector((0, 0, 1.3)), Vector((0, yb, gz + th)), Vector((gx, y0, gz + th + 0.5)),
               Vector((-gx, y0, gz + th + 0.5))]
     for p in lights:
-        mb.sphere(p, 0.35, mats['lamp_red'], 8)
+        if p.y >= y1:
+            bmb.sphere(p - H, 0.35, mats['lamp_red'], 8)
+        else:
+            mb.sphere(p, 0.35, mats['lamp_red'], 8)
     for sx in (-legx, legx):
         mb.sphere((sx, ys, gz + 0.8), 0.3, mats['lamp_amber'], 8)
     frame = mb.obj(f'{name}_Frame', root)
+    boom = empty(f'{name}_BoomHinge', tuple(H), root, size=2)
+    bmb.obj(f'{name}_Boom', boom)
     # trolley + operator cabin
     trolley = empty(f'{name}_Trolley', (0, ys + 10, gz), root, size=2)
     tb = MB()
@@ -314,7 +331,7 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         st.volume = 'NO_VOLUME'
         cables.append(c)
     return {'root': root, 'trolley': trolley, 'head': head, 'spreader': spreader, 'gz': gz, 'ys': ys, 'yl': yl,
-            'yb': yb, 'y0': y0, 'frame': frame}
+            'yb': yb, 'y0': y0, 'y1': y1, 'frame': frame, 'boom': boom}
 
 
 # ---------------------------------------------------------------- RTG, straddle carrier, light mast, gate
@@ -657,3 +674,121 @@ def drive(root, path, f0, f1, wheels=(), r=0.52, ease=True, keystep=2, stop_hold
             w.rotation_euler = (0, (-1 if reverse else 1) * d / r, 0)
             w.keyframe_insert('rotation_euler', frame=f)
     return total
+
+
+# ---------------------------------------------------------------- wake
+def wake_mat(name='MAT_WakeFoam'):
+    """White water: churned foam in the propeller wash, broken streaks further back, fading to nothing (alpha)."""
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    m = new_mat(name)
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    p.inputs['Base Color'].default_value = (0.86, 0.9, 0.92, 1)
+    p.inputs['Roughness'].default_value = 0.55
+    uv = _node(nt, 'ShaderNodeTexCoord', (-1400, 0))
+    sep = _node(nt, 'ShaderNodeSeparateXYZ', (-1200, -300))
+    l.new(_sock(uv, 'UV', out=True), sep.inputs[0])
+    # streaky foam: noise stretched along the wake (u = along, v = across)
+    mp = _node(nt, 'ShaderNodeMapping', (-1200, 200))
+    mp.inputs['Scale'].default_value = (3.0, 28.0, 1.0)
+    l.new(_sock(uv, 'UV', out=True), mp.inputs['Vector'])
+    nz = _node(nt, 'ShaderNodeTexNoise', (-1000, 200))
+    nz.inputs['Scale'].default_value = 6.0
+    nz.inputs['Detail'].default_value = 12
+    nz.inputs['Roughness'].default_value = 0.7
+    l.new(mp.outputs[0], nz.inputs['Vector'])
+    vr = _node(nt, 'ShaderNodeTexVoronoi', (-1000, 500))
+    vr.inputs['Scale'].default_value = 60.0
+    vr.feature = 'F1'
+    l.new(mp.outputs[0], vr.inputs['Vector'])
+    fm = _node(nt, 'ShaderNodeMath', (-800, 300))
+    fm.operation = 'MULTIPLY'
+    l.new(_sock(nz, 'Factor', out=True), fm.inputs[0])
+    l.new(_sock(vr, 'Distance', out=True), fm.inputs[1])
+    th = _node(nt, 'ShaderNodeMapRange', (-600, 300))
+    th.inputs['From Min'].default_value = 0.08
+    th.inputs['From Max'].default_value = 0.3
+    l.new(fm.outputs[0], th.inputs['Value'])
+    # fade: strong at the stern (u = 0), gone by u = 1; edges soft across (v 0..1, centre 0.5)
+    fu = _node(nt, 'ShaderNodeMapRange', (-900, -300))
+    fu.inputs['From Min'].default_value = 0.0
+    fu.inputs['From Max'].default_value = 1.0
+    fu.inputs['To Min'].default_value = 1.0
+    fu.inputs['To Max'].default_value = 0.0
+    fu.interpolation_type = 'SMOOTHSTEP'
+    l.new(sep.outputs[0], fu.inputs['Value'])
+    cv = _node(nt, 'ShaderNodeMath', (-900, -500))
+    cv.operation = 'PINGPONG'
+    cv.inputs[1].default_value = 0.5
+    l.new(sep.outputs[1], cv.inputs[0])
+    ce = _node(nt, 'ShaderNodeMapRange', (-700, -500))
+    ce.inputs['From Min'].default_value = 0.0
+    ce.inputs['From Max'].default_value = 0.35
+    ce.interpolation_type = 'SMOOTHSTEP'
+    l.new(cv.outputs[0], ce.inputs['Value'])
+    a1 = _node(nt, 'ShaderNodeMath', (-500, -300))
+    a1.operation = 'MULTIPLY'
+    l.new(fu.outputs[0], a1.inputs[0])
+    l.new(ce.outputs[0], a1.inputs[1])
+    a2 = _node(nt, 'ShaderNodeMath', (-300, 0))
+    a2.operation = 'MULTIPLY'
+    l.new(a1.outputs[0], a2.inputs[0])
+    l.new(th.outputs[0], a2.inputs[1])
+    # churned zone right behind the stern is nearly solid white
+    ch = _node(nt, 'ShaderNodeMapRange', (-700, -800))
+    ch.inputs['From Min'].default_value = 0.0
+    ch.inputs['From Max'].default_value = 0.12
+    ch.inputs['To Min'].default_value = 0.75
+    ch.inputs['To Max'].default_value = 0.0
+    l.new(sep.outputs[0], ch.inputs['Value'])
+    a3 = _node(nt, 'ShaderNodeMath', (-150, -200))
+    a3.operation = 'MAXIMUM'
+    l.new(a2.outputs[0], a3.inputs[0])
+    l.new(ch.outputs[0], a3.inputs[1])
+    a4 = _node(nt, 'ShaderNodeMath', (0, -200))
+    a4.operation = 'MULTIPLY'
+    l.new(a3.outputs[0], a4.inputs[0])
+    l.new(ce.outputs[0], a4.inputs[1])
+    l.new(a4.outputs[0], p.inputs['Alpha'])
+    if hasattr(m, 'surface_render_method'):
+        m.surface_render_method = 'BLENDED'
+    return m
+
+
+def wake(name, parent, stern_x, length=320.0, w0=14.0, w1=70.0, z=0.15, kelvin=True):
+    """Turbulent wake trailing behind -X of the parent from stern_x, widening w0 -> w1, plus two Kelvin arms
+    (19.5 degrees). UV u runs along the wake. Returns the object (origin at the stern; scale X to grow it)."""
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new('UVMap')
+    nu, nv = 60, 8
+
+    def strip(length, wa, wb, ang=0.0, off=0.0):
+        rows = []
+        for i in range(nu + 1):
+            u = i / nu
+            x = -u * length
+            w = wa + (wb - wa) * u
+            row = []
+            for j in range(nv + 1):
+                v = j / nv
+                y = (v - 0.5) * w
+                c, s_ = math.cos(ang), math.sin(ang)
+                row.append((bm.verts.new((x * c - y * s_, x * s_ + y * c + off, z)), u, v))
+            rows.append(row)
+        for i in range(nu):
+            for j in range(nv):
+                f = bm.faces.new((rows[i][j][0], rows[i + 1][j][0], rows[i + 1][j + 1][0], rows[i][j + 1][0]))
+                for lp, (uu, vv) in zip(f.loops, ((rows[i][j][1], rows[i][j][2]), (rows[i + 1][j][1], rows[i + 1][j][2]),
+                                                  (rows[i + 1][j + 1][1], rows[i + 1][j + 1][2]),
+                                                  (rows[i][j + 1][1], rows[i][j + 1][2]))):
+                    lp[uvl].uv = (uu, vv)
+    strip(length, w0, w1)
+    if kelvin:
+        for sg in (1, -1):
+            strip(length * 0.8, w0 * 0.25, w0 * 0.9, ang=sg * math.radians(19.5), off=0.0)
+    me = bm_to_mesh(bm, name)
+    me.materials.append(wake_mat())
+    o = obj(name, me, None, (stern_x, 0, 0), parent=parent)
+    return o
