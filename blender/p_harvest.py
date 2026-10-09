@@ -166,8 +166,8 @@ def build(out):
         for m in range(36):                  # a heap on the ice: some on their backs, most on their sides
             F.shrimp('HV_Crate%d_S%02d' % (n, m), (rnd.uniform(-0.22, 0.22), rnd.uniform(-0.12, 0.12),
                                                      0.265 + (m // 18) * 0.022 + rnd.uniform(0, 0.012)),
-                     (rnd.choice((0.0, 1.57, -1.57, 1.57)) + rnd.uniform(-0.3, 0.3), rnd.uniform(-0.25, 0.25),
-                      rnd.uniform(0, 6.28)), parent=sh, C=Cp, scale=rnd.uniform(0.85, 1.1))
+                     (rnd.uniform(-0.3, 0.3), rnd.uniform(-0.3, 0.3), rnd.uniform(0, 6.28)), parent=sh, C=Cp,
+                     scale=rnd.uniform(0.85, 1.1))
         f_tip = 96 + n * 9
         key_hide(sh, [(F0, True), (f_tip, False)])
         ice2 = bpy.data.objects.new('HV_Crate%d_Ice2' % n, L._CRATE['chunks'])
@@ -219,7 +219,7 @@ def build(out):
     net = _net(cx, yw, Cp)
     bag = _bag(cx, yw, Cp, rnd)
     # bag path: under water -> lifted out dripping (55-80) -> carried up the bank to the crates (80-96) -> tipped
-    pts = [(F0, (cx - 0.2, yw + 2.4, WATER - 0.35), 0.0), (48, (cx - 0.3, yw + 1.6, WATER - 0.25), 0.0),
+    pts = [(F0, (cx - 0.2, yw + 2.4, WATER - 0.12), 0.0), (48, (cx - 0.3, yw + 1.6, WATER - 0.08), 0.0),
            (62, (cx - 0.4, yw + 1.0, WATER + 0.25), 0.0), (78, (cx - 0.6, yw + 0.2, WATER + 0.85), 0.0),
            (92, (cx - 2.4, yb - 0.9, TOP + 0.95), 0.0), (102, (cx - 2.7, yb - 1.25, TOP + 0.8), 1.2),
            (128, (cx - 1.3, yb - 1.25, TOP + 0.8), 1.4), (140, (cx - 0.4, yb - 0.4, TOP + 0.9), 0.0)]
@@ -268,6 +268,22 @@ def build(out):
                     kp.handle_left.y = kp.handle_right.y = kp.co.y
         w.rotation_euler = (0, 0, D(180 + (25 if k2 else -25)))
         w.keyframe_insert('rotation_euler', frame=62)
+        sg = 1 if k2 else -1
+        for side, off in (('L', -0.12), ('R', 0.12)):
+            e = bpy.data.objects.new('HV_NetEnd%d%s' % (k2, side), None)
+            Cp.objects.link(e)
+            for f, (ex, ey, ez) in ((F0, (cx - 0.3 + sg * 4.6, yw + 1.0 + off, WATER + 0.36)),
+                                    (60, (cx - 0.3 + sg * 1.4, yw + 0.6 + off, WATER + 0.48)),
+                                    (80, (cx - 0.3 + sg * 1.2, yw + 0.3 + off, WATER + 0.62))):
+                e.location = (ex, ey, ez)
+                e.keyframe_insert('location', frame=f)
+            c = w.pose.bones['forearm.' + side].constraints.new('IK')
+            c.target = e
+            c.chain_count = 2
+            c.use_tail = True
+            for f, v in ((F0, 1.0), (78, 1.0), (86, 0.0)):
+                c.influence = v
+                c.keyframe_insert('influence', frame=f)
         H.set_pose(w, {'spine': (22, 0, 0), 'upperarm': (50, -8, 0), 'forearm': (55, 0, 0), 'thigh': (12, 4, 0),
                        'shin': (-18, 0, 0)}, 70)
         H.set_pose(w, {'spine': (10, 0, 0), 'upperarm': (30, -12, 0), 'forearm': (60, 0, 0)}, 82)
@@ -344,6 +360,18 @@ def build(out):
             cr.rotation_euler = (0, 0, math.atan2(dv.y, dv.x) + math.pi / 2)
             cr.keyframe_insert('location', frame=f)
             cr.keyframe_insert('rotation_euler', frame=f)
+        for side, hx in (('L', -0.27), ('R', 0.27)):
+            e = bpy.data.objects.new('%s_Handle%s' % (cr.name, side), None)
+            Cp.objects.link(e)
+            e.parent = cr
+            e.location = (hx, 0, 0.22)
+            c = w.pose.bones['forearm.' + side].constraints.new('IK')
+            c.target = e
+            c.chain_count = 2
+            c.use_tail = True
+            for f, v in ((F0, 0.0), (fs - 2, 0.0), (fs + 4, 1.0), (fs + 50, 1.0), (fs + 54, 0.0)):
+                c.influence = v
+                c.keyframe_insert('influence', frame=f)
         key_hide(cr, [(F0, False), (fs + 52, True)])
         key_hide(loaded[slot], [(F0, True), (fs + 52, False)])
     # driver waiting by the cab, then gets in
@@ -370,7 +398,9 @@ def build(out):
         return (x - 9.3, y + 0.25, TOP + 3.1), (x + 5.5, y - 0.4, TOP + 1.7)
     keys = [(F0, (cx + 3.4, yw + 8.5, WATER + 1.5), (cx - 0.4, yw + 0.8, WATER + 0.3)),
             (40, (cx + 3.0, yw + 6.8, WATER + 1.45), (cx - 0.4, yw + 0.9, WATER + 0.4)),
-            (80, (cx + 2.6, yw + 4.6, WATER + 1.7), (cx - 1.0, yw - 0.6, WATER + 0.9)),
+            (58, (cx + 1.7, yw + 2.7, WATER + 0.85), (cx - 0.4, yw + 1.0, WATER + 0.25)),
+            (74, (cx + 1.15, yw + 1.85, WATER + 1.05), (cx - 0.55, yw + 0.45, WATER + 0.7)),
+            (90, (cx + 2.4, yw + 3.4, WATER + 1.8), (cx - 1.6, yw - 0.9, WATER + 1.0)),
             (118, (cx + 3.2, yb + 3.4, TOP + 1.7), (cx - 2.2, yb - 1.3, TOP + 0.35)),
             (150, (cx + 2.6, yb + 3.0, TOP + 1.8), (cx - 2.0, yb - 1.5, TOP + 0.5)),
             (195, (rear_x + 6.5, yb + 1.6, TOP + 2.5), (rear_x - 0.6, 1.8, TOP + 1.3)),
@@ -386,6 +416,24 @@ def build(out):
     smoothk(cam)
     smoothk(tgt)
 
+    wm = bpy.data.materials['FARM_PondWater']            # harvest pond: drained low, turbid olive-brown
+    for n in wm.node_tree.nodes:
+        if n.type == 'VALTORGB':
+            for e, col in zip(n.color_ramp.elements, ((0.05, 0.055, 0.03, 1), (0.07, 0.06, 0.035, 1),
+                                                      (0.045, 0.055, 0.035, 1))):
+                e.color = col
+        if n.type == 'BSDF_PRINCIPLED':
+            n.inputs['Roughness'].default_value = 0.12
+    for m in list(bpy.data.materials):
+        n = m.name
+        if n.startswith('HUM_'):
+            P.add_dust(m, top=WATER + 0.4, bottom=WATER - 0.05, color=(0.07, 0.06, 0.045), amount=0.6, rough=0.18,
+                       scale=1.5, tag='wet')
+        elif n.startswith('TRK_') and not any(t in n for t in ('Glass', 'Lamp', 'Refl', 'Interior', 'FloorAlu')):
+            P.add_dust(m, top=TOP + 1.4, bottom=TOP + 0.1, color=(0.30, 0.22, 0.14), amount=0.7, rough=0.9, scale=3.0,
+                       tag='mud')
+        elif n.startswith('CR_'):
+            P.add_dust(m, top=1000, color=(0.30, 0.23, 0.15), amount=0.35, rough=0.9, scale=6.0, tag='mud')
     az_h, el_h = P.hdri_sun('qwantani_mid_morning_puresky_4k.hdr')
     sun_az = 130.0
     P.hdri_world('qwantani_mid_morning_puresky_4k.hdr', strength=0.9, rot_deg=sun_az - az_h, sun_elev=el_h, sun_az=sun_az,
@@ -532,13 +580,14 @@ def _bag(cx, yw, C, rnd):
     for poly in me.polygons:
         for li in poly.loop_indices:
             v = me.vertices[me.loops[li].vertex_index].co
-            uv.data[li].uv = (math.atan2(v.y, v.x) * 0.6, v.z * 1.4)
-    for m in range(70):
+            uv.data[li].uv = (math.atan2(v.y, v.x) * 0.3, v.z * 0.7)    # ~7 cm cod-end mesh
+    for m in range(120):                 # packed against the mesh so they read through it
         while True:
             q = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 0.2)))
-            if q.length < 1:
+            if 0.2 < q.length < 1:
                 break
-        F.shrimp('HV_BagShrimp%02d' % m, (q.x * 0.36, q.y * 0.3, q.z * 0.28), (rnd.uniform(0, 6.3), rnd.uniform(0, 6.3),
+        q = q.normalized() * rnd.uniform(0.7, 0.97)
+        F.shrimp('HV_BagShrimp%02d' % m, (q.x * 0.44, q.y * 0.37, q.z * 0.29), (rnd.uniform(0, 6.3), rnd.uniform(0, 6.3),
                  rnd.uniform(0, 6.3)), parent=root, C=C, scale=rnd.uniform(0.95, 1.2))
     # a few shrimp flick (small rotation jitter)
     for ch in list(root.children)[1:12]:
