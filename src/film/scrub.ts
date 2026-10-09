@@ -1,6 +1,6 @@
 import gsap from 'gsap'
 import { env } from '../engine/env'
-import { frame } from '../engine/store'
+import { frame, store } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
@@ -47,6 +47,12 @@ const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
+/**
+ * Opening (redesign §3): once the loader is done the first clip plays at 1× for INTRO_S so the hero is already moving,
+ * then holds. The first scroll hands over to scrubbing from wherever it got to (introT0 → end of clip).
+ */
+const INTRO_S = 2
+let introT0: number | null = null
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -193,8 +199,11 @@ function tick() {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
-      seek(active, p, vel)
-      probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
+      const t0 = i === 0 ? intro(active) : 0
+      if (t0 !== null) {
+        seek(active, p, vel, t0)
+        probe.target = t0 + p * Math.max(0, (active.v.duration || 0) - FRAME - t0)
+      }
     }
   }
   if (!scrolled && frame.scroll > 2) scrolled = true
@@ -234,11 +243,25 @@ function tick() {
   }
 }
 
-function seek(s: Slot, p: number, vel: number) {
+/** Intro playback for the opening clip. Returns the scrub start time once handed over, or null while it still plays. */
+function intro(s: Slot): number | null {
+  if (introT0 !== null) return introT0
+  const v = s.v
+  const scrolled = frame.scroll > 2
+  if (env.reduced || scrolled || (v.readyState >= 2 && v.currentTime >= INTRO_S)) {
+    v.pause()
+    introT0 = env.reduced ? 0 : Math.min(v.currentTime, INTRO_S)
+    return introT0
+  }
+  if (store.getState().ready && v.readyState >= 2 && v.paused) v.play().catch(() => (introT0 = v.currentTime))
+  return null
+}
+
+function seek(s: Slot, p: number, vel: number, t0 = 0) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
   // no extra easing here: Lenis already smooths the scroll, a second lerp only adds lag behind the page
-  const t = p * Math.max(0, v.duration - FRAME)
+  const t = t0 + p * Math.max(0, v.duration - FRAME - t0)
   // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it
   if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) return
   if (v.seeking) {
