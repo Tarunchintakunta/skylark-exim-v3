@@ -28,7 +28,7 @@ QZ = 3.0
 s = L.reset()
 s.frame_start, s.frame_end = 1, 479
 mats = L.M()
-L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.7, rot=40.0, sun_strength=3.0)
+L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.55, rot=40.0, sun_strength=4.2, sun_color=(1.0, 0.94, 0.84))
 
 # ---------------------------------------------------------------- ground, quay, water
 asph = mats['asphalt']
@@ -148,6 +148,12 @@ hero_trailer = bpy.data.objects['HERO_Trailer']
 reefer = P.reefer_box('HERO_Reefer', None)
 HERO_PATH = [(-42.25, -96), (-42.25, -74), (-42.25, -45), (-41.0, -26), (-34, -15.5), (-22, -12.5), (-8, -12.5), (1.5, -12.5)]
 P.drive(hero, HERO_PATH, 1, 166, hero_w, ease=True, keystep=2)
+s.frame_set(166)
+_bp = hero_trailer.matrix_world @ Vector((-5.9, 0, 1.33))
+HERO_PATH[-1] = (HERO_PATH[-1][0] - _bp.x, HERO_PATH[-1][1])
+P.drive(hero, HERO_PATH, 1, 166, hero_w, ease=True, keystep=2)
+s.frame_set(166)
+BOX = hero_trailer.matrix_world @ Vector((-5.9, 0, 1.33))   # where the spreader picks the reefer up
 for f in (166, 479):
     hero.keyframe_insert('location', frame=f)
 # queue behind, all facing in, creeping forward one direction
@@ -171,8 +177,24 @@ w3t, _, w3box = rig('C3TRUCK', (0.06, 0.15, 0.4), True, loc=(61.5, -20.5, QZ))
 SHIP_Y = 21.0
 ship = P.container_ship('SHIP', (10.0, SHIP_Y, 0.0), L=230.0, B=32.0, deck=11.0, mats=mats, rnd=rnd, empty_slot=(4, 3),
                         tiers=7, bays=13)
-slot_local = ship['slot'] - Vector((10.0, SHIP_Y, 0))  # relative to the ship root
+# move the ship along the quay so the empty slot sits exactly under crane 2 (x = 0): no jump at release
+SHIP_X = 10.0 - ship['slot'].x
+ship['root'].location.x = SHIP_X
+ship['slot'] = ship['slot'] - Vector((ship['slot'].x, 0, 0))
+slot_local = ship['slot'] - Vector((SHIP_X, SHIP_Y, 0))  # relative to the ship root
 cranes = []
+cg = P.MB()
+gmat = L.weather(L.pbr('MAT_CellGuide', (0.42, 0.43, 0.42), 0.5, 0.6, grime=0.5, scale=0.5), amount=0.6, z0=0, z1=1)
+sl = slot_local
+for sx in (-1, 1):
+    for sy in (-1, 1):
+        x, y = sl.x + sx * (P.CL / 2 + 0.12), sl.y + sy * (P.CW / 2 + 0.05)
+        cg.box((x, y, sl.z + P.CH * 0.5), (0.22, 0.14, P.CH * 3.0), gmat)                       # cell guide angle
+        cg.box((x - sx * 0.25, y, sl.z + P.CH * 2.0), (0.6, 0.12, 0.08), gmat)                  # entry flare
+        # lashing rods + turnbuckles on the tier below
+        cg.cyl((x, y, sl.z - 0.05), (x - sx * 1.6, y, sl.z - P.CH + 0.3), 0.025, gmat, 6)
+        cg.cyl((x - sx * 1.6, y, sl.z - P.CH + 0.3), (x - sx * 1.6, y, sl.z - P.CH - 0.3), 0.045, gmat, 6)
+cg.obj('SHIP_CellGuides', ship['root'])
 for i, cx in enumerate((-60.0, 0.0, 60.0)):
     C = P.sts_crane(f'Crane_{i + 1}', (cx, -18.0, QZ), mats=mats)
     cranes.append(C)
@@ -190,15 +212,17 @@ def lz_head(world_bottom_of_spreader):
     return world_bottom_of_spreader - (QZ + GZ) + 1.35
 
 
-truck_box_top = QZ + 1.33 + 0.52 * 0 + P.CH  # trailer root z offset: chassis top ~1.33 above ground
+truck_box_top = BOX.z + P.CH
 slot_world = ship['slot']
-keys_t = [(1, ly(30.0)), (132, ly(30.0)), (168, ly(-12.5)), (224, ly(-12.5)), (256, ly(slot_world.y)), (300, ly(slot_world.y)),
-          (360, ly(-12.5)), (479, ly(-12.5))]
+keys_t = [(1, ly(30.0)), (132, ly(30.0)), (166, ly(BOX.y)), (205, ly(BOX.y)), (236, ly(slot_world.y)), (284, ly(slot_world.y)),
+          (312, ly(-12.5)), (479, ly(-12.5))]
 TOP = 36.0
-keys_h = [(1, lz_head(TOP)), (132, lz_head(TOP)), (168, lz_head(truck_box_top + 4.0)), (190, lz_head(truck_box_top)),
-          (195, lz_head(truck_box_top - 0.02)), (200, lz_head(truck_box_top)), (224, lz_head(TOP)), (256, lz_head(TOP)),
-          (280, lz_head(slot_world.z + P.CH)), (284, lz_head(slot_world.z + P.CH)), (288, lz_head(slot_world.z + P.CH + 1.0)),
-          (330, lz_head(TOP)), (479, lz_head(TOP))]
+SZ = slot_world.z + P.CH     # top of the box below = where the twistlocks set the reefer's bottom castings down
+keys_h = [(1, lz_head(TOP)), (132, lz_head(TOP)), (166, lz_head(truck_box_top + 4.0)), (178, lz_head(truck_box_top)),
+          (186, lz_head(truck_box_top)), (205, lz_head(TOP)), (236, lz_head(TOP)), (248, lz_head(SZ + P.CH + 1.6)),
+          (256, lz_head(SZ + P.CH + 1.5)), (264, lz_head(SZ + P.CH + 0.7)), (274, lz_head(SZ + P.CH + 0.04)),
+          (276, lz_head(SZ + P.CH)), (282, lz_head(SZ + P.CH)), (290, lz_head(SZ + P.CH + 1.2)), (330, lz_head(TOP)),
+          (479, lz_head(TOP))]
 for f, y in keys_t:
     tro.location = (0, y, GZ)
     tro.keyframe_insert('location', frame=f)
@@ -208,7 +232,7 @@ for f, z in keys_h:
 L.smooth_keys(tro)
 L.smooth_keys(head)
 # sway <= 1 degree while trolleying sea-side
-for f, a in ((224, 0), (236, 0.9), (248, -0.7), (256, 0.3), (268, 0)):
+for f, a in ((205, 0), (214, 0.8), (224, -0.6), (234, 0.3), (244, 0), (479, 0)):
     head.rotation_euler = (D(a), 0, 0)
     head.keyframe_insert('rotation_euler', frame=f)
 # cranes 1 and 3 mid-cycle, offset (simple lift/lower loops with their own box)
@@ -240,7 +264,7 @@ for C, phase, name in ((cranes[0], 0, 'C1BOX'), (cranes[2], 60, 'C3BOX')):
 # all booms go up once the box is set and before the ship moves off the berth: nothing can sweep through the hull
 for k, C in enumerate(cranes):
     bh = C['boom']
-    for f, a in ((1, 0.0), (292 + k * 4, 0.0), (334 + k * 4, 80.0), (479, 80.0)):
+    for f, a in ((1, 0.0), (314 + k * 4, 0.0), (352 + k * 4, 80.0), (479, 80.0)):
         bh.rotation_euler = (D(a), 0, 0)
         bh.keyframe_insert('rotation_euler', frame=f)
     L.smooth_keys(bh)
@@ -278,14 +302,14 @@ for i, (x, y, rz) in enumerate(spots):
 
 # ---------------------------------------------------------------- x-ship: lines off, tugs pull, ship sails out
 shp = ship['root']
-ship_keys = [(288, (10.0, SHIP_Y, 0), 0.0), (336, (14.0, SHIP_Y + 30, 0), D(4)), (380, (40.0, SHIP_Y + 59, 0), D(30)),
+ship_keys = [(288, (SHIP_X, SHIP_Y, 0), 0.0), (336, (SHIP_X + 4, SHIP_Y + 30, 0), D(4)), (380, (40.0, SHIP_Y + 59, 0), D(30)),
              (430, (95.0, SHIP_Y + 129, 0), D(50)), (479, (150.0, SHIP_Y + 204, 0), D(55))]
 for f, p, r in ship_keys:
     shp.location = p
     shp.rotation_euler = (0, 0, r)
     shp.keyframe_insert('location', frame=f)
     shp.keyframe_insert('rotation_euler', frame=f)
-shp.location = (10.0, SHIP_Y, 0)
+shp.location = (SHIP_X, SHIP_Y, 0)
 shp.keyframe_insert('location', frame=1)
 shp.rotation_euler = (0, 0, 0)
 shp.keyframe_insert('rotation_euler', frame=1)
@@ -315,7 +339,7 @@ for i, T in enumerate(tugs):
     L.key_vis(tw, 290)
 
 # ---------------------------------------------------------------- hero reefer: keyed per frame (trailer -> spreader -> ship)
-LOCK, RELEASE = 195, 284
+LOCK, RELEASE = 182, 280
 dg = bpy.context.evaluated_depsgraph_get()
 for f in range(1, 480):
     s.frame_set(f)
@@ -336,6 +360,18 @@ for f in range(1, 480):
     reefer.keyframe_insert('location', frame=f)
     reefer.keyframe_insert('rotation_euler', frame=f)
 L.linear_keys(reefer)
+worst = 1e9
+for f in range(236, 289):
+    s.frame_set(f)
+    bottom = reefer.matrix_world.translation.z
+    off = (reefer.matrix_world.translation - shp.matrix_world @ slot_local).xy.length
+    if off < 3.0:
+        worst = min(worst, bottom - (shp.matrix_world @ slot_local).z)
+    assert bottom >= (shp.matrix_world @ slot_local).z - 1e-3 or off > 3.0, (f, bottom)
+s.frame_set(RELEASE)
+landed = (reefer.matrix_world.translation - shp.matrix_world @ slot_local).length
+print('PLACEMENT min clearance over the slot %.3f m, landing error %.4f m' % (worst, landed))
+assert landed < 0.01
 
 # ---------------------------------------------------------------- coastline, breakwaters, city (seen from the top-down end)
 def coast_y(x):
@@ -440,16 +476,17 @@ keys = [
     (72, (-48.0, -74.0, 18.5), (-41.0, -46.0, 3.0), 28),
     (132, (-50.0, -42.0, 21.0), (-12.0, -14.0, 6.0), 26),
     (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
-    (196, (-12.0, -28.0, 8.0), (1.5, -12.5, 6.2), 30),
-    (224, (-14.0, -30.0, 18.0), (2.0, -4.0, 30.0), 28),
-    (256, (-45.0, -80.0, 70.0), (2.0, 12.0, 22.0), 26),
-    (288, (-50.0, -115.0, 230.0), (5.0, 18.0, 10.0), 30),
+    (186, (-12.0, -28.0, 8.0), (0.0, -12.5, 6.2), 30),
+    (212, (-20.0, -34.0, 22.0), (0.0, -2.0, 30.0), 28),
+    (240, (-21.0, slot_world.y - 25.0, slot_world.z + 11.0), (0.0, slot_world.y, slot_world.z + 4.0), 34),
+    (276, (-17.0, slot_world.y - 21.0, slot_world.z + 8.0), (0.0, slot_world.y, slot_world.z + 2.6), 36),
+    (288, (-20.0, slot_world.y - 26.0, slot_world.z + 12.0), (0.0, slot_world.y, slot_world.z + 3.0), 34),
     (336, (14.0, SHIP_Y + 28.0, 330.0), (14.0, SHIP_Y + 30.0, 0.0), 28),
     (380, (45.0, SHIP_Y + 110.0, 400.0), (45.0, SHIP_Y + 112.0, 0.0), 28),
     (420, (95.0, SHIP_Y + 200.0, 720.0), (95.0, SHIP_Y + 202.0, 0.0), 28),
     (479, (150.0, SHIP_Y + 120.0, 2600.0), (150.0, SHIP_Y + 122.0, 0.0), 28),
 ]
-L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (196, 15.5), (224, 40.0), (288, 95.0), (336, 330.0), (479, 2600.0)])
+L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (186, 20.0), (212, 40.0), (240, 34.0), (276, 28.0), (288, 33.0), (336, 330.0), (479, 2600.0)])
 cam.data.dof.use_dof = True
 # the top-down part: hide the harbour detail patch once the camera is high (far plane = same deep blue everywhere)
 L.key_vis(sea, 1, 340)
