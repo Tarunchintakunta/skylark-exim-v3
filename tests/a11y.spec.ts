@@ -90,7 +90,8 @@ const PHONES = [
 
 const tapTargets = () => {
   const small: string[] = []
-  const sel = '.path-toggle a, .menu-btn, .nav__link, .quote-cta, .btn, .rfq input:not([tabindex="-1"]), .rfq select, .rfq textarea, .check, .contact-band a, .products button'
+  // inline links inside a sentence (the footer credit) are exempt under WCAG 2.5.8
+  const sel = '.path-toggle a, .menu-btn, .nav__link, .quote-cta, .btn, .rfq input:not([tabindex="-1"]), .rfq select, .rfq textarea, .check, .contact-band a:not(.contact-band__foot a), .products button'
   for (const el of document.querySelectorAll<HTMLElement>(sel)) {
     const cs = getComputedStyle(el)
     if (cs.visibility === 'hidden' || cs.display === 'none' || Number(cs.opacity) === 0) continue
