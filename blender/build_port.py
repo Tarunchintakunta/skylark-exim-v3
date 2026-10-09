@@ -225,13 +225,25 @@ for C, phase, name in ((cranes[0], 0, 'C1BOX'), (cranes[2], 60, 'C3BOX')):
                (200, ly(-12.5), lz_head(TOP))]
         for df, y, z in seq:
             ff = f + df
-            if -40 < ff < 520:
+            if -40 < ff < 270:
                 t.location = (0, y, GZ)
                 t.keyframe_insert('location', frame=ff)
                 h.location = (0, 0, z)
                 h.keyframe_insert('location', frame=ff)
+    for ff in (282, 479):
+        t.location = (0, ly(-12.5), GZ)
+        t.keyframe_insert('location', frame=ff)
+        h.location = (0, 0, lz_head(TOP))
+        h.keyframe_insert('location', frame=ff)
     L.smooth_keys(t)
     L.smooth_keys(h)
+# all booms go up once the box is set and before the ship moves off the berth: nothing can sweep through the hull
+for k, C in enumerate(cranes):
+    bh = C['boom']
+    for f, a in ((1, 0.0), (292 + k * 4, 0.0), (334 + k * 4, 80.0), (479, 80.0)):
+        bh.rotation_euler = (D(a), 0, 0)
+        bh.keyframe_insert('rotation_euler', frame=f)
+    L.smooth_keys(bh)
 
 # ---------------------------------------------------------------- tugs, distant ships, mooring lines
 tugs = []
@@ -286,23 +298,21 @@ for i, T in enumerate(tugs):
         T.location = (x0 + dx, SHIP_Y + 26 + dy, 0)
         T.keyframe_insert('location', frame=f)
     L.smooth_keys(T)
-# wake + bow wave (children of the ship, grow as it gathers way)
-foam = L.pbr('MAT_Wake', (0.75, 0.82, 0.86), 0.6, var=0.6, bump=0.8, scale=0.12, alpha=0.28)
-wb = P.MB()
-# turbulent centre wake (widening) + two faint Kelvin arms; origin at the stern so it grows backwards
-for k in range(10):
-    wb.box((-7 - k * 14, 0, 0.12), (15, 6 + k * 1.6, 0.05), foam)
-wake = wb.obj('SHIP_Wake', shp, (-115, 0, 0))
-bw = P.MB()
-bw.box((116, 0, 0.12), (6, 30, 0.06), foam)
-for sgn in (-1, 1):
-    bw.box((96, sgn * 17.2, 0.12), (38, 2.5, 0.06), foam)
-bowwave = bw.obj('SHIP_BowWave', shp)
-for o in (wake, bowwave):
-    for f, sc in ((300, 0.02), (336, 0.4), (400, 1.0)):
-        o.scale = (sc, sc, 1) if o is wake else (1, 1, 1)
-        o.keyframe_insert('scale', frame=f)
-    L.key_vis(o, 300)
+# wake: churned foam behind the stern widening into streaks + Kelvin arms; bow wave; tugs throw their own wash
+wk = P.wake('SHIP_Wake', shp, -112.0, length=420.0, w0=20.0, w1=90.0)
+bw = P.wake('SHIP_BowWave', shp, 118.0, length=150.0, w0=6.0, w1=46.0, z=0.18, kelvin=False)
+bw.scale = (0.6, 1, 1)
+for f, sc in ((296, 0.02), (330, 0.35), (380, 0.85), (430, 1.0)):
+    wk.scale = (sc, min(1.0, 0.4 + sc), 1)
+    wk.keyframe_insert('scale', frame=f)
+L.key_vis(wk, 296)
+L.key_vis(bw, 320)
+for i, T in enumerate(tugs):
+    tw = P.wake(f'TUG{i}_Wake', T, -14.0, length=120.0, w0=5.0, w1=24.0, kelvin=True)
+    for f, sc in ((290, 0.05), (320, 0.8), (479, 1.0)):
+        tw.scale = (sc, 1, 1)
+        tw.keyframe_insert('scale', frame=f)
+    L.key_vis(tw, 290)
 
 # ---------------------------------------------------------------- hero reefer: keyed per frame (trailer -> spreader -> ship)
 LOCK, RELEASE = 195, 284
@@ -327,6 +337,95 @@ for f in range(1, 480):
     reefer.keyframe_insert('rotation_euler', frame=f)
 L.linear_keys(reefer)
 
+# ---------------------------------------------------------------- coastline, breakwaters, city (seen from the top-down end)
+def coast_y(x):
+    """Shoreline (y of the waterline) east and west of the 700 m container quay: bays, a headland, beaches."""
+    if abs(x) <= 360:
+        return 0.0
+    d = abs(x) - 360
+    return -40 - 0.08 * d + 140 * math.sin(d / 900.0) * (1 if x > 0 else -0.6) - 60 * math.sin(d / 260.0)
+
+
+land_tex = L.tex_pbr('MAT_LandScrub', 'aerial_grass_rock', 0.004, tint=(0.2, 0.24, 0.15), tint_amount=0.75, grime=0.3) \
+    if os.path.isdir(os.path.join(L.TEXDIR, 'aerial_grass_rock')) else L.pbr('MAT_LandScrub', (0.3, 0.29, 0.2), 0.9, var=0.4,
+                                                                               scale=0.003)
+sand = L.pbr('MAT_Sand', (0.62, 0.55, 0.42), 0.9, var=0.2, scale=0.02)
+roadm = L.pbr('MAT_RoadFar', (0.16, 0.16, 0.17), 0.9, var=0.15, scale=0.02)
+lm = P.MB()
+X0, X1, Y0 = -7000.0, 7000.0, -6000.0
+xs = [X0 + i * 100.0 for i in range(141)]
+for i in range(len(xs) - 1):
+    xa, xb = xs[i], xs[i + 1]
+    ya, yb = coast_y(xa), coast_y(xb)
+    if abs(xa) < 350 and abs(xb) < 350:
+        ya = yb = -340.0          # behind the container yard (the yard box covers the rest)
+    v = [lm.bm.verts.new((xa, Y0, QZ - 0.6)), lm.bm.verts.new((xb, Y0, QZ - 0.6)), lm.bm.verts.new((xb, yb - 25, QZ - 0.6)),
+         lm.bm.verts.new((xa, ya - 25, QZ - 0.6))]
+    f = lm.bm.faces.new(v)
+    f.material_index = lm.mi(land_tex)
+    if not (abs(xa) < 350 and abs(xb) < 350):
+        w = [lm.bm.verts.new((xa, ya - 25, QZ - 0.6)), lm.bm.verts.new((xb, yb - 25, QZ - 0.6)), lm.bm.verts.new((xb, yb, 0.4)),
+             lm.bm.verts.new((xa, ya, 0.4))]
+        f = lm.bm.faces.new(w)
+        f.material_index = lm.mi(sand)
+lm.obj('LAND_Coast')
+# city: blocks of low-rise buildings between a road grid, denser near the harbour, a few taller ones; parks left open
+cm = P.MB()
+roof_cols = [(0.72, 0.7, 0.66), (0.55, 0.53, 0.5), (0.8, 0.78, 0.74), (0.5, 0.36, 0.3), (0.34, 0.37, 0.4), (0.62, 0.45, 0.36), (0.25, 0.33, 0.42)]
+bmat = L.pbr('MAT_CityRoofs', (0.6, 0.58, 0.55), 0.85, var=0.3, scale=0.05, attr=None)
+cityp = P.paint_attr('MAT_CityPaint', 0.85, grime=0.4, scale=0.05)
+crnd = random.Random(21)
+blk = 120.0
+for bx in range(-55, 56):
+    for by in range(1, 46):
+        x = bx * blk
+        y = -340 - by * blk if abs(x) < 420 else coast_y(x) - 60 - by * blk
+        if y < Y0 + 200 or crnd.random() < 0.08:
+            continue
+        # main roads every 6 blocks: leave a wider gap
+        for k in range(crnd.randint(3, 9)):
+            w = crnd.uniform(18, 48)
+            d = crnd.uniform(18, 48)
+            px = x + crnd.uniform(-blk / 2 + w / 2 + 8, blk / 2 - w / 2 - 8)
+            py = y + crnd.uniform(-blk / 2 + d / 2 + 8, blk / 2 - d / 2 - 8)
+            near = max(0.0, 1.0 - abs(by) / 18.0)
+            h = crnd.choice((6, 9, 12, 15, 18)) + (crnd.random() < 0.05) * crnd.uniform(25, 60) * (0.5 + near)
+            cm.box((px, py, QZ + h / 2 - 0.5), (w, d, h), cityp, crnd.choice(roof_cols))
+cm.obj('LAND_City')
+rd = P.MB()
+for bx in range(-55, 56, 3):
+    rd.box((bx * blk + blk / 2, (Y0 - 340) / 2, QZ - 0.45), (10, abs(Y0) - 340, 0.2), roadm)
+for by in range(1, 46, 3):
+    rd.box((0, -340 - by * blk - blk / 2, QZ - 0.45), (14000, 12, 0.2), roadm)
+rd.obj('LAND_Roads')
+# rubble-mound breakwaters closing the basin; the harbour mouth opens to the north-east, on the ship's heading
+rock = L.tex_pbr('MAT_Breakwater', 'rust_coarse_01', 0.02, tint=(0.42, 0.41, 0.39), tint_amount=0.9, grime=0.3) \
+    if False else L.pbr('MAT_Breakwater', (0.42, 0.41, 0.39), 0.9, var=0.45, bump=0.8, scale=0.4, grime=0.4)
+bwm = P.MB()
+for pts in (((-450, 0), (-450, 640), (240, 780)), ((720, -20), (720, 340), (580, 440))):
+    for (xa, ya), (xb, yb) in zip(pts[:-1], pts[1:]):
+        a, b = Vector((xa, ya, 0)), Vector((xb, yb, 0))
+        n = int((b - a).length / 6)
+        for k in range(n):
+            c = a + (b - a) * (k / n)
+            for j in range(3):
+                off = Vector((crnd.uniform(-9, 9), crnd.uniform(-9, 9), 0))
+                bwm.box(c + off + Vector((0, 0, crnd.uniform(0.5, 3.5))), (crnd.uniform(4, 9), crnd.uniform(4, 9), crnd.uniform(3, 6)),
+                        rock, rot=L.Euler((crnd.random(), crnd.random(), crnd.random())).to_matrix())
+        bwm.box((a + b) / 2 + Vector((0, 0, 4.2)), ((b - a).length + 6, 7, 1.2), conc,
+                rot=L.Euler((0, 0, math.atan2(b.y - a.y, b.x - a.x))).to_matrix())
+bwm.obj('LAND_Breakwaters')
+# other berths in the basin: a bulk ship and two small coasters along the west breakwater's inner side
+for i, (x, y, r, Ls) in enumerate(((-400, 300, D(90), 190), (-380, 520, D(88), 90), (-200, 690, D(12), 110))):
+    far = P.MB()
+    far.box((0, 0, 4), (Ls, Ls * 0.15, 12), L.pbr('MAT_BulkHull', (0.32, 0.08, 0.06), 0.7, grime=0.5))
+    far.box((0, 0, 10.3), (Ls * 0.92, Ls * 0.12, 0.6), L.pbr('MAT_BulkDeck', (0.3, 0.31, 0.3), 0.8, grime=0.6))
+    for k in range(int(Ls / 25)):
+        far.box((-Ls * 0.38 + k * 25, 0, 11.5), (16, Ls * 0.1, 1.8), L.pbr('MAT_Hatch', (0.18, 0.25, 0.3), 0.6, grime=0.5))
+    far.box((-Ls * 0.42, 0, 18), (10, Ls * 0.12, 16), L.pbr('MAT_ShipWhite', (0.85, 0.86, 0.85), 0.4))
+    o = far.obj(f'BASIN_Ship{i}', None, (x, y, 0))
+    o.rotation_euler = (0, 0, r)
+
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (-40, -92, 12), (-40, -55, 2))
 cam.data.clip_end = 30000
@@ -336,17 +435,17 @@ keys = [
     (40, (-29.0, -100.0, 13.0), (-42.0, -68.0, 3.0), 28),
     (72, (-48.0, -74.0, 18.5), (-41.0, -46.0, 3.0), 28),
     (132, (-50.0, -42.0, 21.0), (-12.0, -14.0, 6.0), 26),
-    (168, (-24.0, -33.0, 4.5), (2.0, -4.0, 14.0), 24),
-    (190, (-25.0, -34.0, 5.0), (2.0, -6.0, 22.0), 24),
-    (224, (-30.0, -42.0, 22.0), (2.0, 0.0, 32.0), 24),
+    (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
+    (196, (-9.0, -24.5, 6.5), (1.5, -12.5, 6.0), 34),
+    (224, (-14.0, -30.0, 18.0), (2.0, -4.0, 30.0), 28),
     (256, (-45.0, -80.0, 70.0), (2.0, 12.0, 22.0), 26),
     (288, (-50.0, -115.0, 230.0), (5.0, 18.0, 10.0), 30),
     (336, (14.0, SHIP_Y + 28.0, 330.0), (14.0, SHIP_Y + 30.0, 0.0), 28),
     (380, (45.0, SHIP_Y + 110.0, 400.0), (45.0, SHIP_Y + 112.0, 0.0), 28),
     (420, (95.0, SHIP_Y + 200.0, 720.0), (95.0, SHIP_Y + 202.0, 0.0), 28),
-    (479, (150.0, SHIP_Y + 260.0, 6200.0), (150.0, SHIP_Y + 262.0, 0.0), 28),
+    (479, (150.0, SHIP_Y + 120.0, 2600.0), (150.0, SHIP_Y + 122.0, 0.0), 28),
 ]
-L.cam_path(cam, keys, focus=[(1, 40.0), (168, 30.0), (224, 45.0), (288, 95.0), (336, 330.0), (479, 6000.0)])
+L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (196, 15.5), (224, 40.0), (288, 95.0), (336, 330.0), (479, 2600.0)])
 cam.data.dof.use_dof = True
 # the top-down part: hide the harbour detail patch once the camera is high (far plane = same deep blue everywhere)
 L.key_vis(sea, 1, 340)
