@@ -3,7 +3,7 @@
 # Redesign prompt §2.6: H.264 High, GOP 8, no B-frames, faststart, no audio; capped CRF so a clip never exceeds the
 # tier budget (<= 2.5 MB / 8 s at 1920, <= 0.9 MB / 8 s at 960): -crf 23 -maxrate R -bufsize R per tier.
 # Usage: scripts/encode-clips.sh [id ...]        (no ids = every mp4 in assets-src/video)
-# Env:   SRC=assets-src/video OUT=public/media FORCE=1 (re-encode) CRF=23 TIERS="1920 1280 960"
+# Env:   SRC=assets-src/video OUT=public/media FORCE=1 (re-encode) CRF=23 TIERS="1920 1280 960" RATE=1450k (override the tier cap)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC="${SRC:-assets-src/video}"; OUT="${OUT:-public/media}"; CRF="${CRF:-23}"; TIERS="${TIERS:-1920 1280 960}"
@@ -18,7 +18,7 @@ for id in "${ids[@]}"; do
   in="$SRC/$id.mp4"; [ -f "$in" ] || { echo "skip $id: $in missing"; continue; }
   line="$id"
   for w in $TIERS; do
-    o="$OUT/${id}_${w}.mp4"; r=$(rate "$w")
+    o="$OUT/${id}_${w}.mp4"; r="${RATE:-$(rate "$w")}"
     if [ ! -f "$o" ] || [ "${FORCE:-0}" = 1 ]; then
       ffmpeg -v error -y -i "$in" -vf "scale=$w:-2:flags=lanczos" $X264 -crf "$CRF" -maxrate "$r" -bufsize "$r" "$o"; fi
     line="$line  $w: $(kb "$o") KB"
