@@ -133,3 +133,4 @@
 @media (max-width: 819px) {
   .quote__grid, .rfq__row { grid-template-columns: 1fr; }
 }
+.rfq--loading { min-height: 40rem; }
