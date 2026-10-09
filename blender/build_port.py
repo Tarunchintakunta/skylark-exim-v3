@@ -486,7 +486,7 @@ keys = [
     (132, (-50.0, -42.0, 21.0), (-12.0, -14.0, 6.0), 26),
     (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
     (186, (-12.0, -28.0, 8.0), (0.0, -12.5, 6.2), 30),
-    (212, (-20.0, -34.0, 22.0), (0.0, -2.0, 30.0), 28),
+    (212, (-34.0, -30.0, 14.0), (0.0, -4.0, 30.0), 28),
     # seaward of crane 2's legs, so the portal bracing is not between the camera and the slot
     (240, (-22.0, slot_world.y - 14.0, slot_world.z + 12.0), (0.0, slot_world.y, slot_world.z + 4.0), 34),
     (276, (-16.0, slot_world.y - 11.0, slot_world.z + 7.0), (0.0, slot_world.y, slot_world.z + 2.0), 36),
@@ -496,7 +496,7 @@ keys = [
     (420, (95.0, SHIP_Y + 200.0, 720.0), (95.0, SHIP_Y + 202.0, 0.0), 28),
     (479, (150.0, SHIP_Y + 120.0, 2600.0), (150.0, SHIP_Y + 122.0, 0.0), 28),
 ]
-L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (186, 20.0), (212, 40.0), (240, 34.0), (276, 28.0), (288, 33.0), (336, 330.0), (479, 2600.0)])
+L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (186, 20.0), (212, 45.0), (240, 34.0), (276, 28.0), (288, 33.0), (336, 330.0), (479, 2600.0)])
 cam.data.dof.use_dof = True
 # the top-down part: hide the harbour detail patch once the camera is high (far plane = same deep blue everywhere)
 L.key_vis(sea, 1, 340)

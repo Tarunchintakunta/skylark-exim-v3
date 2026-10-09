@@ -518,6 +518,8 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
         for r in range(rows):
             y = -B / 2 + 1 + (r + 0.5) * (B - 2) / rows
             t_here = max(2, base_t - (1 if r in (0, rows - 1) else 0) - (rnd.random() < 0.15))
+            if empty_slot and bi == empty_slot[0] and r < empty_slot[1]:
+                t_here = min(t_here, base_t - 3)   # lower rows on the quay side: the box under the slot stays in view
             for t in range(t_here):
                 if empty_slot and bi == empty_slot[0] and r == empty_slot[1] and t == t_here - 1:
                     slot = Vector((bx, y, deck + 0.8 + t * CH))
