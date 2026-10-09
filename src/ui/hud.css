@@ -1,0 +1,39 @@
+.hud {
+  position: fixed; right: var(--gutter); top: 50%; z-index: var(--z-chrome);
+  transform: translateY(-50%);
+  display: flex; gap: 14px; align-items: stretch;
+  opacity: 0; visibility: hidden; pointer-events: none;
+}
+.hud__panel {
+  display: grid; gap: 8px; width: 15.5rem; padding: 16px 18px;
+  background: var(--hud-bg); border: 1px solid var(--hairline); border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.hud__label { color: var(--steel); font-size: 10px; }
+.hud__step { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline; }
+.hud__num { font-size: 28px; letter-spacing: 0.04em; color: var(--ice); font-variant-numeric: tabular-nums; }
+.hud__of { color: var(--steel); }
+.hud__name { grid-column: 1 / -1; margin-top: 6px; color: var(--ice); }
+.hud__state { color: var(--brass); }
+.hud__temp { padding-top: 8px; border-top: 1px solid var(--hairline); color: var(--ice); font-size: 13px; }
+.hud__track { width: 1px; background: var(--hairline); }
+.hud__line { height: 100%; background: var(--brass); transform: scaleY(var(--p, 0)); transform-origin: top; }
+
+/* < 768 px: slim top bar with the step name */
+@media (max-width: 767px) {
+  .hud { inset: 0 0 auto 0; right: 0; transform: none; display: block; }
+  .hud__panel {
+    width: auto; display: flex; gap: 10px; align-items: baseline; flex-wrap: nowrap;
+    padding: 0 var(--gutter); margin-top: 66px; background: none; border: 0;
+    -webkit-backdrop-filter: none; backdrop-filter: none; overflow: hidden; white-space: nowrap;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  .hud__label, .hud__of, .hud__temp:not([hidden]) ~ .hud__state { display: none; }
+  .hud__step { display: flex; gap: 8px; }
+  .hud__num { font-size: 11px; color: var(--brass); }
+  .hud__name { margin: 0; }
+  .hud__state::before { content: '· '; }
+  .hud__temp { padding: 0; border: 0; font-size: 11px; }
+  .hud__track { position: absolute; inset: 0 0 auto 0; width: 100%; height: 2px; }
+  .hud__line { transform: scaleX(var(--p, 0)); transform-origin: left; }
+}
