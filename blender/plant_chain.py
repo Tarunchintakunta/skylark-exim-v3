@@ -185,9 +185,25 @@ def shrimp_fn(C):
     return fn
 
 
-def fish_fn():
+FISH_LEN = {'tuna_s': (0.75, 0.9), 'seer': (0.7, 0.85), 'mackerel': (0.42, 0.55)}
+
+
+def fish_fn(C=None):
+    """Whole fish on ice from the photogrammetry scan (CC BY 4.0, credited); lofted library fish if it is missing."""
+    import skscan
+    me = skscan.mesh('SCAN_Fish')
+    rnd = random.Random(9)
+
     def fn(name, kind, loc, rot):
-        return L.fish(name, kind, loc, rot)
+        if me is None:
+            return L.fish(name, kind, loc, rot)
+        o = bpy.data.objects.new(name, me)
+        (C or bpy.context.scene.collection).objects.link(o)
+        k = rnd.uniform(*FISH_LEN.get(kind, (0.5, 0.7)))
+        o.scale = (k, k, k)
+        o.location = (loc[0], loc[1], loc[2] + 0.04 * k)
+        o.rotation_euler = rot
+        return o
     return fn
 
 
@@ -462,7 +478,7 @@ def build(scene, out):
     C_in = S.coll('SET_Interior')
     ice_m = L.ice_mesh('IN_IceBed', 0.54, 0.34, 0.05, 40, 9)
     SI.build_all(C_in, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd),
-                 lambda n, l, r, C: trolley(n, l, r, C), shrimp_fn(C_in), fish_fn(), ice_m)
+                 lambda n, l, r, C: trolley(n, l, r, C), shrimp_fn(C_in), fish_fn(C_in), ice_m)
     strips = SI._strip_curtain('PL_IntakeStrip', SI.CX - 1.55, SI.CX + 1.55, 12.0, S.DZ, S.DZ + 3.18, C_in, SI.mats())
     SI.swing_strips(strips, [(424, 440, 8.2, 0.85, -1), (462, 478, 7.5, 0.8, -1)])
     SI.animate_spray(1, 1100)

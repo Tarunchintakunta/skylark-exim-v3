@@ -104,7 +104,8 @@ def build(out=OUT):
 
 # the shared library's prepared scans (feat/100 prep_scans.py): 1 m long, head +X; the prawn comes in back-down
 LIB = os.path.join(os.path.dirname(CC0), 'blender', 'fish_scans.blend')
-LIB_MAP = {'SCAN_Shrimp': ('SCAN_Prawn_LOD', 0.13, 3.14159265)}   # our name: (library mesh, length m, roll to belly-down)
+LIB_MAP = {'SCAN_Shrimp': ('SCAN_Prawn_LOD', 0.13, 3.14159265),   # our name: (library mesh, length m, roll)
+           'SCAN_Fish': ('SCAN_Tuna_LOD', 1.0, 0.0)}                 # whole fish; scale per object
 
 
 def mesh(name):
