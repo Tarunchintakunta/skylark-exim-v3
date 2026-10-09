@@ -5,18 +5,19 @@ import { preloadCritical } from '../engine/preload'
 import { store } from '../engine/store'
 import { lockScroll, unlockScroll } from '../engine/ticker'
 
-const MIN_MS = 300
+/** the mark needs ~0.8 s to draw; preload.ts caps the wait at 2.5 s */
+const MIN_MS = 800
 
 /**
  * Intro loader (STORY §0). Its markup and CSS are static in index.html so it paints before any JS;
- * this component drives it: real byte progress, scroll locked until ready, then the mark flies to the header.
+ * this component drives it: the mark draws, a hairline shows real progress of the opening clip, scroll is locked until
+ * ready, then the mark grows and dissolves into the first frame.
  */
 export function Loader() {
   useEffect(() => {
     const root = document.getElementById('boot')
     if (!root) return
     const bar = root.querySelector<HTMLElement>('.loader__bar')!
-    const pct = root.querySelector<HTMLElement>('.loader__pct')!
     const mark = root.querySelector<HTMLElement>('.loader__mark')!
     lockScroll()
     let shown = 0
@@ -25,9 +26,7 @@ export function Loader() {
       if (f <= shown) return // never move backwards
       shown = f
       bar.style.transform = `scaleX(${f})`
-      const n = Math.round(f * 100)
-      pct.textContent = `${n}%`
-      root.setAttribute('aria-valuenow', String(n))
+      root.setAttribute('aria-valuenow', String(Math.round(f * 100)))
     }
     let cancelled = false
     preloadCritical(set).then(async () => {
@@ -44,19 +43,11 @@ export function Loader() {
         gsap.to(root, { autoAlpha: 0, duration: 0.2, onComplete: done })
         return
       }
+      // logo reveal: the mark grows and dissolves while a circular hole opens from the centre onto the moving first frame
       const tl = gsap.timeline({ onComplete: done })
-      const target = document.querySelector('[data-brand-mark]')?.getBoundingClientRect()
-      const from = mark.getBoundingClientRect()
-      if (target && target.width) {
-        tl.to(mark, {
-          x: target.left + target.width / 2 - (from.left + from.width / 2),
-          y: target.top + target.height / 2 - (from.top + from.height / 2),
-          scale: target.width / from.width,
-          duration: 0.6,
-          ease: 'power3.inOut',
-        })
-      }
-      tl.to(root, { autoAlpha: 0, duration: 0.6, ease: 'power2.out' }, target ? 0.15 : 0)
+      tl.to(root.querySelector('.loader__track'), { autoAlpha: 0, duration: 0.25 }, 0)
+      tl.to(mark, { scale: 7, autoAlpha: 0, duration: 1.0, ease: 'power3.in' }, 0)
+      tl.to(root, { '--r': `${Math.hypot(innerWidth, innerHeight) / 2 + 2}px`, duration: 1.0, ease: 'power3.inOut' }, 0.15)
     })
     return () => {
       cancelled = true

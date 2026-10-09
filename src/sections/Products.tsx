@@ -20,6 +20,13 @@ export function Products() {
   useEffect(() => setTab(path === 'pond' ? 'shrimps' : 'marine'), [path])
   useEffect(() => store.setState({ prefill: { category: tab } }), [tab])
   useEffect(() => bindReveals(root.current!), [])
+  // three.js + the GLBs load only when Products is about a section away (never on first paint)
+  const [near, setNear] = useState(false)
+  useEffect(() => {
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && (setNear(true), io.disconnect()), { rootMargin: '150% 0px' })
+    io.observe(root.current!)
+    return () => io.disconnect()
+  }, [])
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
@@ -58,7 +65,7 @@ export function Products() {
 
       <div className="products" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         <div className={`products__stage products__stage--${cat.models.length}`}>
-          {hasModels ? (
+          {hasModels && near ? (
             <Fallback fallback={cards}>
               <Suspense fallback={cards}>
                 <ProductStage models={cat.models} />

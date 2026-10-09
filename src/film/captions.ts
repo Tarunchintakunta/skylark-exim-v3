@@ -23,6 +23,7 @@ export function bindCaptions(sections: HTMLElement[]) {
   }
   caps = sections.map((s) => [...s.querySelectorAll<HTMLElement>('.caption')].map((el) => ({ el })))
   active = null
+  swap?.kill()
   if (env.reduced) return
   document.fonts.ready.then(() => {
     for (const c of caps.flat()) {
@@ -34,28 +35,58 @@ export function bindCaptions(sections: HTMLElement[]) {
   })
 }
 
+/**
+ * One caption on screen at a time. A change is a sequence, never a cross-fade:
+ * the outgoing lines leave through their masks (0.25 s), and only then the incoming lines come up.
+ * Any other caption still mid-animation (fast scrolling) is cut instantly.
+ */
+let swap: gsap.core.Timeline | null = null
+
 export function updateCaptions(ch: ChapterDef, index: number, p: number) {
   const k = ch.captions.findIndex((c) => p >= c.at[0] && p < c.at[1])
   const next = k >= 0 ? (caps[index]?.[k] ?? null) : null
   if (next === active) return
-  if (active) hide(active)
-  if (next) show(next)
+  const out = active
   active = next
+  swap?.kill()
+  for (const c of caps.flat()) if (c !== out && c !== next) cut(c)
+  if (next) cut(next)
+  swap = gsap.timeline()
+  if (out) swap.add(hide(out))
+  if (next) swap.add(() => show(next))
+}
+
+function targets(c: Cap) {
+  return [c.el, ...(c.split?.lines ?? []), ...c.el.querySelectorAll('[data-fade],[data-card]'), ...(c.typed?.chars ?? [])]
+}
+
+/** Hard reset: invisible, no running tweens. */
+function cut(c: Cap) {
+  gsap.killTweensOf(targets(c))
+  gsap.set(c.el, { visibility: 'hidden', autoAlpha: 0, y: 0 })
 }
 
 function show(c: Cap) {
   const { el } = c
-  gsap.killTweensOf(el)
+  gsap.killTweensOf(targets(c))
   gsap.set(el, { visibility: 'visible', autoAlpha: 1, y: 0 })
   if (env.reduced) return
   const fades = el.querySelectorAll('[data-fade]')
-  if (c.split) gsap.fromTo(c.split.lines, { yPercent: 100 }, { yPercent: 0, duration: 0.9, stagger: 0.08, ease: 'power3.out', overwrite: true })
-  gsap.fromTo(fades, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, delay: 0.2, stagger: 0.05, ease: 'power3.out', overwrite: true })
+  if (c.split) gsap.fromTo(c.split.lines, { yPercent: 100 }, { yPercent: 0, duration: 0.7, stagger: 0.06, ease: 'power3.out' })
+  if (fades.length) gsap.fromTo(fades, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.7, delay: 0.15, stagger: 0.06, ease: 'power3.out' })
   const cards = el.querySelectorAll('[data-card]')
-  if (cards.length) gsap.fromTo(cards, { yPercent: 40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.9, stagger: 0.12, delay: 0.15, ease: 'power3.out', overwrite: true })
-  if (c.typed) gsap.fromTo(c.typed.chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: 0.035, delay: 0.6, ease: 'none', overwrite: true })
+  if (cards.length) gsap.fromTo(cards, { yPercent: 40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.7, stagger: 0.06, delay: 0.15, ease: 'power3.out' })
+  if (c.typed) gsap.fromTo(c.typed.chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: 0.035, delay: 0.5, ease: 'none' })
 }
 
+/** Lines go up and out through their masks; the rest fades. Returns the tween so the swap waits for it. */
 function hide(c: Cap) {
-  gsap.to(c.el, { autoAlpha: 0, y: -40, duration: env.reduced ? 0.01 : 0.45, ease: 'power2.in', overwrite: true })
+  gsap.killTweensOf(targets(c))
+  const d = env.reduced ? 0.01 : 0.25
+  const tl = gsap.timeline({ onComplete: () => gsap.set(c.el, { visibility: 'hidden', autoAlpha: 0 }) })
+  if (c.split && !env.reduced) {
+    tl.to(c.split.lines, { yPercent: -100, duration: d, ease: 'power2.out' }, 0)
+    tl.to(c.el.querySelectorAll('[data-fade],[data-card]'), { autoAlpha: 0, duration: d, ease: 'power2.out' }, 0)
+  } else tl.to(c.el, { autoAlpha: 0, duration: d, ease: 'power2.out' }, 0)
+  return tl
 }

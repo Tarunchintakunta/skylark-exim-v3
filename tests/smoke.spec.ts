@@ -10,30 +10,47 @@ test('loads, loader completes, one h1', async ({ page }) => {
   await expect(page.locator('html')).not.toHaveClass(/is-locked/)
 })
 
-test('path buttons switch the chapter list and the hash', async ({ page }) => {
+test('header toggle switches the path and keeps the hash; Ocean is the default', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  const ocean = page.getByRole('button', { name: /^the ocean/i })
-  const pond = page.getByRole('button', { name: /^the pond/i })
-  await expect(ocean).toHaveAttribute('aria-pressed', 'true')
+  const ocean = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Wild catch' })
+  const pond = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Farmed shrimp' })
+  await expect(ocean).toHaveAttribute('aria-current', 'true')
+  await expect(page.locator('[data-chapter="o1"]')).toHaveCount(1)
   await pond.click()
-  await expect(pond).toHaveAttribute('aria-pressed', 'true')
+  await expect(pond).toHaveAttribute('aria-current', 'true')
   await expect(page).toHaveURL(/#pond$/)
   await expect(page.locator('[data-chapter="p1"]')).toHaveCount(1)
   await expect(page.locator('[data-chapter="o1"]')).toHaveCount(0)
-  await page.keyboard.press('ArrowLeft')
-  await expect(ocean).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('[data-chapter="o1"]')).toHaveCount(1)
 })
 
-test('header pill jumps to the first chapter of the other path', async ({ page }) => {
+test('inside the film the toggle lands on the other path\'s first chapter', async ({ page }) => {
   await page.goto('/#ocean')
   await ready(page)
-  await page.getByRole('button', { name: /switch to the pond path/i }).click()
+  const o2 = await page.locator('[data-chapter="o2"]').evaluate((el) => (el as HTMLElement).offsetTop + 50)
+  await page.evaluate((y) => window.scrollTo(0, y), o2)
+  await page.waitForTimeout(500)
+  await page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Farmed shrimp' }).click()
   await expect(page).toHaveURL(/#pond$/)
-  await page.waitForTimeout(400)
+  await page.waitForTimeout(500)
   const top = await page.locator('[data-chapter="p1"]').evaluate((el) => Math.round(el.getBoundingClientRect().top))
   expect(Math.abs(top)).toBeLessThan(4)
+})
+
+test('the hero is moving before the first scroll, then scrubbing takes over', async ({ page }) => {
+  await page.goto('/')
+  await ready(page)
+  const video = page.locator('video[src*="/opening_"]')
+  const t1 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  await page.waitForTimeout(700)
+  const t2 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  expect(t2).toBeGreaterThan(t1)
+  // the logo reveal unlocks scrolling when it finishes
+  await page.waitForSelector('#boot', { state: 'detached' })
+  await page.mouse.move(700, 450)
+  await page.mouse.wheel(0, 300)
+  await page.waitForTimeout(600)
+  expect(await video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
 })
 
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
@@ -56,7 +73,7 @@ test('RFQ shows validation errors, then falls back to a pre-filled mailto', asyn
 test('every nav link lands on its section', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  for (const id of ['products', 'why', 'about', 'quote']) {
+  for (const id of ['products', 'about', 'quote']) {
     await page.locator(`.nav a[href="#${id}"]`).click()
     await page.waitForTimeout(1800)
     const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)

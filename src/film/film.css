@@ -18,46 +18,16 @@
 .caption__title .line { padding-bottom: 0.06em; }
 .caption__body { margin-top: 1.2rem; max-width: 36rem; color: rgba(244, 250, 250, 0.86); }
 .caption__note { margin-top: 1.2rem; color: var(--steel); }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.4rem; max-width: 40rem; }
-.chip { padding: 7px 10px; border: 1px solid var(--hairline); border-radius: 2px; color: var(--ice); background: rgba(4, 34, 44, 0.35); }
-.label-card {
-  margin-top: 1.4rem; width: min(22rem, 100%); padding: 16px 18px 10px;
-  background: rgba(244, 250, 250, 0.94); color: var(--ink); border-radius: 2px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-}
-.label-card__head { color: var(--ink-2); padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
-.label-card dl { margin: 0; }
-.label-card__row { display: grid; grid-template-columns: 11.5rem 1fr; align-items: end; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--hairline-ink); }
-.label-card__row:last-child { border-bottom: 0; }
-.label-card dt { color: var(--ink); }
-.label-card dd { margin: 0; height: 1px; background: var(--hairline-ink); transform: translateY(-4px); }
-.doc-cards { display: flex; gap: 14px; margin-top: 1.6rem; }
-.doc-card {
-  position: relative; display: grid; align-content: start; gap: 12px;
-  width: 11.5rem; aspect-ratio: 210 / 297; padding: 16px;
-  background: #f4f7f5; color: var(--ink); border-radius: 2px;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.4);
-  transform: rotate(calc((var(--i) - 1) * 2.2deg));
-}
-.doc-card__no { color: var(--brass-ink); }
-.doc-card__title { color: var(--ink); line-height: 1.5; }
-.doc-card__lines { display: grid; gap: 8px; margin-top: 6px; }
-.doc-card__lines i { display: block; height: 4px; background: rgba(16, 32, 36, 0.12); border-radius: 2px; }
-.doc-card__lines i:nth-child(2) { width: 82%; }
-.doc-card__lines i:nth-child(3) { width: 64%; }
-.doc-card__lines i:nth-child(4) { width: 74%; }
-@media (min-width: 1100px) {
-  /* desktop: the cards stand to the right of the copy, below the HUD */
-  .doc-cards { position: absolute; left: min(44rem, 50vw); bottom: 0; margin: 0; }
-}
-@media (max-width: 767px) {
-  .doc-card { width: 30%; padding: 10px; gap: 8px; }
-  .doc-card__title { font-size: 9px; letter-spacing: 0.1em; }
-}
+.caption__list { margin-top: 1.2rem; max-width: 40rem; color: rgba(244, 250, 250, 0.72); font-size: 0.9375rem; letter-spacing: 0.02em; }
+.caption__fields { margin: 1.4rem 0 0; padding: 0; list-style: none; max-width: 26rem; }
+.caption__fields > * { display: flex; gap: 16px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--hairline); }
+.caption__fields > *:last-child { border-bottom: 1px solid var(--hairline); }
+.caption__fields dt { flex: none; }
+.caption__fields dd { flex: 1; margin: 0; }
 .caption--light { color: var(--ink); }
 .caption--light .caption__eyebrow { color: var(--brass-ink); }
 .caption--light .caption__body { color: var(--ink-2); }
-.markets { display: flex; flex-wrap: wrap; gap: 6px 8px; margin-top: 1.4rem; max-width: 40rem; pointer-events: auto; }
-.markets__item { padding: 7px 10px; border: 1px solid var(--hairline-ink); border-radius: 2px; color: var(--ink); background: rgba(238, 245, 246, 0.72); transition: border-color 0.2s, background 0.2s; }
-.markets__item:hover, .markets__item:focus-visible { border-color: var(--brass-ink); background: #fff; }
+.markets { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 1.4rem; max-width: 40rem; pointer-events: auto; }
+.markets__item { padding: 2px 0; border: 0; background: none; color: var(--ink); font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.2s; }
+.markets__item:hover, .markets__item:focus-visible { text-decoration-color: currentColor; }
 .globe-label { display: block; padding: 3px 6px; white-space: nowrap; color: var(--ink); background: rgba(238, 245, 246, 0.82); border-radius: 2px; font-size: 10px; transform: translateY(-16px); transition: opacity 0.35s; }

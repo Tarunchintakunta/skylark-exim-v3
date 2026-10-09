@@ -1,8 +1,9 @@
 /* Design tokens (docs/CLAUDE_PROMPT.md §7). Brass is reserved for CTA, routes, focus and active states. */
-@font-face { font-family: 'Sora'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/sora-latin-600-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Inter'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/inter-latin-400-normal.woff2') format('woff2'); }
-@font-face { font-family: 'Inter'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/inter-latin-500-normal.woff2') format('woff2'); }
-@font-face { font-family: 'JetBrains Mono'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2'); }
+/* Type: pairing A from /type (#88, Tarun's pick): Instrument Serif display + Inter Tight body. Latin subsets, OFL. */
+@font-face { font-family: 'Instrument Serif'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/instrument-serif-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Serif'; font-weight: 400; font-style: italic; font-display: swap; src: url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/inter-tight-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter Tight'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/inter-tight-latin-500-normal.woff2') format('woff2'); }
 
 :root {
   --deep-2: #04222c;
@@ -22,18 +23,23 @@
   --hairline: rgba(244, 250, 250, 0.14);
   --hairline-ink: rgba(16, 32, 36, 0.14);
 
-  --hud-bg: rgba(4, 34, 44, 0.46);
   --scrim: linear-gradient(to top, rgba(4, 34, 44, 0.92) 0%, rgba(4, 34, 44, 0.55) 38%, rgba(4, 34, 44, 0) 70%);
 
-  --f-display: 'Sora', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
-  --f-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --f-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --f-body: 'Inter Tight', 'Segoe UI', system-ui, sans-serif;
+  /* no monospace any more: small labels are sentence-case body text */
+  --f-mono: var(--f-body);
 
-  --fs-display: clamp(2.4rem, 6vw, 6.5rem);
-  --fs-h2: clamp(2rem, 4.2vw, 4rem);
-  --fs-h3: clamp(1.25rem, 1.6vw, 1.6rem);
-  --fs-body: clamp(1rem, 0.92rem + 0.3vw, 1.25rem);
-  --fs-mono: 11px;
+  /* fluid scale, 1440 reference (redesign §4) */
+  --fs-hero: clamp(3.5rem, 9vw, 9.5rem);
+  --fs-h1: clamp(2.75rem, 6vw, 6.5rem);
+  --fs-display: var(--fs-h1);
+  --fs-h2: clamp(2rem, 3.8vw, 4rem);
+  --fs-h3: clamp(1.375rem, 1.9vw, 2rem);
+  --fs-lead: clamp(1.125rem, 1.35vw, 1.5rem);
+  --fs-body: clamp(1rem, 0.95rem + 0.2vw, 1.125rem);
+  --fs-small: 0.8125rem;
+  --fs-mono: var(--fs-small);
 
   --gutter: clamp(20px, 4vw, 64px);
   --radius: 4px;

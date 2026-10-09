@@ -44,7 +44,7 @@
   transition: transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out);
 }
 .form-card:hover { transform: translateY(-4px); box-shadow: 0 14px 30px rgba(16, 32, 36, 0.1); }
-.form-card__name { font-family: var(--f-display); font-weight: 600; font-size: 1.2rem; letter-spacing: -0.01em; }
+.form-card__name { font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; letter-spacing: -0.01em; }
 .form-card__opt { color: var(--ink-2); }
 .states { display: flex; flex-wrap: wrap; gap: 0 clamp(16px, 3vw, 40px); margin-top: clamp(48px, 7vh, 80px); padding-top: 28px; border-top: 1px solid var(--hairline-ink); }
 .states__item { font-size: clamp(1.8rem, 4vw, 3.6rem); color: var(--ink); }
@@ -65,7 +65,7 @@
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--hairline-ink); border-left: 1px solid var(--hairline-ink); }
 .tile { display: grid; align-content: start; gap: 12px; padding: clamp(20px, 2.4vw, 32px); border-right: 1px solid var(--hairline-ink); border-bottom: 1px solid var(--hairline-ink); }
 .tile__no { color: var(--brass-ink); }
-.tile__title { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-h3); letter-spacing: -0.01em; }
+.tile__title { font-family: var(--f-display); font-weight: 400; font-size: var(--fs-h3); letter-spacing: -0.01em; }
 .tile__line { color: var(--ink-2); }
 .compliance { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: baseline; margin-top: 32px; font-size: clamp(1.05rem, 1.4vw, 1.3rem); }
 .compliance .mono { color: var(--brass-ink); }
@@ -85,7 +85,7 @@
 .partners__list { display: grid; grid-template-columns: repeat(2, minmax(0, 22rem)); gap: 16px; }
 .partner { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 18px; align-items: center; padding: 18px; background: #fff; border: 1px solid var(--hairline-ink); border-radius: var(--radius); }
 .partner__mono { grid-row: 1 / 3; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--deep); color: var(--brass); font-size: 1.3rem; letter-spacing: 0.02em; }
-.partner__name { font-family: var(--f-display); font-weight: 600; font-size: 1.2rem; align-self: end; }
+.partner__name { font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; align-self: end; }
 .partner__role { color: var(--ink-2); align-self: start; }
 @media (max-width: 819px) {
   .about__grid, .partners__list { grid-template-columns: 1fr; }
@@ -133,3 +133,4 @@
 @media (max-width: 819px) {
   .quote__grid, .rfq__row { grid-template-columns: 1fr; }
 }
+.rfq--loading { min-height: 40rem; }

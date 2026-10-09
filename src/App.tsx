@@ -6,12 +6,9 @@ import { Products } from './sections/Products'
 import { Quote } from './sections/Quote'
 import { Trust } from './sections/Trust'
 import { ScrubStage } from './film/ScrubStage'
-import { Hud } from './ui/Hud'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
-import { QuoteCta } from './ui/QuoteCta'
-import { Rail } from './ui/Rail'
-import { StartScreen } from './ui/StartScreen'
+import { Hero } from './ui/Hero'
 
 export default function App() {
   const path = useApp((s) => s.path)
@@ -23,16 +20,13 @@ export default function App() {
       <ScrubStage chapters={chapters} />
       <Header />
       <main id="main" tabIndex={-1}>
-        <StartScreen />
-        <Rail chapters={chapters} />
+        <Hero />
         <Film chapters={chapters} />
         <Products />
         <Trust />
         <About />
         <Quote />
       </main>
-      <Hud />
-      <QuoteCta />
       <Loader />
     </>
   )
