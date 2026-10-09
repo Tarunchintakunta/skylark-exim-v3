@@ -13,10 +13,14 @@
   opacity: 0;
   pointer-events: none;
 }
-.caption__eyebrow { color: var(--brass); margin-bottom: 1.1rem; }
-.caption__title { font-size: var(--fs-display); max-width: 14ch; text-wrap: balance; }
+.caption__eyebrow { display: flex; align-items: baseline; gap: 0.75em; color: var(--brass); margin-bottom: 1.2rem; }
+.caption__num { font-family: var(--f-display); font-size: 1.6em; line-height: 1; color: var(--ice); font-variant-numeric: lining-nums tabular-nums; }
+.caption__title { font-size: var(--fs-h1); max-width: 13ch; text-wrap: balance; }
+/* right-hand column chapters: copy sits right, the scrim follows it */
+.caption--right { left: auto; right: var(--gutter); width: min(34rem, calc(100vw - 2 * var(--gutter))); }
+@media (max-width: 819px) { .caption--right { left: var(--gutter); right: auto; } }
 .caption__title .line { padding-bottom: 0.06em; }
-.caption__body { margin-top: 1.2rem; max-width: 36rem; color: rgba(246, 242, 234, 0.86); }
+.caption__body { margin-top: 1.4rem; max-width: 36ch; font-size: var(--fs-lead); line-height: 1.45; color: rgba(246, 242, 234, 0.86); }
 .caption__note { margin-top: 1.2rem; color: var(--steel); }
 .caption__list { margin-top: 1.2rem; max-width: 40rem; color: rgba(246, 242, 234, 0.72); font-size: 0.9375rem; letter-spacing: 0.02em; }
 .caption__fields { margin: 1.4rem 0 0; padding: 0; list-style: none; max-width: 26rem; }
