@@ -329,7 +329,8 @@ def build_truck_reverse(C_people):
         w = H.person(nm, 'plant', g, coll=C_people, seed=sd)
         w.location = (*xy, S.DZ)
         w.rotation_euler = (0, 0, D(rz))
-        H.jitter(w, {'upperarm': (8, -16, 0), 'forearm': (35, 0, 0), 'head': (8, 0, 0)}, 1, 310, every=20, amp=5, seed=sd)
+        H.jitter(w, {'upperarm.L': (8, -26, 0), 'forearm.L': (14, 0, 0), 'upperarm.R': (10, -24, 0),
+                     'forearm.R': (24, 0, 0), 'spine': (4, 0, 0), 'head': (8, 0, 0)}, 1, 310, every=20, amp=3, seed=sd)
     trolley('PL_WaitTrolley1', (7.55, 2.35, S.DZ), D(90), C_people)
     trolley('PL_WaitTrolley2', (10.9, 2.45, S.DZ), D(95), C_people)
     w3 = H.person('HUM_DockW3', 'plant', 'male', coll=C_people, seed=23)
