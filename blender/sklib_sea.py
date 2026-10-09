@@ -388,10 +388,13 @@ def flap(g, f0, f1, period=10, amp=35, path=None):
 
 
 def bag_radius(t, R):
-    # heavy load: narrow neck under the ring, widest low down (t ~ 0.72), rounded sagging bottom
-    r = R * (math.sin(math.pi * min(1.0, 0.04 + t * 0.9)) ** 0.55) * (0.1 + 0.9 * min(1, t * 1.5) ** 1.4)
-    if t > 0.86:
-        r *= max(0.04, math.sqrt(max(0.0, 1 - ((t - 0.86) / 0.14) ** 2)))
+    # loaded sack: gathered neck under the ring, sides swelling slowly (weight drags the load down), widest low
+    # (t ~ 0.66), then a round sagging bottom
+    g = min(1.0, t / 0.62)
+    g = g * g * (3 - 2 * g)
+    r = R * (0.09 + 0.91 * g ** 1.25)
+    if t > 0.66:
+        r *= max(0.04, math.sqrt(max(0.0, 1 - ((t - 0.66) / 0.34) ** 2)))
     return r
 
 
@@ -406,17 +409,22 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
     vs = []
     for i in range(rings + 1):
         t = i / rings
-        z = -depth * (t ** 0.85)
+        z = -depth * t
         r = bag_radius(t, R)
+        sway = 0.12 * t * t           # the load hangs a little off the hook line
         ring = []
         for j in range(seg):
             # odd rings shifted half a mesh: the wireframe reads as diamond netting, not a square grid
             a = 2 * math.pi * (j + 0.5 * (i % 2)) / seg
             p = Vector((math.cos(a), math.sin(a), z / depth))
             # fish pressing through the mesh: lumpy, more so in the loaded lower half
-            lump = 1 + (0.03 + 0.06 * t) * noise.noise(p * 3.2 + Vector((seed, 0, 0))) \
-                + 0.025 * t * noise.noise(p * 9.0 + Vector((0, seed, 0)))
-            ring.append(bm.verts.new((r * lump * math.cos(a), r * lump * math.sin(a), z)))
+            lump = 1 + (0.05 + 0.1 * t) * noise.noise(p * 2.4 + Vector((seed, 0, 0))) \
+                + 0.05 * t * noise.noise(p * 8.0 + Vector((0, seed, 0)))
+            # gathered folds near the neck, fading out as the sack fills
+            lump += 0.16 * max(0.0, 0.45 - t) * math.sin(14 * a + 3 * noise.noise(p * 2.0))
+            # slack netting bellies out between the load points low down
+            zz = z + 0.06 * t * noise.noise(p * 5.0 + Vector((seed, seed, 0)))
+            ring.append(bm.verts.new((r * lump * math.cos(a) + sway, r * lump * math.sin(a), zz)))
         vs.append(ring)
     for i in range(rings):
         for j in range(seg):
@@ -435,7 +443,7 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         rr = bag_radius(t, R) * 0.9
         a = math.atan2(v.co.y, v.co.x)
         rad = math.hypot(v.co.x, v.co.y)
-        v.co = Vector((rr * rad * math.cos(a), rr * rad * math.sin(a), -depth * (t ** 0.85)))
+        v.co = Vector((rr * rad * math.cos(a) + 0.12 * t * t, rr * rad * math.sin(a), -depth * t))
     cm = bm_to_mesh(bmc, f'{name}_Core', smooth=True)
     cm.materials.append(pbr('MAT_FishMass', (0.55, 0.58, 0.62), 0.2, 0.6, var=0.6, bump=0.9, scale=14, coat=0.6))
     core = obj(f'{name}_Core', cm, None, parent=root)
@@ -443,8 +451,8 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
     for i in range(n_fish):
         a = rnd.uniform(0, 2 * math.pi)
         t = rnd.uniform(0.33, 0.93)
-        r = bag_radius(t, R) * rnd.uniform(0.84, 0.95)
-        f = fish(f'{name}_fish{i}', 'mackerel', (r * math.cos(a), r * math.sin(a), -depth * (t ** 0.85)),
+        r = bag_radius(t, R) * rnd.uniform(0.9, 1.02)       # bodies pressing out through the meshes
+        f = fish(f'{name}_fish{i}', 'mackerel', (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t),
                  (rnd.uniform(0, 6.28), rnd.uniform(-0.5, 0.5), a + math.pi / 2 + rnd.uniform(-0.6, 0.6)),
                  rnd.uniform(0.9, 1.15), parent=root)
         fishes.append(f)
@@ -452,7 +460,7 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         a = rnd.uniform(0, 2 * math.pi)
         t = rnd.uniform(0.45, 0.75)
         r = bag_radius(t, R) * 0.8
-        f = fish(f'{name}_tuna{i}', 'tuna', (r * math.cos(a), r * math.sin(a), -depth * (t ** 0.85)),
+        f = fish(f'{name}_tuna{i}', 'tuna', (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t),
                  (rnd.uniform(-0.4, 0.4), rnd.uniform(-0.3, 0.3), a + math.pi / 2), rnd.uniform(0.75, 0.95), parent=root)
         fishes.append(f)
     obj(f'{name}_Ring', torus_mesh(f'{name}_Ring', 0.3, 0.04, 24, 8), mats['steel'], (0, 0, -0.12), parent=root)
@@ -463,6 +471,6 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         t = 0.08 + i * 0.07
         r = bag_radius(t, R) + 0.06
         a = 0.4 + 0.1 * i
-        floats.append(obj(f'{name}_Float{i}', fl, None, (r * math.cos(a), r * math.sin(a), -depth * (t ** 0.85)), (0, D(60), a),
+        floats.append(obj(f'{name}_Float{i}', fl, None, (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t), (0, D(60), a),
                           parent=root))
     return root, net, core, fishes, floats
