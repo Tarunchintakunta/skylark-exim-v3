@@ -20,3 +20,11 @@ jobs:
       - name: scroll perf (report only; runners have no GPU)
         run: if [ -f tests/scroll-perf.spec.ts ]; then npx playwright test tests/scroll-perf.spec.ts || true; fi
       - run: npx lhci autorun
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            .lighthouseci
+            perf-report.json
+          if-no-files-found: ignore
