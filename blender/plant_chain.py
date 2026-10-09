@@ -464,7 +464,7 @@ def build(scene, out):
     SI.build_all(C_in, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd),
                  lambda n, l, r, C: trolley(n, l, r, C), shrimp_fn(C_in), fish_fn(), ice_m)
     strips = SI._strip_curtain('PL_IntakeStrip', SI.CX - 1.55, SI.CX + 1.55, 12.0, S.DZ, S.DZ + 3.18, C_in, SI.mats())
-    SI.swing_strips(strips, [(424, 440, 8.2, 0.85, -1)])
+    SI.swing_strips(strips, [(424, 440, 8.2, 0.85, -1), (462, 478, 7.5, 0.8, -1)])
     SI.animate_spray(1, 1100)
     R = build_truck_reverse(C_people)
     import plant_yard

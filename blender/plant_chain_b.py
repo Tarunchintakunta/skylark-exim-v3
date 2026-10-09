@@ -19,13 +19,13 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # camera continues from truck-reverse f288 = (8.95, 4.35, 2.85) looking into the truck
 CAM_KEYS = [
     # p-intake: slight push on the unloading, then turn and follow W3's loaded trolley through the curtain
-    (318, (8.9, 3.85, 2.75), (9.15, -1.2, 2.05)),
-    (346, (8.2, 4.4, 2.35), (6.0, 6.2, 1.7)),
-    (372, (6.1, 5.4, 2.25), (7.6, 9.6, 1.75)),
-    (400, (6.4, 8.1, 2.2), (8.3, 12.2, 1.85)),
-    (430, (7.6, 10.4, 2.3), (8.2, 14.6, 1.9)),
-    (456, (8.5, 12.0, 2.6), (8.2, 18.0, 1.95)),
-    (479, (8.9, 12.6, 2.75), (8.2, 28.0, 2.05)),
+    (318, (8.9, 4.5, 3.25), (9.15, -1.2, 1.95)),     # over the shoulders onto the unloading
+    (346, (7.9, 5.2, 3.15), (6.0, 6.2, 1.6)),
+    (372, (6.1, 5.9, 3.05), (7.6, 9.6, 1.7)),
+    (400, (6.3, 8.0, 3.1), (8.3, 12.6, 1.8)),
+    (430, (7.0, 9.8, 3.3), (8.2, 14.8, 1.9)),        # W3 pushes through the strips ahead of the lens
+    (456, (7.3, 11.3, 3.5), (8.4, 17.5, 1.9)),
+    (479, (7.6, 12.6, 3.6), (8.6, 22.0, 2.0)),        # through the swinging strips, over the wash line
     # p-proc: wash (dolly down the line) -> grading (lateral track) -> peeling tables -> lab door
     (520, (7.6, 14.0, 2.75), (9.4, 18.5, 1.95)),
     (575, (6.0, 17.6, 2.6), (8.4, 22.5, 1.9)),
