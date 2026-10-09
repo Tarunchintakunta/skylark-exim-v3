@@ -5,6 +5,9 @@ import './film.css'
 export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
   return (
     <>
+      {chapter.media.map((m, i) => (
+        <p className="sr-only" key={`alt${i}`}>{m.alt}</p>
+      ))}
       {chapter.captions.map((c, i) => {
         const Title = i === 0 ? 'h2' : 'h3'
         return (

@@ -1,0 +1,12 @@
+.stage { position: fixed; inset: 0; z-index: var(--z-stage); overflow: hidden; background: var(--deep-2); contain: strict; }
+.stage__layer, .stage__video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0; pointer-events: none;
+}
+.stage__video { z-index: 1; }
+.stage__layer.is-over { z-index: 2; }
+.stage__gradient { background: radial-gradient(120% 90% at 62% 28%, var(--bay) 0%, var(--deep) 46%, var(--deep-2) 100%); }
+.stage__light { background: linear-gradient(180deg, var(--light) 0%, var(--light-2) 100%); }
+.stage__blur { filter: blur(14px) brightness(0.5); transform: scale(1.08); }
+.stage__veil { position: absolute; inset: 0; z-index: 3; background: var(--deep-2); opacity: 0; pointer-events: none; }
+.stage__scrim { position: absolute; inset: auto 0 0; height: 78%; z-index: 4; background: var(--scrim); pointer-events: none; }
