@@ -32,6 +32,8 @@ export const endPosterUrl = (id: string) => `/media/${id}_end_1280.webp`
 /** First-frame poster for a segment, or null for gradient/globe. */
 export function posterFor(m: Media): string | null {
   if (m.kind === 'video') return posterUrl(m.id)
-  if (m.kind === 'still' || m.kind === 'dom') return posterUrl(m.poster)
+  if (m.kind === 'still') return posterUrl(m.poster)
+  // documentation: a pre-blurred, darkened still (no live CSS blur over the stage)
+  if (m.kind === 'dom') return posterUrl(`${m.poster}-blur`)
   return null
 }
