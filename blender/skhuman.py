@@ -458,8 +458,9 @@ def _shell(body, piece, mask, M):
             # smoothing shrinks the shell into the body: re-inflate to keep clearance
             for v in inner:
                 hit, nrm, _i, d = bvh.find_nearest(v.co)
-                if hit is not None and d < 0.007:
-                    v.co = hit + nrm * 0.007
+                clr = 0.018 if piece == 'boots' else 0.007      # boots: no toes showing through
+                if hit is not None and d < clr:
+                    v.co = hit + nrm * clr
         bm.normal_update()
         t = 0.006
     for v in bm.verts:
