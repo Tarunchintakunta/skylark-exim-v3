@@ -37,7 +37,7 @@ OUTFITS = {
 
 # ------------------------------------------------------------------ materials
 def _mat(name, color, rough=0.6, sss=0.0, coat=0.0, bump=0.0, sheen=0.0, normal_tex=None, tex_scale=30.0, metal=0.0,
-         emission=None, estr=0.0, rand=0.0):
+         emission=None, estr=0.0, rand=0.0, hue_rand=0.0):
     m = bpy.data.materials.get(name)
     if m:
         return m
@@ -56,6 +56,12 @@ def _mat(name, color, rough=0.6, sss=0.0, coat=0.0, bump=0.0, sheen=0.0, normal_
         L.new(oi.outputs['Random'], mr.inputs['Value'])
         L.new(mr.outputs[0], hsv.inputs['Value'])
         hsv.inputs['Color'].default_value = (*color, 1)
+        if hue_rand:
+            hr = nt.nodes.new('ShaderNodeMapRange')
+            hr.inputs['To Min'].default_value = 0.5 - hue_rand
+            hr.inputs['To Max'].default_value = 0.5 + hue_rand
+            L.new(oi.outputs['Random'], hr.inputs['Value'])
+            L.new(hr.outputs[0], hsv.inputs['Hue'])
         L.new(hsv.outputs[0], col)
     else:
         col.default_value = (*color, 1)
@@ -122,7 +128,7 @@ def mats():
         'shoe': _mat('HUM_Shoe', (0.05, 0.045, 0.04), 0.45, coat=0.2),
         'hair': _mat('HUM_Hair', (0.025, 0.02, 0.018), 0.5, bump=0.4, rand=0.2),
         'hivis': _mat('HUM_HiVis', (0.75, 0.85, 0.08), 0.6, emission=(0.6, 0.7, 0.05), estr=0.15, bump=0.12),
-        'shirt_farm': _mat('HUM_ShirtFarm', (0.62, 0.55, 0.42), 0.85, sheen=0.2, bump=0.12, rand=0.3),
+        'shirt_farm': _mat('HUM_ShirtFarm', (0.34, 0.27, 0.22), 0.85, sheen=0.2, bump=0.12, rand=0.35, hue_rand=0.5),
         'shorts': _mat('HUM_Shorts', (0.20, 0.22, 0.25), 0.85, bump=0.1, rand=0.3),
         'cap_cloth': _mat('HUM_CapCloth', (0.55, 0.52, 0.45), 0.85, rand=0.3),
         'rubber_glove': _mat('HUM_RubberGlove', (0.55, 0.42, 0.12), 0.35, coat=0.3),
