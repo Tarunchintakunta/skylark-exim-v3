@@ -170,7 +170,7 @@ for i in range(12):
 
 # water streaming off the bag (60-170)
 streams = []
-for i in range(14):
+for i in range(0):  # replaced by the drip field below (solid stream rods read as white sticks)
     a = rnd.uniform(0, 2 * math.pi)
     r = rnd.uniform(0.2, 0.9)
     sth = L.cyl(f'NET_Stream{i}', rnd.uniform(0.012, 0.03), 1.0, (r * math.cos(a), r * math.sin(a), -2.35),
@@ -186,11 +186,15 @@ for f, sc in ((55, 0.3), (62, 1.5), (80, 2.8), (95, 0.01)):
     spl.scale = (sc, sc, max(0.01, 1.4 - f / 80))
     spl.keyframe_insert('scale', frame=f)
 drops = []
-for i in range(40):
-    dpo = L.sphere(f'DROP_{i}', rnd.uniform(0.02, 0.05), (0, 0, 0), mats['water_clear'], seg=8, rings=5)
-    f0 = rnd.randint(56, 165)
+drip = L.pbr('MAT_Drip', (0.85, 0.92, 0.96), 0.03, var=0.0, bump=0.0, transmission=0.95, ior=1.33, coat=0.8)
+dmesh = L.sphere_mesh('DROP_mesh', 1.0, 8, 6)
+for i in range(260):
+    dpo = L.obj(f'DROP_{i}', dmesh, drip, (0, 0, 0))
+    r = rnd.uniform(0.006, 0.02)
+    dpo.scale = (r, r, r * rnd.uniform(2.0, 4.5))
+    # dense dripping while the bag is out of the water, thinning out as it drains
+    f0 = int(56 + (rnd.random() ** 1.6) * 118)
     a = rnd.uniform(0, 6.28)
-    dpo.parent = None
     drops.append((dpo, f0, a))
 
 # ---------------------------------------------------------------- release + fish spill onto the deck (176-192)
@@ -372,12 +376,13 @@ for dpo, f0, a in drops:
     con = dpo.constraints.new('COPY_LOCATION')
     con.target = bag_root
     con.use_offset = True
-    dpo.location = (0.6 * math.cos(a), 0.6 * math.sin(a), -2.3)
-    dpo.keyframe_insert('location', frame=f0)
-    dpo.location = (0.6 * math.cos(a), 0.6 * math.sin(a), -4.2)
-    dpo.keyframe_insert('location', frame=f0 + 10)
-    L.linear_keys(dpo)
-    L.key_vis(dpo, f0, f0 + 10)
+    rr = 0.95 * math.sqrt(rnd.random())
+    x, y = rr * math.cos(a), rr * math.sin(a)
+    z0 = -2.25 - 0.25 * (1 - (rr / 0.95) ** 2)
+    for k, dz in ((0, 0.0), (3, -0.11), (6, -0.44), (9, -0.99), (12, -1.76)):   # free fall at 24 fps
+        dpo.location = (x, y, z0 + dz)
+        dpo.keyframe_insert('location', frame=f0 + k)
+    L.key_vis(dpo, f0, f0 + 12)
 
 # ---------------------------------------------------------------- render settings + save
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
