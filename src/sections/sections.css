@@ -28,7 +28,7 @@
   overflow: hidden;
 }
 .product-card__no { position: absolute; top: 20px; left: 24px; color: var(--brass-ink); }
-.product-card__ring { position: absolute; right: -18%; top: -22%; width: 70%; aspect-ratio: 1; border: 1px solid rgba(122, 90, 28, 0.35); border-radius: 50%; }
+.product-card__ring { position: absolute; right: -18%; top: -22%; width: 70%; aspect-ratio: 1; border: 1px solid rgba(180, 83, 42, 0.35); border-radius: 50%; }
 .product-card__name { font-size: clamp(2rem, 3.6vw, 3.4rem); }
 .product-stage { grid-column: 1 / -1; height: clamp(20rem, 46vh, 30rem); }
 .product-stage { position: relative; }
@@ -106,7 +106,7 @@
 .field input:focus ~ .field__label, .field input:not(:placeholder-shown) ~ .field__label,
 .field textarea:focus ~ .field__label, .field textarea:not(:placeholder-shown) ~ .field__label,
 .field--select .field__label { transform: translateY(-9px) scale(0.72); color: var(--brass-ink); }
-.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brass-ink); box-shadow: 0 0 0 2px rgba(215, 168, 79, 0.45); }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brass-ink); box-shadow: 0 0 0 2px rgba(224, 138, 95, 0.45); }
 .field.is-invalid input, .field.is-invalid textarea { border-color: #a3341f; }
 .field__error { display: block; margin-top: 6px; color: #a3341f; font-size: 0.9rem; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; }
@@ -126,7 +126,7 @@
 @keyframes mark-draw-160 { to { stroke-dashoffset: 0; } }
 .contact { display: grid; gap: 10px; align-content: start; }
 .contact__list { display: grid; gap: 8px; margin-bottom: 14px; font-size: 1.15rem; }
-.contact a { color: var(--ink); text-decoration-color: rgba(122, 90, 28, 0.5); text-underline-offset: 4px; }
+.contact a { color: var(--ink); text-decoration-color: rgba(180, 83, 42, 0.5); text-underline-offset: 4px; }
 .contact h4 { margin: 10px 0 0; color: var(--brass-ink); font-weight: 400; }
 .contact p { color: var(--ink-2); }
 .contact__pdf { margin-top: 18px; justify-self: start; border-color: var(--ink); text-decoration: none; }

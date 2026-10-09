@@ -11,7 +11,7 @@ import { film } from '../film/controller'
 import { faceRotation, latLon, routePoints } from './geo'
 import { globeUi } from './globeState'
 
-const BRASS = new Color('#d7a84f')
+const BRASS = new Color('#e08a5f')
 const N = 64 // points per route
 const ease = (t: number) => t * t * (3 - 2 * t)
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t))

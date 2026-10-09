@@ -8,7 +8,7 @@
 .stage__gradient {
   /* x-cranes / x-ship placeholder: deep Bay of Bengal blue with a faint horizon */
   background:
-    linear-gradient(180deg, rgba(238, 245, 246, 0.08) 0%, rgba(238, 245, 246, 0) 34%),
+    linear-gradient(180deg, rgba(244, 239, 230, 0.08) 0%, rgba(244, 239, 230, 0) 34%),
     radial-gradient(120% 90% at 62% 28%, var(--bay) 0%, var(--deep) 46%, var(--deep-2) 100%);
 }
 .stage__light { background: linear-gradient(180deg, var(--light) 0%, var(--light-2) 100%); }
@@ -16,7 +16,7 @@
 .stage__scrim {
   position: absolute; inset: 0; z-index: 4; pointer-events: none; transition: opacity 0.5s;
   /* bottom + left scrims keep bottom-left copy ≥ 4.5:1 even over bright plant frames */
-  background: var(--scrim), linear-gradient(90deg, rgba(4, 34, 44, 0.72) 0%, rgba(4, 34, 44, 0.35) 38%, rgba(4, 34, 44, 0) 62%);
+  background: var(--scrim), linear-gradient(90deg, rgba(7, 31, 38, 0.72) 0%, rgba(7, 31, 38, 0.35) 38%, rgba(7, 31, 38, 0) 62%);
 }
 .stage.is-light .stage__scrim { opacity: 0; }
 .globe-canvas { position: absolute !important; inset: 0; }
