@@ -6,6 +6,7 @@ assets-src/blender/asset-library.blend for the review stills.
 Units: metres, +Z up, assets face +X, origin at the base centre. No text, logos or numbers on anything.
 """
 import math
+import os
 import random
 import bpy
 import bmesh
@@ -545,6 +546,56 @@ def sky(sun_elev=48, sun_rot=135, strength=0.2, clouds=0.55, sun_strength=3.5, h
     return sun
 
 
+CC0 = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets-src', 'cc0')
+
+
+def hdri(name='kloofendal_48d_partly_cloudy_puresky_4k', strength=1.0, rot=0.0, sun_strength=4.0, sun_color=(1.0, 0.96, 0.9)):
+    """Poly Haven HDRI (CC0, assets-src/cc0/hdri/) as the world, rotated by rot degrees, plus a sun lamp ('Sun')
+    aimed from the HDRI's brightest pixel so shadows match the sky. Falls back to sky() if the file is missing."""
+    path = os.path.join(CC0, 'hdri', name + ('' if name.endswith('.hdr') else '.hdr'))
+    if not os.path.exists(path):
+        return sky()
+    import numpy as np
+    s = bpy.context.scene
+    w = bpy.data.worlds.get('WORLD_Day') or bpy.data.worlds.new('WORLD_Day')
+    s.world = w
+    nt = w.node_tree
+    nt.nodes.clear()
+    l = nt.links
+    out = _node(nt, 'ShaderNodeOutputWorld', (600, 0))
+    bg = _node(nt, 'ShaderNodeBackground', (400, 0))
+    bg.inputs['Strength'].default_value = strength
+    env = _node(nt, 'ShaderNodeTexEnvironment', (100, 0))
+    img = bpy.data.images.load(path, check_existing=True)
+    env.image = img
+    mp = _node(nt, 'ShaderNodeMapping', (-150, 0))
+    mp.inputs['Rotation'].default_value = (0, 0, math.radians(rot))
+    tc = _node(nt, 'ShaderNodeTexCoord', (-350, 0))
+    l.new(_sock(tc, 'Generated', out=True), mp.inputs['Vector'])
+    l.new(mp.outputs[0], env.inputs['Vector'])
+    l.new(env.outputs['Color'], bg.inputs['Color'])
+    l.new(bg.outputs[0], out.inputs[0])
+    W, H = img.size
+    px = np.empty(W * H * 4, dtype=np.float32)
+    img.pixels.foreach_get(px)
+    lum = px.reshape(H, W, 4)[:, :, :3].sum(axis=2)
+    iy, ix = np.unravel_index(int(np.argmax(lum)), lum.shape)
+    u, v = (ix + 0.5) / W, (iy + 0.5) / H
+    phi, th = (u - 0.5) * 2 * math.pi, (v - 0.5) * math.pi
+    d = Vector((-math.cos(th) * math.cos(phi), math.cos(th) * math.sin(phi), math.sin(th)))
+    d.rotate(Euler((0, 0, math.radians(rot))))
+    sun = bpy.data.objects.get('Sun')
+    if sun is None:
+        sun = bpy.data.objects.new('Sun', bpy.data.lights.new('Sun', 'SUN'))
+        s.collection.objects.link(sun)
+    sun.data.energy = sun_strength
+    sun.data.angle = math.radians(1.0)
+    sun.data.color = sun_color
+    sun.rotation_euler = d.to_track_quat('Z', 'Y').to_euler()
+    print('HDRI', name, 'sun elevation %.1f azimuth %.1f' % (math.degrees(th), math.degrees(math.atan2(d.y, d.x))))
+    return sun
+
+
 def camera(name='Camera', lens=35, loc=(0, 0, 2), target=None):
     cd = bpy.data.cameras.new(name)
     cd.lens = lens
@@ -779,11 +830,74 @@ def _seg_dist(p, a, b):
     return (a + ab * t - p).length, t
 
 
-def _body(bulk=1.0, build=1.0):
-    """Rigged base body for one (bulk, build) variant: returns (mesh, armature data). Built once, shared by people."""
-    key = (round(bulk, 2), round(build, 2))
-    if key in _BODY:
-        return _BODY[key]
+HBM = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets-src', 'cc0', 'human-base-meshes',
+                   'human-base-meshes-bundle-v1.4.1', 'human_base_meshes_bundle.blend')
+
+
+def _hbm_mesh(gender='male'):
+    """Blender Foundation 'Human Base Meshes' (CC0) realistic body, base level, turned to face +X, feet on z=0,
+    scaled to 1.72 m; eyes joined. Returns (mesh, skeleton points) or None if the bundle is not on disk."""
+    if not os.path.exists(HBM):
+        return None
+    name = f'GEO-body_{gender}_realistic'
+    with bpy.data.libraries.load(HBM, link=False) as (src, dst):
+        dst.objects = [n for n in src.objects if n == name]
+    objs = [o for o in dst.objects if o is not None]
+    body = [o for o in objs if o.name.startswith(name) and '.eye' not in o.name][0]
+    for o in objs:
+        bpy.context.scene.collection.objects.link(o)
+    for m in list(body.modifiers):
+        body.modifiers.remove(m)
+    dg = bpy.context.evaluated_depsgraph_get()
+    bm = bmesh.new()
+    for o in objs:
+        me = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
+        me.transform(o.matrix_world)
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+    for o in objs:
+        bpy.data.objects.remove(o)
+    xs = [v.co.x for v in bm.verts]
+    zmin = min(v.co.z for v in bm.verts)
+    H = max(v.co.z for v in bm.verts) - zmin
+    cx = (min(xs) + max(xs)) / 2
+    s = 1.72 / H
+    T = Matrix.Diagonal((s, s, s, 1)) @ Matrix.Rotation(math.radians(90), 4, 'Z') @ Matrix.Translation((-cx, 0, -zmin))
+    bmesh.ops.transform(bm, matrix=T, verts=bm.verts)
+    me = bpy.data.meshes.new(f'BODY_hbm_{gender}')
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    vs = [v.co for v in me.vertices]
+    Hn = 1.72
+
+    def centroid(sel):
+        pts = [v for v in vs if sel(v)]
+        return sum(pts, Vector()) / max(1, len(pts))
+
+    skel = {}
+    for side, sg in (('L', 1), ('R', -1)):
+        leg = lambda v, z0, z1: z0 * Hn < v.z < z1 * Hn and sg * v.y > 0.01
+        skel[f'hp_{side}'] = centroid(lambda v: leg(v, 0.46, 0.48)) * 1.0
+        skel[f'hp_{side}'].x = 0.0
+        skel[f'kn_{side}'] = centroid(lambda v: leg(v, 0.27, 0.29))
+        skel[f'an_{side}'] = centroid(lambda v: leg(v, 0.045, 0.06))
+        foot = [v for v in vs if v.z < 0.05 * Hn and sg * v.y > 0.01]
+        skel[f'to_{side}'] = max(foot, key=lambda v: v.x).copy()
+        skel[f'to_{side}'].z = 0.04
+        tip = max((v for v in vs if v.z > 0.35 * Hn), key=lambda v: sg * v.y).copy()
+        sh = Vector((-0.01, sg * 0.105 * Hn, 0.815 * Hn))
+        skel[f'sh_{side}'] = sh
+        skel[f'el_{side}'] = sh + (tip - sh) * 0.46
+        skel[f'wr_{side}'] = sh + (tip - sh) * 0.84
+        skel[f'ht_{side}'] = tip
+    skel.update({'pelvis': Vector((0, 0, 0.53 * Hn)), 'waist': Vector((0, 0, 0.62 * Hn)), 'chest': Vector((0, 0, 0.73 * Hn)),
+                 'neckb': Vector((-0.01, 0, 0.845 * Hn)), 'head': Vector((0.01, 0, 0.935 * Hn)), 'headt': Vector((0, 0, 1.0 * Hn))})
+    return me, skel
+
+
+def _skin_mesh(bulk, build):
     names = list(SKEL)
     bm = bmesh.new()
     vs = {}
@@ -811,11 +925,27 @@ def _body(bulk=1.0, build=1.0):
     ss.levels = 2
     dg = bpy.context.evaluated_depsgraph_get()
     body = bpy.data.meshes.new_from_object(o.evaluated_get(dg))
-    body.name = f'BODY_{key[0]}_{key[1]}'
     bpy.data.objects.remove(o)
     bpy.data.meshes.remove(me)
-    # armature
-    ad = bpy.data.armatures.new(f'RIG_{key[0]}_{key[1]}')
+    return body, {n: Vector(SKEL[n][0]) for n in names}
+
+
+def _body(bulk=1.0, build=1.0, gender='male'):
+    """Rigged base body for one (bulk, build, gender) variant: returns (mesh, armature data, skeleton points).
+    Uses the CC0 Human Base Meshes body when the bundle is on disk, else a skin-modifier body. Built once, shared."""
+    key = (round(bulk, 2), round(build, 2), gender)
+    if key in _BODY:
+        return _BODY[key]
+    got = _hbm_mesh(gender)
+    if got:
+        body, skel = got
+        if build != 1.0:
+            body.transform(Matrix.Diagonal((build, build, 1.0, 1.0)))
+            skel = {n: Vector((p.x * build, p.y * build, p.z)) for n, p in skel.items()}
+    else:
+        body, skel = _skin_mesh(bulk, build)
+    body.name = f'BODY_{key[0]}_{key[1]}_{gender}'
+    ad = bpy.data.armatures.new(f'RIG_{key[0]}_{key[1]}_{gender}')
     ao = bpy.data.objects.new('RIG_tmp', ad)
     bpy.context.scene.collection.objects.link(ao)
     bo = bpy.data.objects.new('BODY_tmp2', body)
@@ -824,16 +954,15 @@ def _body(bulk=1.0, build=1.0):
         ob.select_set(False)
     ao.select_set(True)
     bpy.context.view_layer.objects.active = ao
-    if True:
-        bpy.ops.object.mode_set(mode='EDIT')
-        for bn, (h, t, par, kind) in BONES.items():
-            eb = ad.edit_bones.new(bn)
-            eb.head = Vector(SKEL[h][0])
-            eb.tail = Vector(SKEL[t][0])
-            if par:
-                eb.parent = ad.edit_bones[par]
-            eb.align_roll({'down': (0, 1, 0), 'up': (0, -1, 0), 'fwd': (0, 0, 1)}[kind])
-        bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.mode_set(mode='EDIT')
+    for bn, (h, t, par, kind) in BONES.items():
+        eb = ad.edit_bones.new(bn)
+        eb.head = skel[h]
+        eb.tail = skel[t]
+        if par:
+            eb.parent = ad.edit_bones[par]
+        eb.align_roll({'down': (0, 1, 0), 'up': (0, -1, 0), 'fwd': (0, 0, 1)}[kind])
+    bpy.ops.object.mode_set(mode='OBJECT')
     for ob in bpy.context.view_layer.objects:
         ob.select_set(False)
     bo.select_set(True)
@@ -843,6 +972,23 @@ def _body(bulk=1.0, build=1.0):
         bpy.ops.object.parent_set(type='ARMATURE_AUTO')
     bo.select_set(False)
     ao.select_set(False)
+    # hands are rigid on the wrist bone (auto weights smear fingers onto the hips); feet rigid on the ankle bone
+    for sd in 'LR':
+        sh, tip = skel[f'sh_{sd}'], skel[f'ht_{sd}']
+        d = tip - sh
+        wg = bo.vertex_groups[f'wr_{sd}']
+        ag = bo.vertex_groups[f'an_{sd}']
+        for v in body.vertices:
+            t = (v.co - sh).dot(d) / d.length_squared
+            near_arm = (sh + d * max(0, min(1, t)) - v.co).length < 0.09
+            foot = v.co.z < skel[f'an_{sd}'].z - 0.01 and (1 if sd == 'L' else -1) * v.co.y > 0
+            if (t > 0.86 and near_arm) or foot:
+                for g in bo.vertex_groups:
+                    g.remove([v.index])
+                (wg if not foot else ag).add([v.index], 1.0, 'REPLACE')
+    for sd, sg in (('L', 1), ('R', -1)):
+        a = skel[f'el_{sd}'] - skel[f'sh_{sd}']
+        ad[f'arm_{sd}'] = math.atan2(sg * a.y, -a.z)
     # clothing zones from the strongest bone weight per face: 0 torso, 1 legs, 2 skin, 3 hands, 4 boots, 5 sleeves
     zb = {'hips': 1, 'spine': 0, 'neck': 2}
     for sd in 'LR':
@@ -855,6 +1001,8 @@ def _body(bulk=1.0, build=1.0):
             if g.weight > bw:
                 best, bw = gname[g.group], g.weight
         vbest.append(best)
+    neck_z = skel['neckb'].z - 0.03
+    vz = [0] * len(body.vertices)
     for f in body.polygons:
         cnt = {}
         for vi in f.vertices:
@@ -864,16 +1012,26 @@ def _body(bulk=1.0, build=1.0):
         c = f.center
         if bn.startswith('kn') and c.z < 0.36:
             z = 4
-        if bn == 'spine' and c.z > 1.47:
+        if bn == 'spine' and c.z > neck_z:
             z = 2
-        if bn == 'hips' and c.z > 1.02:
+        if bn == 'hips' and c.z > skel['waist'].z - 0.06:
             z = 0
+        if bn.startswith('el') and (c - skel['wr_L' if c.y > 0 else 'wr_R']).length < 0.035:
+            z = 3
         f.material_index = z
         f.use_smooth = True
+        for vi in f.vertices:
+            vz[vi] = max(vz[vi], 1 if z in (0, 1, 5) else (2 if z == 4 else 0))
+    # clothes stand off the skin: inflate clothed zones along the normals (oilskins more than shirts)
+    if got:
+        off = {1: 0.012 + 0.12 * (bulk - 1.0), 2: 0.016}
+        for v in body.vertices:
+            if vz[v.index]:
+                v.co += v.normal * off[vz[v.index]]
     bpy.data.objects.remove(bo)
     bpy.data.objects.remove(ao)
-    _BODY[key] = (body, ad)
-    return body, ad
+    _BODY[key] = (body, ad, skel)
+    return _BODY[key]
 
 
 def _bone_attach(o, arm, bone, world):
@@ -895,7 +1053,8 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     o = OUTFITS[outfit]
     sk = skin or mats['skin'][rnd.randrange(3)]
     k = 1.22 if outfit.startswith('fisher') else (1.12 if outfit in ('plant', 'plant_blue', 'qc', 'cold', 'port', 'port_o') else 1.0)
-    body, ad = _body(k, round(build, 2))
+    gender = 'female' if (outfit in ('plant', 'plant_blue', 'qc', 'farm2') and rnd.random() < 0.4) else 'male'
+    body, ad, skel = _body(k, round(build, 2), gender)
     arm = bpy.data.objects.new(name, ad)
     _link(arm)
     bo = bpy.data.objects.new(f'{name}_body', body)
@@ -914,14 +1073,13 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     if 'vest' in ex0:
         torso = mats['hivis'] if rnd.random() < 0.6 else mats['hivis_orange']
     zm = [torso, legs, sk, sk if o['hands'] == 'skin' else mats[o['hands']], mats[o['feet']], sleeves]
-    if len(body.materials) == 0:
-        for m in zm:
-            body.materials.append(m)
+    while len(body.materials) < len(zm):
+        body.materials.append(zm[len(body.materials)])
     for i, m in enumerate(zm):
         bo.material_slots[i].link = 'OBJECT'
         bo.material_slots[i].material = m
     ex = o['extras']
-    H = lambda n: Vector(SKEL[n][0])
+    H = lambda n: skel[n].copy()
 
     def acc(nm, me, mat, bone, pos, scale=(1, 1, 1), rot=(0, 0, 0)):
         a = bpy.data.objects.new(f'{name}_{nm}', me)
@@ -935,19 +1093,27 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
         return a
 
     hp = H('head')
-    acc('face', _part_mesh('face', _face_mesh), sk, 'neck', hp + Vector((0.0, 0, 0)))
+    if not os.path.exists(HBM):
+        acc('face', _part_mesh('face', _face_mesh), sk, 'neck', hp + Vector((0.0, 0, 0)))
+    if os.path.exists(HBM):
+        bt = _part_mesh('boot', lambda: box_mesh('BODY_bootfoot', (0.29, 0.125, 0.11), 0.05, 3))
+        sh_m = _part_mesh('bootshaft', lambda: cyl_mesh('BODY_bootshaft', 0.07, 0.3, 16, r2=0.065))
+        for sd in 'LR':
+            an, to = skel[f'an_{sd}'], skel[f'to_{sd}']
+            acc(f'bootfoot_{sd}', bt, mats[o['feet']], f'an_{sd}', Vector(((an.x + to.x) / 2 - 0.005, an.y, 0.055)))
+            acc(f'bootshaft_{sd}', sh_m, mats[o['feet']], f'kn_{sd}', Vector((an.x, an.y, 0.24)))
     if 'cap' in ex:
         acc('cap', _part_mesh('cap', _cap_mesh), mats['cap_grey'] if rnd.random() < 0.6 else mats['cloth_navy'], 'neck',
-            hp + Vector((-0.005, 0, 0.055)), (0.95, 0.95, 0.95))
+            hp + Vector((0.02, 0, 0.05)), (0.97, 0.97, 0.95))
     elif 'haircap' in ex:
         acc('haircap', _part_mesh('haircap', lambda: sphere_mesh('BODY_haircap', 0.105, 16, 10)), mats['haircap'], 'neck',
-            hp + Vector((-0.012, 0, 0.035)), (1.05, 1.0, 0.85))
+            hp + Vector((0.012, 0, 0.03)), (1.05, 1.0, 0.85))
     elif 'hardhat' in ex:
         acc('hardhat', _part_mesh('hardhat', _hardhat_mesh), mats['hardhat'] if rnd.random() < 0.5 else mats['float_yellow'],
-            'neck', hp + Vector((0.0, 0, 0.06)))
+            'neck', hp + Vector((0.02, 0, 0.055)))
     else:
         acc('hair', _part_mesh('hair', lambda: sphere_mesh('BODY_hair', 0.098, 16, 10)), mats['hair'], 'neck',
-            hp + Vector((-0.015, 0, 0.03)), (1.05, 1.0, 0.8))
+            hp + Vector((0.008, 0, 0.025)), (1.05, 1.0, 0.8))
     if 'mask' in ex:
         acc('mask', _part_mesh('mask', lambda: box_mesh('BODY_mask', (0.05, 0.15, 0.085), 0.024, 3)), mats['mask'], 'neck',
             hp + Vector((0.075, 0, -0.035)))
@@ -961,9 +1127,6 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     if 'hood' in ex:
         acc('hood', _part_mesh('hood', lambda: sphere_mesh('BODY_hood', 0.1, 12, 8)), mats[o['top']], 'spine',
             Vector((-0.1, 0, 1.47)), (0.8, 1.6, 0.8))
-    if 'vest' in ex:
-        acc('vstripe', _part_mesh(('vstripe', k), lambda: torus_mesh('BODY_vstripe', 0.17, 0.012, 24, 6)), mats['reflect'],
-            'spine', Vector((0, 0, 1.27)), (0.95 * k, 1.12 * k, 1))
     s = height / 1.72
     arm.location = loc
     arm.rotation_euler = (0, 0, rot_z)
@@ -1122,7 +1285,11 @@ def pose(root, p, frame=None, upper_only=False, overrides=None):
         if pb is None:
             continue
         pb.rotation_mode = 'XYZ'
-        pb.rotation_euler = _bone_euler(j, spec.get(j, (0, 0, 0)))
+        e = list(_bone_euler(j, spec.get(j, (0, 0, 0))))
+        if j in ('sh_L', 'sh_R'):  # rest pose has the arms out (A-pose): bring them down first
+            a = root.data.get('arm_' + j[-1], 0.0)
+            e[0] += -a if j == 'sh_L' else a
+        pb.rotation_euler = e
         if frame is not None:
             pb.keyframe_insert('rotation_euler', frame=frame)
     if not upper_only:
