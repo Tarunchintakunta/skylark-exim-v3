@@ -20,3 +20,14 @@
 .caption__note { margin-top: 1.2rem; color: var(--steel); }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.4rem; max-width: 40rem; }
 .chip { padding: 7px 10px; border: 1px solid var(--hairline); border-radius: 2px; color: var(--ice); background: rgba(4, 34, 44, 0.35); }
+.label-card {
+  margin-top: 1.4rem; width: min(22rem, 100%); padding: 16px 18px 10px;
+  background: rgba(244, 250, 250, 0.94); color: var(--ink); border-radius: 2px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+.label-card__head { color: var(--ink-2); padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
+.label-card dl { margin: 0; }
+.label-card__row { display: grid; grid-template-columns: 11.5rem 1fr; align-items: end; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--hairline-ink); }
+.label-card__row:last-child { border-bottom: 0; }
+.label-card dt { color: var(--ink); }
+.label-card dd { margin: 0; height: 1px; background: var(--hairline-ink); transform: translateY(-4px); }

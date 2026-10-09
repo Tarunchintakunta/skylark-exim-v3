@@ -20,6 +20,8 @@ export type Join = 'shared-frame' | 'crossfade' | 'cut'
 
 export interface Caption extends CaptionCopy {
   at: [number, number]
+  /** DOM extra shown with the caption */
+  extra?: 'label-card' | 'doc-cards'
 }
 
 export interface ChapterDef {
@@ -116,7 +118,7 @@ const SHARED: ChapterDef[] = [
   {
     id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'shared-frame',
     media: [{ kind: 'still', poster: 'ph-p-freeze', awaiting: 'p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' }],
-    captions: caps('coldchain', [[0.02, 0.2], [0.2, 0.55], [0.55, 0.8], [0.8, 1]]),
+    captions: caps('coldchain', [[0.02, 0.2], [0.2, 0.55], [0.55, 0.8], [0.8, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
     hud: [
       { at: 0, step: '05', name: 'Quality control' },
       { at: 0.2, step: '06', name: 'Freezing & glazing' },

@@ -1,4 +1,5 @@
 import type { ChapterDef } from '../config/chapters'
+import { LabelCard } from './Extras'
 import './film.css'
 
 /** Captions are real HTML inside each chapter section (indexable, read in order); captions.ts shows one at a time. */
@@ -16,6 +17,7 @@ export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
             <Title className="caption__title display">{c.title}</Title>
             {c.body && <p className="caption__body" data-fade>{c.body}</p>}
             {c.note && <p className="caption__note mono" data-fade>{c.note}</p>}
+            {c.extra === 'label-card' && <LabelCard />}
             {c.chips && (
               <ul className="chips" aria-label="Species">
                 {c.chips.map((chip) => (

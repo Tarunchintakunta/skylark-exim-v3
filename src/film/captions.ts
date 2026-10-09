@@ -8,6 +8,8 @@ gsap.registerPlugin(SplitText)
 interface Cap {
   el: HTMLElement
   split?: SplitText
+  /** character splits for [data-type] (typed-in labels) */
+  typed?: SplitText
 }
 
 /** captions[chapterIndex][captionIndex] */
@@ -15,7 +17,10 @@ let caps: Cap[][] = []
 let active: Cap | null = null
 
 export function bindCaptions(sections: HTMLElement[]) {
-  for (const c of caps.flat()) c.split?.revert()
+  for (const c of caps.flat()) {
+    c.split?.revert()
+    c.typed?.revert()
+  }
   caps = sections.map((s) => [...s.querySelectorAll<HTMLElement>('.caption')].map((el) => ({ el })))
   active = null
   if (env.reduced) return
@@ -23,6 +28,8 @@ export function bindCaptions(sections: HTMLElement[]) {
     for (const c of caps.flat()) {
       const h = c.el.querySelector<HTMLElement>('.caption__title')
       if (h) c.split = SplitText.create(h, { type: 'lines', mask: 'lines', linesClass: 'line', autoSplit: true })
+      const typed = c.el.querySelectorAll('[data-type]')
+      if (typed.length) c.typed = SplitText.create(typed, { type: 'chars' })
     }
   })
 }
@@ -44,6 +51,7 @@ function show(c: Cap) {
   const fades = el.querySelectorAll('[data-fade]')
   if (c.split) gsap.fromTo(c.split.lines, { yPercent: 100 }, { yPercent: 0, duration: 0.9, stagger: 0.08, ease: 'power3.out', overwrite: true })
   gsap.fromTo(fades, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, delay: 0.2, stagger: 0.05, ease: 'power3.out', overwrite: true })
+  if (c.typed) gsap.fromTo(c.typed.chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: 0.035, delay: 0.6, ease: 'none', overwrite: true })
 }
 
 function hide(c: Cap) {
