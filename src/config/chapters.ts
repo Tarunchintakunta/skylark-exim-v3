@@ -57,12 +57,12 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'a3', alt: 'Yellowfin tuna on crushed ice in the boat’s hold.' }],
+    media: [{ kind: 'video', id: 'o-catch-a', alt: 'Out at sea the boom swings the full catch bag over the deck and releases it; the crew start sorting the fish.' }],
     captions: caps('o2', [[0.55, 1]]),
   },
   {
     id: 'o3', path: 'ocean', label: 'On ice', vh: 140, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'a3', alt: 'Looking down into the ice hold: yellowfin tuna on crushed ice.' }],
+    media: [{ kind: 'video', id: 'o-catch-b', alt: 'The crew sort the catch into iced crates and pass them down into the hold, where the crates sit packed in crushed ice.' }],
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
