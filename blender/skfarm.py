@@ -122,14 +122,15 @@ def terrain_mat(tex='dry_mud_field_001', scale=0.09):
     mx.blend_type = 'MULTIPLY'
     L.new(wet.outputs[0], mx.inputs[0])
     L.new(base, mx.inputs[6])
-    mx.inputs[7].default_value = (0.42, 0.36, 0.3, 1)
+    mx.inputs[7].default_value = (0.19, 0.155, 0.12, 1)
+    wet.inputs['From Min'].default_value = WATER + 0.75
     gn = nt.nodes.new('ShaderNodeTexNoise')
-    gn.inputs['Scale'].default_value = 0.35
+    gn.inputs['Scale'].default_value = 0.22
     gn.inputs['Detail'].default_value = 10
     L.new(geo.outputs['Position'], gn.inputs['Vector'])
     gt = nt.nodes.new('ShaderNodeMapRange')
-    gt.inputs['From Min'].default_value = 0.45
-    gt.inputs['From Max'].default_value = 0.6
+    gt.inputs['From Min'].default_value = 0.44
+    gt.inputs['From Max'].default_value = 0.52
     L.new(gn.outputs['Fac'], gt.inputs['Value'])
     gh = nt.nodes.new('ShaderNodeMapRange')
     gh.inputs['From Min'].default_value = WATER + 0.25
@@ -152,13 +153,41 @@ def terrain_mat(tex='dry_mud_field_001', scale=0.09):
     L.new(gr.outputs[0], g2.inputs[1])
     g3 = nt.nodes.new('ShaderNodeMath')
     g3.operation = 'MULTIPLY'
-    g3.inputs[1].default_value = 0.8
+    g3.inputs[1].default_value = 0.95
     L.new(g2.outputs[0], g3.inputs[0])
     gmx = nt.nodes.new('ShaderNodeMix')
     gmx.data_type = 'RGBA'
     L.new(g3.outputs[0], gmx.inputs[0])
     L.new(mx.outputs[2], gmx.inputs[6])
-    gmx.inputs[7].default_value = (0.085, 0.16, 0.035, 1)
+    gc = nt.nodes.new('ShaderNodeTexNoise')               # grass colour: green to sun-dried straw
+    gc.inputs['Scale'].default_value = 0.6
+    L.new(geo.outputs['Position'], gc.inputs['Vector'])
+    gcr = nt.nodes.new('ShaderNodeValToRGB')
+    gcr.color_ramp.elements[0].color = (0.06, 0.13, 0.025, 1)
+    gcr.color_ramp.elements[1].color = (0.20, 0.19, 0.07, 1)
+    gcr.color_ramp.elements[0].position = 0.35
+    gcr.color_ramp.elements[1].position = 0.7
+    e = gcr.color_ramp.elements.new(0.52)
+    e.color = (0.11, 0.17, 0.035, 1)
+    L.new(gc.outputs['Fac'], gcr.inputs[0])
+    gtx = nt.nodes.new('ShaderNodeMix')                   # blades: fine dark/light speckle inside the patches
+    gtx.data_type = 'RGBA'
+    gtx.blend_type = 'MULTIPLY'
+    gtn = nt.nodes.new('ShaderNodeTexNoise')
+    gtn.inputs['Scale'].default_value = 9.0
+    gtn.inputs['Detail'].default_value = 6
+    L.new(geo.outputs['Position'], gtn.inputs['Vector'])
+    gtm = nt.nodes.new('ShaderNodeMapRange')
+    gtm.inputs['To Min'].default_value = 0.6
+    gtm.inputs['To Max'].default_value = 1.3
+    L.new(gtn.outputs['Fac'], gtm.inputs['Value'])
+    gtx.inputs[0].default_value = 1.0
+    L.new(gcr.outputs[0], gtx.inputs[6])
+    gcomb = nt.nodes.new('ShaderNodeCombineXYZ')
+    for k in range(3):
+        L.new(gtm.outputs[0], gcomb.inputs[k])
+    L.new(gcomb.outputs[0], gtx.inputs[7])
+    L.new(gtx.outputs[2], gmx.inputs[7])
     # HDPE liner on the slopes of lined ponds (attribute 'liner' 0/1)
     at = nt.nodes.new('ShaderNodeAttribute')
     at.attribute_name = 'liner'
@@ -177,12 +206,54 @@ def terrain_mat(tex='dry_mud_field_001', scale=0.09):
     L.new(gmx.outputs[2], mx2.inputs[6])
     mx2.inputs[7].default_value = (0.018, 0.019, 0.021, 1)
     L.new(mx2.outputs[2], p.inputs['Base Color'])
+    # puddles on the flat road and bund tops after the last rain: dark, glossy, sky reflections
+    pz = nt.nodes.new('ShaderNodeTexNoise')
+    pz.inputs['Scale'].default_value = 0.11
+    pz.inputs['Detail'].default_value = 4
+    L.new(geo.outputs['Position'], pz.inputs['Vector'])
+    pt = nt.nodes.new('ShaderNodeMapRange')
+    pt.inputs['From Min'].default_value = 0.705
+    pt.inputs['From Max'].default_value = 0.715
+    L.new(pz.outputs['Fac'], pt.inputs['Value'])
+    pf = nt.nodes.new('ShaderNodeMapRange')               # only where the ground is flat and high
+    pf.inputs['From Min'].default_value = TOP - 0.05
+    pf.inputs['From Max'].default_value = TOP - 0.01
+    L.new(sep.outputs[2], pf.inputs['Value'])
+    pu = nt.nodes.new('ShaderNodeMath')
+    pu.operation = 'MULTIPLY'
+    L.new(pt.outputs[0], pu.inputs[0])
+    L.new(pf.outputs[0], pu.inputs[1])
+    pmx = nt.nodes.new('ShaderNodeMix')
+    pmx.data_type = 'RGBA'
+    L.new(pu.outputs[0], pmx.inputs[0])
+    L.new(mx2.outputs[2], pmx.inputs[6])
+    pmx.inputs[7].default_value = (0.05, 0.045, 0.04, 1)
+    L.new(pmx.outputs[2], p.inputs['Base Color'])
     rr = nt.nodes.new('ShaderNodeMix')
     rr.data_type = 'FLOAT'
     L.new(lf.outputs[0], rr.inputs[0])
     rr.inputs[2].default_value = 0.85
     rr.inputs[3].default_value = 0.32
-    L.new(rr.outputs[0], p.inputs['Roughness'])
+    rw = nt.nodes.new('ShaderNodeMix')                    # wet mud near the waterline is glossy
+    rw.data_type = 'FLOAT'
+    L.new(wet.outputs[0], rw.inputs[0])
+    L.new(rr.outputs[0], rw.inputs[2])
+    rw.inputs[3].default_value = 0.38
+    rpd = nt.nodes.new('ShaderNodeMix')
+    rpd.data_type = 'FLOAT'
+    L.new(pu.outputs[0], rpd.inputs[0])
+    L.new(rw.outputs[0], rpd.inputs[2])
+    rpd.inputs[3].default_value = 0.03
+    L.new(rpd.outputs[0], p.inputs['Roughness'])
+    if p.inputs['Normal'].links:                          # puddles are flat: no ground bump through them
+        nb = p.inputs['Normal'].links[0].from_socket
+        geo2 = nt.nodes.new('ShaderNodeNewGeometry')
+        nmx = nt.nodes.new('ShaderNodeMix')
+        nmx.data_type = 'VECTOR'
+        L.new(pu.outputs[0], nmx.inputs[0])
+        L.new(nb, nmx.inputs[4])
+        L.new(geo2.outputs['Normal'], nmx.inputs[5])
+        L.new(nmx.outputs[1], p.inputs['Normal'])
     return m
 
 
@@ -321,10 +392,42 @@ def paddy_mat():
     L.new(bund.outputs[0], rb.inputs[1])
     L.new(rb.outputs[0], p.inputs['Roughness'])
     p.inputs['Specular IOR Level'].default_value = 0.4
+    rows = nt.nodes.new('ShaderNodeTexWave')                 # transplanted rows along each plot
+    rows.wave_type = 'BANDS'
+    rows.bands_direction = 'X'
+    rows.inputs['Scale'].default_value = 0.9
+    rows.inputs['Distortion'].default_value = 1.5
+    rows.inputs['Detail Scale'].default_value = 0.4
+    rr2 = nt.nodes.new('ShaderNodeMapping')
+    rr2.inputs['Rotation'].default_value = (0, 0, math.radians(7))
+    rr2.inputs['Scale'].default_value = (1.0, 1.0, 1.0)
+    L.new(geo.outputs['Position'], rr2.inputs['Vector'])
+    L.new(rr2.outputs[0], rows.inputs['Vector'])
+    rm = nt.nodes.new('ShaderNodeMapRange')
+    rm.inputs['To Min'].default_value = 0.72
+    rm.inputs['To Max'].default_value = 1.12
+    L.new(rows.outputs['Fac'], rm.inputs['Value'])
+    rmx = nt.nodes.new('ShaderNodeMix')
+    rmx.data_type = 'RGBA'
+    rmx.blend_type = 'MULTIPLY'
+    rmx.inputs[0].default_value = 1.0
+    L.new(mx.outputs[2], rmx.inputs[6])
+    rc = nt.nodes.new('ShaderNodeCombineXYZ')
+    for k in range(3):
+        L.new(rm.outputs[0], rc.inputs[k])
+    L.new(rc.outputs[0], rmx.inputs[7])
+    L.new(rmx.outputs[2], p.inputs['Base Color'])
+    vb.inputs['To Min'].default_value = 0.62
+    vb.inputs['To Max'].default_value = 1.3
+    big.inputs['Scale'].default_value = 0.012
     bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.25
+    bp.inputs['Strength'].default_value = 0.35
     L.new(fine.outputs['Fac'], bp.inputs['Height'])
-    L.new(bp.outputs[0], p.inputs['Normal'])
+    bp2 = nt.nodes.new('ShaderNodeBump')
+    bp2.inputs['Strength'].default_value = 0.3
+    L.new(rows.outputs['Fac'], bp2.inputs['Height'])
+    L.new(bp.outputs[0], bp2.inputs['Normal'])
+    L.new(bp2.outputs[0], p.inputs['Normal'])
     return m
 
 
@@ -382,10 +485,45 @@ def water_mat():
     cr = ramp.color_ramp
     cr.elements[0].color = (0.02, 0.06, 0.032, 1)        # algae green
     cr.elements[1].color = (0.05, 0.055, 0.03, 1)        # olive / tea
-    e = cr.elements.new(0.5)
-    e.color = (0.025, 0.065, 0.055, 1)                   # blue-green
+    for pos, col in ((0.2, (0.035, 0.095, 0.06)), (0.4, (0.025, 0.065, 0.055)), (0.6, (0.06, 0.065, 0.04)),
+                     (0.8, (0.03, 0.05, 0.05))):          # bloom green, blue-green, khaki, deep teal
+        e = cr.elements.new(pos)
+        e.color = (*col, 1)
     L.new(at.outputs['Fac'], ramp.inputs[0])
-    L.new(ramp.outputs[0], p.inputs['Base Color'])
+    # shallows: the water over the slope near the shore is muddy and lighter (distance to the quad edge, metres)
+    al = nt.nodes.new('ShaderNodeAttribute')
+    al.attribute_name = 'loc'
+    al.attribute_type = 'GEOMETRY'
+    ah = nt.nodes.new('ShaderNodeAttribute')
+    ah.attribute_name = 'half'
+    ah.attribute_type = 'GEOMETRY'
+    ab = nt.nodes.new('ShaderNodeVectorMath')
+    ab.operation = 'ABSOLUTE'
+    L.new(al.outputs['Vector'], ab.inputs[0])
+    sb = nt.nodes.new('ShaderNodeVectorMath')
+    sb.operation = 'SUBTRACT'
+    L.new(ah.outputs['Vector'], sb.inputs[0])
+    L.new(ab.outputs[0], sb.inputs[1])
+    sp = nt.nodes.new('ShaderNodeSeparateXYZ')
+    L.new(sb.outputs[0], sp.inputs[0])
+    dmin = nt.nodes.new('ShaderNodeMath')
+    dmin.operation = 'MINIMUM'
+    L.new(sp.outputs[0], dmin.inputs[0])
+    L.new(sp.outputs[1], dmin.inputs[1])
+    sh = nt.nodes.new('ShaderNodeMapRange')
+    sh.name = 'Shallow'
+    sh.inputs['From Min'].default_value = 2.9          # shoreline sits ~2.9 m inside the quad edge
+    sh.inputs['From Max'].default_value = 6.0
+    sh.inputs['To Min'].default_value = 0.6
+    sh.inputs['To Max'].default_value = 0.0
+    L.new(dmin.outputs[0], sh.inputs['Value'])
+    smx = nt.nodes.new('ShaderNodeMix')
+    smx.data_type = 'RGBA'
+    smx.name = 'ShallowMix'
+    L.new(sh.outputs[0], smx.inputs[0])
+    L.new(ramp.outputs[0], smx.inputs[6])
+    smx.inputs[7].default_value = (0.14, 0.115, 0.075, 1)
+    L.new(smx.outputs[2], p.inputs['Base Color'])
     p.inputs['Roughness'].default_value = 0.075
     p.inputs['IOR'].default_value = 1.33
     p.inputs['Specular IOR Level'].default_value = 0.5
@@ -403,12 +541,50 @@ def water_mat():
     b.inputs['Strength'].default_value = 0.03
     b.inputs['Distance'].default_value = 0.05
     L.new(nz.outputs['Fac'], b.inputs['Height'])
-    L.new(b.outputs[0], p.inputs['Normal'])
+    # wind ripples: fine wavelets stretched across the wind, in patches (cat's paws)
+    mp2 = nt.nodes.new('ShaderNodeMapping')
+    mp2.inputs['Scale'].default_value = (1.0, 3.2, 1.0)
+    L.new(mp.outputs[0], mp2.inputs['Vector'])
+    fn = nt.nodes.new('ShaderNodeTexNoise')
+    fn.inputs['Scale'].default_value = 7.0
+    fn.inputs['Detail'].default_value = 4
+    fn.inputs['Roughness'].default_value = 0.55
+    L.new(mp2.outputs[0], fn.inputs['Vector'])
+    pw = nt.nodes.new('ShaderNodeTexNoise')
+    pw.inputs['Scale'].default_value = 0.05
+    L.new(mp.outputs[0], pw.inputs['Vector'])
+    pm = nt.nodes.new('ShaderNodeMapRange')
+    pm.inputs['From Min'].default_value = 0.42
+    pm.inputs['From Max'].default_value = 0.62
+    pm.inputs['To Min'].default_value = 0.25
+    pm.inputs['To Max'].default_value = 1.0
+    L.new(pw.outputs['Fac'], pm.inputs['Value'])
+    b2 = nt.nodes.new('ShaderNodeBump')
+    b2.inputs['Distance'].default_value = 0.012
+    L.new(pm.outputs[0], b2.inputs['Strength'])
+    L.new(fn.outputs['Fac'], b2.inputs['Height'])
+    L.new(b.outputs[0], b2.inputs['Normal'])
+    rmul = nt.nodes.new('ShaderNodeMath')
+    rmul.operation = 'MULTIPLY'
+    rmul.inputs[1].default_value = 0.09
+    L.new(pm.outputs[0], rmul.inputs[0])
+    radd = nt.nodes.new('ShaderNodeMath')
+    radd.operation = 'ADD'
+    radd.name = 'RoughAdd'
+    radd.inputs[1].default_value = 0.035
+    L.new(rmul.outputs[0], radd.inputs[0])
+    L.new(radd.outputs[0], p.inputs['Roughness'])
+    sb2 = nt.nodes.new('ShaderNodeMath')               # shallows a little less glossy
+    sb2.operation = 'MULTIPLY'
+    sb2.inputs[1].default_value = 0.12
+    L.new(sh.outputs[0], sb2.inputs[0])
+    L.new(sb2.outputs[0], radd.inputs[1])
+    L.new(b2.outputs[0], p.inputs['Normal'])
     return m
 
 
 def build_water(C):
-    verts, faces, tints = [], [], []
+    verts, faces, tints, locs, halves = [], [], [], [], []
     for i in range(NCOL):
         for j in range(-NROW, NROW):
             if not in_farm(i, j):
@@ -416,14 +592,21 @@ def build_water(C):
             _, _, cx, cy = cell_of(X0 + i * PX, (ROAD + (j + 0.5) * PY) if j >= 0 else -(ROAD + (-1 - j + 0.5) * PY))
             hw, hh = pond_size(i, j)
             k = len(verts)
+            ex, ey = hw + SLOPE * 0.6, hh + SLOPE * 0.6
             for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
-                verts.append((cx + sx * (hw + SLOPE * 0.6), cy + sy * (hh + SLOPE * 0.6), WATER))
+                verts.append((cx + sx * ex, cy + sy * ey, WATER))
+                locs.append((sx * ex, sy * ey, 0.0))
+                halves.append((ex, ey, 0.0))
             faces.append((k, k + 1, k + 2, k + 3))
             tints.append(pond_rand(i, j, 4))
     me = bpy.data.meshes.new('FARM_WaterMesh')
     me.from_pydata(verts, [], faces)
     at = me.attributes.new('tint', 'FLOAT', 'FACE')
     at.data.foreach_set('value', tints)
+    for nm, vals in (('loc', locs), ('half', halves)):
+        a2 = me.attributes.new(nm, 'FLOAT_VECTOR', 'CORNER')
+        for li, lp in enumerate(me.loops):
+            a2.data[li].vector = vals[lp.vertex_index]
     me.materials.append(water_mat())
     o = bpy.data.objects.new('FARM_Water', me)
     C.objects.link(o)
@@ -452,36 +635,47 @@ def foam_mat():
     mp = nt.nodes.new('ShaderNodeMapping')
     mp.name = 'FoamMap'
     mp.inputs['Scale'].default_value = (1.0, 0.3, 1.0)          # streaks along the trail
-    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    oi = nt.nodes.new('ShaderNodeObjectInfo')
+    om = nt.nodes.new('ShaderNodeVectorMath')
+    om.operation = 'SCALE'
+    om.inputs['Scale'].default_value = 37.0
+    L.new(oi.outputs['Random'], om.inputs[0])
+    ad = nt.nodes.new('ShaderNodeVectorMath')
+    L.new(tc.outputs['UV'], ad.inputs[0])
+    L.new(om.outputs[0], ad.inputs[1])
+    L.new(ad.outputs[0], mp.inputs['Vector'])
     nz = nt.nodes.new('ShaderNodeTexNoise')
     nz.inputs['Scale'].default_value = 1.6
     nz.inputs['Detail'].default_value = 12
     nz.inputs['Roughness'].default_value = 0.7
     L.new(mp.outputs[0], nz.inputs['Vector'])
-    # radial falloff from the object origin (foam densest at the wheel, streaking downstream along +X)
-    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
-    L.new(tc.outputs['Object'], sep.inputs[0])
-    sx = nt.nodes.new('ShaderNodeMath')
-    sx.operation = 'MULTIPLY'
-    sx.inputs[1].default_value = 0.32
-    L.new(sep.outputs[0], sx.inputs[0])
-    sy = nt.nodes.new('ShaderNodeMath')
-    sy.operation = 'MULTIPLY'
-    sy.inputs[1].default_value = 0.085
-    L.new(sep.outputs[1], sy.inputs[0])
+    # trail falloff: dense at the wheels (tn 0), thinning and breaking up downstream, soft at the sides
+    atn = nt.nodes.new('ShaderNodeAttribute')
+    atn.attribute_name = 'tn'
+    atn.attribute_type = 'GEOMETRY'
+    avn = nt.nodes.new('ShaderNodeAttribute')
+    avn.attribute_name = 'vn'
+    avn.attribute_type = 'GEOMETRY'
+    vv = nt.nodes.new('ShaderNodeMath')
+    vv.operation = 'POWER'
+    vv.inputs[1].default_value = 2.0
+    av = nt.nodes.new('ShaderNodeMath')
+    av.operation = 'ABSOLUTE'
+    L.new(avn.outputs['Fac'], av.inputs[0])
+    L.new(av.outputs[0], vv.inputs[0])
     cmb = nt.nodes.new('ShaderNodeCombineXYZ')
-    L.new(sx.outputs[0], cmb.inputs[0])
-    L.new(sy.outputs[0], cmb.inputs[1])
+    L.new(vv.outputs[0], cmb.inputs[0])
+    L.new(atn.outputs['Fac'], cmb.inputs[1])
     ln = nt.nodes.new('ShaderNodeVectorMath')
     ln.operation = 'LENGTH'
     L.new(cmb.outputs[0], ln.inputs[0])
     fall = nt.nodes.new('ShaderNodeMapRange')
-    fall.inputs['From Min'].default_value = 1.0
-    fall.inputs['From Max'].default_value = 0.1
+    fall.inputs['From Min'].default_value = 1.05
+    fall.inputs['From Max'].default_value = 0.0
     L.new(ln.outputs['Value'], fall.inputs['Value'])
     thr = nt.nodes.new('ShaderNodeMapRange')
-    thr.inputs['From Min'].default_value = 0.38
-    thr.inputs['From Max'].default_value = 0.55
+    thr.inputs['From Min'].default_value = 0.34
+    thr.inputs['From Max'].default_value = 0.5
     L.new(nz.outputs['Fac'], thr.inputs['Value'])
     a = nt.nodes.new('ShaderNodeMath')
     a.operation = 'MULTIPLY'
@@ -492,8 +686,8 @@ def foam_mat():
     a2.use_clamp = True
     L.new(a.outputs[0], a2.inputs[0])
     core = nt.nodes.new('ShaderNodeMapRange')
-    core.inputs['From Min'].default_value = 0.45
-    core.inputs['From Max'].default_value = 0.15
+    core.inputs['From Min'].default_value = 0.16
+    core.inputs['From Max'].default_value = 0.04
     L.new(ln.outputs['Value'], core.inputs['Value'])
     L.new(core.outputs[0], a2.inputs[1])
     L.new(a2.outputs[0], p.inputs['Alpha'])
@@ -543,15 +737,56 @@ def aerator_collection(phase=0.0, name='AER_0', f0=1, f1=600):
         for fc in _fc(wo):
             for kp in fc.keyframe_points:
                 kp.interpolation = 'LINEAR'
-    # churn foam on the water around the wheels, streaking downstream (+Y in aerator space)
-    p = Part()
-    bm = p.bm
-    res = bmesh.ops.create_grid(bm, x_segments=4, y_segments=8, size=1.0)
-    for v in res['verts']:
-        v.co = Vector((v.co.x * 2.6 * (1 + 0.6 * (v.co.y + 1) / 2), -0.8 + (v.co.y + 1) / 2 * 13.0, 0.03))
-    fo = p.make(name + '_Foam', foam_mat(), root, coll=C)
-    fo.location = (0, 0, 0)
     return C
+
+
+def foam_trail(name, C, rnd, length, bend, spread):
+    """Churned white water at the wheels decaying into a curved trail (aerator space: wheels on X, flow +Y).
+    UV = metres (x across, y along) for the drifting noise; attribute 'tn' = 0..1 along, 'vn' = -1..1 across."""
+    nu, nv = 6, 28
+    bm = bmesh.new()
+    R = length / max(1e-3, abs(bend)) if bend else None
+    grid = []
+    for j in range(nv + 1):
+        t = j / nv
+        sl = length * (t ** 1.3)
+        if R:
+            a = sl / R
+            cx_, cy_ = (R * (1 - math.cos(a))) * (1 if bend > 0 else -1), R * math.sin(a)
+            tx, ty = math.sin(a) * (1 if bend > 0 else -1), math.cos(a)
+        else:
+            cx_, cy_, tx, ty = 0.0, sl, 0.0, 1.0
+        hw = 1.35 + spread * t ** 0.8
+        row = []
+        for i in range(nu + 1):
+            u = -1 + 2 * i / nu
+            row.append(bm.verts.new((cx_ + ty * u * hw, -0.9 + cy_ - tx * u * hw, 0.03)))
+        grid.append((row, t, sl))
+    faces = []
+    for j in range(nv):
+        for i in range(nu):
+            faces.append(bm.faces.new((grid[j][0][i], grid[j][0][i + 1], grid[j + 1][0][i + 1], grid[j + 1][0][i])))
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    uv = me.uv_layers.new(name='UV')
+    tn = me.attributes.new('tn', 'FLOAT', 'POINT')
+    vn = me.attributes.new('vn', 'FLOAT', 'POINT')
+    for j, (row, t, sl) in enumerate(grid):
+        for i in range(nu + 1):
+            k = j * (nu + 1) + i
+            tn.data[k].value = t
+            vn.data[k].value = -1 + 2 * i / nu
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            k = me.loops[li].vertex_index
+            j, i = divmod(k, nu + 1)
+            row, t, sl = grid[j]
+            uv.data[li].uv = ((-1 + 2 * i / nu) * (1.35 + spread * t ** 0.8), sl)
+    me.materials.append(foam_mat())
+    o = bpy.data.objects.new(name, me)
+    C.objects.link(o)
+    return o
 
 
 def _fc(o):
@@ -583,6 +818,13 @@ def place_aerators(C, rnd, near=None):
                 o.rotation_euler = (0, 0, r + rnd.uniform(-0.12, 0.12))
                 C.objects.link(o)
                 out.append(o)
+                # its own churn trail: length fits the pond, curving with the pond's circulation
+                room = (2 * hh - 9) if k < 2 else (2 * hw - 14)
+                fo = foam_trail('AER_Foam_%d_%d_%d' % (i, j, k), C, rnd, min(room, rnd.uniform(7.5, 13.0)) / 1.3,
+                                rnd.choice((-1, 1)) * rnd.uniform(0.25, 0.75), rnd.uniform(1.0, 2.6))
+                fo.location = (x, y, WATER - 0.02)
+                fo.rotation_euler = o.rotation_euler
+                fo.scale = o.scale
     return out
 
 
