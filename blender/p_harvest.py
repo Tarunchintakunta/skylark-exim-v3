@@ -163,10 +163,11 @@ def build(out):
         sh = bpy.data.objects.new('HV_Crate%d_Shrimp' % n, None)
         Cp.objects.link(sh)
         sh.parent = c
-        for m in range(26):
-            F.shrimp('HV_Crate%d_S%02d' % (n, m), (rnd.uniform(-0.23, 0.23), rnd.uniform(-0.13, 0.13), 0.24 + rnd.uniform(0, 0.03)),
-                     (rnd.uniform(-0.4, 0.4), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)), parent=sh, C=Cp,
-                     scale=rnd.uniform(0.9, 1.15))
+        for m in range(36):                  # a heap on the ice: some on their backs, most on their sides
+            F.shrimp('HV_Crate%d_S%02d' % (n, m), (rnd.uniform(-0.22, 0.22), rnd.uniform(-0.12, 0.12),
+                                                     0.265 + (m // 18) * 0.022 + rnd.uniform(0, 0.012)),
+                     (rnd.choice((0.0, 1.57, -1.57, 1.57)) + rnd.uniform(-0.3, 0.3), rnd.uniform(-0.25, 0.25),
+                      rnd.uniform(0, 6.28)), parent=sh, C=Cp, scale=rnd.uniform(0.85, 1.1))
         f_tip = 96 + n * 9
         key_hide(sh, [(F0, True), (f_tip, False)])
         ice2 = bpy.data.objects.new('HV_Crate%d_Ice2' % n, L._CRATE['chunks'])
