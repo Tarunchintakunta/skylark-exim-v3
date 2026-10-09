@@ -10,6 +10,7 @@ import skhuman as H
 import skplant as S
 import skinterior as SI
 import sktruck as T
+import plant_cold
 
 D = math.radians
 DZ = S.DZ
@@ -20,8 +21,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CAM_KEYS = [
     # p-intake: slight push on the unloading, then turn and follow W3's loaded trolley through the curtain
     (318, (8.9, 4.5, 3.25), (9.15, -1.2, 1.95)),     # over the shoulders onto the unloading
-    (346, (7.9, 5.2, 3.15), (6.0, 6.2, 1.6)),
-    (372, (6.1, 5.9, 3.05), (7.6, 9.6, 1.7)),
+    (346, (5.0, 4.4, 2.95), (8.8, 1.1, 2.15)),       # unloaders carry crates out to the trolleys
+    (372, (4.5, 4.6, 2.95), (6.3, 8.6, 2.1)),        # ... then W3 brings his loaded trolley past
     (400, (6.3, 8.0, 3.1), (8.3, 12.6, 1.8)),
     (430, (7.0, 9.8, 3.3), (8.2, 14.8, 1.9)),        # W3 pushes through the strips ahead of the lens
     (456, (7.3, 11.3, 3.5), (8.4, 17.5, 1.9)),
@@ -33,18 +34,8 @@ CAM_KEYS = [
     (671, (4.3, 28.6, 2.55), (8.2, 31.8, 1.85)),
     (720, (8.2, 34.0, 2.6), (8.2, 41.0, 2.0)),
     (766, (8.2, 42.6, 2.7), (8.3, 49.0, 2.15)),
-    # p-freeze: lab -> plate freezer / glazing -> packing -> cold store aisle
-    (800, (8.3, 45.6, 2.65), (10.6, 47.4, 2.05)),
-    (824, (8.6, 47.6, 2.6), (11.0, 47.2, 2.0)),
-    (862, (8.4, 50.4, 2.8), (5.0, 54.4, 2.25)),
-    (900, (9.4, 53.6, 2.9), (11.0, 56.8, 2.15)),
-    (924, (9.0, 56.8, 2.8), (8.0, 62.0, 2.1)),
-    (962, (8.4, 59.8, 2.65), (6.0, 62.2, 1.75)),
-    (996, (8.2, 62.6, 2.55), (8.2, 70.0, 1.9)),
-    (1030, (8.2, 66.6, 2.45), (8.2, 78.0, 1.95)),
-    (1053, (8.2, 68.4, 2.4), (8.2, 80.5, 1.95)),
-    (1070, (8.2, 68.6, 2.4), (8.2, 80.7, 1.95)),
-]
+    # p-lab (the coldchain's first beat) continues into the QC lab: see plant_cold.LAB_KEYS
+] + plant_cold.LAB_KEYS
 
 
 def _key_world_to_truck(R, wx, wy, wz):
@@ -104,42 +95,97 @@ def unload(C, R):
         w.rotation_euler = (0, 0, 0)
         w.keyframe_insert('rotation_euler', frame=f1 + 2)
         H.jitter(w, H.POSES['look'], f1 + 4, 1060, every=24, amp=4, seed=sum(map(ord, nm)) % 97)
-    # crates: top of the first rows (k index in the truck cargo)
-    moves = [(3, tA, (0, -0.24, 0)), (12, tB, (0, -0.24, 0)), (8, tA, (0, 0.24, 0)), (2, tB, (0, 0.24, 0)),
-             (11, tA, (0, -0.24, 1)), (7, tB, (0, -0.24, 1))]
-    workers = {id(tA): bpy.data.objects['HUM_DockW1'], id(tB): bpy.data.objects['HUM_DockW2']}
-    for i, (k, t, (dx, dy, lv)) in enumerate(moves):
-        c = bpy.data.objects['TRK_RigidReefer_Cargo%02d' % k]
-        t0 = 312 + i * 6
-        p0 = c.location.copy()
-        rz0 = c.rotation_euler.z
-        c.keyframe_insert('location', frame=t0)
-        c.keyframe_insert('rotation_euler', frame=t0)
-        c.location = p0 + Vector((0, 0, 0.06))
-        c.keyframe_insert('location', frame=t0 + 2)
-        wx, wy = t.location.x + dx, t.location.y + dy
-        wz = DZ + 0.33 + lv * 0.3
-        mid = _key_world_to_truck(R, (wx + (S.TRUCK_BAY + c.location.y)) / 2, 0.3, max(wz, p0.z) + 0.1)
-        c.location = mid
-        c.keyframe_insert('location', frame=t0 + 6)
-        c.location = _key_world_to_truck(R, wx, wy, wz)
-        c.rotation_euler = (0, 0, rz0)
-        c.keyframe_insert('location', frame=t0 + 10)
-        c.keyframe_insert('rotation_euler', frame=t0 + 10)
-        w = workers[id(t)]
-        hs = _handles(c.name, c, C)
-        _ik(w, 'L', hs[0], [(t0 - 8, 0.0), (t0 - 2, 1.0), (t0 + 10, 1.0), (t0 + 14, 0.0)])
-        _ik(w, 'R', hs[1], [(t0 - 8, 0.0), (t0 - 2, 1.0), (t0 + 10, 1.0), (t0 + 14, 0.0)])
-    # W1/W2 step up to the truck before lifting
-    for nm, pos, rz in (('HUM_DockW1', (8.55, 0.75), 0), ('HUM_DockW2', (9.85, 0.75), 0)):
+    # each unloader: three crates, walk in -> grip both handles -> lift -> carry out -> set down on the trolley
+    import math as _m
+    for nm, t, ks, start in (('HUM_DockW1', tA, (3, 8, 11), 308), ('HUM_DockW2', tB, (12, 2, 7), 318)):
         w = bpy.data.objects[nm]
-        w.location = (pos[0], pos[1], DZ)
-        w.rotation_euler = (0, 0, D(rz))
-        w.keyframe_insert('location', frame=304)
-        w.keyframe_insert('rotation_euler', frame=304)
-        H.set_pose(w, {'spine': (20, 0, 0), 'thigh': (15, 4, 0), 'shin': (-20, 0, 0)}, 306)
-        H.set_pose(w, {'spine': (10, 0, 0)}, 352)
-        H.jitter(w, H.POSES['look'], 360, 1060, every=24, amp=4, seed=len(nm))
+        ad = w.animation_data
+        if ad and ad.action:                         # drop the opener's later keys; this sequence takes over
+            for fc in T._fcurves(ad.action):
+                if fc.data_path in ('location', 'rotation_euler'):
+                    for kp in [kp for kp in fc.keyframe_points if kp.co.x > 300]:
+                        fc.keyframe_points.remove(kp)
+        bpy.context.scene.frame_set(300)
+        w.keyframe_insert('location', frame=300)          # hold the opener's end pose until the unloading starts
+        w.keyframe_insert('rotation_euler', frame=300)
+        for n, k in enumerate(ks):
+            c = bpy.data.objects['TRK_RigidReefer_Cargo%02d' % k]
+            bpy.context.scene.frame_set(300)                       # truck docked
+            cw = c.matrix_world.translation.copy()
+            tr = Vector((t.location.x, t.location.y))
+            slot = Vector((0, (-0.24, 0.24, -0.24)[n]))
+            dest = Vector((tr.x + slot.y, tr.y, DZ + 0.33 + (1 if n == 2 else 0) * 0.3))
+            d_in = (cw.xy - tr).normalized()                      # trolley -> crate
+            pick = cw.xy - d_in * 0.5                             # stand half a metre short of the crate
+            drop = tr + d_in * 0.62                               # stand in front of the trolley
+            t0 = start + n * 40
+            w.location.z = DZ
+            H.walk_cycle(w, t0, t0 + 12, [(t0, drop), (t0 + 12, pick)], stride=0.5, base={'spine': (8, 0, 0)},
+                         arms=True)
+            # lift: bend, grip, straighten (crate follows from t0 + 16)
+            H.set_pose(w, {'spine': (32, 0, 0), 'thigh': (30, 3, 0), 'shin': (-40, 0, 0)}, t0 + 15)
+            H.set_pose(w, {'spine': (8, 0, 0), 'thigh': (2, 3, 0), 'shin': (-4, 0, 0)}, t0 + 19)
+            w.location.z = DZ
+            H.walk_cycle(w, t0 + 20, t0 + 32, [(t0 + 20, pick), (t0 + 32, drop)], stride=0.45,
+                         base={'spine': (4, 0, 0)}, arms=False)
+            H.set_pose(w, {'spine': (26, 0, 0), 'thigh': (24, 3, 0), 'shin': (-34, 0, 0)}, t0 + 35)
+            H.set_pose(w, {'spine': (8, 0, 0), 'thigh': (2, 3, 0), 'shin': (-4, 0, 0)}, t0 + 39)
+            # crate: still until gripped, then held in front of the chest, set down on the trolley
+            c.keyframe_insert('location', frame=t0 + 15)
+            c.keyframe_insert('rotation_euler', frame=t0 + 15)
+            rz0 = c.rotation_euler.z
+            for f in range(t0 + 19, t0 + 33, 2):
+                bpy.context.scene.frame_set(f)
+                wp = w.matrix_world.translation
+                fwd = Vector((_m.sin(w.rotation_euler.z), -_m.cos(w.rotation_euler.z)))
+                hold = (wp.x + fwd.x * 0.42, wp.y + fwd.y * 0.42, DZ + 0.82)
+                c.location = _key_world_to_truck(R, *hold)
+                c.keyframe_insert('location', frame=f)
+            c.location = _key_world_to_truck(R, dest.x, dest.y, dest.z)
+            c.rotation_euler = (0, 0, rz0)
+            c.keyframe_insert('location', frame=t0 + 35)
+            c.keyframe_insert('rotation_euler', frame=t0 + 35)
+            hs = _handles(c.name, c, C)
+            seq = [(t0 + 11, 0.0), (t0 + 14, 1.0), (t0 + 35, 1.0), (t0 + 38, 0.0)]
+            _ik(w, 'L', hs[0], seq)
+            _ik(w, 'R', hs[1], seq)
+        H.jitter(w, H.POSES['look'], start + 124, 1060, every=24, amp=4, seed=len(nm))
+        H.grip(w, 'L', curl=0.75)
+        H.grip(w, 'R', curl=0.75)
+        H.settle_reach(w, start, start + 122, step=2, iters=3, max_shift=0.35)
+
+
+def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None):
+    """Both hands work ON the surface in front of the person (table, belt, tray): IK targets found by casting down
+    onto the set, moving in small picking loops. No hands hovering or held up in the air. Returns True if placed."""
+    s = bpy.context.scene
+    dg = bpy.context.evaluated_depsgraph_get()
+    base = Vector((w.location.x, w.location.y, DZ))
+    for rz in (w.rotation_euler.z, w.rotation_euler.z + math.pi):
+        fwd = Vector((math.sin(rz), -math.cos(rz), 0))
+        side = Vector((math.cos(rz), math.sin(rz), 0))
+        placed = []
+        for sd, sg in (('L', 1), ('R', -1)):
+            xy = base + fwd * reach - side * sg * spread
+            hit, loc, _n, _i, ob, _m = s.ray_cast(dg, Vector((xy.x, xy.y, DZ + 1.5)), Vector((0, 0, -1)), distance=1.3)
+            if hit and DZ + 0.6 < loc.z < DZ + 1.25 and not (ob and ob.name.startswith('HUM_')):
+                placed.append((sd, loc))
+        if len(placed) == 2:
+            w.rotation_euler.z = rz                       # face the work surface
+            break
+    else:
+        return False
+    for sd, loc in placed:
+        e = bpy.data.objects.new('%s_Work%s' % (w.name, sd), None)
+        (C or bpy.context.scene.collection).objects.link(e)
+        f = f0
+        while f <= f1:                                    # pick, move, place: small loops over the surface
+            e.location = loc + fwd * rnd.uniform(-0.06, 0.08) + side * rnd.uniform(-0.07, 0.07) + \
+                Vector((0, 0, 0.03 + rnd.uniform(0, 0.05)))
+            e.keyframe_insert('location', frame=f)
+            f += rnd.randint(7, 13)
+        _ik(w, sd, e, [(1, 1.0)])
+    return True
 
 
 def _lift(w):
@@ -161,24 +207,36 @@ def tank_crew(C, rnd, crate_fn):
         w = H.person('HUM_Tank%d' % k, 'plant', 'female' if k else 'male', coll=C, seed=300 + k)
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz))
-        c = crate_fn('IN_TipCrate%d' % k, 'blue', (x + (0.9 if k else -0.9) * 0.0, y + 0.75, DZ + 1.15), 0.0, None, 'ice',
+        c = crate_fn('IN_TipCrate%d' % k, 'blue', (x, y + 0.58, DZ + 1.1), 0.0, None, 'ice',
                      700 + k)
         c.rotation_euler = (0, D(-25 if k else 25), 0)
         for f0 in (300, 380, 460, 540, 620, 700):
             for f, ang in ((f0, 15), (f0 + 20, 75), (f0 + 40, 15)):
                 c.rotation_euler = (0, D(-ang if k else ang), 0)
                 c.keyframe_insert('rotation_euler', frame=f)
-        hs = _handles(c.name, c, C)
-        _ik(w, 'L', hs[0], [(1, 1.0)])
-        _ik(w, 'R', hs[1], [(1, 1.0)])
+        hs = []
+        for sx in (-1, 1):                                # end handles, either side of the worker
+            h = bpy.data.objects.new('%s_E%d' % (c.name, sx > 0), None)
+            C.objects.link(h)
+            h.parent = c
+            h.location = (sx * 0.27, -0.06, 0.2)
+            hs.append(h)
+        _ik(w, 'L', hs[1 if k else 0], [(1, 1.0)])
+        _ik(w, 'R', hs[0 if k else 1], [(1, 1.0)])
+        H.grip(w, 'L', curl=0.8)
+        H.grip(w, 'R', curl=0.8)
         H.jitter(w, {'spine': (14, 0, 0), 'upperarm': (55, -8, 0)}, 1, 1060, every=20, amp=4, seed=k)
         out.append(w)
     for k, (x, y, rz) in enumerate(((CX - 4.4, 14.6, 180), (CX + 4.5, 16.6, 0), (CX - 2.4, 16.7, 0), (CX + 2.8, 14.5, 180))):
         w = H.person('HUM_Wash%d' % k, 'plant', 'male' if k % 2 else 'female', coll=C, seed=310 + k, lod='lo')
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz))
-        H.jitter(w, {'spine': (28, 0, 0), 'chest': (8, 0, 0), 'upperarm': (55, -8, 0), 'forearm': (45, 0, 0),
-                     'head': (10, 0, 0)}, 1, 1060, every=10, amp=7, seed=20 + k)
+        bpy.context.view_layer.update()
+        if not hands_on_work(w, rnd, C=C):
+            H.jitter(w, {'spine': (28, 0, 0), 'chest': (8, 0, 0), 'upperarm': (55, -8, 0), 'forearm': (45, 0, 0),
+                         'head': (10, 0, 0)}, 1, 1060, every=10, amp=7, seed=20 + k)
+        else:
+            H.jitter(w, {'spine': (16, 0, 0), 'neck': (8, 0, 0), 'head': (12, 0, 0)}, 1, 1060, every=10, amp=5, seed=30 + k, arms=False)
         out.append(w)
     return out
 
@@ -212,7 +270,13 @@ def proc_crew(C, rnd):
         H.grip(w, 'R', curl=rnd.uniform(0.35, 0.7))
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz + rnd.uniform(-8, 8)))
-        H.jitter(w, work, 1, 1060, every=8 + n % 5, amp=7, seed=n)
+        bpy.context.view_layer.update()
+        if hands_on_work(w, rnd, C=C):
+            H.jitter(w, {k: v for k, v in work.items() if k in ('spine', 'chest', 'neck', 'head')}, 1, 1060,
+                     every=8 + n % 5, amp=5, seed=n, arms=False)
+        else:
+            H.jitter(w, {'spine': (10, 0, 0), 'head': (14, 0, 0), 'upperarm': (8, -24, 0), 'forearm': (22, 0, 0)},
+                     1, 1060, every=8 + n % 5, amp=4, seed=n)     # nothing in reach to work on: arms relaxed
         n += 1
     sup = H.person('HUM_Supervisor', 'plant_coat', 'male', coll=C, seed=499, lod='lo')
     H.set_pose(sup, H.POSES['stand'], 1)
@@ -224,28 +288,44 @@ def proc_crew(C, rnd):
 def freeze_crew(C, rnd, crate_fn):
     out = []
     qc = H.person('HUM_QC', 'plant_coat', 'female', coll=C, seed=500)
-    qc.location = (CX + 3.2, 47.75, DZ)
+    qc.location = (CX + 3.2, 47.62, DZ)
     qc.rotation_euler = (0, 0, D(-5))
-    H.jitter(qc, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (12, 0, 0), 'upperarm': (30, -10, 0),
-                  'forearm': (75, 0, 0)}, 1, 1060, every=12, amp=6, seed=1)
+    bpy.context.view_layer.update()
+    if hands_on_work(qc, rnd, reach=0.42, C=C):
+        H.jitter(qc, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (14, 0, 0)}, 1, 1060, every=12, amp=4, seed=1, arms=False)
+    else:
+        H.jitter(qc, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (12, 0, 0), 'upperarm': (30, -10, 0),
+                      'forearm': (75, 0, 0)}, 1, 1060, every=12, amp=6, seed=1)
     qc2 = H.person('HUM_QC2', 'plant_coat', 'male', coll=C, seed=501, lod='lo')
     qc2.location = (CX - 3.5, 47.7, DZ)
     qc2.rotation_euler = (0, 0, D(10))
-    H.jitter(qc2, {'spine': (12, 0, 0), 'upperarm': (25, -12, 0), 'forearm': (70, 0, 0), 'head': (16, 0, 0)}, 1, 1060,
-             every=14, amp=6, seed=2)
+    bpy.context.view_layer.update()
+    if hands_on_work(qc2, rnd, reach=0.42, C=C):
+        H.jitter(qc2, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (14, 0, 0)}, 1, 1060, every=12, amp=4, seed=2, arms=False)
+    else:
+        H.jitter(qc2, {'spine': (12, 0, 0), 'upperarm': (25, -12, 0), 'forearm': (70, 0, 0), 'head': (16, 0, 0)}, 1, 1060,
+                 every=14, amp=6, seed=2)
     for k, (x, y, rz) in enumerate(((CX - 2.8, 54.0, 90), (CX - 2.2, 55.6, 120), (CX + 2.4, 57.2, -90))):
         w = H.person('HUM_Freeze%d' % k, 'plant', 'male' if k != 1 else 'female', coll=C, seed=510 + k, lod='lo')
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz))
-        H.jitter(w, {'spine': (12, 0, 0), 'upperarm': (45, -8, 0), 'forearm': (55, 0, 0)}, 1, 1060, every=10, amp=8,
-                 seed=10 + k)
+        bpy.context.view_layer.update()
+        if not hands_on_work(w, rnd, C=C):
+            H.jitter(w, {'spine': (12, 0, 0), 'upperarm': (45, -8, 0), 'forearm': (55, 0, 0)}, 1, 1060, every=10, amp=8,
+                     seed=10 + k)
+        else:
+            H.jitter(w, {'spine': (16, 0, 0), 'neck': (8, 0, 0), 'head': (12, 0, 0)}, 1, 1060, every=10, amp=5, seed=30 + k, arms=False)
     for k, (x, y, rz) in enumerate(((CX - 3.8, 61.6, -90), (CX - 3.8, 63.0, -90), (CX + 1.6, 61.4, -90),
                                     (CX + 3.2, 62.6, 90))):
         w = H.person('HUM_Pack%d' % k, 'plant', 'female' if k % 2 else 'male', coll=C, seed=520 + k, lod='lo')
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz))
-        H.jitter(w, {'spine': (14, 0, 0), 'neck': (8, 0, 0), 'upperarm': (35, -10, 0), 'forearm': (70, 0, 0)}, 1, 1060,
-                 every=9, amp=8, seed=20 + k)
+        bpy.context.view_layer.update()
+        if not hands_on_work(w, rnd, C=C):
+            H.jitter(w, {'spine': (14, 0, 0), 'neck': (8, 0, 0), 'upperarm': (35, -10, 0), 'forearm': (70, 0, 0)}, 1, 1060,
+                     every=9, amp=8, seed=20 + k)
+        else:
+            H.jitter(w, {'spine': (16, 0, 0), 'neck': (8, 0, 0), 'head': (12, 0, 0)}, 1, 1060, every=10, amp=5, seed=30 + k, arms=False)
     # cold-store worker pulling a pallet truck along the aisle (+Y, one direction)
     cs = H.person('HUM_Cold', 'coldstore', 'male', coll=C, seed=530)
     pt = bpy.data.objects.new('IN_ColdPalletJack', None)
@@ -258,11 +338,20 @@ def freeze_crew(C, rnd, crate_fn):
     for sx in (-0.28, 0.28):
         p.box((sx, 0.6, 0.06), (0.16, 1.15, 0.06))
     p.box((0, -0.05, 0.25), (0.6, 0.3, 0.4))
-    p.cyl((0, -0.1, 0.4), (0, 0.15, 1.15), 0.02, 8)
+    p.cyl((0, -0.1, 0.4), (0, -0.62, 0.98), 0.02, 8)                 # tow handle angled up to his hand
     p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.01, coll=C)
     S.pallet('IN_ColdJackPallet', (0, 0.62, 0.08), M, C, 0.0, cartons=3).parent = pt
     H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 77.5))], stride=0.55,
-                 base={'upperarm.R': (40, -5, 0), 'forearm.R': (20, 0, 0)}, step=2)
+                 base={'upperarm.L': (4, -24, 0), 'forearm.L': (16, 0, 0)}, arms=False, step=2)
+    th = bpy.data.objects.new('HUM_Cold_Tow', None)
+    C.objects.link(th)
+    th.parent = pt
+    th.location = (0, -0.62, 0.98)
+    c = cs.pose.bones['forearm.R'].constraints.new('IK')
+    c.target = th
+    c.chain_count = 2
+    c.use_tail = True
+    H.grip(cs, 'R', curl=0.85)
     _lift(cs)
     cs.rotation_euler = (0, 0, D(180))
     return out
@@ -287,8 +376,8 @@ def join_static_shrimp():
     groups = {}
     for o in list(bpy.data.objects):
         if o.type == 'MESH' and o.data.name.startswith('FARM_ShrimpMesh') and o.parent is None and not o.animation_data:
-            if not o.name.startswith('IN_'):
-                continue
+            if not o.name.startswith('IN_') or o.name.startswith('IN_IQF') or 'LabTray' in o.name:
+                continue                              # animated in the coldchain beats
             key = int(o.location.y // 6)
             groups.setdefault(key, []).append(o)
     for key, objs in groups.items():
