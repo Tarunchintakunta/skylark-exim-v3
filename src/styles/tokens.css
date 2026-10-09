@@ -1,0 +1,47 @@
+/* Design tokens (docs/CLAUDE_PROMPT.md §7). Brass is reserved for CTA, routes, focus and active states. */
+@font-face { font-family: 'Sora'; font-weight: 600; font-style: normal; font-display: swap; src: url('/fonts/sora-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/inter-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Inter'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/inter-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2'); }
+
+:root {
+  --deep-2: #04222c;
+  --deep: #063544;
+  --bay: #0e6f8e;
+  --sea: #2fa889;
+  --brass: #d7a84f;
+  --ice: #f4fafa;
+  --steel: #aab8bc;
+  --ink: #102024;
+
+  /* light theme (globe + business sections) */
+  --light: #eef5f6;
+  --light-2: #dcebf0;
+  --ink-2: #3b5258;      /* secondary text on light, 7.6:1 on --light */
+  --brass-ink: #7a5a1c;  /* brass for text on light backgrounds, 5.6:1 */
+  --hairline: rgba(244, 250, 250, 0.14);
+  --hairline-ink: rgba(16, 32, 36, 0.14);
+
+  --hud-bg: rgba(4, 34, 44, 0.46);
+  --scrim: linear-gradient(to top, rgba(4, 34, 44, 0.92) 0%, rgba(4, 34, 44, 0.55) 38%, rgba(4, 34, 44, 0) 70%);
+
+  --f-display: 'Sora', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --f-body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --fs-display: clamp(2.4rem, 6vw, 6.5rem);
+  --fs-h2: clamp(2rem, 4.2vw, 4rem);
+  --fs-h3: clamp(1.25rem, 1.6vw, 1.6rem);
+  --fs-body: clamp(1rem, 0.92rem + 0.3vw, 1.25rem);
+  --fs-mono: 11px;
+
+  --gutter: clamp(20px, 4vw, 64px);
+  --radius: 4px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+  --z-stage: 0;
+  --z-copy: 10;
+  --z-content: 20;
+  --z-chrome: 40;
+  --z-loader: 100;
+}
