@@ -1001,7 +1001,7 @@ def poles(C, rnd):
                     q.cyl(prev, top, 0.01, 3)
                 prev = top
     p.make('FARM_Poles', conc, None, coll=C)
-    q.make('FARM_Wires', wire, None, coll=C)
+    q.make('FARM_Wires', wire, None, coll=C).visible_shadow = False     # thin wires: no hard shadow lines
 
 
 def feed_trays(C, rnd):
