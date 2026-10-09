@@ -1,12 +1,20 @@
-import type { ModelDef } from '../config/products'
+import { STATES, type Product } from '../config/products'
 
-/** DOM stand-in for a product model (CLAUDE_PROMPT §6) until the GLB exists. */
-export function ProductCard({ model, index }: { model: ModelDef; index: number }) {
+/** One product: category label, name in the display serif, the one true spec line, and an Enquire button. */
+export function ProductCard({ product, label, index, onEnquire }: { product: Product; label: string; index: number; onEnquire: () => void }) {
   return (
-    <figure className="product-card" data-reveal>
-      <span className="product-card__no mono">{String(index + 1).padStart(2, '0')}</span>
-      <span className="product-card__ring" aria-hidden="true" />
-      <figcaption className="product-card__name display">{model.name}</figcaption>
-    </figure>
+    <li className="pcard" data-reveal>
+      {product.image && <img className="pcard__img" src={product.image} alt="" loading="lazy" decoding="async" />}
+      <p className="pcard__meta">
+        <span className="pcard__no">{String(index + 1).padStart(2, '0')}</span>
+        {label}
+      </p>
+      <h3 className="pcard__name display">{product.name}</h3>
+      {product.latin && <p className="pcard__latin">{product.latin}</p>}
+      <p className="pcard__spec">{STATES.join(' · ')}</p>
+      <button type="button" className="pcard__cta" onClick={onEnquire} aria-label={`Enquire about ${product.name}`}>
+        <u>Enquire</u> <span aria-hidden="true">→</span>
+      </button>
+    </li>
   )
 }
