@@ -3,8 +3,8 @@ import math
 import random
 import bpy
 import bmesh
-from mathutils import Vector
-from sklib import (M, pbr, new_mat, principled, _node, _sock, mixrgb, empty, obj, box, cyl, cyl_mesh, sphere, torus_mesh,
+from mathutils import Vector, noise
+from sklib import (M, pbr, weather, new_mat, principled, _node, _sock, mixrgb, empty, obj, box, cyl, cyl_mesh, sphere, torus_mesh,
                    tube, bm_to_mesh, crate, ice_mesh, fish, D)
 
 
@@ -87,7 +87,8 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
     """White steel fishing vessel with blue trim (catch-reference.png). Returns a dict of key objects/values.
     Names: <name>_Hull, <name>_Deck, <name>_BoomPivot, <name>_BoomTip, <name>_Drum, <name>_HatchCentre."""
     mats = mats or M()
-    hm = hull or hull_material()
+    hm = weather(hull or hull_material(), streak=(0.3, 0.15, 0.06), amount=0.65, z0=-0.2, z1=0.9,
+                 dirt=(0.12, 0.14, 0.08), dirt_amount=0.55, scale=0.8)
     root = empty(name, loc, size=2.0)
     root.rotation_euler = (0, 0, rot_z)
     R = {'root': root, 'deck_z': deck_z}
@@ -341,9 +342,10 @@ def flap(g, f0, f1, period=10, amp=35, path=None):
 
 
 def bag_radius(t, R):
-    r = R * (math.sin(math.pi * min(1.0, 0.08 + t * 0.95)) ** 0.7) * (0.12 + 0.88 * min(1, t * 2.2))
-    if t > 0.9:
-        r *= max(0.05, 1 - (t - 0.9) * 6)
+    # heavy load: narrow neck under the ring, widest low down (t ~ 0.72), rounded sagging bottom
+    r = R * (math.sin(math.pi * min(1.0, 0.04 + t * 0.9)) ** 0.55) * (0.1 + 0.9 * min(1, t * 1.5) ** 1.4)
+    if t > 0.86:
+        r *= max(0.04, math.sqrt(max(0.0, 1 - ((t - 0.86) / 0.14) ** 2)))
     return r
 
 
@@ -362,9 +364,13 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         r = bag_radius(t, R)
         ring = []
         for j in range(seg):
-            a = 2 * math.pi * j / seg
-            sag = 1 + 0.04 * math.sin(3 * a + i)
-            ring.append(bm.verts.new((r * sag * math.cos(a), r * sag * math.sin(a), z)))
+            # odd rings shifted half a mesh: the wireframe reads as diamond netting, not a square grid
+            a = 2 * math.pi * (j + 0.5 * (i % 2)) / seg
+            p = Vector((math.cos(a), math.sin(a), z / depth))
+            # fish pressing through the mesh: lumpy, more so in the loaded lower half
+            lump = 1 + (0.03 + 0.06 * t) * noise.noise(p * 3.2 + Vector((seed, 0, 0))) \
+                + 0.025 * t * noise.noise(p * 9.0 + Vector((0, seed, 0)))
+            ring.append(bm.verts.new((r * lump * math.cos(a), r * lump * math.sin(a), z)))
         vs.append(ring)
     for i in range(rings):
         for j in range(seg):

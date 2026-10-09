@@ -7,7 +7,7 @@ import random
 import bpy
 import bmesh
 from mathutils import Vector, Matrix, Euler
-from sklib import (M, pbr, empty, obj, box, cyl, cyl_mesh, sphere, sphere_mesh, box_mesh, tube, bm_to_mesh, crate, D,
+from sklib import (M, pbr, weather, empty, obj, box, cyl, cyl_mesh, sphere, sphere_mesh, box_mesh, tube, bm_to_mesh, crate, D,
                    person, ice_mesh, _node, _sock, principled)
 from sklib_port import MB
 
@@ -48,9 +48,12 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, mats=None, ca
     mats = mats or M()
     root = empty(name, loc, size=1.5)
     root.rotation_euler = (0, 0, rot_z)
-    paint = pbr('MAT_TruckCab', cab_color, 0.3, 0.2, grime=0.2, coat=0.7, scale=0.6)
-    boxw = pbr('MAT_ReeferBox', (0.9, 0.91, 0.9), 0.35, 0.05, grime=0.18, coat=0.3, scale=0.4)
-    dark = pbr('MAT_TruckDark', (0.06, 0.065, 0.07), 0.5, 0.3, grime=0.2)
+    # working truck, not showroom: panel seams, grime streaks from the roof rail, road dirt up the lower sides
+    paint = weather(pbr('MAT_TruckCab', cab_color, 0.32, 0.2, grime=0.3, coat=0.5, scale=0.6), amount=0.35,
+                    z0=0.3, z1=1.5, dirt_amount=0.75)
+    boxw = weather(panel_mat('MAT_ReeferBox', (0.86, 0.87, 0.86), 0.6, 'X'), streak=(0.42, 0.38, 0.3), amount=0.5,
+                   z0=1.1, z1=2.3, dirt_amount=0.7)
+    dark = pbr('MAT_TruckDark', (0.06, 0.065, 0.07), 0.6, 0.3, grime=0.5)
     mb = MB()
     BL, BW, BH, BZ = 7.2, 2.5, 2.6, 1.15     # box length/width/height, floor height
     rear = -2.2

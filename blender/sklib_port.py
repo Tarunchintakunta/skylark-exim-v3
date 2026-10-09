@@ -5,7 +5,7 @@ import random
 import bpy
 import bmesh
 from mathutils import Vector, Matrix, Euler
-from sklib import (M, pbr, new_mat, principled, _node, _sock, mixrgb, empty, obj, box, cyl, cyl_mesh, sphere, tube,
+from sklib import (M, pbr, weather, new_mat, principled, _node, _sock, mixrgb, empty, obj, box, cyl, cyl_mesh, sphere, tube,
                    bm_to_mesh, D, _link)
 
 

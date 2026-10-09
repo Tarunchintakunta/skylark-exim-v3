@@ -570,6 +570,57 @@ def M():
     }
 
 
+def weather(m, streak=(0.22, 0.13, 0.07), amount=0.55, z0=0.0, z1=1.0, dirt=(0.16, 0.13, 0.09), dirt_amount=0.6,
+            scale=1.0):
+    """Wear on an existing material (object Z): vertical rain/rust streaks running down from edges and fixings, and
+    road/sea dirt rising from the bottom (z0 = dirtiest, fading out by z1). Adds to whatever Base Color it has."""
+    if m.get('weathered'):
+        return m
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else tuple(p.inputs['Base Color'].default_value)[:3]
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1800, -1400))
+    mp = _node(nt, 'ShaderNodeMapping', (-1600, -1400))
+    mp.inputs['Scale'].default_value = (6.0 * scale, 6.0 * scale, 0.22 * scale)
+    l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
+    nz = _node(nt, 'ShaderNodeTexNoise', (-1400, -1400))
+    nz.inputs['Scale'].default_value = 3.0
+    nz.inputs['Detail'].default_value = 10
+    nz.inputs['Roughness'].default_value = 0.65
+    l.new(mp.outputs[0], nz.inputs['Vector'])
+    st = _node(nt, 'ShaderNodeMapRange', (-1200, -1400))
+    st.inputs['From Min'].default_value = 0.52
+    st.inputs['From Max'].default_value = 0.78
+    st.inputs['To Max'].default_value = amount
+    l.new(_sock(nz, 'Factor', out=True), st.inputs['Value'])
+    col = mixrgb(nt, st.outputs[0], src, streak, loc=(-1000, -1300))
+    sep = _node(nt, 'ShaderNodeSeparateXYZ', (-1400, -1700))
+    l.new(_sock(tc, 'Object', out=True), sep.inputs[0])
+    dz = _node(nt, 'ShaderNodeMapRange', (-1200, -1700))
+    dz.inputs['From Min'].default_value = z0
+    dz.inputs['From Max'].default_value = z1
+    dz.inputs['To Min'].default_value = dirt_amount
+    dz.inputs['To Max'].default_value = 0.0
+    l.new(sep.outputs[2], dz.inputs['Value'])
+    n2 = _node(nt, 'ShaderNodeTexNoise', (-1400, -1950))
+    n2.inputs['Scale'].default_value = 9.0 * scale
+    n2.inputs['Detail'].default_value = 8
+    l.new(_sock(tc, 'Object', out=True), n2.inputs['Vector'])
+    dm = _node(nt, 'ShaderNodeMath', (-1000, -1750))
+    dm.operation = 'MULTIPLY'
+    l.new(dz.outputs[0], dm.inputs[0])
+    l.new(_sock(n2, 'Factor', out=True), dm.inputs[1])
+    dm2 = _node(nt, 'ShaderNodeMath', (-900, -1750))
+    dm2.operation = 'MULTIPLY'
+    dm2.inputs[1].default_value = 1.6
+    l.new(dm.outputs[0], dm2.inputs[0])
+    col = mixrgb(nt, dm2.outputs[0], col, dirt, loc=(-700, -1500))
+    l.new(col, p.inputs['Base Color'])
+    m['weathered'] = 1
+    return m
+
+
 def ice_mat():
     if 'MAT_Ice' in bpy.data.materials:
         return bpy.data.materials['MAT_Ice']
