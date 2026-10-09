@@ -67,7 +67,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'o-return', awaiting: 'final o-return render (960×540 preview)', alt: 'Back in harbour the crew pass iced crates from the boat onto trolleys and into a white refrigerated truck, which closes its doors and drives off along the harbour road.' }],
+    media: [{ kind: 'video', id: 'o-return', alt: 'Back in harbour the crew pass iced crates from the boat onto trolleys and into a white refrigerated truck, which closes its doors and drives off along the harbour road.' }],
     captions: caps('o4', [[0.1, 0.9]]),
   },
 ]
