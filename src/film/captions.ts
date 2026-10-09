@@ -28,7 +28,9 @@ export function bindCaptions(sections: HTMLElement[]) {
   document.fonts.ready.then(() => {
     for (const c of caps.flat()) {
       const h = c.el.querySelector<HTMLElement>('.caption__title')
-      if (h) c.split = SplitText.create(h, { type: 'lines', mask: 'lines', linesClass: 'line', autoSplit: true })
+      // reduceWhiteSpace would turn the no-break space in "−18 °C" into a plain one (a /\s+/ replace), letting the
+      // temperature break across lines; titles have no runs of whitespace to collapse (#146)
+      if (h) c.split = SplitText.create(h, { type: 'lines', mask: 'lines', linesClass: 'line', autoSplit: true, reduceWhiteSpace: false })
       const typed = c.el.querySelectorAll('[data-type]')
       if (typed.length) c.typed = SplitText.create(typed, { type: 'chars' })
     }
