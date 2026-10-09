@@ -1872,9 +1872,27 @@ def fish_material(kind):
     return m
 
 
+SCANS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'assets-src', 'blender', 'fish_scans.blend')
+SCAN_KINDS = {'tuna': 'SCAN_Tuna_LOD', 'tuna_s': 'SCAN_Tuna_LOD'}
+
+
+def _scan_mesh(objname):
+    """Photogrammetry scan (CC BY 4.0, docs/LICENSES.md) prepared by blender/prep_scans.py: 1 m long, head +X."""
+    with bpy.data.libraries.load(SCANS, link=False) as (src, dst):
+        dst.objects = [objname]
+    o = dst.objects[0]
+    me = o.data
+    bpy.data.objects.remove(o)
+    return me
+
+
 def fish_mesh(kind):
-    """Lofted fish body (unit length along +X, head at +X), crescent tail, dorsal/anal/pectoral fins, finlets, eye."""
+    """Lofted fish body (unit length along +X, head at +X), crescent tail, dorsal/anal/pectoral fins, finlets, eye.
+    Tuna use the photogrammetry scan when assets-src/blender/fish_scans.blend is on disk."""
     if kind in _FISH:
+        return _FISH[kind]
+    if kind in SCAN_KINDS and os.path.exists(SCANS) and os.environ.get('SK_NO_SCANS') != '1':
+        _FISH[kind] = _scan_mesh(SCAN_KINDS[kind])
         return _FISH[kind]
     sp = FISH_SPECS[kind]
     bm = bmesh.new()
