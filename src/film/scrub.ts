@@ -278,6 +278,11 @@ function enter(i: number, prev: number) {
     posters[prev]!.style.opacity = '0'
     posters[prev]!.classList.remove('is-over')
   }
+  // posters load lazily: this segment and the next two only
+  for (let k = i; k <= i + 2; k++) {
+    const p = posters[k]
+    if (p instanceof HTMLImageElement && !p.getAttribute('src') && p.dataset.src) p.src = p.dataset.src
+  }
   const el = posters[i]
   if (el) {
     el.style.opacity = '1'
@@ -286,18 +291,12 @@ function enter(i: number, prev: number) {
     if (el instanceof HTMLImageElement && m.kind === 'video' && !env.mobile) {
       const want = fromBelow ? endPosterUrl(m.id) : posterFor(m)!
       if (!el.src.endsWith(want)) el.src = want
+      // the end frame is only needed for scrolling back into this clip from below
+      else new Image().src = endPosterUrl(m.id)
     }
   }
   // intentional cut (documentation → port): 250 ms fade through the page colour
   const crossedCut = prev >= 0 && (segs[Math.min(i, prev)].join === 'cut')
   if (crossedCut && veil) gsap.fromTo(veil, { opacity: 1 }, { opacity: 0, duration: 0.25, ease: 'none' })
   cur = i
-}
-
-/** Preload the remaining first-frame posters (after the loader) and the end posters (desktop). */
-export function preloadPosters() {
-  for (const s of segs) {
-    const m = s.media
-    if (m.kind === 'video' && !env.mobile) new Image().src = endPosterUrl(m.id)
-  }
 }
