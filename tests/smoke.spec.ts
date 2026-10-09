@@ -1,6 +1,37 @@
 import { expect, test } from '@playwright/test'
 
-test('home renders one h1', async ({ page }) => {
+const ready = (page: import('@playwright/test').Page) => page.waitForFunction(() => document.documentElement.dataset.ready === '1')
+
+test('loads, loader completes, one h1', async ({ page }) => {
   await page.goto('/')
+  await ready(page)
   await expect(page.locator('h1')).toHaveCount(1)
+  await expect(page.locator('.loader')).toHaveCount(0)
+  await expect(page.locator('html')).not.toHaveClass(/is-locked/)
+})
+
+test('path buttons switch the chapter list and the hash', async ({ page }) => {
+  await page.goto('/')
+  await ready(page)
+  const ocean = page.getByRole('button', { name: /^the ocean/i })
+  const pond = page.getByRole('button', { name: /^the pond/i })
+  await expect(ocean).toHaveAttribute('aria-pressed', 'true')
+  await pond.click()
+  await expect(pond).toHaveAttribute('aria-pressed', 'true')
+  await expect(page).toHaveURL(/#pond$/)
+  await expect(page.locator('[data-chapter="p1"]')).toHaveCount(1)
+  await expect(page.locator('[data-chapter="o1"]')).toHaveCount(0)
+  await page.keyboard.press('ArrowLeft')
+  await expect(ocean).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('[data-chapter="o1"]')).toHaveCount(1)
+})
+
+test('header pill jumps to the first chapter of the other path', async ({ page }) => {
+  await page.goto('/#ocean')
+  await ready(page)
+  await page.getByRole('button', { name: /switch to the pond path/i }).click()
+  await expect(page).toHaveURL(/#pond$/)
+  await page.waitForTimeout(400)
+  const top = await page.locator('[data-chapter="p1"]').evaluate((el) => Math.round(el.getBoundingClientRect().top))
+  expect(Math.abs(top)).toBeLessThan(4)
 })
