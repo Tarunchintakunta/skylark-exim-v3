@@ -718,7 +718,7 @@ def ice_mat():
     return m
 
 
-def water_mat(name, deep):
+def water_mat(name, deep, swell=0.0):
     """Sea/harbour water: dark body, low roughness so the sky reflects, white foam from the Ocean modifier's
     foam attribute, fine bump for chop."""
     if name in bpy.data.materials:
@@ -761,6 +761,16 @@ def water_mat(name, deep):
     b.inputs['Strength'].default_value = 0.25
     l.new(_sock(n2, 'Factor', out=True), b.inputs['Height'])
     l.new(b.outputs[0], p.inputs['Normal'])
+    if swell:   # long swell normals under the chop (calm harbours look like plastic without them)
+        n3 = _node(nt, 'ShaderNodeTexNoise', (-500, -550))
+        n3.inputs['Scale'].default_value = 0.05
+        n3.inputs['Detail'].default_value = 3
+        l.new(_sock(tc, 'Object', out=True), n3.inputs['Vector'])
+        b2 = _node(nt, 'ShaderNodeBump', (-100, -550))
+        b2.inputs['Strength'].default_value = swell
+        b2.inputs['Distance'].default_value = 2.0
+        l.new(_sock(n3, 'Factor', out=True), b2.inputs['Height'])
+        l.new(b2.outputs[0], b.inputs['Normal'])
     return m
 
 
