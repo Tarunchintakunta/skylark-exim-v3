@@ -12,6 +12,7 @@ for n in "${names[@]}"; do
   tc=webp; [ "${KTX2:-0}" = 1 ] && tc=ktx2
   $GT optimize "$in" "$o" --compress meshopt --texture-compress $tc --texture-size "$TEX" >/dev/null
   kb=$(( $(stat -c%s "$o" 2>/dev/null || stat -f%z "$o") / 1024 ))
-  flag=""; [ $kb -gt 1536 ] && flag="  !! over 1.5 MB: re-run with TEX=1024 or decimate in Blender"
+  flag=""; [ $kb -gt 500 ] && flag="  ! over 500 KB target: re-run with TEX=1024 or decimate in Blender"
+  [ $kb -gt 1536 ] && flag="  !! over 1.5 MB hard cap: re-run with TEX=1024 or decimate in Blender"
   echo "$n  $(( $(stat -c%s "$in" 2>/dev/null || stat -f%z "$in") / 1024 )) KB -> ${kb} KB$flag"
 done

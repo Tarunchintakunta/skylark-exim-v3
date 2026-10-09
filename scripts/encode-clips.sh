@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Encode scroll-scrub clips: assets-src/video/<id>.mp4 -> public/media/<id>_1280.mp4 + <id>_720.mp4 (+ optional AV1)
+# Inputs: reused + Higgsfield masters, and Claude's Blender renders x-cranes / x-ship (same pipeline)
 # Usage: scripts/encode-clips.sh [id ...]        (no ids = every mp4 in assets-src/video)
 # Env:   SRC=assets-src/video OUT=public/media AV1=1 (also write <id>_1280.av1.webm) FORCE=1 (re-encode)
 #        BUSY="a1 a2 ..." ids that get crf 30 + light denoise to stay under 1.5 MB
