@@ -13,6 +13,7 @@ import random
 import bpy
 import bmesh
 from mathutils import Vector, Matrix, Quaternion, Euler
+from mathutils.bvhtree import BVHTree
 
 CC0 = os.environ.get('SKY_CC0', '/Users/tarunchintakunta/Desktop/skylark/skylark-exim-v3/assets-src/cc0')
 BUNDLE = CC0 + '/humans/x/human-base-meshes-bundle-v1.4.1/human_base_meshes_bundle.blend'
@@ -32,12 +33,13 @@ OUTFITS = {
     'driver': ['shirt', 'trousers_dark', 'shoes', 'hair', 'vest'],
     'farm': ['shirt_farm', 'shorts', 'hair', 'cap'],
     'farm_long': ['shirt_farm', 'trousers_rolled', 'hair', 'gloves_rubber'],
+    'guard': ['shirt', 'trousers_dark', 'shoes', 'hair', 'cap'],
 }
 
 
 # ------------------------------------------------------------------ materials
 def _mat(name, color, rough=0.6, sss=0.0, coat=0.0, bump=0.0, sheen=0.0, normal_tex=None, tex_scale=30.0, metal=0.0,
-         emission=None, estr=0.0, rand=0.0, hue_rand=0.0):
+         emission=None, estr=0.0, rand=0.0, hue_rand=0.0, wrinkle=0.0):
     m = bpy.data.materials.get(name)
     if m:
         return m
@@ -105,8 +107,65 @@ def _mat(name, color, rough=0.6, sss=0.0, coat=0.0, bump=0.0, sheen=0.0, normal_
         if nrm_in:
             L.new(nrm_in, b.inputs['Normal'])
         nrm_in = b.outputs[0]
+    if wrinkle:
+        # cloth creases: noise stretched along the limbs (object Z) + a little warp
+        tc2 = nt.nodes.new('ShaderNodeTexCoord')
+        mp = nt.nodes.new('ShaderNodeMapping')
+        mp.inputs['Scale'].default_value = (14.0, 14.0, 3.5)
+        L.new(tc2.outputs['Object'], mp.inputs['Vector'])
+        nz2 = nt.nodes.new('ShaderNodeTexNoise')
+        nz2.inputs['Scale'].default_value = 1.6
+        nz2.inputs['Detail'].default_value = 3
+        nz2.inputs['Distortion'].default_value = 0.6
+        L.new(mp.outputs[0], nz2.inputs['Vector'])
+        b2 = nt.nodes.new('ShaderNodeBump')
+        b2.inputs['Strength'].default_value = wrinkle
+        b2.inputs['Distance'].default_value = 0.012
+        L.new(nz2.outputs['Fac'], b2.inputs['Height'])
+        if nrm_in:
+            L.new(nrm_in, b2.inputs['Normal'])
+        nrm_in = b2.outputs[0]
+        ao = nt.nodes.new('ShaderNodeAmbientOcclusion')
+        ao.inputs['Distance'].default_value = 0.06
+        cm = nt.nodes.new('ShaderNodeMix')
+        cm.data_type = 'RGBA'
+        cm.blend_type = 'MULTIPLY'
+        inv = nt.nodes.new('ShaderNodeMath')
+        inv.operation = 'SUBTRACT'
+        inv.inputs[0].default_value = 1.0
+        L.new(ao.outputs['AO'], inv.inputs[1])
+        mul = nt.nodes.new('ShaderNodeMath')
+        mul.operation = 'MULTIPLY'
+        mul.inputs[1].default_value = 0.6
+        L.new(inv.outputs[0], mul.inputs[0])
+        L.new(mul.outputs[0], cm.inputs[0])
+        src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else None
+        if src is not None:
+            L.new(src, cm.inputs[6])
+        else:
+            cm.inputs[6].default_value = p.inputs['Base Color'].default_value
+        cm.inputs[7].default_value = (0.55, 0.55, 0.55, 1)
+        L.new(cm.outputs[2], p.inputs['Base Color'])
     if nrm_in:
         L.new(nrm_in, p.inputs['Normal'])
+    return m
+
+
+def _eye_mat():
+    m = bpy.data.materials.get('HUM_Eye')
+    if m:
+        return m
+    m = _mat('HUM_Eye', (0.7, 0.68, 0.64), 0.06, coat=1.0)
+    nt = m.node_tree
+    at = nt.nodes.new('ShaderNodeAttribute')
+    at.attribute_name = 'iris'
+    at.attribute_type = 'GEOMETRY'
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    nt.links.new(at.outputs['Fac'], mx.inputs[0])
+    mx.inputs[6].default_value = (0.70, 0.67, 0.62, 1)
+    mx.inputs[7].default_value = (0.025, 0.016, 0.012, 1)
+    nt.links.new(mx.outputs[2], nt.nodes['Principled BSDF'].inputs['Base Color'])
     return m
 
 
@@ -115,21 +174,21 @@ def mats():
     fab2 = CC0 + '/tex/Fabric061/Fabric061_2K-JPG_NormalGL.jpg'
     return {
         'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.45, sss=0.15, bump=0.05, rand=0.25),
-        'eye': _mat('HUM_Eye', (0.05, 0.035, 0.03), 0.08, coat=1.0),
-        'white_cotton': _mat('HUM_WhiteCotton', (0.80, 0.81, 0.80), 0.85, sheen=0.3, bump=0.12, rand=0.04),
+        'eye': _eye_mat(),
+        'white_cotton': _mat('HUM_WhiteCotton', (0.80, 0.81, 0.80), 0.85, sheen=0.3, bump=0.12, rand=0.04, wrinkle=0.45),
         'white_pvc': _mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
         'boot': _mat('HUM_WhiteBoot', (0.80, 0.81, 0.79), 0.35, coat=0.2, bump=0.02),
         'nitrile_blue': _mat('HUM_NitrileBlue', (0.16, 0.33, 0.62), 0.38, coat=0.25, rand=0.06),
         'cap_white': _mat('HUM_CapNonwoven', (0.84, 0.85, 0.86), 0.95, sheen=0.4, bump=0.25),
         'mask_blue': _mat('HUM_MaskBlue', (0.55, 0.70, 0.80), 0.9, sheen=0.3, bump=0.15),
-        'parka': _mat('HUM_ParkaNavy', (0.10, 0.14, 0.22), 0.55, coat=0.1, bump=0.12),
-        'shirt_blue': _mat('HUM_ShirtBlue', (0.22, 0.30, 0.42), 0.8, sheen=0.2, bump=0.12, rand=0.15),
-        'trousers_dark': _mat('HUM_TrouserDark', (0.08, 0.08, 0.09), 0.75, bump=0.1, rand=0.2),
+        'parka': _mat('HUM_ParkaNavy', (0.10, 0.14, 0.22), 0.55, coat=0.1, bump=0.12, wrinkle=0.45),
+        'shirt_blue': _mat('HUM_ShirtBlue', (0.22, 0.30, 0.42), 0.8, sheen=0.2, bump=0.12, rand=0.15, wrinkle=0.45),
+        'trousers_dark': _mat('HUM_TrouserDark', (0.08, 0.08, 0.09), 0.75, bump=0.1, rand=0.2, wrinkle=0.45),
         'shoe': _mat('HUM_Shoe', (0.05, 0.045, 0.04), 0.45, coat=0.2),
         'hair': _mat('HUM_Hair', (0.025, 0.02, 0.018), 0.5, bump=0.4, rand=0.2),
-        'hivis': _mat('HUM_HiVis', (0.75, 0.85, 0.08), 0.6, emission=(0.6, 0.7, 0.05), estr=0.15, bump=0.12),
-        'shirt_farm': _mat('HUM_ShirtFarm', (0.34, 0.27, 0.22), 0.85, sheen=0.2, bump=0.12, rand=0.35, hue_rand=0.5),
-        'shorts': _mat('HUM_Shorts', (0.20, 0.22, 0.25), 0.85, bump=0.1, rand=0.3),
+        'hivis': _mat('HUM_HiVis', (0.75, 0.85, 0.08), 0.6, emission=(0.6, 0.7, 0.05), estr=0.15, bump=0.12, wrinkle=0.45),
+        'shirt_farm': _mat('HUM_ShirtFarm', (0.34, 0.27, 0.22), 0.85, sheen=0.2, bump=0.12, rand=0.35, hue_rand=0.5, wrinkle=0.45),
+        'shorts': _mat('HUM_Shorts', (0.20, 0.22, 0.25), 0.85, bump=0.1, rand=0.3, wrinkle=0.45),
         'cap_cloth': _mat('HUM_CapCloth', (0.55, 0.52, 0.45), 0.85, rand=0.3),
         'rubber_glove': _mat('HUM_RubberGlove', (0.55, 0.42, 0.12), 0.35, coat=0.3),
     }
@@ -289,7 +348,7 @@ def _region(body, gender, piece, k):
         elif piece in ('gloves', 'gloves_rubber'):
             sel = (z < 0.97 and ax > 0.285) if piece == 'gloves' else (z < 0.93 and ax > 0.30)
         elif piece == 'haircap':
-            sel = (z > 1.583) or (z > 1.49 and n.y > 0.1 and ax < 0.10) or (z > 1.535 and ax > 0.05 and n.y > -0.45)
+            sel = (z > 1.60) or (z > 1.49 and n.y > 0.1 and ax < 0.10) or (z > 1.545 and ax > 0.055 and n.y > -0.3)
             sel = sel and ax < 0.125
         elif piece in ('hair', 'cap'):
             sel = ((z > 1.60) or (z > 1.52 and n.y > 0.3) or (z > 1.56 and ax > 0.06 and n.y > -0.2)) and ax < 0.12
@@ -305,7 +364,7 @@ def _region(body, gender, piece, k):
 
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.018, 'shoes': 0.008,
-         'gloves': 0.0035, 'gloves_rubber': 0.005, 'haircap': 0.028, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
+         'gloves': 0.0035, 'gloves_rubber': 0.005, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
          'vest': 0.04}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
@@ -334,10 +393,17 @@ def _shell(body, piece, mask, M):
     if loose_cloth:
         # cloth drapes over the anatomy: push out, then relax (removes muscle detail), keep borders
         for v in bm.verts:
-            v.co += v.normal * t
+            v.co += v.normal * (t * 1.6)
         inner = [v for v in bm.verts if not v.is_boundary]
-        for _ in range(25):
-            bmesh.ops.smooth_vert(bm, verts=inner, factor=0.6, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+        for it in range(4):
+            for _ in range(20):
+                bmesh.ops.smooth_vert(bm, verts=inner, factor=0.6, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+            # smoothing shrinks the shell into the body: re-inflate to keep clearance
+            for v in inner:
+                hit, nrm, _i, d = bvh.find_nearest(v.co)
+                if hit is not None and d < 0.007:
+                    v.co = hit + nrm * 0.007
         bm.normal_update()
         t = 0.006
     for v in bm.verts:
@@ -348,10 +414,14 @@ def _shell(body, piece, mask, M):
         if piece == 'haircap':
             # bouffant: fuller toward the crown and back, gathered pleats
             a = math.atan2(v.co.y, v.co.x)
-            extra = 0.022 * max(0.0, (z - 1.50) / 0.2) + 0.012 * max(0.0, v.co.y) / 0.1 \
-                + 0.007 * math.sin(a * 22) * max(0.0, (z - 1.55) / 0.15)
+            extra = 0.010 * max(0.0, (z - 1.52) / 0.2) + 0.006 * max(0.0, v.co.y) / 0.1 \
+                + 0.004 * math.sin(a * 26) * max(0.0, (z - 1.56) / 0.12)
         if piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark', 'shorts'):
-            extra += 0.0015 * math.sin(z * 55 + v.co.x * 20) * math.sin(v.co.x * 40 + v.co.y * 30)  # folds
+            extra += 0.003 * math.sin(z * 38 + v.co.x * 14) * math.sin(v.co.x * 31 + v.co.y * 23)  # folds
+            if piece in ('labcoat', 'jacket', 'parka') and z < 1.25:
+                # vertical drape folds hanging from the chest, deeper toward the hem
+                a = math.atan2(v.co.y, v.co.x)
+                extra += 0.010 * min(1.0, (1.25 - z) / 0.5) * max(0.0, math.sin(a * 9 + math.sin(z * 7) * 0.8))
         v.co += v.normal * (t + extra)
     bm.to_mesh(me)
     bm.free()
@@ -453,6 +523,13 @@ def build_masters(out_path, level=1):
         for e in eyes:
             e.data.materials.clear()
             e.data.materials.append(M['eye'])
+            ctr = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
+            at = e.data.attributes.new('iris', 'FLOAT', 'POINT')
+            vals = []
+            for v in e.data.vertices:
+                d = (v.co - ctr).normalized()
+                vals.append(max(0.0, min(1.0, (-d.y - 0.80) / 0.08)))
+            at.data.foreach_set('value', vals)
         pieces = {}
         regions = {}
         need = sorted({p for ps in OUTFITS.values() for p in ps})
@@ -539,6 +616,7 @@ def person(name, outfit='plant', gender='male', loc=(0, 0, 0), rot_z=0.0, scale=
     for pb in ao.pose.bones:
         pb.rotation_mode = 'XYZ'
     ao['seed'] = seed
+    set_pose(ao, {'upperarm': (4, -24, 0), 'forearm': (14, 0, 0), 'hand': (0, 0, 0)})
     return ao
 
 
