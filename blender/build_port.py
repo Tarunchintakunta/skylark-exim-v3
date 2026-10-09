@@ -37,9 +37,10 @@ L.box('QUAY_Yard', (700, 300, 5.0), (0, -190, QZ - 2.5), asph, 0.0)
 L.box('QUAY_Apron', (700, 40.2, 5.02), (0, -20, QZ - 2.49), conc, 0.0)
 L.box('QUAY_Face', (700, 0.6, 5.5), (0, -0.1, QZ - 3.0), pbr_face := L.pbr('MAT_QuayFace', (0.42, 0.41, 0.38), 0.85,
                                                                               grime=0.5, scale=0.2), 0.0)
+water_port = L.water_mat('MAT_Water_Port', (0.004, 0.05, 0.07), swell=0.6)
 sea = L.ocean('Harbour', size=60, repeat=8, res=10, choppy=0.6, wind=5.5, scale=0.35, f0=1, f1=479, foam=0.1,
-              mat=mats['water_sea'], loc=(0, 200, 0))
-full = L.box('SeaFull', (60000, 60000, 0.1), (0, 0, -0.3), mats['water_sea'], 0.0)
+              mat=water_port, loc=(0, 200, 0))
+full = L.box('SeaFull', (60000, 60000, 0.1), (0, 0, -0.3), water_port, 0.0)
 # markings: lane edges, dashed centre lines, crane rails, hatched safety zones (no text, no numbers)
 yel = L.pbr('MAT_PaintYellow', (0.85, 0.62, 0.05), 0.6, var=0.2, grime=0.2, scale=0.5)
 wht = L.pbr('MAT_PaintLine', (0.85, 0.85, 0.82), 0.6, var=0.2, grime=0.3, scale=0.5)
@@ -357,7 +358,7 @@ for f in range(1, 480):
         p = m @ slot_local
         rz = m.to_euler().z
     reefer.location = p
-    reefer.rotation_euler = (0, 0, rz)
+    reefer.rotation_euler = (0, 0, rz + math.pi)   # refrigeration unit toward the trailer rear / the camera
     reefer.keyframe_insert('location', frame=f)
     reefer.keyframe_insert('rotation_euler', frame=f)
 L.linear_keys(reefer)
@@ -485,7 +486,9 @@ keys = [
     (72, (-48.0, -74.0, 18.5), (-41.0, -46.0, 3.0), 28),
     (132, (-50.0, -42.0, 21.0), (-12.0, -14.0, 6.0), 26),
     (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
-    (186, (-12.0, -28.0, 8.0), (0.0, -12.5, 6.2), 30),
+    (178, (BOX.x - 10.5, BOX.y - 6.5, truck_box_top + 2.0), (BOX.x - 5.4, BOX.y - 1.0, truck_box_top + 0.2), 40),
+    (186, (BOX.x - 10.0, BOX.y - 7.0, truck_box_top + 2.4), (BOX.x - 5.0, BOX.y - 1.0, truck_box_top + 0.6), 40),
+    (198, (-13.0, -29.0, 9.0), (0.0, -12.5, 8.0), 30),
     (212, (-34.0, -30.0, 14.0), (0.0, -4.0, 30.0), 28),
     # seaward of crane 2's legs, so the portal bracing is not between the camera and the slot
     (240, (-22.0, slot_world.y - 14.0, slot_world.z + 12.0), (0.0, slot_world.y, slot_world.z + 4.0), 34),
@@ -496,7 +499,7 @@ keys = [
     (420, (95.0, SHIP_Y + 200.0, 720.0), (95.0, SHIP_Y + 202.0, 0.0), 28),
     (479, (150.0, SHIP_Y + 120.0, 2600.0), (150.0, SHIP_Y + 122.0, 0.0), 28),
 ]
-L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (186, 20.0), (212, 45.0), (240, 34.0), (276, 28.0), (288, 33.0), (336, 330.0), (479, 2600.0)])
+L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (178, 7.7), (186, 8.0), (198, 21.0), (212, 45.0), (240, 34.0), (276, 28.0), (288, 33.0), (336, 330.0), (479, 2600.0)])
 cam.data.dof.use_dof = True
 # the top-down part: hide the harbour detail patch once the camera is high (far plane = same deep blue everywhere)
 L.key_vis(sea, 1, 340)
