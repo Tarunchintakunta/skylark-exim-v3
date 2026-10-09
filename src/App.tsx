@@ -2,6 +2,7 @@ import { chaptersFor } from './config/chapters'
 import { useApp } from './engine/store'
 import { Film } from './film/Film'
 import { Products } from './sections/Products'
+import { Trust } from './sections/Trust'
 import { ScrubStage } from './film/ScrubStage'
 import { Hud } from './ui/Hud'
 import { Loader } from './ui/Loader'
@@ -23,6 +24,7 @@ export default function App() {
         <Rail chapters={chapters} />
         <Film chapters={chapters} />
         <Products />
+        <Trust />
       </main>
       <Hud />
       <QuoteCta />

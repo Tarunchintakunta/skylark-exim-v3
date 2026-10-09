@@ -55,3 +55,20 @@
   .product-card { min-height: 15rem; }
   .products__stage { min-height: 0; }
 }
+
+/* why choose us */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: clamp(40px, 6vh, 64px); }
+.fact { display: grid; gap: 8px; padding-top: 18px; border-top: 2px solid var(--ink); }
+.fact__value { font-size: clamp(2rem, 4.6vw, 4.4rem); line-height: 1; }
+.fact:last-child .fact__value { font-size: clamp(1.4rem, 2.2vw, 2rem); line-height: 1.15; }
+.fact__label { color: var(--ink-2); }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--hairline-ink); border-left: 1px solid var(--hairline-ink); }
+.tile { display: grid; align-content: start; gap: 12px; padding: clamp(20px, 2.4vw, 32px); border-right: 1px solid var(--hairline-ink); border-bottom: 1px solid var(--hairline-ink); }
+.tile__no { color: var(--brass-ink); }
+.tile__title { font-family: var(--f-display); font-weight: 600; font-size: var(--fs-h3); letter-spacing: -0.01em; }
+.tile__line { color: var(--ink-2); }
+.compliance { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: baseline; margin-top: 32px; font-size: clamp(1.05rem, 1.4vw, 1.3rem); }
+.compliance .mono { color: var(--brass-ink); }
+@media (max-width: 819px) {
+  .facts, .tiles { grid-template-columns: 1fr; }
+}

@@ -61,3 +61,22 @@ export const film: Record<string, CaptionCopy[]> = {
 export const LABEL_FIELDS = ['Product', 'Size', 'Batch', 'Export compliance']
 /** Documentation interlude cards (STORY §8): functions only, no document contents. */
 export const DOC_CARDS = ['Export documents', 'Compliance (HACCP · EU · FDA)', 'Shipment tracking']
+
+/** Why choose us (STORY §13; tile lines from CONTENT.md "Use on site"). */
+export const TRUST = {
+  title: 'Why choose us',
+  tiles: [
+    { title: 'Quality control staff', line: 'For our clients, our quality control staff guarantee top-notch quality.' },
+    { title: 'Lab unit', line: 'Our lab unit at Anandapuram, Visakhapatnam.' },
+    { title: 'Traceability', line: 'Superior freshness, traceability and product integrity across all markets.' },
+    { title: 'Documentation staff', line: 'Our documentation staff prepare all necessary documents and track every shipment’s logistics.' },
+    { title: 'Farmer partnerships', line: 'Strategic partnerships with aquaculture farmers and a focus on responsible sourcing.' },
+    { title: 'Prompt delivery', line: 'Competent people for accurate order handling and prompt delivery.' },
+  ],
+  compliance: 'Compliance with export certificates (HACCP, EU, FDA, etc.)',
+  facts: [
+    { value: '700', label: 'pallet warehouse' },
+    { value: '16', label: 'markets' },
+    { value: 'Raw fresh, chilled and frozen', label: 'seafood' },
+  ],
+}
