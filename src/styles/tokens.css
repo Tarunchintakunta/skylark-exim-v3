@@ -6,24 +6,25 @@
 @font-face { font-family: 'Inter Tight'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/inter-tight-latin-500-normal.woff2') format('woff2'); }
 
 :root {
-  --deep-2: #04222c;
-  --deep: #063544;
-  --bay: #0e6f8e;
-  --sea: #2fa889;
-  --brass: #d7a84f;
-  --ice: #f4fafa;
-  --steel: #aab8bc;
-  --ink: #102024;
+  /* palette (redesign §6, shown on /type): deep sea + sand + one warm rust accent */
+  --deep-2: #071f26;     /* deepest sea: stage, loader */
+  --deep: #0b2a33;       /* deep sea */
+  --bay: #123c48;
+  --sea: #2f7d72;
+  --brass: #e08a5f;      /* accent on dark (rust-on-sea), 5.6:1 on --deep */
+  --ice: #f6f2ea;        /* text on dark: warm off-white */
+  --steel: #b5bcb8;
+  --ink: #0b2a33;        /* text on sand = deep sea */
 
-  /* light theme (globe + business sections) */
-  --light: #eef5f6;
-  --light-2: #dcebf0;
-  --ink-2: #3b5258;      /* secondary text on light, 7.6:1 on --light */
-  --brass-ink: #7a5a1c;  /* brass for text on light backgrounds, 5.6:1 */
-  --hairline: rgba(244, 250, 250, 0.14);
-  --hairline-ink: rgba(16, 32, 36, 0.14);
+  /* light theme (globe + business sections): sand */
+  --light: #f4efe6;
+  --light-2: #e9e1d3;
+  --ink-2: #4a5a5e;      /* secondary text on sand, 6.6:1 */
+  --brass-ink: #b4532a;  /* rust accent for text on sand, 5.0:1 */
+  --hairline: rgba(246, 242, 234, 0.16);
+  --hairline-ink: rgba(11, 42, 51, 0.14);
 
-  --scrim: linear-gradient(to top, rgba(4, 34, 44, 0.92) 0%, rgba(4, 34, 44, 0.55) 38%, rgba(4, 34, 44, 0) 70%);
+  --scrim: linear-gradient(to top, rgba(7, 31, 38, 0.92) 0%, rgba(7, 31, 38, 0.55) 38%, rgba(7, 31, 38, 0) 70%);
 
   --f-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
   --f-body: 'Inter Tight', 'Segoe UI', system-ui, sans-serif;
