@@ -524,6 +524,7 @@ def build(scene, out):
         vs.exposure = ev
         vs.keyframe_insert('exposure', frame=f)
     f0, f1 = OFFSETS[scene]
+    B.frame_people(s, (1, 909) if s.camera == cam else (f0, f1))
     if scene in ('p-proc', 'p-freeze', 'p-lab', 'p-iqf', 'p-pack', 'p-store'):
         for cn in ('SET_PlantExterior',):
             bpy.data.collections[cn].hide_render = True
