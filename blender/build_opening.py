@@ -74,6 +74,9 @@ pv.inputs['Anisotropy'].default_value = 0.65
 pv.inputs['Absorption Color'].default_value = (0.02, 0.25, 0.3, 1)
 vn.links.new(pv.outputs[0], vo.inputs['Volume'])
 L.box('WaterColumn', (6000, 6000, 40), (0, 40, -20.12), vm, 0.0)   # edge far past the horizon: its side face showed as a cyan band
+# seen from above, the volume shows through the far water as a cyan band under the coast (debug render at f150 with
+# the column hidden: band gone), so the column only renders while the camera is under the surface
+L.key_vis(bpy.data.objects['WaterColumn'], 1, BREAK + 1)
 # light shafts slanting down from the surface along the sun (soft, additive, fading with depth)
 # soft god rays: emission + transparency, fading to nothing at the shaft's edges (facing) and along its length
 shaft = bpy.data.materials.new('MAT_Shaft')
