@@ -5,6 +5,7 @@
 #   o-catch.blend -> o-catch-a (haul, 1-192) + o-catch-b (deck sort + hold, 192-383), frame 192 shared
 #   port.blend    -> x-cranes (1-288) + x-ship (288-479), frame 288 shared
 SCENES=(
+  "opening|opening|1|192|opening"
   "o-catch-a|o-catch|1|192|o-catch"
   "o-catch-b|o-catch|192|383|o-catch"
   "o-return|o-return|1|288|o-return"
