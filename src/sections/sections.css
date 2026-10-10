@@ -4,6 +4,8 @@
   padding: clamp(96px, 14vh, 176px) var(--gutter);
   border-top: 1px solid var(--hairline-ink);
 }
+/* the first business section rises over the globe as a sand panel (story → business, redesign §6) */
+.section.is-rise { border-top: 0; clip-path: inset(var(--rise-top, 0) var(--rise-side, 0) 0 round var(--rise-r, 0)); }
 .section__head { display: grid; gap: 14px; margin-bottom: clamp(32px, 5vh, 56px); max-width: 60rem; }
 .eyebrow { color: var(--brass-ink); }
 .section__title { font-size: var(--fs-h2); }

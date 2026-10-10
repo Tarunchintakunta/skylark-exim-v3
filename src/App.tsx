@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { chaptersFor } from './config/chapters'
 import { useApp } from './engine/store'
 import { Film } from './film/Film'
@@ -5,6 +6,7 @@ import { About } from './sections/About'
 import { Products } from './sections/Products'
 import { Quote } from './sections/Quote'
 import { Trust } from './sections/Trust'
+import { bindRise } from './sections/rise'
 import { ScrubStage } from './film/ScrubStage'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
@@ -13,6 +15,7 @@ import { Hero } from './ui/Hero'
 export default function App() {
   const path = useApp((s) => s.path)
   const chapters = chaptersFor(path)
+  useEffect(() => bindRise(document.getElementById('products')!), [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
