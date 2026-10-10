@@ -346,7 +346,7 @@ for ix in range(6):
         lv = 8 if (ix + iy) % 3 == 0 else 7          # stowed up to the coaming: the hold reads full from any angle
         for z in range(lv):
             L.crate(f'HOLD_Crate{k}', rnd.choice(['blue', 'blue', 'white', 'red']), (x, y, hold_floor + z * 0.29),
-                    rnd.uniform(-0.04, 0.04), fill=rnd.choice(['mixed', 'fish', 'fish', 'tuna']) if z == lv - 1 else None,
+                    rnd.uniform(-0.01, 0.01), fill=rnd.choice(['mixed', 'fish', 'fish', 'mixed']) if z == lv - 1 else None,
                     parent=boat, mats=mats, seed=k)
             k += 1
 
