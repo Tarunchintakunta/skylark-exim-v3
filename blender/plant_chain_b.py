@@ -161,12 +161,14 @@ def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None):
     s = bpy.context.scene
     dg = bpy.context.evaluated_depsgraph_get()
     base = Vector((w.location.x, w.location.y, DZ))
-    for rz in (w.rotation_euler.z, w.rotation_euler.z + math.pi):
+    tries = [(rz, rr, sp) for rr, sp in ((reach, spread), (reach + 0.08, spread * 0.6), (reach - 0.06, spread * 0.6))
+             for rz in (w.rotation_euler.z, w.rotation_euler.z + math.pi)]
+    for rz, rr, sp in tries:
         fwd = Vector((math.sin(rz), -math.cos(rz), 0))
         side = Vector((math.cos(rz), math.sin(rz), 0))
         placed = []
         for sd, sg in (('L', 1), ('R', -1)):
-            xy = base + fwd * reach - side * sg * spread
+            xy = base + fwd * rr - side * sg * sp
             hit, loc, _n, _i, ob, _m = s.ray_cast(dg, Vector((xy.x, xy.y, DZ + 1.5)), Vector((0, 0, -1)), distance=1.3)
             if hit and DZ + 0.7 < loc.z < DZ + 1.02 and not (ob and ob.name.startswith('HUM_')):
                 placed.append((sd, loc))
@@ -251,7 +253,7 @@ def proc_crew(C, rnd):
     for k in range(4):                                         # belt sorters
         spots.append((CX + (1.0 if k % 2 else -1.0), 21.5 + (k // 2) * 2.4, 90 if k % 2 else -90, 'lo'))
     for k in range(4):                                         # graders beside the chutes
-        spots.append((CX + (2.1 if k % 2 else -2.1), 25.6 + (k // 2) * 1.5, 90 if k % 2 else -90, 'lo'))
+        spots.append((CX + (1.95 if k % 2 else -1.95), 25.4 + (k // 2) * 1.5, 90 if k % 2 else -90, 'lo'))
     for t, x in enumerate((CX - 6.4, CX - 3.2, CX + 3.2, CX + 6.4)):
         near = t in (1, 2)
         for sx in (-1, 1):
@@ -274,6 +276,12 @@ def proc_crew(C, rnd):
         if hands_on_work(w, rnd, C=C):
             H.jitter(w, {k: v for k, v in work.items() if k in ('spine', 'chest', 'neck', 'head')}, 1, 1060,
                      every=8 + n % 5, amp=5, seed=n, arms=False)
+            if 4 <= n < 8:                                     # graders: low trays, step in until hands land
+                for pb in w.pose.bones:
+                    for c in pb.constraints:
+                        if c.type == 'IK':
+                            c.chain_count = 3
+                H.settle_reach(w, 470, 780, step=3, iters=6, max_shift=0.35, win=2)
         else:
             H.jitter(w, {'spine': (10, 0, 0), 'head': (14, 0, 0), 'upperarm': (8, -24, 0), 'forearm': (22, 0, 0)},
                      1, 1060, every=8 + n % 5, amp=4, seed=n)     # nothing in reach to work on: arms relaxed
