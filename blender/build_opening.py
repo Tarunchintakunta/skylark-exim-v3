@@ -28,6 +28,7 @@ s = L.reset()
 s.frame_start, s.frame_end = 1, F_END
 mats = L.M()
 L.hdri('qwantani_morning_puresky_4k', strength=0.5, rot=96.0, sun_strength=3.0, sun_color=(1.0, 0.74, 0.52))
+s.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
 _wn = s.world.node_tree      # warm coastal haze over the whole sky
 _bg = [n for n in _wn.nodes if n.type == 'BACKGROUND'][0]
 _src = _bg.inputs['Color'].links[0].from_socket
