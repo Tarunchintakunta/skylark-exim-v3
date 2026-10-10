@@ -37,7 +37,7 @@ L.box('QUAY_Yard', (700, 300, 5.0), (0, -190, QZ - 2.5), asph, 0.0)
 L.box('QUAY_Apron', (700, 40.2, 5.02), (0, -20, QZ - 2.49), conc, 0.0)
 L.box('QUAY_Face', (700, 0.6, 5.5), (0, -0.1, QZ - 3.0), pbr_face := L.pbr('MAT_QuayFace', (0.42, 0.41, 0.38), 0.85,
                                                                               grime=0.5, scale=0.2), 0.0)
-water_port = L.water_mat('MAT_Water_Port', (0.004, 0.05, 0.07), swell=0.6, body_emit=True)
+water_port = L.water_mat('MAT_Water_Port', (0.012, 0.024, 0.03), swell=0.6)   # very dark body: the surface reads as reflection, the ship's shadow stays faint
 sea = L.ocean('Harbour', size=60, repeat=8, res=10, choppy=0.6, wind=5.5, scale=0.35, f0=1, f1=479, foam=0.1,
               mat=water_port, loc=(0, 200, 0))
 full = L.box('SeaFull', (60000, 60000, 0.1), (0, 0, -0.3), water_port, 0.0)
