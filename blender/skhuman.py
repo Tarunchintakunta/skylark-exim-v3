@@ -170,6 +170,55 @@ def _eye_mat():
     return m
 
 
+def _palette(m, colors):
+    """Per-person colour from a small palette (Object Info random, constant steps) into Base Color."""
+    nt = m.node_tree
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    oi = nt.nodes.new('ShaderNodeObjectInfo')
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    cr = ramp.color_ramp
+    cr.interpolation = 'CONSTANT'
+    cr.elements[0].color = (*colors[0], 1)
+    cr.elements[1].position = 1.0
+    cr.elements[1].color = (*colors[-1], 1)
+    for i, c in enumerate(colors[1:-1], 1):
+        e = cr.elements.new(i / len(colors))
+        e.color = (*c, 1)
+    nt.links.new(oi.outputs['Random'], ramp.inputs[0])
+    for lk in list(p.inputs['Base Color'].links):
+        nt.links.remove(lk)
+    nt.links.new(ramp.outputs[0], p.inputs['Base Color'])
+    return m
+
+
+def _hairnet(m):
+    """Disposable non-woven bouffant cap: crinkled (noise bump) with soft creases darkening the palette colour.
+    (A wave-grid net aliased into contour rings / grey curls at 1080, so no hair shows through.)"""
+    nt = m.node_tree
+    L = nt.links
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    src = p.inputs['Base Color'].links[0].from_socket
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 45.0
+    nz.inputs['Detail'].default_value = 10.0
+    nz.inputs['Distortion'].default_value = 0.4
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    cm = nt.nodes.new('ShaderNodeMix')
+    cm.data_type = 'RGBA'
+    cm.blend_type = 'MULTIPLY'
+    L.new(nz.outputs['Fac'], cm.inputs[0])
+    L.new(src, cm.inputs[6])
+    cm.inputs[7].default_value = (0.8, 0.8, 0.82, 1)       # creases
+    L.new(cm.outputs[2], p.inputs['Base Color'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.55
+    bp.inputs['Distance'].default_value = 0.002
+    L.new(nz.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], p.inputs['Normal'])
+    return m
+
+
 def _stache_mat():
     """Moustache on about half the men (Object Info random > 0.45), hidden on the rest."""
     m = bpy.data.materials.get('HUM_Stache')
@@ -191,13 +240,20 @@ def mats():
     fab = CC0 + '/tex/Fabric030/Fabric030_2K-JPG_NormalGL.jpg'
     fab2 = CC0 + '/tex/Fabric061/Fabric061_2K-JPG_NormalGL.jpg'
     return {
-        'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.45, sss=0.15, bump=0.05, rand=0.25),
+        'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.5, sss=0.3, bump=0.12, rand=0.25),   # SSS + pore bump
         'eye': _eye_mat(),
-        'white_cotton': _mat('HUM_WhiteCotton', (0.80, 0.81, 0.80), 0.85, sheen=0.3, bump=0.12, rand=0.04, wrinkle=0.45),
-        'white_pvc': _mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
-        'boot': _mat('HUM_WhiteBoot', (0.80, 0.81, 0.79), 0.35, coat=0.2, bump=0.02),
+        'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.6, 0.61, 0.6), 0.85, sheen=0.3, bump=0.12, rand=0.04,
+                                      wrinkle=0.6, normal_tex=fab, tex_scale=45.0),
+                                 ((0.62, 0.63, 0.62), (0.6, 0.62, 0.63), (0.45, 0.55, 0.65), (0.62, 0.62, 0.6),
+                                  (0.5, 0.6, 0.52), (0.61, 0.62, 0.62))),   # smocks: mostly white, some section colours
+        'white_pvc': _palette(_mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
+                              ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
+                               (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
+        'boot': _mat('HUM_WhiteBoot', (0.70, 0.71, 0.69), 0.35, coat=0.2, bump=0.02),
         'nitrile_blue': _mat('HUM_NitrileBlue', (0.16, 0.33, 0.62), 0.38, coat=0.25, rand=0.06),
-        'cap_white': _mat('HUM_CapNonwoven', (0.84, 0.85, 0.86), 0.95, sheen=0.4, bump=0.25),
+        'cap_white': _hairnet(_palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
+                                       ((0.74, 0.75, 0.77), (0.42, 0.58, 0.74), (0.74, 0.75, 0.77), (0.36, 0.56, 0.40),
+                                        (0.74, 0.75, 0.77), (0.70, 0.45, 0.50)))),   # caps by role: white, blue, green, pink
         'mask_blue': _mat('HUM_MaskBlue', (0.55, 0.70, 0.80), 0.9, sheen=0.3, bump=0.15),
         'parka': _mat('HUM_ParkaNavy', (0.10, 0.14, 0.22), 0.55, coat=0.1, bump=0.12, wrinkle=0.45),
         'shirt_blue': _mat('HUM_ShirtBlue', (0.22, 0.30, 0.42), 0.8, sheen=0.2, bump=0.12, rand=0.15, wrinkle=0.45),
@@ -365,14 +421,14 @@ def _region(body, gender, piece, k):
             sel = sa > (0.50 if piece == 'gloves' else 0.44)
         elif piece == 'haircap':
             sel = (z > 1.60) or (z > 1.49 and n.y > 0.1 and ax < 0.10) or (z > 1.545 and ax > 0.055 and n.y > -0.3)
-            sel = sel and ax < 0.125
+            sel = sel and ax < 0.125 and not (1.5 * KH < z < 1.61 * KH and ax > 0.066 * KH)   # ears stay out
         elif piece in ('hair', 'cap'):
             sel = ((z > 1.60) or (z > 1.52 and n.y > 0.3) or (z > 1.56 and ax > 0.06 and n.y > -0.2)) and ax < 0.12
             sel = sel and not (z < 1.605 and ax > 0.07)        # ears stay bare
             if piece == 'cap':
                 sel = z > 1.60 and ax < 0.12
         elif piece == 'mask':
-            sel = 1.462 < z < 1.552 and ax < 0.078 and n.y < -0.25
+            sel = 1.462 < z < 1.552 and ax < 0.078 and n.y < 0.2    # nostril/lip undersides too: no holes
         elif piece == 'stache':
             sel = STACHE[0] < z < STACHE[1] and ax < STACHE[2] and n.y < -0.12
         elif piece == 'vest':
@@ -386,7 +442,7 @@ SLEEVE = {'jacket': 0.545, 'parka': 0.55, 'labcoat': 0.535, 'shirt': 0.17, 'shir
 CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap', 'shirt', 'trousers', 'trousers_dark',
         'shorts')
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
-         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.018, 'shoes': 0.008,
+         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.016, 'shoes': 0.008,
          'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
          'vest': 0.04, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
@@ -420,7 +476,7 @@ def _shell(body, piece, mask, M):
     bmesh.ops.delete(bm, geom=loose, context='VERTS')
     t = THICK[piece]
     loose_cloth = piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark',
-                            'trousers_rolled', 'shorts', 'vest', 'boots')
+                            'trousers_rolled', 'shorts', 'vest', 'boots', 'shoes')
     bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
     bnd = [v for v in bm.verts if v.is_boundary]
     for _ in range(8):                      # straighten the hem line (1D smoothing along the border)
@@ -459,11 +515,11 @@ def _shell(body, piece, mask, M):
             # smoothing shrinks the shell into the body: re-inflate to keep clearance
             for v in inner:
                 hit, nrm, _i, d = bvh.find_nearest(v.co)
-                clr = 0.018 if piece == 'boots' else 0.007      # boots: no toes showing through
+                clr = 0.018 if piece in ('boots', 'shoes') else 0.007      # boots: no toes showing through
                 if hit is not None and d < clr:
                     v.co = hit + nrm * clr
-        if piece == 'boots':                      # rubber boot toe box: hull of the foot, no toes
-            zc = 0.15 * KH
+        if piece in ('boots', 'shoes'):           # boot / shoe toe box: hull of the foot, no toes
+            zc = (0.15 if piece == 'boots' else 0.06) * KH
             bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.co.z < zc for v in f.verts)], context='FACES')
             bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
             for sx in (-1, 1):
@@ -471,7 +527,7 @@ def _shell(body, piece, mask, M):
                 if len(pts) < 8:
                     continue
                 ctr = sum(pts, Vector()) / len(pts)
-                new = [bm.verts.new(ctr + (q - ctr) * 1.0 + (q - ctr).normalized() * 0.014) for q in pts]
+                new = [bm.verts.new(ctr + (q - ctr) * 1.0 + (q - ctr).normalized() * 0.007) for q in pts]   # hugs the foot
                 hull = bmesh.ops.convex_hull(bm, input=new)
                 loose = {g for g in hull.get('geom_interior', []) + hull.get('geom_unused', [])
                          if isinstance(g, bmesh.types.BMVert)}
@@ -521,6 +577,13 @@ def _shell(body, piece, mask, M):
                 u = min(1.0, (1.25 * KH - z) / 0.5)
                 extra += 0.007 * u * u * (3 - 2 * u) * (0.5 + 0.5 * math.sin(a * 9 + math.sin(z * 7) * 0.8))
         v.co += v.normal * (t + extra)
+    if piece == 'mask':                     # pleated mask spans the face: fill nostrils/lips/cheek hollows, no moulding
+        tv = min(bm.verts, key=lambda q: q.co.y)
+        tip, tz = tv.co.y, tv.co.z
+        for v in bm.verts:              # tent: curves back toward the cheeks and under the chin
+            front = tip + 0.004 + (5.0 * v.co.x ** 2 + 6.0 * max(0.0, tz - v.co.z) ** 2) / KH
+            if v.co.y > front and not v.is_boundary:
+                v.co.y = front
     bm.to_mesh(me)
     bm.free()
     # copy weights from body (same vertex order before delete is lost, so transfer by nearest)
@@ -802,6 +865,9 @@ def set_pose(ao, P, frame=None):
         else:
             full.setdefault(k + '.L', v)
             full.setdefault(k + '.R', v)
+    for k, v in list(full.items()):
+        if k.startswith('upperarm.') and v[1] < ARM_IN:      # rest arm is 23 deg out; past -16 it enters the torso
+            full[k] = (v[0], ARM_IN, v[2])
     for pb in ao.pose.bones:
         side = pb.name.split('.')[-1] if '.' in pb.name else ''
         _rot(pb, *full.get(pb.name, (0, 0, 0)), side)
@@ -950,8 +1016,9 @@ def ik_feet(ao, tgt_l, tgt_r):
         c.chain_count = 2
 
 
+ARM_IN = -16.0     # most-inward upperarm side angle: arm hangs just clear of the hip
 POSES = {
-    'stand': {'upperarm': (4, -37, 0), 'forearm': (12, 0, 0)},          # arms hang by the sides, not A-pose
+    'stand': {'upperarm': (4, -16, 0), 'forearm': (12, 0, 0)},          # arms hang by the sides, not A-pose
     'table': {'spine': (10, 0, 0), 'chest': (8, 0, 0), 'neck': (14, 0, 0), 'head': (12, 0, 0),
               'upperarm': (28, -10, 0), 'forearm': (72, 0, 0), 'hand': (-10, 0, 0)},
     'lift_low': {'spine': (30, 0, 0), 'chest': (12, 0, 0), 'head': (-10, 0, 0),
@@ -959,7 +1026,7 @@ POSES = {
                  'upperarm': (50, -8, 0), 'forearm': (20, 0, 0)},
     'carry': {'spine': (-4, 0, 0), 'upperarm': (12, -10, 0), 'forearm': (80, 0, 0)},
     'push': {'spine': (14, 0, 0), 'upperarm': (42, -6, 0), 'forearm': (35, 0, 0)},
-    'look': {'upperarm': (6, -36, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
+    'look': {'upperarm': (6, -16, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
 }
 
 
