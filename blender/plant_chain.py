@@ -477,6 +477,7 @@ def build(scene, out):
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
+    P.sky_haze()                                          # warm dusty haze low in the sky
     P.look_settings('exterior', exposure=0.0)
     vs = s.view_settings          # step down the exposure as the camera goes from daylight into the lit hall
     for f, ev in ((236, 0.0), (264, -0.3)):

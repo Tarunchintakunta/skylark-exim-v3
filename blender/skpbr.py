@@ -474,3 +474,36 @@ def add_dust(m, top=1.1, color=(0.44, 0.37, 0.27), amount=0.7, rough=0.92, scale
         L.new(fac.outputs[0], mx.inputs[0])
         L.new(mx.outputs[out], inp)
     m[tag] = True
+
+
+def sky_haze(color=(1.0, 0.86, 0.68), amount=0.45, height=0.32):
+    """Blend the world HDRI toward a warm haze near the horizon (call after hdri_world): dusty tropical air.
+    amount at the horizon, fading out by `height` (direction z)."""
+    w = bpy.context.scene.world
+    nt = w.node_tree
+    L = nt.links
+    env = next(n for n in nt.nodes if n.type == 'TEX_ENVIRONMENT')
+    tc = next(n for n in nt.nodes if n.type == 'TEX_COORD')
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nrm = nt.nodes.new('ShaderNodeVectorMath')
+    nrm.operation = 'NORMALIZE'
+    L.new(tc.outputs['Generated'], nrm.inputs[0])
+    L.new(nrm.outputs[0], sep.inputs[0])
+    fac = nt.nodes.new('ShaderNodeMapRange')
+    fac.interpolation_type = 'SMOOTHSTEP'
+    fac.inputs['From Min'].default_value = -0.02
+    fac.inputs['From Max'].default_value = height
+    fac.inputs['To Min'].default_value = amount
+    fac.inputs['To Max'].default_value = 0.0
+    L.new(sep.outputs['Z'], fac.inputs['Value'])
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    mx.blend_type = 'MIX'
+    L.new(fac.outputs[0], mx.inputs[0])
+    L.new(env.outputs['Color'], mx.inputs[6])
+    mx.inputs[7].default_value = (*color, 1.0)
+    for lk in [lk for lk in nt.links if lk.from_node == env and lk.to_node.type == 'BACKGROUND']:
+        to = lk.to_socket
+        nt.links.remove(lk)
+        L.new(mx.outputs[2], to)
+    return mx
