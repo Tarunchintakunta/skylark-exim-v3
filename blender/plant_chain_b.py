@@ -94,8 +94,10 @@ def unload(C, R):
         a = (w.location.x, w.location.y)
         b = (t.location.x - 0.0, 2.75)
         w.animation_data_clear()
-        H.set_pose(w, {'upperarm.L': (8, -26, 0), 'forearm.L': (14, 0, 0), 'upperarm.R': (10, -24, 0),
-                       'forearm.R': (24, 0, 0), 'spine': (4, 0, 0), 'head': (8, 0, 0)}, 1)   # no A-pose while waiting
+        relax = {'upperarm.L': (8, -26, 0), 'forearm.L': (14, 0, 0), 'upperarm.R': (10, -24, 0),
+                 'forearm.R': (24, 0, 0), 'spine': (4, 0, 0), 'head': (8, 0, 0)}
+        for f in (1, f0 - 4):                       # hold relaxed until the walk, not eased into the push pose
+            H.set_pose(w, relax, f)
         w.location.z = 0.0
         H.walk_cycle(w, f0, f1, [(f0, a), (f1, b)], stride=0.55, base=H.POSES['push'], arms=False)
         _lift(w)
