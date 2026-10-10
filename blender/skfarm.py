@@ -669,10 +669,43 @@ def foam_mat():
     ln = nt.nodes.new('ShaderNodeVectorMath')
     ln.operation = 'LENGTH'
     L.new(cmb.outputs[0], ln.inputs[0])
-    fall = nt.nodes.new('ShaderNodeMapRange')
-    fall.inputs['From Min'].default_value = 1.05
-    fall.inputs['From Max'].default_value = 0.0
-    L.new(ln.outputs['Value'], fall.inputs['Value'])
+    dec = nt.nodes.new('ShaderNodeMapRange')                  # per-trail decay length
+    dec.inputs['To Min'].default_value = 0.8
+    dec.inputs['To Max'].default_value = 1.35
+    L.new(oi.outputs['Random'], dec.inputs['Value'])
+    lnd = nt.nodes.new('ShaderNodeMath')
+    lnd.operation = 'MULTIPLY'
+    L.new(ln.outputs['Value'], lnd.inputs[0])
+    L.new(dec.outputs[0], lnd.inputs[1])
+    fall0 = nt.nodes.new('ShaderNodeMapRange')
+    fall0.inputs['From Min'].default_value = 1.05
+    fall0.inputs['From Max'].default_value = 0.0
+    L.new(lnd.outputs[0], fall0.inputs['Value'])
+    nz2 = nt.nodes.new('ShaderNodeTexNoise')                  # big patches: the trail breaks up as it fades
+    nz2.inputs['Scale'].default_value = 0.35
+    nz2.inputs['Detail'].default_value = 3
+    L.new(ad.outputs[0], nz2.inputs['Vector'])
+    pt = nt.nodes.new('ShaderNodeMapRange')
+    pt.inputs['From Min'].default_value = 0.36
+    pt.inputs['From Max'].default_value = 0.58
+    L.new(nz2.outputs['Fac'], pt.inputs['Value'])
+    ptm2 = nt.nodes.new('ShaderNodeMath')
+    ptm2.operation = 'SUBTRACT'
+    ptm2.use_clamp = True
+    ptm2.inputs[0].default_value = 1.0
+    L.new(atn.outputs['Fac'], ptm2.inputs[1])
+    ptm3 = nt.nodes.new('ShaderNodeMath')                    # near the wheels patches don't apply
+    ptm3.operation = 'MAXIMUM'
+    L.new(pt.outputs[0], ptm3.inputs[0])
+    sq = nt.nodes.new('ShaderNodeMath')
+    sq.operation = 'POWER'
+    sq.inputs[1].default_value = 6.0
+    L.new(ptm2.outputs[0], sq.inputs[0])
+    L.new(sq.outputs[0], ptm3.inputs[1])
+    fall = nt.nodes.new('ShaderNodeMath')
+    fall.operation = 'MULTIPLY'
+    L.new(fall0.outputs[0], fall.inputs[0])
+    L.new(ptm3.outputs[0], fall.inputs[1])
     thr = nt.nodes.new('ShaderNodeMapRange')
     thr.inputs['From Min'].default_value = 0.34
     thr.inputs['From Max'].default_value = 0.5
@@ -685,10 +718,19 @@ def foam_mat():
     a2.operation = 'ADD'
     a2.use_clamp = True
     L.new(a.outputs[0], a2.inputs[0])
+    cn = nt.nodes.new('ShaderNodeMath')                       # churn core broken up by the foam noise
+    cn.operation = 'MULTIPLY_ADD'
+    cn.inputs[2].default_value = -0.2
+    L.new(nz.outputs['Fac'], cn.inputs[0])
+    cn.inputs[1].default_value = 0.4
+    cl = nt.nodes.new('ShaderNodeMath')
+    cl.operation = 'ADD'
+    L.new(ln.outputs['Value'], cl.inputs[0])
+    L.new(cn.outputs[0], cl.inputs[1])
     core = nt.nodes.new('ShaderNodeMapRange')
-    core.inputs['From Min'].default_value = 0.16
-    core.inputs['From Max'].default_value = 0.04
-    L.new(ln.outputs['Value'], core.inputs['Value'])
+    core.inputs['From Min'].default_value = 0.2
+    core.inputs['From Max'].default_value = 0.03
+    L.new(cl.outputs[0], core.inputs['Value'])
     L.new(core.outputs[0], a2.inputs[1])
     L.new(a2.outputs[0], p.inputs['Alpha'])
     return m
@@ -743,9 +785,11 @@ def aerator_collection(phase=0.0, name='AER_0', f0=1, f1=600):
 def foam_trail(name, C, rnd, length, bend, spread):
     """Churned white water at the wheels decaying into a curved trail (aerator space: wheels on X, flow +Y).
     UV = metres (x across, y along) for the drifting noise; attribute 'tn' = 0..1 along, 'vn' = -1..1 across."""
-    nu, nv = 6, 28
+    nu, nv = 8, 44
     bm = bmesh.new()
     R = length / max(1e-3, abs(bend)) if bend else None
+    w0, wa, wf, wp = rnd.uniform(1.0, 1.6), rnd.uniform(0.12, 0.32), rnd.uniform(1.2, 3.4), rnd.uniform(0, 6.3)
+    la, lf, lp = rnd.uniform(0.3, 1.4), rnd.uniform(0.6, 1.8), rnd.uniform(0, 6.3)
     grid = []
     for j in range(nv + 1):
         t = j / nv
@@ -756,12 +800,16 @@ def foam_trail(name, C, rnd, length, bend, spread):
             tx, ty = math.sin(a) * (1 if bend > 0 else -1), math.cos(a)
         else:
             cx_, cy_, tx, ty = 0.0, sl, 0.0, 1.0
-        hw = 1.35 + spread * t ** 0.8
-        row = []
+        hw = (w0 + spread * t ** 0.8) * (1 + wa * math.sin(wf * t * 6.283 + wp))
+        drift = la * t * math.sin(lf * t * 3.14 + lp)            # the trail meanders with the pond's circulation
+        row, us = [], []
         for i in range(nu + 1):
             u = -1 + 2 * i / nu
-            row.append(bm.verts.new((cx_ + ty * u * hw, -0.9 + cy_ - tx * u * hw, 0.03)))
-        grid.append((row, t, sl))
+            if i in (0, nu) and j:
+                u *= 1 + rnd.uniform(-0.18, 0.12)                # ragged edges
+            row.append(bm.verts.new((cx_ + ty * (u * hw + drift), -0.9 + cy_ - tx * (u * hw + drift), 0.03)))
+            us.append(u * hw)
+        grid.append((row, t, sl, us))
     faces = []
     for j in range(nv):
         for i in range(nu):
@@ -772,7 +820,7 @@ def foam_trail(name, C, rnd, length, bend, spread):
     uv = me.uv_layers.new(name='UV')
     tn = me.attributes.new('tn', 'FLOAT', 'POINT')
     vn = me.attributes.new('vn', 'FLOAT', 'POINT')
-    for j, (row, t, sl) in enumerate(grid):
+    for j, (row, t, sl, us) in enumerate(grid):
         for i in range(nu + 1):
             k = j * (nu + 1) + i
             tn.data[k].value = t
@@ -781,8 +829,8 @@ def foam_trail(name, C, rnd, length, bend, spread):
         for li in poly.loop_indices:
             k = me.loops[li].vertex_index
             j, i = divmod(k, nu + 1)
-            row, t, sl = grid[j]
-            uv.data[li].uv = ((-1 + 2 * i / nu) * (1.35 + spread * t ** 0.8), sl)
+            row, t, sl, us = grid[j]
+            uv.data[li].uv = (us[i], sl)
     me.materials.append(foam_mat())
     o = bpy.data.objects.new(name, me)
     C.objects.link(o)
@@ -820,7 +868,7 @@ def place_aerators(C, rnd, near=None):
                 out.append(o)
                 # its own churn trail: length fits the pond, curving with the pond's circulation
                 room = (2 * hh - 9) if k < 2 else (2 * hw - 14)
-                fo = foam_trail('AER_Foam_%d_%d_%d' % (i, j, k), C, rnd, min(room, rnd.uniform(7.5, 13.0)) / 1.3,
+                fo = foam_trail('AER_Foam_%d_%d_%d' % (i, j, k), C, rnd, min(room, rnd.uniform(12.0, 24.0)) / 1.3,
                                 rnd.choice((-1, 1)) * rnd.uniform(0.25, 0.75), rnd.uniform(1.0, 2.6))
                 fo.location = (x, y, WATER - 0.02)
                 fo.rotation_euler = o.rotation_euler
