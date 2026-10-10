@@ -339,7 +339,7 @@ def freeze_crew(C, rnd, crate_fn):
     pt = bpy.data.objects.new('IN_ColdPalletJack', None)
     C.objects.link(pt)
     pt.parent = cs
-    pt.location = (0, 1.1, 0)
+    pt.location = (-0.22, 0.85, 0)                               # behind him, on his right: arm reaches back-down
     from sktruck import Part
     M = S.MATS()
     p = Part()
@@ -347,10 +347,10 @@ def freeze_crew(C, rnd, crate_fn):
         p.box((sx, 0.72, 0.055), (0.16, 1.15, 0.05))                    # forks under the pallet
     p.box((0, 0.05, 0.16), (0.56, 0.16, 0.12))                        # fork yoke
     p.cyl((0, 0.0, 0.2), (0, 0.0, 0.55), 0.06, 14)                   # pump cylinder
-    p.cyl((0, -0.02, 0.55), (0, -0.33, 0.93), 0.018, 8)              # handle shaft up to his hand
+    p.cyl((0, -0.02, 0.55), (0, -0.4, 0.78), 0.018, 8)               # handle shaft raked back to his hand
     for sx in (-0.07, 0.07):                                          # loop grip
-        p.cyl((sx, -0.33, 0.93), (sx, -0.41, 1.02), 0.014, 8)
-    p.cyl((-0.07, -0.41, 1.02), (0.07, -0.41, 1.02), 0.016, 8)
+        p.cyl((sx, -0.4, 0.78), (sx, -0.5, 0.84), 0.014, 8)
+    p.cyl((-0.07, -0.5, 0.84), (0.07, -0.5, 0.84), 0.016, 8)
     p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.006, coll=C)
     q = Part()
     for sx in (-0.12, 0.12):                                          # steer wheels + load rollers
@@ -364,7 +364,7 @@ def freeze_crew(C, rnd, crate_fn):
     th = bpy.data.objects.new('HUM_Cold_Tow', None)
     C.objects.link(th)
     th.parent = pt
-    th.location = (0, -0.41, 1.02)
+    th.location = (0, -0.5, 0.84)
     c = cs.pose.bones['forearm.R'].constraints.new('IK')
     c.target = th
     c.chain_count = 2
