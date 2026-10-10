@@ -38,7 +38,7 @@ def mats():
         'wrap': P.plain('IN_StretchWrap', (0.85, 0.88, 0.9), 0.12, alpha=0.45, coat=0.8, bump=0.2, bump_scale=6),
         'label': P.plain('IN_LabelBlank', (0.95, 0.95, 0.94), 0.5),
         'label_line': P.plain('IN_LabelLine', (0.45, 0.47, 0.5), 0.5),
-        'glass_clear': P.plain('IN_GlassClear', (0.85, 0.9, 0.92), 0.02, transmission=0.95, ior=1.45),
+        'glass_clear': P.plain('IN_GlassClear', (0.95, 0.97, 0.97), 0.0, transmission=1.0, ior=1.05),   # no milky veil
         'tape': P.plain('IN_Tape', (0.7, 0.6, 0.42), 0.3, coat=0.4),
         'strap': P.plain('IN_Strap', (0.75, 0.75, 0.73), 0.4),
         'vacbag': P.plain('IN_VacBag', (0.66, 0.58, 0.55), 0.22, coat=1.0),      # glazed frozen block in film
@@ -480,12 +480,12 @@ def lab(C, M, rnd, shrimp_fn):
     dark.make('IN_LabSteel', M['steel'], None, coll=C)
     bags = Part()
     for k in range(7):                                               # sealed sample bags in a row
-        x = CX - 3.4 + k * 0.16
+        x = CX + 4.5 + k * 0.16
         bags.box((x, 46.85 + rnd.uniform(-0.04, 0.04), DZ + 0.935), (0.13, 0.19, 0.022))
     bags.make('IN_SampleBags', P.plain('IN_SampleBag', (0.8, 0.78, 0.76), 0.35, coat=0.6), None, bevel=0.01, coll=C)
     lab_ = Part()
     for k in range(7):
-        lab_.box((CX - 3.4 + k * 0.16, 46.83, DZ + 0.948), (0.07, 0.05, 0.003))
+        lab_.box((CX + 4.5 + k * 0.16, 46.83, DZ + 0.948), (0.07, 0.05, 0.003))
     lab_.make('IN_SampleBagLabels', M['label'], None, coll=C)
     btl = Part()
     for k in range(3):
@@ -568,7 +568,7 @@ def freezing(C, M, rnd, shrimp_fn):
     # IQF tunnel: long insulated stainless enclosure the belt runs through (open mouth at each end, strip curtain,
     # frost on the lips, cold vapour rolling out), inspection doors, evaporator housings on top, control cabinet
     tx = CX + 3.6
-    y0, y1 = 50.2, 55.6                                                # tunnel body (glaze hood follows at 56.6)
+    y0, y1 = 52.0, 55.6                                                # tunnel body: behind the lab wall (51.2)
     ym = (y0 + y1) / 2
     p = Part()
     p.box((tx, ym, DZ + 2.0), (2.4, y1 - y0, 1.6))                    # roof block over the belt
@@ -612,14 +612,14 @@ def freezing(C, M, rnd, shrimp_fn):
     if not vap:
         vap = bpy.data.materials.new('IN_ColdVapour')
         vap.use_nodes = True
-        vap.surface_render_method = 'DITHERED'
+        vap.surface_render_method = 'BLENDED'         # soft, not dithered grain
         nt = vap.node_tree
         pb = nt.nodes['Principled BSDF']
         pb.inputs['Base Color'].default_value = (0.92, 0.95, 0.97, 1)
         pb.inputs['Roughness'].default_value = 1.0
         nz = nt.nodes.new('ShaderNodeTexNoise')
-        nz.inputs['Scale'].default_value = 3.0
-        nz.inputs['Detail'].default_value = 6
+        nz.inputs['Scale'].default_value = 1.6
+        nz.inputs['Detail'].default_value = 2
         tc = nt.nodes.new('ShaderNodeTexCoord')
         nt.links.new(tc.outputs['Generated'], nz.inputs['Vector'])
         gr = nt.nodes.new('ShaderNodeSeparateXYZ')
@@ -629,8 +629,8 @@ def freezing(C, M, rnd, shrimp_fn):
         fz.inputs['To Max'].default_value = 0.0
         nt.links.new(gr.outputs['Z'], fz.inputs['Value'])
         mr = nt.nodes.new('ShaderNodeMapRange')
-        mr.inputs['From Min'].default_value = 0.45
-        mr.inputs['From Max'].default_value = 0.75
+        mr.inputs['From Min'].default_value = 0.3
+        mr.inputs['From Max'].default_value = 0.8
         nt.links.new(nz.outputs['Fac'], mr.inputs['Value'])
         mul = nt.nodes.new('ShaderNodeMath')
         mul.operation = 'MULTIPLY'
@@ -642,7 +642,7 @@ def freezing(C, M, rnd, shrimp_fn):
             p = Part()
             p.box((tx + (j - 1) * 0.25, yy + (j - 1) * 0.12, DZ + 1.02), (1.3, 0.02, 0.45))
             p.make('IN_IQFVapour%d_%d' % (k, j), vap, None, coll=C)
-    belt = _conveyor('IN_IQFBelt', (tx, 48.6, DZ + 0.9), (tx, 59.6, DZ + 0.9), 0.9, C, M)
+    belt = _conveyor('IN_IQFBelt', (tx, 51.6, DZ + 0.9), (tx, 59.6, DZ + 0.9), 0.9, C, M)
     # glazing hood: brushed stainless box on legs over the belt, seams, bolts, nozzle manifold, drip lips, frost
     hy = 56.6
     p = Part()
@@ -801,7 +801,7 @@ def cold_store(C, M, rnd):
     wood.make('IN_ColdPalletWood', M['wood'], None, coll=C)
     cart.make('IN_ColdCartons', P.plain('IN_CartonKraft', (0.5, 0.38, 0.24), 0.7, bump=0.15, bump_scale=20), None,
               bevel=0.01, coll=C)
-    wrap.make('IN_ColdWrap', P.plain('IN_StretchWrapCold', (0.82, 0.85, 0.88), 0.15, alpha=0.6, coat=0.8, bump=0.25,
+    wrap.make('IN_ColdWrap', P.plain('IN_StretchWrapCold', (0.82, 0.85, 0.88), 0.15, alpha=0.25, coat=0.8, bump=0.25,
                                       bump_scale=6), None, coll=C)
     lab_ = Part()
     lab2 = Part()
