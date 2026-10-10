@@ -303,10 +303,13 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
 
 
 def _dress(name, root, mats, deck_z, L, R, wx1):
-    icebox = box(f'{name}_IceBox', (1.6, 1.1, 0.9), (6.6, -1.8, deck_z), pbr('MAT_IceBox', (0.85, 0.87, 0.86), 0.45, grime=0.3),
-                 0.05, origin='base', parent=root)
+    ibm = weather(pbr('MAT_IceBox', (0.8, 0.82, 0.8), 0.55, grime=0.5, scale=4.0), streak=(0.3, 0.2, 0.1), amount=0.6,
+                  z0=deck_z, z1=deck_z + 0.9, dirt_amount=0.5)
+    icebox = box(f'{name}_IceBox', (1.6, 1.1, 0.9), (6.6, -1.8, deck_z), ibm, 0.05, origin='base', parent=root)
     R['icebox'] = icebox
-    obj(f'{name}_IceBoxIce', ice_mesh(f'{name}_IceBoxIce', 1.4, 0.9, 0.12, 16, 9), mats['ice'], (6.6, -1.8, deck_z + 0.82),
+    # flake ice: fine, matte-white granules (not the clear crate-ice glass, which read as grey blotches from above)
+    flake = pbr('MAT_FlakeIce', (0.84, 0.89, 0.92), 0.4, var=0.25, bump=1.0, scale=70, sss=0.2)
+    obj(f'{name}_IceBoxIce', ice_mesh(f'{name}_IceBoxIce', 1.4, 0.9, 0.12, 40, 26), flake, (6.6, -1.8, deck_z + 0.82),
         parent=root)
     rnd = random.Random(5)
     k = 0
@@ -317,7 +320,7 @@ def _dress(name, root, mats, deck_z, L, R, wx1):
             k += 1
     bucket = cyl_mesh(f'{name}_Bucket', 0.16, 0.32, 16, r2=0.19, origin='base')
     bucket.materials.append(pbr('MAT_BucketBlue', (0.12, 0.2, 0.3), 0.5, grime=0.4))
-    for (bx, by) in ((-2.0, -1.4), (6.0, 0.4), (-4.6, 0.9)):
+    for (bx, by) in ((-2.0, -1.4), (7.0, 0.95), (-4.6, 0.9)):   # clear of the hatch hand at (5.95, 0.3)
         obj(f'{name}_Bucket', bucket, None, (bx, by, deck_z), parent=root)
     basket = cyl_mesh(f'{name}_Basket', 0.28, 0.3, 18, r2=0.32, origin='base')
     basket.materials.append(pbr('MAT_Basket', (0.6, 0.45, 0.2), 0.8, var=0.3, bump=0.4, scale=20))
