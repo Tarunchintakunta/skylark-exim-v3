@@ -35,6 +35,18 @@ export function Header() {
     })
   }, [])
 
+  // Escape closes the mobile menu and hands focus back to its button
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      root.current!.querySelector<HTMLElement>('.menu-btn')!.focus()
+    }
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [open])
+
   const go = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault()
     setOpen(false)

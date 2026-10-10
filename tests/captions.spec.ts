@@ -38,3 +38,18 @@ for (const path of ['', '#pond']) {
     await ctx.close()
   })
 }
+
+// #146: SplitText must not break a temperature ("−18 °C") across two lines
+for (const width of [390, 1440]) {
+  test(`temperatures stay on one line after the split at ${width} px`, async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width, height: 844 } })
+    const page = await ctx.newPage()
+    await page.goto('/')
+    const sel = '[data-chapter="coldchain"] .caption__title .line'
+    await page.waitForFunction((sel) => document.querySelectorAll(sel).length > 0, sel)
+    const lines = await page.evaluate((sel) => [...document.querySelectorAll(sel)].map((l) => l.textContent ?? ''), sel)
+    expect(lines.join('')).toContain('−18 °C')
+    expect(lines.filter((l) => /−\d+\s*$/.test(l) || /^\s*°C/.test(l))).toEqual([])
+    await ctx.close()
+  })
+}
