@@ -97,7 +97,7 @@ def unload(C, R):
         H.jitter(w, H.POSES['look'], f1 + 4, 1060, every=24, amp=4, seed=sum(map(ord, nm)) % 97)
     # each unloader: three crates, walk in -> grip both handles -> lift -> carry out -> set down on the trolley
     import math as _m
-    for nm, t, ks, start in (('HUM_DockW1', tA, (3, 8, 11), 308), ('HUM_DockW2', tB, (12, 2, 7), 318)):
+    for nm, t, ks, start in (('HUM_DockW1', tA, (2, 5, 7), 308), ('HUM_DockW2', tB, (8, 1, 4), 318)):   # top crates first
         w = bpy.data.objects[nm]
         ad = w.animation_data
         if ad and ad.action:                         # drop the opener's later keys; this sequence takes over
