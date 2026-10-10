@@ -1,5 +1,5 @@
 /* Design tokens (docs/CLAUDE_PROMPT.md §7). Brass is reserved for CTA, routes, focus and active states. */
-/* Type: pairing A from /type (#88, Tarun's pick): Instrument Serif display + Inter Tight body. Latin subsets, OFL. */
+/* Type: pairing A (#88, Tarun's pick): Instrument Serif display + Inter Tight body. Latin subsets, OFL. */
 @font-face { font-family: 'Instrument Serif'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/instrument-serif-latin-400-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Instrument Serif'; font-weight: 400; font-style: italic; font-display: swap; src: url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2'); }
 @font-face { font-family: 'Inter Tight'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/inter-tight-latin-400-normal.woff2') format('woff2'); }

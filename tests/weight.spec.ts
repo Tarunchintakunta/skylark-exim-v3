@@ -21,7 +21,7 @@ const CAPS: [RegExp, number][] = [
   [/\.woff2$/, 40],
   [/\.(svg|txt|xml)$/, 20],
   [/\/og\.jpg$/, 200],
-  [/\.pdf$/, 3100],
+  [/\.pdf$/, 2300],
   [/\.(ktx2|jpg|png)$/, 1024],
 ]
 
