@@ -47,7 +47,7 @@ def mats():
     return M
 
 
-def _light(name, loc, size=(6, 3), energy=600, C=None, color=(0.93, 0.97, 1.0)):
+def _light(name, loc, size=(6, 3), energy=600, C=None, color=(1.0, 0.95, 0.87)):
     ld = bpy.data.lights.new(name, 'AREA')
     ld.shape = 'RECTANGLE'
     ld.size, ld.size_y = size
@@ -449,12 +449,103 @@ def lab(C, M, rnd, shrimp_fn):
     for k in range(5):
         tr = _tray('IN_LabTray%d' % k, (CX + 1.6 + k * 0.6, 46.95, DZ + 0.93), C, M)
         tr.scale = (0.8, 0.8, 1)
-        for m in range(4):
-            shrimp_fn('%s_S%d' % (tr.name, m), (CX + 1.6 + k * 0.6 + rnd.uniform(-0.1, 0.1), 46.95 + rnd.uniform(-0.07, 0.07),
-                                               DZ + 0.96), (0, 0, rnd.uniform(0, 6.28)))
+        for m in range(12):                                          # a full sample: two rows of six
+            shrimp_fn('%s_S%d' % (tr.name, m), (CX + 1.6 + k * 0.6 - 0.13 + (m % 6) * 0.052 + rnd.uniform(-0.01, 0.01),
+                                               46.95 + (-0.05 if m < 6 else 0.05) + rnd.uniform(-0.01, 0.01),
+                                               DZ + 0.96 + (m % 3) * 0.004), (0, 0, (0 if m < 6 else 3.14) + rnd.uniform(-0.3, 0.3)))
+    # QC kit: probe thermometers in the trays, more balances, sample bags, glassware, reagent shelves, microscope, sink
+    kit = Part()
+    dark = Part()
+    for k in (0, 1, 3):                                              # probe thermometers: body + steel probe
+        x = CX + 1.6 + k * 0.6 + 0.16
+        kit.box((x, 46.8, DZ + 0.99), (0.05, 0.11, 0.025))
+        dark.cyl((x, 46.86, DZ + 0.985), (x - 0.06, 46.98, DZ + 0.955), 0.002, 6)
+    for x in (CX - 4.4, XR - 3.2):                                   # two more balances with draft shields
+        kit.box((x, 47.0, DZ + 0.98), (0.34, 0.3, 0.1))
+        kit.box((x, 46.97, DZ + 1.12), (0.22, 0.2, 0.17))
+    # microscope
+    mx = CX - 5.6
+    kit.box((mx, 47.05, DZ + 0.95), (0.22, 0.26, 0.05))
+    kit.cyl((mx, 47.15, DZ + 0.95), (mx, 47.15, DZ + 1.3), 0.03, 10)
+    kit.cyl((mx, 47.15, DZ + 1.28), (mx, 47.0, DZ + 1.22), 0.025, 10)
+    kit.cyl((mx, 47.0, DZ + 1.22), (mx, 46.98, DZ + 1.06), 0.018, 10)
+    for k in range(3):                                               # wall shelves over the back bench
+        kit.box(((XL + CX - 2.0) / 2, 50.7, DZ + 1.55 + k * 0.38), (CX - 2.0 - XL - 0.6, 0.28, 0.025))
+    kit.box((CX + 5.6, 50.4, DZ + 0.92), (0.6, 0.45, 0.04))           # sink rim
+    kit.cyl((CX + 5.6, 50.62, DZ + 0.94), (CX + 5.6, 50.62, DZ + 1.25), 0.012, 8)
+    kit.make('IN_LabKit2', P.plain('IN_LabKitWhite', (0.7, 0.72, 0.74), 0.3, 0.3), None, bevel=0.006, coll=C)
+    dark.box((CX + 5.6, 50.4, DZ + 0.9), (0.52, 0.38, 0.04))
+    for k in (0, 1, 3):
+        dark.box((CX + 1.6 + k * 0.6 + 0.16, 46.745, DZ + 0.995), (0.03, 0.002, 0.012))
+    dark.make('IN_LabSteel', M['steel'], None, coll=C)
+    bags = Part()
+    for k in range(7):                                               # sealed sample bags in a row
+        x = CX - 3.4 + k * 0.16
+        bags.box((x, 46.85 + rnd.uniform(-0.04, 0.04), DZ + 0.935), (0.13, 0.19, 0.022))
+    bags.make('IN_SampleBags', P.plain('IN_SampleBag', (0.8, 0.78, 0.76), 0.35, coat=0.6), None, bevel=0.01, coll=C)
+    lab_ = Part()
+    for k in range(7):
+        lab_.box((CX - 3.4 + k * 0.16, 46.83, DZ + 0.948), (0.07, 0.05, 0.003))
+    lab_.make('IN_SampleBagLabels', M['label'], None, coll=C)
+    btl = Part()
+    for k in range(3):
+        for j in range(14):
+            x = XL + 0.8 + j * 0.42 + rnd.uniform(-0.05, 0.05)
+            hgt = rnd.choice((0.16, 0.2, 0.24))
+            btl.cyl((x, 50.7, DZ + 1.565 + k * 0.38), (x, 50.7, DZ + 1.565 + k * 0.38 + hgt), rnd.choice((0.035, 0.045)), 12)
+    btl.make('IN_ReagentBottles', P.plain('IN_BottleAmber', (0.32, 0.15, 0.04), 0.15, coat=0.8), None, coll=C)
+    gl = Part()
+    for k in range(5):
+        gl.cyl((CX - 1.0 - k * 0.14 - 2.2, 47.15, DZ + 0.92), (CX - 1.0 - k * 0.14 - 2.2, 47.15, DZ + 1.05), 0.03, 14,
+               cap=False)
+    gl.make('IN_Beakers', M['glass_clear'], None, coll=C)
     p = Part()
     p.box((CX - 2.6, 47.0, DZ + 0.93), (0.25, 0.33, 0.012))           # blank clipboard
     p.make('IN_Clipboard', M['label'], None, coll=C)
+
+
+def _glaze_mat():
+    """Frozen, glazed prawn: pale grey-pink flesh under a frosted ice glaze (clear coat, frost speckle, a little SSS)."""
+    m = bpy.data.materials.get('IN_GlazedPrawn')
+    if m:
+        return m
+    m = bpy.data.materials.new('IN_GlazedPrawn')
+    m.use_nodes = True
+    nt = m.node_tree
+    L = nt.links
+    pb = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 140.0
+    nz.inputs['Detail'].default_value = 4
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    seg = nt.nodes.new('ShaderNodeTexWave')                      # shell segments along the body
+    seg.inputs['Scale'].default_value = 9.0
+    L.new(tc.outputs['Object'], seg.inputs['Vector'])
+    cr = nt.nodes.new('ShaderNodeValToRGB')
+    cr.color_ramp.elements[0].color = (0.62, 0.5, 0.47, 1)
+    cr.color_ramp.elements[1].color = (0.82, 0.74, 0.7, 1)
+    L.new(seg.outputs['Fac'], cr.inputs[0])
+    fr = nt.nodes.new('ShaderNodeMix')
+    fr.data_type = 'RGBA'
+    fm = nt.nodes.new('ShaderNodeMapRange')
+    fm.inputs['From Min'].default_value = 0.55
+    fm.inputs['From Max'].default_value = 0.75
+    fm.inputs['To Max'].default_value = 0.65
+    L.new(nz.outputs['Fac'], fm.inputs['Value'])
+    L.new(fm.outputs[0], fr.inputs[0])
+    L.new(cr.outputs[0], fr.inputs[6])
+    fr.inputs[7].default_value = (0.9, 0.93, 0.95, 1)            # frost
+    L.new(fr.outputs[2], pb.inputs['Base Color'])
+    L.new(fm.outputs[0], pb.inputs['Roughness'])
+    pb.inputs['Coat Weight'].default_value = 1.0                 # the ice glaze
+    pb.inputs['Coat Roughness'].default_value = 0.06
+    pb.inputs['Subsurface Weight'].default_value = 0.15
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.25
+    L.new(nz.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], pb.inputs['Normal'])
+    return m
 
 
 def freezing(C, M, rnd, shrimp_fn):
@@ -474,28 +565,133 @@ def freezing(C, M, rnd, shrimp_fn):
     for k in range(8):
         p.box((x + 1.335, y, DZ + 0.425 + k * 0.26), (0.006, 1.8, 0.012))
     p.make('IN_PlateFrost', M['frost'], None, coll=C)
-    # IQF tunnel with the belt running through; glazing spray hood after it
+    # IQF tunnel: long insulated stainless enclosure the belt runs through (open mouth at each end, strip curtain,
+    # frost on the lips, cold vapour rolling out), inspection doors, evaporator housings on top, control cabinet
     tx = CX + 3.6
+    y0, y1 = 50.2, 55.6                                                # tunnel body (glaze hood follows at 56.6)
+    ym = (y0 + y1) / 2
     p = Part()
-    p.box((tx, 54.0, DZ + 1.3), (2.2, 3.6, 1.6))
+    p.box((tx, ym, DZ + 2.0), (2.4, y1 - y0, 1.6))                    # roof block over the belt
+    for sx in (-1, 1):
+        p.box((tx + sx * 0.88, ym, DZ + 0.75), (0.64, y1 - y0, 1.1))  # side walls, belt path open between
     p.make('IN_IQFTunnel', M['stainless'], None, bevel=0.03, coll=C)
-    belt = _conveyor('IN_IQFBelt', (tx, 51.6, DZ + 0.9), (tx, 59.6, DZ + 0.9), 0.9, C, M)
+    p = Part()                                                        # panel seams + door frames + handles
+    for k in range(1, 6):
+        yy = y0 + k * (y1 - y0) / 6
+        for sx in (-1, 1):
+            p.box((tx + sx * 1.205, yy, DZ + 1.4), (0.012, 0.03, 2.4))
+    for sx in (-1, 1):
+        for yy in (y0 + 1.4, y0 + 3.8):
+            p.box((tx + sx * 1.21, yy, DZ + 1.35), (0.02, 1.1, 1.6))    # inspection door leaf
+            p.box((tx + sx * 1.245, yy + 0.42, DZ + 1.35), (0.05, 0.05, 0.4))   # lever handle
+    for yy in (y0 + 1.2, y0 + 2.8, y0 + 4.4):
+        p.box((tx, yy, DZ + 3.05), (1.6, 1.1, 0.5))                     # evaporator fan housings
+        p.cyl((tx, yy, DZ + 3.3), (tx, yy, DZ + 3.34), 0.4, 20)
+    p.make('IN_IQFDetail', M['steel'], None, bevel=0.005, coll=C)
+    p = Part()                                                        # insulated refrigerant lines to the roof
+    for k, dx in enumerate((-0.5, -0.3)):
+        p.cyl((tx + dx, y1 - 0.4, DZ + 3.3), (tx + dx, y1 - 0.4, CEIL - 0.1), 0.06, 12)
+    p.make('IN_IQFLines', P.plain('IN_Armaflex', (0.05, 0.05, 0.055), 0.7), None, coll=C)
+    p = Part()                                                        # control cabinet + indicator lamps
+    p.box((tx + 1.75, y0 + 0.6, DZ + 0.9), (0.5, 0.8, 1.8))
+    p.make('IN_IQFPanel', P.grime_paint('IN_PanelGrey', (0.55, 0.58, 0.6), rough=0.4, grime=0.2, streak=0.1), None,
+           bevel=0.01, coll=C)
     p = Part()
-    p.box((tx, 56.6, DZ + 1.55), (1.2, 1.0, 0.5))
-    for k in range(5):
-        p.cyl((tx - 0.45 + k * 0.22, 56.6, DZ + 1.3), (tx - 0.45 + k * 0.22, 56.6, DZ + 1.24), 0.012, 6)
-    p.make('IN_GlazeHood', M['stainless'], None, bevel=0.01, coll=C)
-    sp = Part()
-    for k in range(5):
-        sp.box((tx - 0.45 + k * 0.22, 56.6, DZ + 1.08), (0.16, 0.004, 0.32), Euler((0, 0, 0.6)))
-    sp.make('IN_GlazeSpray', _spray_mat(), None, coll=C)
-    # frozen product rows on the belt (glazed: glossy)
-    glazed = P.plain('IN_GlazedShrimp', (0.66, 0.68, 0.68), 0.06, coat=1.0, sss=0.2)
-    for k in range(70):
-        yy = 56.0 + (k // 7) * 0.36
-        if yy > 59.4:
+    for k, col in enumerate(((0.1, 1.0, 0.2), (1.0, 0.6, 0.05), (1.0, 0.1, 0.05))):
+        p.cyl((tx + 1.5, y0 + 0.4 + k * 0.12, DZ + 1.5), (tx + 1.49, y0 + 0.4 + k * 0.12, DZ + 1.5), 0.025, 10)
+    p.make('IN_IQFLamps', P.plain('IN_LampGreen', (0.1, 0.9, 0.2), 0.2, emission=(0.2, 1.0, 0.3), estr=4.0), None,
+           coll=C)
+    for yy in (y0 - 0.03, y1 + 0.03):                                 # frost on the mouth lips + strip curtain
+        p = Part()
+        p.box((tx, yy, DZ + 1.21), (1.2, 0.08, 0.04))
+        for sx in (-1, 1):
+            p.box((tx + sx * 0.57, yy, DZ + 0.98), (0.04, 0.08, 0.5))
+        p.make('IN_IQFMouthFrost%d' % (yy > ym), M['frost'], None, bevel=0.01, coll=C)
+        _strip_curtain('IN_IQFStrip%d' % (yy > ym), tx - 0.55, tx + 0.55, yy, DZ + 0.95, DZ + 1.2, C, M, n=8)
+    vap = bpy.data.materials.get('IN_ColdVapour')
+    if not vap:
+        vap = bpy.data.materials.new('IN_ColdVapour')
+        vap.use_nodes = True
+        vap.surface_render_method = 'DITHERED'
+        nt = vap.node_tree
+        pb = nt.nodes['Principled BSDF']
+        pb.inputs['Base Color'].default_value = (0.92, 0.95, 0.97, 1)
+        pb.inputs['Roughness'].default_value = 1.0
+        nz = nt.nodes.new('ShaderNodeTexNoise')
+        nz.inputs['Scale'].default_value = 3.0
+        nz.inputs['Detail'].default_value = 6
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        nt.links.new(tc.outputs['Generated'], nz.inputs['Vector'])
+        gr = nt.nodes.new('ShaderNodeSeparateXYZ')
+        nt.links.new(tc.outputs['Generated'], gr.inputs[0])
+        fz = nt.nodes.new('ShaderNodeMapRange')                       # thins out upward
+        fz.inputs['To Min'].default_value = 0.35
+        fz.inputs['To Max'].default_value = 0.0
+        nt.links.new(gr.outputs['Z'], fz.inputs['Value'])
+        mr = nt.nodes.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = 0.45
+        mr.inputs['From Max'].default_value = 0.75
+        nt.links.new(nz.outputs['Fac'], mr.inputs['Value'])
+        mul = nt.nodes.new('ShaderNodeMath')
+        mul.operation = 'MULTIPLY'
+        nt.links.new(mr.outputs[0], mul.inputs[0])
+        nt.links.new(fz.outputs[0], mul.inputs[1])
+        nt.links.new(mul.outputs[0], pb.inputs['Alpha'])
+    for k, yy in enumerate((y0 - 0.35, y1 + 0.35)):                   # vapour rolling out of each mouth
+        for j in range(3):
+            p = Part()
+            p.box((tx + (j - 1) * 0.25, yy + (j - 1) * 0.12, DZ + 1.02), (1.3, 0.02, 0.45))
+            p.make('IN_IQFVapour%d_%d' % (k, j), vap, None, coll=C)
+    belt = _conveyor('IN_IQFBelt', (tx, 48.6, DZ + 0.9), (tx, 59.6, DZ + 0.9), 0.9, C, M)
+    # glazing hood: brushed stainless box on legs over the belt, seams, bolts, nozzle manifold, drip lips, frost
+    hy = 56.6
+    p = Part()
+    p.box((tx, hy, DZ + 1.62), (1.3, 1.2, 0.56))
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p.box((tx + sx * 0.62, hy + sy * 0.55, DZ + 0.68), (0.06, 0.06, 1.36))     # legs
+    p.make('IN_GlazeHood', M['stainless'], None, bevel=0.012, coll=C)
+    p = Part()
+    for sy in (-0.3, 0.0, 0.3):
+        p.box((tx, hy + sy, DZ + 1.905), (1.31, 0.01, 0.012))                         # roof seams
+    for sx in (-1, 1):
+        for k in range(6):
+            p.cyl((tx + sx * 0.656, hy - 0.5 + k * 0.2, DZ + 1.82), (tx + sx * 0.666, hy - 0.5 + k * 0.2, DZ + 1.82),
+                  0.011, 8)                                                            # bolt heads
+        p.box((tx + sx * 0.66, hy, DZ + 1.335), (0.04, 1.22, 0.02))                   # drip lips
+    p.cyl((tx - 0.6, hy, DZ + 1.3), (tx + 0.6, hy, DZ + 1.3), 0.025, 12)              # nozzle manifold
+    for k in range(7):
+        p.cyl((tx - 0.48 + k * 0.16, hy, DZ + 1.3), (tx - 0.48 + k * 0.16, hy, DZ + 1.24), 0.01, 6)
+    p.cyl((tx + 0.6, hy, DZ + 1.3), (tx + 0.6, hy, DZ + 2.4), 0.025, 12)              # feed line up to the roof
+    p.make('IN_GlazeHoodDetail', M['steel'], None, bevel=0.002, coll=C)
+    p = Part()
+    p.box((tx, hy - 0.605, DZ + 1.66), (0.5, 0.01, 0.22))                             # inspection window
+    p.make('IN_GlazeWindow', M['glass_clear'], None, coll=C)
+    p = Part()
+    for sx in (-1, 1):
+        p.box((tx + sx * 0.655, hy, DZ + 1.35), (0.012, 1.22, 0.03))
+    p.box((tx, hy - 0.6, DZ + 1.35), (1.3, 0.012, 0.03))
+    p.make('IN_GlazeFrost', M['frost'], None, bevel=0.004, coll=C)
+    # glazing mist: soft vapour sheets under the nozzles (no thin spray lines)
+    vap = bpy.data.materials.get('IN_ColdVapour')
+    for k in range(4):
+        p = Part()
+        p.box((tx + (k - 1.5) * 0.04, hy + (k - 1.5) * 0.09, DZ + 1.1), (1.15, 0.02, 0.36))
+        p.make('IN_GlazeMist%d' % k, vap, None, coll=C)
+    # glazed, frosted prawns packed on the belt after the hood (IQF: single layer, close together)
+    glazed = _glaze_mat()
+    k = 0
+    for row in range(16):
+        yy = hy + 0.7 + row * 0.19
+        if yy > 59.5:
             break
-        s = shrimp_fn('IN_IQF%02d' % k, (tx - 0.36 + (k % 7) * 0.12, yy, DZ + 0.98), (0, 0, rnd.uniform(0, 6.28)))
+        for col in range(8):
+            o = shrimp_fn('IN_IQF%03d' % k, (tx - 0.38 + col * 0.108 + rnd.uniform(-0.02, 0.02), yy + rnd.uniform(-0.04, 0.04),
+                                           DZ + 0.975), (0, 0, rnd.uniform(0, 6.28)))
+            for sl in o.material_slots:
+                sl.link = 'OBJECT'
+                sl.material = glazed
+            k += 1
     # trolleys of trays (tray racks)
     for k, (xx, yy) in enumerate(((CX - 1.2, 52.8), (CX - 2.0, 56.8), (XL + 1.3, 55.8))):
         p = Part()
@@ -603,9 +799,29 @@ def cold_store(C, M, rnd):
                 cart.box((xc, yy, z + 0.14 + h / 2), (0.98, 1.16, h))
                 wrap.box((xc, yy, z + 0.14 + h / 2), (1.0, 1.18, h + 0.02))
     wood.make('IN_ColdPalletWood', M['wood'], None, coll=C)
-    cart.make('IN_ColdCartons', P.plain('IN_CartonWhite', (0.80, 0.80, 0.77), 0.6, bump=0.1, bump_scale=20), None,
+    cart.make('IN_ColdCartons', P.plain('IN_CartonKraft', (0.5, 0.38, 0.24), 0.7, bump=0.15, bump_scale=20), None,
               bevel=0.01, coll=C)
-    wrap.make('IN_ColdWrap', M['wrap'], None, coll=C)
+    wrap.make('IN_ColdWrap', P.plain('IN_StretchWrapCold', (0.82, 0.85, 0.88), 0.15, alpha=0.6, coat=0.8, bump=0.25,
+                                      bump_scale=6), None, coll=C)
+    lab_ = Part()
+    lab2 = Part()
+    for side, xr in ((-1, CX - 2.6), (1, CX + 2.6)):                 # coloured product labels on the carton faces
+        for k in range(7):
+            yy = 67.7 + k * 2.4
+            for lv in range(5):
+                z = DZ + 0.26 + lv * 0.98
+                xf = xr + side * 0.6 - side * 0.5
+                (lab_ if (k + lv) % 2 else lab2).box((xf - side * 0.012, yy + rnd.uniform(-0.3, 0.3), z + 0.42),
+                                                     (0.004, 0.2, 0.14))
+    lab_.make('IN_ColdLabelsBlue', P.plain('IN_LabelBlueBand', (0.08, 0.2, 0.45), 0.5), None, coll=C)
+    lab2.make('IN_ColdLabelsOrange', P.plain('IN_LabelOrangeBand', (0.75, 0.35, 0.06), 0.5), None, coll=C)
+    st = Part()
+    stw = Part()
+    for k, (xx, yy) in enumerate(((CX - 0.8, 66.6), (CX + 0.9, 67.4), (CX - 0.7, 69.4))):   # staged in the aisle
+        stw.box((xx, yy, DZ + 0.07), (1.0, 1.2, 0.14))
+        st.box((xx, yy, DZ + 0.14 + 0.6), (0.98, 1.16, 1.2))
+    stw.make('IN_ColdStagedWood', M['wood'], None, coll=C)
+    st.make('IN_ColdStaged', bpy.data.materials['IN_CartonKraft'], None, bevel=0.01, coll=C)
     # cold store lights: cooler and a touch dimmer
     for k in range(4):
         _light('IN_ColdArea%d' % k, (CX, 68 + k * 4.2, CEIL - 0.3), (3, 3), 260, C, color=(0.88, 0.94, 1.0))
@@ -615,10 +831,92 @@ def cold_store(C, M, rnd):
     return strips
 
 
+def _wet_floor():
+    """Food-grade epoxy, darker and greener, with wet patches (glossy) and dry scuffed areas (matte)."""
+    m = bpy.data.materials.get('PL_Epoxy')
+    if m is None or m.get('wet'):
+        return
+    nt = m.node_tree
+    L = nt.links
+    pb = nt.nodes['Principled BSDF']
+    for l in list(pb.inputs['Base Color'].links) + list(pb.inputs['Roughness'].links):
+        nt.links.remove(l)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 0.18
+    nz.inputs['Detail'].default_value = 8
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    wet = nt.nodes.new('ShaderNodeMapRange')
+    wet.inputs['From Min'].default_value = 0.5
+    wet.inputs['From Max'].default_value = 0.58
+    L.new(nz.outputs['Fac'], wet.inputs['Value'])
+    rr = nt.nodes.new('ShaderNodeMapRange')
+    rr.inputs['To Min'].default_value = 0.34
+    rr.inputs['To Max'].default_value = 0.04
+    L.new(wet.outputs[0], rr.inputs['Value'])
+    L.new(rr.outputs[0], pb.inputs['Roughness'])
+    cm = nt.nodes.new('ShaderNodeMix')
+    cm.data_type = 'RGBA'
+    cm.inputs[6].default_value = (0.3, 0.35, 0.33, 1)
+    cm.inputs[7].default_value = (0.2, 0.24, 0.23, 1)
+    L.new(wet.outputs[0], cm.inputs[0])
+    L.new(cm.outputs[2], pb.inputs['Base Color'])
+    m['wet'] = True
+
+
+def _services(C, M):
+    """Overhead galvanised ducts, coloured service pipes on brackets, cable trays; PVC dado band on the walls."""
+    galv = M['galv']
+    p = Part()
+    for x in (4.0, 12.8):
+        p.cyl((x, 13.0, CEIL - 0.7), (x, Y_END - 1.0, CEIL - 0.7), 0.32, 24)       # supply ducts
+        for y in range(14, int(Y_END) - 1, 6):
+            p.cyl((x, y, CEIL - 0.7), (x, y + 0.08, CEIL - 0.7), 0.335, 24)       # duct joints
+            p.box((x, y + 1.0, CEIL - 0.35), (0.04, 0.04, 0.7))                  # hangers
+            p.cyl((x, y + 3.0, CEIL - 1.02), (x, y + 3.0, CEIL - 1.1), 0.18, 16)  # diffusers
+    for y in range(14, int(Y_END) - 1, 4):
+        p.box((XR - 0.5, y, CEIL - 0.9), (0.6, 0.04, 0.04))                     # pipe brackets on the wall
+        p.box((XL + 0.5, y, CEIL - 0.9), (0.6, 0.04, 0.04))
+    p.make('IN_Ducts', galv, None, coll=C)
+    tray = Part()
+    for x in (XR - 0.55, XL + 0.55):
+        tray.box((x, (13 + Y_END) / 2, CEIL - 0.6), (0.45, Y_END - 14, 0.012))
+        for sx in (-1, 1):
+            tray.box((x + sx * 0.22, (13 + Y_END) / 2, CEIL - 0.56), (0.012, Y_END - 14, 0.08))
+    tray.make('IN_CableTrays', galv, None, coll=C)
+    for k, (col, nm) in enumerate((((0.1, 0.35, 0.15), 'Green'), ((0.12, 0.3, 0.6), 'Blue'),
+                                   ((0.75, 0.55, 0.08), 'Yellow'))):
+        pp = Part()
+        for x in (XR - 0.35 - k * 0.14, XL + 0.35 + k * 0.14):
+            pp.cyl((x, 13.0, CEIL - 0.95), (x, Y_END - 1.0, CEIL - 0.95), 0.045, 12)
+        pp.make('IN_Pipe' + nm, P.grime_paint('IN_PipePaint' + nm, col, rough=0.35, grime=0.25, streak=0.15, coat=0.4),
+                None, coll=C)
+    d = Part()
+    for x in (XL + 0.085, XR - 0.085):
+        d.box((x, (12 + Y_END) / 2, DZ + 0.6), (0.01, Y_END - 12, 1.2))
+    d.make('IN_Dado', P.plain('IN_PVCDado', (0.36, 0.42, 0.4), 0.35, coat=0.3), None, coll=C)
+
+
 def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11):
     M = mats()
     rnd = random.Random(rnd_seed)
     shell(C, M)
+    _wet_floor()
+    _services(C, M)
+    pin = bpy.data.materials.get('PL_PanelInside')                 # warm grey panels, not paper white
+    if pin and not pin.get('warm'):
+        for n in pin.node_tree.nodes:
+            if n.type == 'MIX' and n.data_type == 'RGBA' and not n.inputs[6].links:
+                c = n.inputs[6].default_value
+                if min(c[:3]) > 0.7:                               # the clean panel colour (not the grime tone)
+                    n.inputs[6].default_value = (0.66, 0.66, 0.63, 1)
+                    n.inputs[7].default_value = (0.36, 0.35, 0.31, 1)
+        pin['warm'] = True
+    led = bpy.data.materials.get('PL_LED')
+    if led:
+        for n in led.node_tree.nodes:
+            if n.type == 'BSDF_PRINCIPLED':
+                n.inputs['Emission Color'].default_value = (1.0, 0.94, 0.84, 1)
     intake(C, M, crate_fn, trolley_fn)
     wash(C, M, rnd, shrimp_fn)
     grading(C, M, rnd, shrimp_fn)
