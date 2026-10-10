@@ -27,18 +27,18 @@ import skhuman as sk  # noqa: E402
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets-src', 'blender', 'humans_ocean.blend')
 
 OCEAN_OUTFITS = {
-    'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'cap'],
-    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'towel'],   # cotton towel wrap: face reads
+    'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair', 'beanie', 'pvc_trim'],   # hair shows at temples/nape
+    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair', 'towel', 'pvc_trim'],   # cotton towel wrap: face reads
     'port_hivis': ['work_shirt', 'trousers_dark', 'boots_dark', 'vest', 'hair', 'hardhat'],
     'harbour_lungi': ['shirt_farm', 'lungi', 'sandals', 'hair'],
 }
 # new piece -> (skhuman piece whose shell it reuses, material key)
 ALIAS = {'pvc_jacket': ('jacket', 'pvc'), 'pvc_trousers': ('trousers', 'pvc'),
          'work_shirt': ('jacket', 'work_shirt'), 'boots_dark': ('boots', 'boot_dark'),
-         'towel': ('haircap', 'towel')}   # head towel wrapped like the deck crews wear (gathered cap shape)
+         'towel': ('haircap', 'towel'), 'beanie': ('haircap', 'cap_cloth')}   # knit beanie down to the ears, not a flat cap   # head towel wrapped like the deck crews wear (gathered cap shape)
 # oilskins stand off the body (stiff PVC over layers): shell thickness per alias, read by skhuman._shell via THICK
 ALIAS_THICK = {'pvc_jacket': 0.026, 'pvc_trousers': 0.02, 'work_shirt': 0.03}   # thicker read as an inflated suit
-CUSTOM = ('lungi', 'hardhat', 'sandals')
+CUSTOM = ('lungi', 'hardhat', 'sandals', 'pvc_trim')
 
 _progress_dir = None
 
@@ -98,8 +98,49 @@ def _plaid(m, scale=12.0):
 _base_mats = sk.mats
 
 
+def _skin_detail(m):
+    """Weathered outdoor skin: roughness varies (oily forehead and nose vs dry cheeks), warm ruddy mottling,
+    so it is not a uniform waxy shell."""
+    if m.get('ocean_skin'):
+        return
+    nt = m.node_tree
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    n1 = nt.nodes.new('ShaderNodeTexNoise')
+    n1.inputs['Scale'].default_value = 60.0
+    n1.inputs['Detail'].default_value = 6
+    nt.links.new(tc.outputs['Object'], n1.inputs['Vector'])
+    r = nt.nodes.new('ShaderNodeMapRange')
+    r.inputs['To Min'].default_value = 0.32
+    r.inputs['To Max'].default_value = 0.62
+    nt.links.new(n1.outputs[0], r.inputs['Value'])
+    nt.links.new(r.outputs[0], p.inputs['Roughness'])
+    n2 = nt.nodes.new('ShaderNodeTexNoise')
+    n2.inputs['Scale'].default_value = 18.0
+    n2.inputs['Detail'].default_value = 4
+    nt.links.new(tc.outputs['Object'], n2.inputs['Vector'])
+    f = nt.nodes.new('ShaderNodeMapRange')
+    f.inputs['From Min'].default_value = 0.5
+    f.inputs['From Max'].default_value = 0.75
+    f.inputs['To Max'].default_value = 0.35
+    nt.links.new(n2.outputs[0], f.inputs['Value'])
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else None
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    mx.blend_type = 'MULTIPLY'
+    nt.links.new(f.outputs[0], mx.inputs['Factor'])
+    if src is not None:
+        nt.links.new(src, mx.inputs['A'])
+    else:
+        mx.inputs['A'].default_value = p.inputs['Base Color'].default_value
+    mx.inputs['B'].default_value = (1.0, 0.62, 0.55, 1)      # sun-reddened patches
+    nt.links.new(mx.outputs['Result'], p.inputs['Base Color'])
+    m['ocean_skin'] = 1
+
+
 def mats():
     M = _base_mats()
+    _skin_detail(M['skin'])
     M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.68, coat=0.08, bump=0.05, wrinkle=0.35, rand=0.12),
                            ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.26, 0.28, 0.12), (0.58, 0.26, 0.08),
                             (0.22, 0.30, 0.42), (0.70, 0.62, 0.20)))   # orange, yellow, olive, faded orange, faded blue, faded yellow
@@ -165,7 +206,7 @@ def _region_raw(body, gender, piece, k):
         return _base_region(body, gender, ALIAS[piece][0], k)
     if piece == 'lungi':      # skin under the cloth tube is hidden (legs from the waist to the shin)
         return [0.30 * k < v.co.z < 0.98 * k and abs(v.co.x) < 0.19 * k for v in body.data.vertices]
-    if piece in ('hardhat', 'sandals'):
+    if piece in ('hardhat', 'sandals', 'pvc_trim'):
         return [False] * len(body.data.vertices)
     return _base_region(body, gender, piece, k)
 
@@ -314,6 +355,65 @@ def _hardhat(body, k, M):
     return o
 
 
+def _pvc_trim(body, k, M):
+    """Oilskin details that make the jacket read as PVC gear, not a sweater: a stand-up collar band, a zip placket
+    with a storm flap down the front, and seam welts over the shoulders. Weights from the nearest body surface."""
+    from mathutils.bvhtree import BVHTree
+    bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    off = (ALIAS_THICK['pvc_jacket'] * 1.6 + 0.008) * k          # sits just outside the jacket shell
+    bm = bmesh.new()
+
+    def strip(path, half_w, lift=0.0):
+        """Ribbon of quads along body-surface points, pushed out by off."""
+        rows = []
+        for p in path:
+            hit, nrm, _i, _d = bvh.ray_cast(Vector((p[0], -1.0, p[1])), Vector((0, 1, 0))) if len(p) == 2 else (None,) * 4
+            if hit is None:
+                hit, nrm, _i, _d = bvh.find_nearest(Vector(p if len(p) == 3 else (p[0], 0, p[1])))
+            base = hit + nrm * (off + lift)
+            side = nrm.cross(Vector((0, 0, 1))).normalized() if abs(nrm.z) < 0.9 else Vector((1, 0, 0))
+            rows.append((bm.verts.new(base - side * half_w), bm.verts.new(base + side * half_w)))
+        for (a0, a1), (b0, b1) in zip(rows, rows[1:]):
+            bm.faces.new((a0, a1, b1, b0))
+    # zip placket + storm flap down the centre front
+    strip([(0.0, z * k) for z in [0.92 + i * 0.04 for i in range(13)]], 0.022 * k, 0.004 * k)
+    strip([(0.012 * k, z * k) for z in [0.92 + i * 0.04 for i in range(13)]], 0.008 * k, 0.009 * k)
+    # collar band: a ring around the neck, standing up
+    ring = []
+    for i in range(24):
+        a = 2 * math.pi * i / 24
+        p = Vector((0.075 * k * math.cos(a), 0.01 * k + 0.07 * k * math.sin(a), 1.44 * k))
+        hit, nrm, _i, _d = bvh.find_nearest(p)
+        d = Vector((p.x, p.y - 0.01 * k, 0)).normalized()
+        c = hit + d * (off + 0.004 * k)
+        ring.append((bm.verts.new(c), bm.verts.new(c + Vector((0, 0, 0.07 * k)) + d * 0.006 * k)))
+    for i in range(24):
+        a0, a1 = ring[i]
+        b0, b1 = ring[(i + 1) % 24]
+        bm.faces.new((a0, b0, b1, a1))
+    # bib-trouser braces over the jacket: front waist -> over the shoulder -> down the back
+    for sx in (-1, 1):
+        path = [(sx * 0.085 * k, -0.2, z * k) for z in (0.98, 1.08, 1.18, 1.28, 1.36)]
+        path += [(sx * 0.11 * k, -0.05, 1.43 * k), (sx * 0.11 * k, 0.05, 1.42 * k)]
+        path += [(sx * 0.08 * k, 0.2, z * k) for z in (1.34, 1.22, 1.1, 0.98)]
+        strip(path, 0.02 * k, 0.006 * k)
+    # shoulder seam welts (neck to shoulder point, both sides)
+    for sx in (-1, 1):
+        strip([(sx * (0.07 + 0.11 * t) * k, 0.0, (1.44 - 0.03 * t) * k) for t in [i / 8 for i in range(9)]], 0.006 * k, 0.003 * k)
+    me = bpy.data.meshes.new(body.name + '_pvc_trim')
+    bm.normal_update()
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(body.name + '_pvc_trim', me)
+    bpy.context.scene.collection.objects.link(o)
+    sol = o.modifiers.new('sol', 'SOLIDIFY')
+    sol.thickness = 0.004 * k
+    with bpy.context.temp_override(object=o, active_object=o):
+        bpy.ops.object.modifier_apply(modifier=sol.name)
+    _finish(o, body, M, 'pvc')
+    return o
+
+
 def _sandals(body, k, M):
     """Flat dark soles under each foot (ponytail: no strap; add a thong strap if close-ups need it)."""
     bm = bmesh.new()
@@ -351,6 +451,8 @@ def _shell(body, piece, mask, M):
         return _lungi(body, sk.KH, M)
     if piece == 'hardhat':
         return _hardhat(body, sk.KH, M)
+    if piece == 'pvc_trim':
+        return _pvc_trim(body, sk.KH, M)
     if piece == 'sandals':
         return _sandals(body, sk.KH, M)
     if piece in ALIAS:
@@ -390,6 +492,8 @@ def build(out_path=OUT, level=1, progress_dir=None):
     sk.mats = mats
     sk._region = _region
     sk._shell = _shell
+    sk.THICK['gloves_rubber'] = 0.0012          # thin enough that the fingers stay separate (thicker fused into mitts)
+    sk.CUFF = tuple(sk.CUFF) + ('gloves_rubber',)   # turned glove cuff band at the wrist
     _note('build start -> %s' % out_path)
     sk.build_masters(os.path.abspath(out_path), level)
     _note('BUILT %s' % out_path)
