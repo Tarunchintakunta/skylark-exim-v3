@@ -31,16 +31,21 @@ function bindLines(root: HTMLElement) {
 /** Photoreal turntable clip, playing (muted, looped) only while on screen; reduced motion keeps the poster. */
 function Turntable({ id, name }: { id: string; name: string }) {
   const ref = useRef<HTMLVideoElement>(null)
+  // poster and clip attach only when the section is about a screen away: a poster attribute downloads at boot even with
+  // preload="none", which competed with the hero's LCP resources (#131)
+  const [near, setNear] = useState(false)
   useEffect(() => {
     const v = ref.current!
-    if (env.reduced) return
+    const nearIo = new IntersectionObserver(([e]) => e.isIntersecting && (setNear(true), nearIo.disconnect()), { rootMargin: '100% 0px' })
+    nearIo.observe(v)
+    if (env.reduced) return () => nearIo.disconnect()
     const io = new IntersectionObserver(([e]) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause()))
     io.observe(v)
-    return () => io.disconnect()
+    return () => (nearIo.disconnect(), io.disconnect())
   }, [])
   return (
     <figure className="pr-hero__media">
-      <video ref={ref} src={env.reduced ? undefined : clipUrl(id)} poster={posterUrl(id)} muted loop playsInline preload="none" aria-label={name} />
+      <video ref={ref} src={near && !env.reduced ? clipUrl(id) : undefined} poster={near ? posterUrl(id) : undefined} muted loop playsInline preload="none" aria-label={name} />
       <figcaption className="display">{name}</figcaption>
     </figure>
   )
