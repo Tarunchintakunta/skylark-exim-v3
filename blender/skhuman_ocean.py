@@ -19,7 +19,7 @@ import os
 import sys
 import bpy
 import bmesh
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import skhuman as sk  # noqa: E402
@@ -34,6 +34,8 @@ OCEAN_OUTFITS = {
 # new piece -> (skhuman piece whose shell it reuses, material key)
 ALIAS = {'pvc_jacket': ('jacket', 'pvc'), 'pvc_trousers': ('trousers', 'pvc'),
          'work_shirt': ('jacket', 'work_shirt'), 'boots_dark': ('boots', 'boot_dark')}
+# oilskins stand off the body (stiff PVC over layers): shell thickness per alias, read by skhuman._shell via THICK
+ALIAS_THICK = {'pvc_jacket': 0.036, 'pvc_trousers': 0.024, 'work_shirt': 0.032}
 CUSTOM = ('lungi', 'hardhat', 'sandals')
 
 _progress_dir = None
@@ -42,17 +44,19 @@ _progress_dir = None
 def _note(msg):
     """Flushed progress line; also a stage file in the job's output folder (the gate's watchdog reads that folder)."""
     print('HUMOCEAN', msg, flush=True)
-    if _progress_dir:
-        with open(os.path.join(_progress_dir, 'stage_%03d.txt' % _note.n), 'w') as f:
+    d = _progress_dir or os.environ.get('SKY_PROGRESS')      # scene builds pass their gate output folder here
+    if d:
+        with open(os.path.join(d, 'stage_%03d.txt' % _note.n), 'w') as f:
             f.write(msg + '\n')
         _note.n += 1
 
 
 _note.n = 0
+progress = _note   # scene builds: SO.progress('section') between sections
 
 
 # ------------------------------------------------------------------ materials
-def _plaid(m, scale=26.0):
+def _plaid(m, scale=12.0):
     """Woven check for the lungi: bands in X and Z (object space) darken the per-person base colour."""
     nt = m.node_tree
     p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
@@ -94,7 +98,7 @@ _base_mats = sk.mats
 
 def mats():
     M = _base_mats()
-    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.42, coat=0.3, bump=0.04, wrinkle=0.6, rand=0.08),
+    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.5, coat=0.25, bump=0.02, wrinkle=0.25, rand=0.08),
                            ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.58, 0.26, 0.08), (0.80, 0.30, 0.04),
                             (0.70, 0.62, 0.20)))   # orange, yellow, sun-faded orange, bright orange, faded yellow
     M['work_shirt'] = sk._palette(sk._mat('HUM_WorkShirt', (0.2, 0.25, 0.32), 0.85, sheen=0.2, bump=0.12, rand=0.12,
@@ -116,7 +120,37 @@ _base_region = sk._region
 _base_shell = sk._shell
 
 
+CLEAN = ('pvc_jacket', 'pvc_trousers', 'work_shirt', 'shirt_farm', 'vest', 'trousers_dark')
+
+
+def _clean(body, mask, n=2):
+    """Morphological close then open on the mesh graph: no torn tags or notches along a garment hem."""
+    import numpy as np
+    m = np.array(mask, bool)
+    e = np.empty(len(body.data.edges) * 2, dtype=np.int64)
+    body.data.edges.foreach_get('vertices', e)
+    a, b = e[0::2], e[1::2]
+
+    def grow(x):
+        y = x.copy()
+        y[a[x[b]]] = True
+        y[b[x[a]]] = True
+        return y
+    for op in (grow, ) * n + (lambda x: ~grow(~x), ) * (2 * n) + (grow, ) * n:
+        m = op(m)
+    return m.tolist()
+
+
 def _region(body, gender, piece, k):
+    if piece in CLEAN:
+        return _clean(body, _region_raw(body, gender, piece, k))
+    return _region_raw(body, gender, piece, k)
+
+
+def _region_raw(body, gender, piece, k):
+    if piece == 'pvc_trousers':   # legs tucked into the gumboot (boot top 0.34): no PVC poking through
+        base = _base_region(body, gender, 'trousers', k)
+        return [m and v.co.z > 0.30 * k for m, v in zip(base, body.data.vertices)]
     if piece in ALIAS:
         return _base_region(body, gender, ALIAS[piece][0], k)
     if piece == 'lungi':      # skin under the cloth tube is hidden (legs from the waist to the shin)
@@ -173,14 +207,15 @@ def _lungi(body, k, M):
         z = z_top + (z_hem - z_top) * u
         x0, x1, y0, y1 = _slab(body, k, max(z, 0.62 * k), 0.2 * k)   # below the knee keep the knee-width tube
         cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        clr = 0.012 * k if u < 0.06 else 0.03 * k + 0.035 * k * u      # hugs the waist, hangs free lower down
+        # hugs the waist under the shirt hem (shirt hem sits 12 mm off the body), hangs free below it
+        clr = 0.006 * k if z > 0.78 * k else 0.012 * k + 0.025 * k * min(1.0, (0.78 * k - z) / (0.3 * k))
         rx, ry = (x1 - x0) / 2 + clr, (y1 - y0) / 2 + clr
         row = []
         for i in range(na):
             a = 2 * math.pi * i / na
             c, s = math.cos(a), math.sin(a)
             # superellipse (fuller at the sides), drape folds deepening toward the hem, a front overlap fold
-            e = 0.7
+            e = 0.9
             px = rx * math.copysign(abs(c) ** e, c)
             py = ry * math.copysign(abs(s) ** e, s)
             fold = (0.004 + 0.012 * u * u) * k * math.sin(a * 11 + math.sin(z * 9) * 1.2)
@@ -192,18 +227,7 @@ def _lungi(body, k, M):
         for i in range(na):
             i2 = (i + 1) % na
             bm.faces.new((rings[j][i], rings[j][i2], rings[j + 1][i2], rings[j + 1][i]))
-    # rolled waistband: a fat ring tucked at the front
-    top = rings[0]
-    ctr = sum((v.co for v in top), Vector()) / na
-    band = []
-    for zz, out in ((1.0 * k, 0.0), (1.012 * k, 0.010 * k), (1.024 * k, 0.0)):
-        band.append([bm.verts.new(Vector((ctr.x, ctr.y, 0)) + (Vector((v.co.x, v.co.y, 0)) - Vector((ctr.x, ctr.y, 0)))
-                                  * 1.0 + (Vector((v.co.x - ctr.x, v.co.y - ctr.y, 0)).normalized() * out)
-                                  + Vector((0, 0, zz))) for v in top])
-    for b0, b1 in zip(band, band[1:]):
-        for i in range(na):
-            i2 = (i + 1) % na
-            bm.faces.new((b0[i], b0[i2], b1[i2], b1[i]))
+    # (no rolled waistband ring: the shirt hangs over the waist and the ring poked through it)
     me = bpy.data.meshes.new(body.name + '_lungi')
     bm.normal_update()
     bm.to_mesh(me)
@@ -317,11 +341,29 @@ def _shell(body, piece, mask, M):
         return _sandals(body, sk.KH, M)
     if piece in ALIAS:
         base, key = ALIAS[piece]
-        o = _base_shell(body, base, mask, M)
+        t0 = sk.THICK[base]
+        sk.THICK[base] = ALIAS_THICK.get(piece, t0)
+        try:
+            o = _base_shell(body, base, mask, M)
+        finally:
+            sk.THICK[base] = t0
         o.data.materials[0] = M[key]
         o.name = '%s_%s' % (body.name, piece)
         return o
-    return _base_shell(body, piece, mask, M)
+    o = _base_shell(body, piece, mask, M)
+    if piece == 'vest':
+        _inflate(o, body, 0.02)    # clear of the work shirt's folds: no shirt poking through the vest hem
+    return o
+
+
+def _inflate(o, body, d):
+    """Move a finished shell away from the body surface (nearest-point direction), keeping its thickness."""
+    from mathutils.bvhtree import BVHTree
+    bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    for v in o.data.vertices:
+        hit, _n, _i, _d = bvh.find_nearest(v.co)
+        if hit is not None and (v.co - hit).length > 1e-6:
+            v.co += (v.co - hit).normalized() * d
 
 
 def build(out_path=OUT, level=1, progress_dir=None):
@@ -360,7 +402,9 @@ def translate(spec):
     for s in ('L', 'R'):
         sg = 1 if s == 'L' else -1
         x, y, z = spec.get('sh_' + s, (6 * sg, 0, 0))
-        P['upperarm.' + s] = (-y, -20 + x * sg, z * sg)
+        # a raised arm keeps the rest pose's 23 deg splay; swing it back in about the vertical (measured: at flex
+        # 90 the hand is 26 deg out, a -0.3 * flex twist brings it straight ahead)
+        P['upperarm.' + s] = (-y, -20 + x * sg, z * sg - 0.3 * max(0.0, -y))
         x, y, z = spec.get('el_' + s, (0, -8, 0))
         P['forearm.' + s] = (max(4.0, -y), 0, 0)
         x, y, z = spec.get('hp_' + s, (0, 0, 0))
@@ -387,8 +431,9 @@ def pose(root, p, frame=None, upper_only=False, overrides=None):
         if upper_only and (pb.name.startswith(('thigh', 'shin', 'foot')) or pb.name == 'hips'):
             continue                       # legs keep their walk / stance keys
         v = P.get(pb.name, (0, 0, 0))
-        if pb.name.startswith('upperarm.') and v[1] < sk.ARM_IN:
-            v = (v[0], sk.ARM_IN, v[2])    # same clamp as skhuman.set_pose: arm never enters the torso
+        lim = sk.ARM_IN   # skhuman.set_pose clamp: the arm never enters the torso
+        if pb.name.startswith('upperarm.') and v[1] < lim:
+            v = (v[0], lim, v[2])
         sk._rot(pb, *v, pb.name.split('.')[-1] if '.' in pb.name else '')
         if frame is not None:
             pb.keyframe_insert('rotation_quaternion', frame=frame)
@@ -421,6 +466,55 @@ def walk(root, path, f0, f1, stride=0.75, upper=None):
         up = {k: v for k, v in _L.POSES[upper].items() if not k.startswith(('hp', 'kn', 'an')) and k != 'hips_z'}
         base = {k: v for k, v in translate(up).items() if not k.startswith(('thigh', 'shin', 'foot'))}
     sk.walk_cycle(root, int(f0), int(f1), keyed, stride=stride, base=base, arms=not upper)
+
+
+def grip(ao, side, curl=1.0, knuckle=0.085):
+    """Fist around a handle. skhuman.grip takes the palm normal from the spread finger vertices (which picks the
+    wrong axis on these meshes: fingers loop sideways into long hooks) and bends them rigidly at the knuckle. Here the
+    normal comes from the flat back-of-hand plate and each finger wraps on an arc."""
+    import numpy as np
+    mo = ao.children[0]
+    if mo.data.users > 1:
+        mo.data = mo.data.copy()
+    hb = ao.data.bones['hand.' + side]
+    h0, d = hb.head_local, (hb.tail_local - hb.head_local).normalized()
+    co = np.array([v.co[:] for v in mo.data.vertices])
+    rel = co - np.array(h0[:])
+    along = rel @ np.array(d[:])
+    perp = rel - np.outer(along, np.array(d[:]))
+    dist = np.linalg.norm(perp, axis=1)
+    # palm normal from the back-of-hand plate (flat, unlike the spread fingers); the palm side is where the
+    # relaxed fingertips already lean
+    plate = perp[(along > 0.01) & (along < 0.075) & (dist < 0.06)]
+    plate = plate - plate.mean(axis=0)
+    _w, ev = np.linalg.eigh(plate.T @ plate)
+    nrm = Vector(ev[:, 0])
+    nrm = (nrm - d * nrm.dot(d)).normalized()
+    tips = perp[(along > 0.15) & (along < 0.24) & (dist < 0.075)]
+    if len(tips) and float(tips.mean(axis=0) @ np.array(nrm[:])) - float(perp[(along > 0.01) & (along < 0.075) & (dist < 0.06)].mean(axis=0) @ np.array(nrm[:])) < 0:
+        nrm = -nrm
+    axis = d.cross(nrm).normalized()
+    piv = h0 + d * knuckle
+    fing = (along > knuckle) & (along < 0.24) & (dist < 0.075)
+    if not mo.data.shape_keys:
+        mo.shape_key_add(name='Basis')
+    sk_ = mo.shape_key_add(name='grip_' + side)
+    # fingers bend continuously (all three joints), not as a rigid hook at the knuckle: a straight finger of length
+    # Lf wraps onto an arc of total angle curl * 250 deg toward the palm; a vertex's offset from the finger's
+    # centre plane (its thickness) stays radial, so the finger keeps its width.
+    lf = max(0.06, float(along[fing].max() - knuckle)) if fing.any() else 0.09
+    theta = curl * math.radians(250)
+    if abs(theta) < 1e-3:
+        return sk_
+    R = lf / abs(theta)
+    pal = nrm * math.copysign(1.0, theta)
+    for i in np.nonzero(fing)[0]:
+        q = Vector(co[i]) - piv
+        a_, n_, w_ = q.dot(d), q.dot(pal), q.dot(axis)
+        ph = a_ / R
+        sk_.data[i].co = piv + axis * w_ + pal * R + (R - n_) * (d * math.sin(ph) - pal * math.cos(ph))
+    sk_.value = 1.0
+    return sk_
 
 
 def install(L, blend=OUT):
