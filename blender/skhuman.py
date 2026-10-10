@@ -589,11 +589,30 @@ def _apron(body, k, M):
             ys = [v.co.y for v in body.data.vertices if abs(v.co.z - z) < 0.03 and abs(v.co.x - x) < 0.05]
             y = (min(ys) if ys else -0.12) - 0.042           # clear of the jacket folds
             y = min(y, -0.10 * k) if z / k < 0.85 else y
-            row.append(bm.verts.new((x, y + 0.02 * (abs(x) / (w * k)) ** 2, z)))
+            hang = max(0.0, (0.98 * k - z) / (0.46 * k))              # 0 at the waist .. 1 at the hem
+            fold = 0.013 * hang * math.sin((x / (w * k)) * math.pi * 2.6 + 0.4) + 0.006 * hang * math.sin(x * 61 / k)
+            flare = 0.035 * hang ** 2 * (abs(x) / (w * k))            # hem swings out a little at the sides
+            row.append(bm.verts.new((x * (1 + 0.06 * hang), y + 0.02 * (abs(x) / (w * k)) ** 2 - fold - flare, z)))
         grid.append(row)
     for j in range(nz):
         for i in range(nx):
             bm.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
+    # neck strap (top corners up round the neck) and waist ties falling at the sides
+    for sx in (-1, 1):
+        top = grid[-1][0 if sx < 0 else nx].co
+        nk = Vector((sx * 0.055 * k, top.y + 0.05 * k, 1.46 * k))
+        st = []
+        for t in (0.0, 0.5, 1.0):
+            c = top.lerp(nk, t)
+            st.append((bm.verts.new(c + Vector((-0.012 * k, 0, 0))), bm.verts.new(c + Vector((0.012 * k, 0, 0)))))
+        for (a0, a1), (b0, b1) in zip(st, st[1:]):
+            bm.faces.new((a0, a1, b1, b0))
+        wv = grid[int(nz * (0.98 - 0.52) / (1.34 - 0.52))][0 if sx < 0 else nx].co
+        tie = [wv + Vector((sx * 0.01 * k, 0.02 * k * t, -0.22 * k * t)) for t in (0.0, 0.5, 1.0)]
+        tv = [(bm.verts.new(c + Vector((0, -0.008 * k, 0))), bm.verts.new(c + Vector((0, 0.008 * k, 0)))) for c in tie]
+        for (a0, a1), (b0, b1) in zip(tv, tv[1:]):
+            bm.faces.new((a0, a1, b1, b0))
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     me = bpy.data.meshes.new(body.name + '_apron')
     bm.to_mesh(me)
     bm.free()
