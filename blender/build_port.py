@@ -465,7 +465,9 @@ lm.obj('LAND_Coast')
 cm = P.MB()
 roof_cols = [(0.72, 0.7, 0.66), (0.55, 0.53, 0.5), (0.8, 0.78, 0.74), (0.5, 0.36, 0.3), (0.34, 0.37, 0.4), (0.62, 0.45, 0.36), (0.25, 0.33, 0.42)]
 bmat = L.pbr('MAT_CityRoofs', (0.6, 0.58, 0.55), 0.85, var=0.3, scale=0.05, attr=None)
-cityp = P.paint_attr('MAT_CityPaint', 0.85, grime=0.4, scale=0.05)
+cityp = L.weather(L.tex_pbr('MAT_CityPaint', 'painted_concrete', 0.08, attr='col', tint_amount=0.6, grime=0.6), amount=0.6, z0=QZ,
+                  z1=QZ + 6, dirt_amount=0.5, scale=0.2)   # stained concrete and plaster, not flat paint
+trees = P.paint_attr('MAT_CityTrees', 0.9, grime=0.2, scale=0.3)
 crnd = random.Random(21)
 blk = 120.0
 for bx in range(-55, 56):
@@ -482,7 +484,18 @@ for bx in range(-55, 56):
             py = y + crnd.uniform(-blk / 2 + d / 2 + 8, blk / 2 - d / 2 - 8)
             near = max(0.0, 1.0 - abs(by) / 18.0)
             h = crnd.choice((6, 9, 12, 15, 18)) + (crnd.random() < 0.05) * crnd.uniform(25, 60) * (0.5 + near)
-            cm.box((px, py, QZ + h / 2 - 0.5), (w, d, h), cityp, crnd.choice(roof_cols))
+            rc = crnd.choice(roof_cols)
+            cm.box((px, py, QZ + h / 2 - 0.5), (w, d, h), cityp, rc)
+            # roof read from the air: darker inset slab inside a parapet, water tanks and plant, a stair hut
+            cm.box((px, py, QZ + h - 0.45), (w - 1.4, d - 1.4, 0.1), cityp, tuple(c * 0.62 for c in rc))
+            for _ in range(crnd.randint(0, 3)):
+                cm.box((px + crnd.uniform(-w / 3, w / 3), py + crnd.uniform(-d / 3, d / 3), QZ + h + 0.3),
+                       (crnd.uniform(1.5, 3.5), crnd.uniform(1.5, 3.5), crnd.uniform(1.0, 2.2)), cityp,
+                       crnd.choice(((0.12, 0.13, 0.15), (0.75, 0.74, 0.7), (0.3, 0.32, 0.33))))
+        for _ in range(crnd.randint(2, 7)):            # street and yard trees between the buildings
+            tx, ty = x + crnd.uniform(-blk / 2 + 4, blk / 2 - 4), y + crnd.uniform(-blk / 2 + 4, blk / 2 - 4)
+            cm.sphere((tx, ty, QZ + 4.0), crnd.uniform(3.0, 6.5), trees, 6,
+                      crnd.choice(((0.07, 0.15, 0.05), (0.1, 0.18, 0.06), (0.06, 0.12, 0.05))))
 cm.obj('LAND_City')
 rd = P.MB()
 for bx in range(-55, 56, 3):
@@ -507,6 +520,33 @@ for pts in (((-450, 0), (-450, 640), (240, 780)), ((720, -20), (720, 340), (580,
         bwm.box((a + b) / 2 + Vector((0, 0, 4.2)), ((b - a).length + 6, 7, 1.2), conc,
                 rot=L.Euler((0, 0, math.atan2(b.y - a.y, b.x - a.x))).to_matrix())
 bwm.obj('LAND_Breakwaters')
+surf = bpy.data.materials.new('MAT_BreakwaterSurf')        # broken white water where the swell hits the rubble
+surf.use_nodes = True
+if hasattr(surf, 'surface_render_method'):
+    surf.surface_render_method = 'BLENDED'
+_sn = surf.node_tree
+_sp = [n for n in _sn.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+_sp.inputs['Base Color'].default_value = (0.82, 0.86, 0.87, 1)
+_sp.inputs['Roughness'].default_value = 0.6
+_st = _sn.nodes.new('ShaderNodeTexCoord')
+_sz = _sn.nodes.new('ShaderNodeTexNoise')
+_sz.inputs['Scale'].default_value = 0.12
+_sz.inputs['Detail'].default_value = 8
+_sn.links.new(_st.outputs['Object'], _sz.inputs['Vector'])
+_sr = _sn.nodes.new('ShaderNodeMapRange')
+_sr.inputs['From Min'].default_value = 0.5
+_sr.inputs['From Max'].default_value = 0.72
+_sr.inputs['To Max'].default_value = 0.8
+_sn.links.new(_sz.outputs[0], _sr.inputs['Value'])
+_sn.links.new(_sr.outputs[0], _sp.inputs['Alpha'])
+fm_ = P.MB()
+for pts in (((-450, 0), (-450, 640), (240, 780)), ((720, -20), (720, 340), (580, 440))):
+    for (xa, ya), (xb, yb) in zip(pts[:-1], pts[1:]):
+        a, b = Vector((xa, ya, 0)), Vector((xb, yb, 0))
+        fm_.box((a + b) / 2 + Vector((0, 0, 0.3)), ((b - a).length + 14, 30, 0.04), surf,
+                rot=L.Euler((0, 0, math.atan2(b.y - a.y, b.x - a.x))).to_matrix())
+fo_ = fm_.obj('LAND_BreakwaterSurf')
+fo_.visible_shadow = False
 # other berths in the basin: a bulk ship and two small coasters along the west breakwater's inner side
 for i, (x, y, r, Ls) in enumerate(((-400, 300, D(90), 190), (-380, 520, D(88), 90), (-200, 690, D(12), 110))):
     far = P.MB()
@@ -552,17 +592,32 @@ L.key_vis(sea, 1, 340)
 s.camera = cam
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
-# the sea takes no direct sun: no hard shadows of the ship, cranes or tugs on the water (light linking)
-_wcol = bpy.data.collections.new('SunExcludedWater')
-for _o in s.objects:
-    if _o.type == 'MESH' and any(_m and _m.name.startswith('MAT_Water') for _m in _o.data.materials):
-        _wcol.objects.link(_o)
-for _co in _wcol.collection_objects:
-    _co.light_linking.link_state = 'EXCLUDE'
-for _l in s.objects:
-    if _l.type == 'LIGHT' and _l.data.type == 'SUN':
-        _l.light_linking.receiver_collection = _wcol
-print('WATER no-sun', [o.name for o in _wcol.objects])
+# the sea at altitude: kilometre swell normals (sun glint breaks up across them) and a deep-to-shallow colour drift
+_wnt = water_port.node_tree
+_wp = [n for n in _wnt.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+_tc = _wnt.nodes.new('ShaderNodeTexCoord')
+_n4 = _wnt.nodes.new('ShaderNodeTexNoise')
+_n4.inputs['Scale'].default_value = 0.006
+_n4.inputs['Detail'].default_value = 6
+_wnt.links.new(_tc.outputs['Object'], _n4.inputs['Vector'])
+_b4 = _wnt.nodes.new('ShaderNodeBump')
+_b4.inputs['Strength'].default_value = 0.35
+_b4.inputs['Distance'].default_value = 20.0
+_wnt.links.new(_n4.outputs[0], _b4.inputs['Height'])
+_old = _wp.inputs['Normal'].links[0].from_node
+while _old.inputs['Normal'].links:            # end of the chop -> swell bump chain
+    _old = _old.inputs['Normal'].links[0].from_node
+_wnt.links.new(_b4.outputs[0], _old.inputs['Normal'])
+_n5 = _wnt.nodes.new('ShaderNodeTexNoise')
+_n5.inputs['Scale'].default_value = 0.0012
+_wnt.links.new(_tc.outputs['Object'], _n5.inputs['Vector'])
+_dm = _wnt.nodes.new('ShaderNodeMix')
+_dm.data_type = 'RGBA'
+_wnt.links.new(_n5.outputs[0], _dm.inputs['Factor'])
+_src = _wp.inputs['Base Color'].links[0].from_socket
+_wnt.links.new(_src, _dm.inputs['A'])
+_dm.inputs['B'].default_value = (0.02, 0.05, 0.055, 1)          # shallower, greener water in patches
+_wnt.links.new(_dm.outputs['Result'], _wp.inputs['Base Color'])
 # EEVEE also extracts a sun from the HDRI (world sun threshold) and casts its own shadows: that second shadow is what lay on
 # the sea under the ship and cranes (verified at f360 with the sun lamp hidden). The sun lamp already carries the key light.
 s.world.use_sun_shadow = False
