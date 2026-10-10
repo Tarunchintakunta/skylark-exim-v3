@@ -1219,8 +1219,10 @@ def _over(m, fac_socket, color):
     nt.links.new(col, p.inputs['Base Color'])
 
 
-def _noise_band(m, scale, lo, hi, amount, stretch=(1.0, 1.0, 1.0), z0=None, z1=None, loc=(-1600, -2600)):
-    """Thresholded object-space noise (optionally stretched) as a 0..amount factor, faded out between z0 and z1."""
+def _noise_band(m, scale, lo, hi, amount, stretch=(1.0, 1.0, 1.0), z0=None, z1=None, loc=(-1600, -2600), detail=8):
+    """Thresholded object-space noise (optionally stretched) as a 0..amount factor, faded out between z0 and z1.
+    Detail 8 noise clusters tightly around 0.5, so thresholds above ~0.6 leave almost nothing; use a low detail
+    for patches that must read at distance."""
     nt = m.node_tree
     l = nt.links
     tc = _node(nt, 'ShaderNodeTexCoord', loc)
@@ -1229,7 +1231,7 @@ def _noise_band(m, scale, lo, hi, amount, stretch=(1.0, 1.0, 1.0), z0=None, z1=N
     l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
     n = _node(nt, 'ShaderNodeTexNoise', (loc[0] + 400, loc[1]))
     n.inputs['Scale'].default_value = scale
-    n.inputs['Detail'].default_value = 8
+    n.inputs['Detail'].default_value = detail
     l.new(mp.outputs[0], n.inputs['Vector'])
     r = _node(nt, 'ShaderNodeMapRange', (loc[0] + 600, loc[1]))
     r.inputs['From Min'].default_value = lo
