@@ -23,6 +23,8 @@ D = math.radians
 rnd = random.Random(42)
 
 s = L.reset()
+import skhuman_ocean as SO  # noqa: E402
+SK = SO.install(L)   # crew are skhuman people (real outfits); sklib choreography drives them
 s.frame_start, s.frame_end = 1, 383
 s.render.fps = 24
 mats = L.M()
@@ -30,6 +32,7 @@ sun = L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.85, rot=0.0, 
 bpy.data.objects['Sun'].data.angle = math.radians(6.0)   # soft-edged sea-haze shadows, no black holes on the deck
 bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
 
+SO.progress('section: vessel')
 # ---------------------------------------------------------------- vessel
 V = S.vessel('BOAT', mats=mats)
 boat = V['root']
@@ -43,6 +46,7 @@ for f in range(1, 384, 12):
     boat.keyframe_insert('rotation_euler', frame=f)
     boat.keyframe_insert('location', frame=f)
 
+SO.progress('section: sea')
 # ---------------------------------------------------------------- sea
 sea = L.ocean('Ocean', size=60, repeat=6, res=11, choppy=1.0, wind=9.0, scale=0.7, f0=1, f1=383, foam=0.3)
 cut = L.box('OceanCut', (24.5, 6.6, 6.0), (0, 0, 0), mats['steel'], 0.0)
@@ -55,6 +59,7 @@ bm.object = cut
 bm.solver = 'FLOAT' if 'FLOAT' in [e.identifier for e in bm.bl_rna.properties['solver'].enum_items] else 'FAST'
 far = L.far_water('SeaFar', 8000, -0.3, hole=330.0)
 
+SO.progress('section: distant boats + gulls')
 # ---------------------------------------------------------------- distant boats + gulls
 for i, (x, y, rz) in enumerate(((-260, 420, 0.4), (180, 520, 2.6))):
     b = S.vessel(f'FARBOAT{i}', loc=(x, y, 0), rot_z=rz, mats=mats, detail=False)
@@ -67,6 +72,7 @@ for i in range(7):
             for k in range(24)]
     S.flap(g, 1, 383, period=rnd.randint(9, 13), amp=32, path=path)
 
+SO.progress('section: net, ropes, floats')
 # ---------------------------------------------------------------- net, ropes, floats
 NETX = 1.6
 bag_parent = L.empty('NET_Swing', (0, 0, 0), size=0.6)
@@ -203,6 +209,7 @@ for i in range(260):
     a = rnd.uniform(0, 6.28)
     drops.append((dpo, f0, a))
 
+SO.progress('section: release + fish spill onto the deck (176-')
 # ---------------------------------------------------------------- release + fish spill onto the deck (176-192)
 REL = 176
 for o in [core] + bag_fish:
@@ -295,6 +302,7 @@ for i in range(720):
 for o, _ in spill:
     L.linear_keys(o) if False else None
 
+SO.progress('section: crates: sorting row, hand chain, hold')
 # ---------------------------------------------------------------- crates: sorting row, hand chain, hold
 row = []
 for i in range(6):
@@ -333,6 +341,7 @@ for ix in range(6):
                     parent=boat, mats=mats, seed=k)
             k += 1
 
+SO.progress('section: crew (orange / yellow oilskins, caps, gl')
 # ---------------------------------------------------------------- crew (orange / yellow oilskins, caps, gloves)
 P = L.person
 crew = {}
@@ -352,6 +361,8 @@ def haul_seq(ph, f_end=100):
 def crew_member(nm, outfit, loc, rot, h=1.72, b=1.0):
     r = P(nm, outfit, (loc[0], loc[1], DZ), D(rot), h, build=b, seed=hash(nm) & 255, mats=mats)
     r.parent = boat
+    SO.grip(r, 'L')            # fists closed on the line / net / crate handles
+    SO.grip(r, 'R')
     crew[nm] = r
     return r
 
@@ -382,7 +393,7 @@ for nm, (x, y, rot) in {'CREW_Rail1': (2.4, 1.15, -100), 'CREW_Rail2': (0.5, 0.9
     r = crew[nm]
     for f in (200, 383):
         r.location = (x, y, DZ)
-        r.rotation_euler = (0, 0, D(rot))
+        r.rotation_euler = (0, 0, D(rot) + SO.FACE)
         r.keyframe_insert('location', frame=f)
         r.keyframe_insert('rotation_euler', frame=f)
     seq = []
@@ -393,7 +404,7 @@ for nm, (x, y, rot) in {'CREW_Rail1': (2.4, 1.15, -100), 'CREW_Rail2': (0.5, 0.9
 L.anim_poses(c5, haul_seq(7) + [(110, 'stand'), (172, 'idle'), (190, 'idle')] +
              [(f, 'shovel' if (f // 16) % 2 == 0 else 'shovel2') for f in range(200, 383, 16)])
 for f in (172, 383):
-    c5.rotation_euler = (0, 0, D(-90))   # faces the crate row
+    c5.rotation_euler = (0, 0, D(-90) + SO.FACE)   # faces the crate row
     c5.keyframe_insert('rotation_euler', frame=f)
 # the haul line: float line in the water -> over the rail -> through each hauler's hands -> coiled on deck
 rope_mat = mats['rope']
@@ -408,7 +419,7 @@ e_rail.parent = boat
 ends.append(e_rail)
 for nm in ('CREW_Stern', 'CREW_Mid', 'CREW_Ice'):
     e = L.empty(f'HAUL_Hands_{nm}', (0, 0, 0), size=0.1)
-    for bn, inf in (('wr_L', 1.0), ('wr_R', 0.5)):   # midway between the two fists
+    for bn, inf in (('hand.L', 1.0), ('hand.R', 0.5)):   # midway between the two fists
         c_ = e.constraints.new('COPY_LOCATION')
         c_.target = crew[nm]
         c_.subtarget = bn
@@ -434,7 +445,7 @@ for k in range(len(ends) - 1):
 shovel = bpy.data.objects['BOAT_Shovel0']
 cs = shovel.constraints.new('CHILD_OF')
 cs.target = bpy.data.objects['CREW_Ice']
-cs.subtarget = 'wr_R'
+cs.subtarget = 'hand.R'
 cs.inverse_matrix.identity()
 cs.influence = 0.0
 cs.keyframe_insert('influence', frame=196)
@@ -447,6 +458,7 @@ shovel.keyframe_insert('rotation_euler', frame=197)
 # hand chain to the hatch: CREW_Hatch + one crewman in the hold
 L.anim_poses(c4, [(240, 'idle')] + [(f, 'reach' if (f // 14) % 2 == 0 else 'lift') for f in range(258, 383, 14)])   # stands at the coaming (no kneel into the deck)
 
+SO.progress('section: camera (one continuous shot)')
 # ---------------------------------------------------------------- camera (one continuous shot)
 cam = L.camera('Camera', 30, (-6, -6, 6.5), (2, 8, 0))
 cam.data.dof.aperture_fstop = 5.6
@@ -465,6 +477,7 @@ keys = [
 L.cam_path(cam, keys, focus=[(1, 14.0), (40, 12.5), (100, 8.0), (130, 6.5), (150, 5.5), (192, 7.0), (260, 6.6), (330, 6.0), (383, 6.0)])
 s.camera = cam
 
+SO.progress('section: water drops falling off the bag (world s')
 # ---------------------------------------------------------------- water drops falling off the bag (world space)
 for dpo, f0, a in drops:
     con = dpo.constraints.new('COPY_LOCATION')
@@ -478,6 +491,7 @@ for dpo, f0, a in drops:
         dpo.keyframe_insert('location', frame=f0 + k)
     L.key_vis(dpo, f0, f0 + 12)
 
+SO.progress('section: render settings + save')
 # ---------------------------------------------------------------- render settings + save
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
