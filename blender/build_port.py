@@ -670,6 +670,12 @@ keys = [
 ]
 L.cam_path(cam, keys, focus=[(1, 40.0), (168, 21.0), (178, 7.7), (186, 8.0), (198, 21.0), (212, 45.0), (240, 34.0), (276, 28.0), (288, 33.0), (336, 330.0), (479, 2600.0)])
 cam.data.dof.use_dof = True
+# f292-338 the focus distance races from 33 m to 330 m while the boom passes close: stop down so the boom isn't a
+# defocused smear (that was the f300 'blur', not the shutter)
+_fs = cam.data.dof.aperture_fstop
+for _f, _v in ((286, _fs), (292, 22.0), (338, 22.0), (346, _fs)):
+    cam.data.dof.aperture_fstop = _v
+    cam.data.dof.keyframe_insert('aperture_fstop', frame=_f)
 # the top-down part: hide the harbour detail patch once the camera is high (far plane = same deep blue everywhere)
 L.key_vis(sea, 1, 340)
 s.camera = cam

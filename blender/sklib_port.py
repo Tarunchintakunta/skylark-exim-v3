@@ -496,6 +496,9 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     sp.box((0, 0, -0.06), (2.4, 1.6, 0.04), dark)
     for sy in (-0.45, 0.45):
         sp.box((0, sy, -0.75), (8.4, 0.48, 0.48), yel, bevel=0.03)                     # outer beams
+        for dz in (-0.255, 0.255):                                                     # I-beam flanges, proud of the web
+            sp.box((0, sy, -0.75 + dz), (8.5, 0.62, 0.03), yel, bevel=0.008)
+            sp.box((0, sy, -0.75 + dz * 0.94), (8.4, 0.5, 0.012), dark)                 # shadow line / weld under the flange
         for k in range(9):                                                             # stiffener ribs
             sp.box((-4.0 + k * 1.0, sy, -0.75), (0.05, 0.52, 0.52), yel)
         sp.cyl((-4.0, sy + 0.3, -0.52), (4.0, sy + 0.3, -0.52), 0.03, hose, 6)       # hydraulic hoses
@@ -508,6 +511,8 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     for sx in (-6.0, 6.0):
         sg = math.copysign(1, sx)
         sp.box((sx, 0, -0.85), (0.55, 2.62, 0.55), yel, bevel=0.035)                   # end beams
+        for dz in (-0.29, 0.29):
+            sp.box((sx, 0, -0.85 + dz), (0.68, 2.7, 0.03), yel, bevel=0.008)            # end-beam flanges
         for k in (-0.8, -0.3, 0.3, 0.8):
             sp.box((sx, k, -0.85), (0.6, 0.05, 0.6), yel)                              # end-beam ribs
         for sy in (-1.13, 1.13):
