@@ -710,7 +710,7 @@ def ice_mat():
     if 'MAT_Ice' in bpy.data.materials:
         return bpy.data.materials['MAT_Ice']
     # crushed ice: clear but frosted, faint blue, light scatters inside (reads translucent, not white plastic)
-    m = pbr('MAT_Ice', (0.88, 0.94, 1.0), 0.09, var=0.06, bump=0.5, scale=30, sss=0.0, transmission=0.92, ior=1.31,
+    m = pbr('MAT_Ice', (0.8, 0.88, 0.95), 0.04, var=0.04, bump=0.5, scale=30, sss=0.0, transmission=1.0, ior=1.31,
             rough_var=0.06)
     p = principled(m)
     p.inputs['Coat Weight'].default_value = 0.6
@@ -1801,7 +1801,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
                 shrimp_proxy(f'{name}_s{i}', parent=c, loc=(rnd.uniform(-0.22, 0.22), rnd.uniform(-0.13, 0.13),
                                                             level + rnd.uniform(0, 0.04)),
                              rot=(rnd.uniform(0, 6.28), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)))
-        bed = bpy.data.materials.get('MAT_IcePacked') or pbr('MAT_IcePacked', (0.9, 0.95, 1.0), 0.25, var=0.08, bump=0.9,
+        bed = bpy.data.materials.get('MAT_IcePacked') or pbr('MAT_IcePacked', (0.95, 0.97, 1.0), 0.15, var=0.08, bump=0.9,
                                                                 scale=60, sss=0.5)   # bulk crushed ice scatters white
         ice = obj(f'{name}_ice', _CRATE['ice'], bed, (0, 0, level + (0.05 if fill != 'ice' else 0.02)), parent=c)
         if fill != 'ice':

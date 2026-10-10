@@ -111,8 +111,8 @@ def _skin_detail(m):
     n1.inputs['Detail'].default_value = 6
     nt.links.new(tc.outputs['Object'], n1.inputs['Vector'])
     r = nt.nodes.new('ShaderNodeMapRange')
-    r.inputs['To Min'].default_value = 0.32
-    r.inputs['To Max'].default_value = 0.62
+    r.inputs['To Min'].default_value = 0.25
+    r.inputs['To Max'].default_value = 0.78
     nt.links.new(n1.outputs[0], r.inputs['Value'])
     nt.links.new(r.outputs[0], p.inputs['Roughness'])
     n2 = nt.nodes.new('ShaderNodeTexNoise')
@@ -122,7 +122,7 @@ def _skin_detail(m):
     f = nt.nodes.new('ShaderNodeMapRange')
     f.inputs['From Min'].default_value = 0.5
     f.inputs['From Max'].default_value = 0.75
-    f.inputs['To Max'].default_value = 0.35
+    f.inputs['To Max'].default_value = 0.7
     nt.links.new(n2.outputs[0], f.inputs['Value'])
     src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else None
     mx = nt.nodes.new('ShaderNodeMix')
@@ -133,7 +133,7 @@ def _skin_detail(m):
         nt.links.new(src, mx.inputs['A'])
     else:
         mx.inputs['A'].default_value = p.inputs['Base Color'].default_value
-    mx.inputs['B'].default_value = (1.0, 0.62, 0.55, 1)      # sun-reddened patches
+    mx.inputs['B'].default_value = (1.0, 0.5, 0.42, 1)      # sun-reddened patches
     nt.links.new(mx.outputs['Result'], p.inputs['Base Color'])
     m['ocean_skin'] = 1
 
@@ -141,7 +141,8 @@ def _skin_detail(m):
 def mats():
     M = _base_mats()
     _skin_detail(M['skin'])
-    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.68, coat=0.08, bump=0.05, wrinkle=0.35, rand=0.12),
+    M['rubber_glove'] = sk._mat('HUM_RubberGloveWorn', (0.10, 0.085, 0.06), 0.6, coat=0.05, bump=0.08)   # dark worn rubber, not skin-yellow
+    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.8, coat=0.0, bump=0.05, wrinkle=0.35, rand=0.12),
                            ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.26, 0.28, 0.12), (0.58, 0.26, 0.08),
                             (0.22, 0.30, 0.42), (0.70, 0.62, 0.20)))   # orange, yellow, olive, faded orange, faded blue, faded yellow
     M['work_shirt'] = sk._palette(sk._mat('HUM_WorkShirt', (0.2, 0.25, 0.32), 0.85, sheen=0.2, bump=0.12, rand=0.12,
@@ -356,7 +357,7 @@ def _hardhat(body, k, M):
 
 
 def _pvc_trim(body, k, M):
-    """Oilskin details that make the jacket read as PVC gear, not a sweater: a stand-up collar band, a zip placket
+    """Oilskin details that make the jacket read as PVC gear, not a sweater: a low collar band at the neck base
     with a storm flap down the front, and seam welts over the shoulders. Weights from the nearest body surface."""
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
@@ -375,28 +376,19 @@ def _pvc_trim(body, k, M):
             rows.append((bm.verts.new(base - side * half_w), bm.verts.new(base + side * half_w)))
         for (a0, a1), (b0, b1) in zip(rows, rows[1:]):
             bm.faces.new((a0, a1, b1, b0))
-    # zip placket + storm flap down the centre front
-    strip([(0.0, z * k) for z in [0.92 + i * 0.04 for i in range(13)]], 0.022 * k, 0.004 * k)
-    strip([(0.012 * k, z * k) for z in [0.92 + i * 0.04 for i in range(13)]], 0.008 * k, 0.009 * k)
-    # collar band: a ring around the neck, standing up
+    # collar band: a low ring around the neck base, below the jaw
     ring = []
     for i in range(24):
         a = 2 * math.pi * i / 24
-        p = Vector((0.075 * k * math.cos(a), 0.01 * k + 0.07 * k * math.sin(a), 1.44 * k))
+        p = Vector((0.075 * k * math.cos(a), 0.01 * k + 0.07 * k * math.sin(a), 1.40 * k))
         hit, nrm, _i, _d = bvh.find_nearest(p)
         d = Vector((p.x, p.y - 0.01 * k, 0)).normalized()
         c = hit + d * (off + 0.004 * k)
-        ring.append((bm.verts.new(c), bm.verts.new(c + Vector((0, 0, 0.07 * k)) + d * 0.006 * k)))
+        ring.append((bm.verts.new(c), bm.verts.new(c + Vector((0, 0, 0.025 * k)) + d * 0.003 * k)))
     for i in range(24):
         a0, a1 = ring[i]
         b0, b1 = ring[(i + 1) % 24]
         bm.faces.new((a0, b0, b1, a1))
-    # bib-trouser braces over the jacket: front waist -> over the shoulder -> down the back
-    for sx in (-1, 1):
-        path = [(sx * 0.085 * k, -0.2, z * k) for z in (0.98, 1.08, 1.18, 1.28, 1.36)]
-        path += [(sx * 0.11 * k, -0.05, 1.43 * k), (sx * 0.11 * k, 0.05, 1.42 * k)]
-        path += [(sx * 0.08 * k, 0.2, z * k) for z in (1.34, 1.22, 1.1, 0.98)]
-        strip(path, 0.02 * k, 0.006 * k)
     # shoulder seam welts (neck to shoulder point, both sides)
     for sx in (-1, 1):
         strip([(sx * (0.07 + 0.11 * t) * k, 0.0, (1.44 - 0.03 * t) * k) for t in [i / 8 for i in range(9)]], 0.006 * k, 0.003 * k)
