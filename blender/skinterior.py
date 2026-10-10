@@ -945,12 +945,12 @@ def _wet_floor():
     nz.inputs['Detail'].default_value = 8
     L.new(tc.outputs['Object'], nz.inputs['Vector'])
     wet = nt.nodes.new('ShaderNodeMapRange')
-    wet.inputs['From Min'].default_value = 0.5
-    wet.inputs['From Max'].default_value = 0.58
+    wet.inputs['From Min'].default_value = 0.57
+    wet.inputs['From Max'].default_value = 0.63
     L.new(nz.outputs['Fac'], wet.inputs['Value'])
     rr = nt.nodes.new('ShaderNodeMapRange')
-    rr.inputs['To Min'].default_value = 0.34
-    rr.inputs['To Max'].default_value = 0.04
+    rr.inputs['To Min'].default_value = 0.58   # dry epoxy is satin, not a mirror
+    rr.inputs['To Max'].default_value = 0.1
     L.new(wet.outputs[0], rr.inputs['Value'])
     L.new(rr.outputs[0], pb.inputs['Roughness'])
     cm = nt.nodes.new('ShaderNodeMix')
@@ -995,10 +995,21 @@ def _services(C, M):
     d.make('IN_Dado', P.plain('IN_PVCDado', (0.36, 0.42, 0.4), 0.35, coat=0.3), None, coll=C)
 
 
+def _probes(C):
+    """Sphere reflection probes down the hall: glass and the wet floor reflect the room, not the sky HDRI."""
+    for k, y in enumerate((16, 25, 35, 47, 57, 65, 73, 86)):
+        lp = bpy.data.lightprobes.new('IN_Probe%d' % k, 'SPHERE')
+        lp.influence_distance = 9.0
+        o = bpy.data.objects.new('IN_Probe%d' % k, lp)
+        o.location = (CX, y, DZ + 2.4)
+        C.objects.link(o)
+
+
 def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11):
     M = mats()
     rnd = random.Random(rnd_seed)
     shell(C, M)
+    _probes(C)
     _wet_floor()
     _services(C, M)
     pin = bpy.data.materials.get('PL_PanelInside')                 # warm grey panels, not paper white
