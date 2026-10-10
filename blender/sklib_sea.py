@@ -5,7 +5,7 @@ import bpy
 import bmesh
 from mathutils import Vector, noise
 from sklib import (M, pbr, weather, new_mat, principled, _node, _sock, mixrgb, empty, obj, box, cyl, cyl_mesh, sphere, torus_mesh,
-                   tube, bm_to_mesh, crate, ice_mesh, fish, D)
+                   tube, bm_to_mesh, crate, ice_mesh, fish, D, tex_pbr)
 
 
 def hull_material(name='MAT_HullWhiteBlue', white=(0.82, 0.83, 0.8), band=(0.03, 0.12, 0.4), bottom=(0.33, 0.05, 0.04),
@@ -137,8 +137,9 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
     deck_wear(mats['wetdeck'])
     # salt-worn white for bulwarks, rails, stanchions and house: dull, rust runs from fittings, grime low down
     ww = bpy.data.materials.get('MAT_BoatWhite') or weather(
-        pbr('MAT_BoatWhite', (0.74, 0.74, 0.7), 0.62, var=0.25, bump=0.3, grime=0.6, scale=1.5),
-        streak=(0.32, 0.17, 0.08), amount=0.7, z0=deck_z - 0.2, z1=deck_z + 2.6, dirt=(0.2, 0.18, 0.13),
+        tex_pbr('MAT_BoatWhite', 'PaintedMetal004', 0.5, tint=(0.74, 0.74, 0.69), tint_amount=0.8, metal=0.1, grime=0.7,
+                bump=0.3, paint_mask=True),   # chipped paint to rusty steel
+        streak=(0.38, 0.17, 0.06), amount=0.95, z0=deck_z - 0.2, z1=deck_z + 2.6, dirt=(0.2, 0.18, 0.13),
         dirt_amount=0.6, scale=1.2)
     hm = weather(hull or hull_material(), streak=(0.3, 0.15, 0.06), amount=0.65, z0=-0.2, z1=0.9,
                  dirt=(0.12, 0.14, 0.08), dirt_amount=0.55, scale=0.8)
