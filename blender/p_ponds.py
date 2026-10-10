@@ -153,7 +153,8 @@ def build(out):
     sun_az = 112.0                      # warm late-morning sun from the east-south-east, raking across the bunds
     P.hdri_world(hdr, strength=1.0, rot_deg=sun_az - az_h, sun_elev=el_h, sun_az=sun_az,
                  sun_energy=5.2, sun_color=(1.0, 0.88, 0.72), bg_strength=1.2)
-    P.look_settings('exterior', exposure=0.15, haze=(420.0, 1800.0, (0.62, 0.76, 0.96), 0.07))
+    P.sky_haze()                                          # warm dusty haze low in the sky
+    P.look_settings('exterior', exposure=0.15, haze=(420.0, 1800.0, (0.9, 0.82, 0.7), 0.09))
     s.frame_start, s.frame_end = F0, F1
     s.frame_current = F0
     s.render.filepath = '//../render/p-ponds/'
