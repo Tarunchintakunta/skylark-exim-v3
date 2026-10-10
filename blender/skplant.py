@@ -147,7 +147,7 @@ def MATS():
         'line_white': line_mat('PL_LineWhite', (0.85, 0.85, 0.82)),
         'line_yellow': line_mat('PL_LineYellow', (0.8, 0.58, 0.05)),
         'epoxy': P.plain('PL_Epoxy', (0.50, 0.55, 0.58), 0.16, coat=0.7, bump=0.03, bump_scale=3),
-        'curtain': P.plain('PL_StripCurtain', (0.45, 0.6, 0.64), 0.05, 0.0, alpha=0.06, coat=0.15),   # clear PVC, no milky haze
+        'curtain': P.plain('PL_StripCurtain', (0.62, 0.62, 0.5), 0.12, 0.0, alpha=0.14, coat=0.15, bump=0.15, bump_scale=200),   # aged PVC: yellowed, scratched
         'led': P.plain('PL_LED', (1, 1, 1), 0.3, emission=(0.94, 0.97, 1.0), estr=18.0),
         'lamp_ext': P.plain('PL_WallLamp', (1, 1, 1), 0.3, emission=(1.0, 0.97, 0.92), estr=6.0),
         'lamp_red': P.plain('PL_SigRed', (0.3, 0.02, 0.02), 0.2, emission=(1, 0.05, 0.02), estr=3.0),
@@ -156,7 +156,7 @@ def MATS():
         'roof': P.tex_mat('PL_Roof', 'box_profile_metal_sheet', scale=0.4, sat=0.0, tint=(0.8, 0.82, 0.84), metal=0.6),
         'fence': P.plain('PL_FenceGreen', (0.08, 0.16, 0.12), 0.5, 0.4),
         'wood': P.plain('PL_PalletWood', (0.42, 0.32, 0.2), 0.8, bump=0.4, bump_scale=12),
-        'carton': P.plain('PL_Carton', (0.62, 0.5, 0.35), 0.85, bump=0.15, bump_scale=30),
+        'carton': P.grime_paint('PL_Carton', (0.6, 0.48, 0.33), rough=0.85, grime=0.45, streak=0.12, coat=0.0, metal=0.0),   # handled, scuffed kraft
         'blue_plastic': P.plain('PL_BluePlastic', (0.05, 0.16, 0.42), 0.45),
         'unit': P.grime_paint('PL_RoofUnit', (0.62, 0.64, 0.65), rough=0.4, grime=0.4, streak=0.3, coat=0.1),
         'pipe': P.plain('PL_PipeInsul', (0.75, 0.76, 0.76), 0.35, 0.6),
