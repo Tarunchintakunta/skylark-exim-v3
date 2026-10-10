@@ -214,13 +214,18 @@ def mats():
     return {
         'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.45, sss=0.15, bump=0.05, rand=0.25),
         'eye': _eye_mat(),
-        'white_cotton': _mat('HUM_WhiteCotton', (0.68, 0.69, 0.68), 0.85, sheen=0.3, bump=0.12, rand=0.04, wrinkle=0.45),
+        'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.68, 0.69, 0.68), 0.85, sheen=0.3, bump=0.12, rand=0.04,
+                                      wrinkle=0.45),
+                                 ((0.68, 0.69, 0.68), (0.66, 0.68, 0.69), (0.50, 0.60, 0.70), (0.68, 0.68, 0.66),
+                                  (0.55, 0.65, 0.57), (0.67, 0.68, 0.68))),   # smocks: mostly white, some section colours
         'white_pvc': _palette(_mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
                               ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
                                (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
         'boot': _mat('HUM_WhiteBoot', (0.70, 0.71, 0.69), 0.35, coat=0.2, bump=0.02),
         'nitrile_blue': _mat('HUM_NitrileBlue', (0.16, 0.33, 0.62), 0.38, coat=0.25, rand=0.06),
-        'cap_white': _mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
+        'cap_white': _palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
+                              ((0.74, 0.75, 0.77), (0.42, 0.58, 0.74), (0.74, 0.75, 0.77), (0.36, 0.56, 0.40),
+                               (0.74, 0.75, 0.77), (0.70, 0.45, 0.50))),   # caps by role: white, blue, green, pink
         'mask_blue': _mat('HUM_MaskBlue', (0.55, 0.70, 0.80), 0.9, sheen=0.3, bump=0.15),
         'parka': _mat('HUM_ParkaNavy', (0.10, 0.14, 0.22), 0.55, coat=0.1, bump=0.12, wrinkle=0.45),
         'shirt_blue': _mat('HUM_ShirtBlue', (0.22, 0.30, 0.42), 0.8, sheen=0.2, bump=0.12, rand=0.15, wrinkle=0.45),
