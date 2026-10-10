@@ -489,7 +489,7 @@ def plant_interior(mats=None, seed=5):
     mb.box((-10, 57.2, dz + 1.0), (1.4, 0.8, 2.0), st)                            # fridge
     mb.box((10, 57.0, dz + 1.3), (1.8, 1.0, 2.6), wall)                             # fume cabinet
     mb.box((10, 56.48, dz + 1.6), (1.6, 0.05, 1.0), glass)
-    # plate freezer + blast freezer doors + glazing belt (58-64)
+    # plate freezer + freezer doors + glazing belt (58-64)
     pf = (-14, 61)
     mb.box((pf[0], pf[1], dz + 1.2), (3.0, 2.2, 2.4), st)
     for k in range(8):
