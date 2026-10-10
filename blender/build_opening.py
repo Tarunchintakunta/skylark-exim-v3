@@ -216,7 +216,7 @@ for i in range(6):
     g = S.gull(f'GULL{i}', (0, 0, 0))
     cx, cy, cz = rnd.uniform(-30, 30), rnd.uniform(60, 120), rnd.uniform(10, 22)   # farther off, gliding slowly (no blur streaks)
     path = [(cx + 9 * math.cos(k * 0.12 + i), cy + 5 * math.sin(k * 0.12 + i), cz + 0.6 * math.sin(k * 0.5)) for k in range(24)]
-    S.flap(g, 1, F_END, period=rnd.randint(9, 13), amp=32, path=path)
+    S.flap(g, 1, F_END, period=rnd.randint(20, 26), amp=18, path=path)   # slow glide strokes: no blur streaks
     L.key_vis(g, BREAK - 6)
 
 # ---------------------------------------------------------------- surface break: a splash crown and droplets round the lens
