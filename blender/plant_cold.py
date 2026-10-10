@@ -96,10 +96,10 @@ def lab_action(C):
     import random
     import plant_chain_b as B
     rnd = random.Random(77)
-    for k, (x, g) in enumerate(((CX - 4.2, 'female'), (CX - 6.4, 'male'))):     # two more technicians, back bench
+    for k, (x, g) in enumerate(((CX + 5.9, 'female'), (CX - 0.4, 'male'))):     # two more technicians at the bench
         w = H.person('HUM_LabTech%d' % k, 'plant_coat', g, coll=C, seed=560 + k)
-        w.location = (x, 49.65, DZ)
-        w.rotation_euler = (0, 0, math.radians(180))
+        w.location = (x, 47.62, DZ)
+        w.rotation_euler = (0, 0, 0)
         bpy.context.view_layer.update()
         if B.hands_on_work(w, rnd, reach=0.42, C=C):
             H.jitter(w, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (16, 0, 0)}, 1, 1100, every=11 + k, amp=4,
