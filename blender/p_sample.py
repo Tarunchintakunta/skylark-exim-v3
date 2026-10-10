@@ -119,8 +119,12 @@ def add(ctx):
     H.set_pose(w, dict(kneel, spine=(60, 0, 0), chest=(25, 0, 0), neck=(-10, 0, 0)), 50)
     H.set_pose(w, dict(kneel, spine=(20, 0, 0), head=(18, 0, 0)), 76)
     H.set_pose(w, dict(kneel, spine=(16, 0, 0), head=(22, 0, 0)), N)
-    H.grip(w, 'R')
-    H.grip(w, 'L', curl=0.85)
+    skr = H.grip(w, 'R')
+    for f, v in ((1, 1.0), (57, 1.0), (61, 0.55), (192, 0.55)):     # tight fist on the pole, open round the bottle
+        skr.value = v
+        skr.keyframe_insert('value', frame=f)
+    skl = H.grip(w, 'L', curl=0.85)
+    skl.value = 1.0
 
     # the bottle and the meter move freely; each hand's IK target rides on the object it grips
     bottle = _bottle(Cp)
@@ -162,20 +166,12 @@ def add(ctx):
                         (104, B62 + Vector((0, 0, 0.16)), (0, 0, D(170))),
                         (122, M122, (D(-8), 0, yaw)), (N, M122 + Vector((0, 0, 0.005)), (D(-8), 0, yaw))):
         _key(meter, f, tuple(loc), rot)
-    for nm, side, ob, off, inf in (('R', 'R', pole, (0.0, 0.0, 0.0), ((1, 1.0), (57, 1.0), (61, 0.0))),
-                                   ('R2', 'R', bottle, (0.0, -0.036, -0.01), ((1, 0.0), (57, 0.0), (61, 1.0))),
-                                   ('L', 'L', meter, (0.0, 0.016, -0.062), ((1, 1.0),))):
-        t = bpy.data.objects.new('SM_Grip' + nm, None)
-        Cp.objects.link(t)
-        t.parent = ob
-        t.location = off
-        c = w.pose.bones['forearm.' + side].constraints.new('IK')
-        c.target = t
-        c.chain_count = 2
-        c.use_tail = True
-        for f, v in inf:
-            c.influence = v
-            c.keyframe_insert('influence', frame=f)
+    # fist round the pole near its end; palm round the bottle's side; meter held from behind (the LCD stays clear)
+    for side, ob, palm, fing, nrm, inf in (
+            ('R', pole, (-0.02, 0.05, 0.0), (0, 0, -1), (1, 0, 0), ((1, 1.0), (57, 1.0), (61, 0.0))),
+            ('R', bottle, (0.0, -0.048, -0.03), (1, 0, 0), (0, 1, 0), ((1, 0.0), (57, 0.0), (61, 1.0))),
+            ('L', meter, (0.0, 0.024, -0.045), (1, 0, 0), (0, -1, 0), ((1, 1.0),))):
+        H.wrap_hand(w, side, ob, palm, fing, nrm, inf, Cp)
     reading.data.body = '7.8'
     # small drips off the bottle as it leaves the water
     import p_harvest as PH

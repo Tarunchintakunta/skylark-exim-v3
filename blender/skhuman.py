@@ -828,6 +828,7 @@ def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
     if nrm.x * h0.x > 0:              # palm normal points toward the body's midline (the rest palm faces the thigh)
         nrm = -nrm
     axis = d.cross(nrm).normalized()  # (a cross product of mirrored vectors is the mirrored rotation axis)
+    ao['grip_axis_' + side] = list(hb.matrix_local.inverted().to_3x3() @ axis)   # knuckle axis, bone space
     piv = h0 + d * knuckle
     if not mo.data.shape_keys:
         mo.shape_key_add(name='Basis')
@@ -837,6 +838,42 @@ def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
         sk.data[i].co = piv + Matrix.Rotation(ang, 3, axis) @ (Vector(co[i]) - piv)
     sk.value = 1.0
     return sk
+
+
+def wrap_hand(ao, side, parent, palm, fing, nrm, inf, C=None):
+    """Hand closes around a bar/handle on `parent`: palm centre at `palm` (parent space), fingers along `fing`,
+    palm facing `nrm` (toward the object's axis). Wrist IK + hand bone aimed so the curl axis lies along the object.
+    inf: [(frame, influence)]. Call grip() first (it stores the knuckle axis). Returns the wrist target."""
+    C = C or bpy.context.scene.collection
+    fing, nrm = Vector(fing).normalized(), Vector(nrm).normalized()
+    along = fing.cross(nrm)
+    wrist = Vector(palm) - fing * 0.06
+    tg = {}
+    for k, v in (('W', wrist), ('F', wrist + fing * 0.4), ('A', wrist + along * 0.4)):
+        e = bpy.data.objects.new('%s_Wrap%s%s_%s' % (ao.name, side, k, parent.name), None)
+        C.objects.link(e)
+        e.parent = parent
+        e.location = v
+        tg[k] = e
+    ax = Vector(ao.get('grip_axis_' + side, (1, 0, 0)))
+    i = 0 if abs(ax.x) > abs(ax.z) else 2
+    trk = ('TRACK_' if ax[i] > 0 else 'TRACK_NEGATIVE_') + 'XYZ'[i]
+    cs = []
+    c = ao.pose.bones['forearm.' + side].constraints.new('IK')
+    c.target, c.chain_count, c.use_tail = tg['W'], 2, True
+    cs.append(c)
+    hb = ao.pose.bones['hand.' + side]
+    c = hb.constraints.new('DAMPED_TRACK')
+    c.target, c.track_axis = tg['F'], 'TRACK_Y'
+    cs.append(c)
+    c = hb.constraints.new('LOCKED_TRACK')
+    c.target, c.lock_axis, c.track_axis = tg['A'], 'LOCK_Y', trk
+    cs.append(c)
+    for c in cs:
+        for f, v in inf:
+            c.influence = v
+            c.keyframe_insert('influence', frame=f)
+    return tg['W']
 
 
 def ik_hands(ao, tgt_l, tgt_r, pole_l=None, pole_r=None):
