@@ -73,7 +73,7 @@ pv.inputs['Density'].default_value = 0.05
 pv.inputs['Anisotropy'].default_value = 0.65
 pv.inputs['Absorption Color'].default_value = (0.02, 0.25, 0.3, 1)
 vn.links.new(pv.outputs[0], vo.inputs['Volume'])
-L.box('WaterColumn', (240, 240, 40), (0, 40, -20.02), vm, 0.0)
+L.box('WaterColumn', (6000, 6000, 40), (0, 40, -20.02), vm, 0.0)   # edge far past the horizon: its side face showed as a cyan band
 # light shafts slanting down from the surface along the sun (soft, additive, fading with depth)
 # soft god rays: emission + transparency, fading to nothing at the shaft's edges (facing) and along its length
 shaft = bpy.data.materials.new('MAT_Shaft')
@@ -180,9 +180,9 @@ for v in bm.verts:
     head = 1.0 + 1.6 * math.exp(-((x + 900) / 380) ** 2)          # the headland to the left
     ridge = 140 * (0.55 + 0.45 * math.sin(x / 520 + 0.7)) * (0.7 + 0.3 * noise.noise(Vector((x / 300, yy * 3, 0.5))))
     h = max(0.0, ridge * head * min(1.0, yy * 3.2) - 6)
-    v.co = Vector((x, y - (head - 1) * 160 * (1 - yy), h))
+    v.co = Vector((x, y - (head - 1) * 160 * (1 - yy), S.hill_height(x, y, h)))
 me = L.bm_to_mesh(bm, 'COAST_Hills', smooth=True)
-me.materials.append(L.pbr('MAT_CoastHills', (0.16, 0.19, 0.11), 0.9, var=0.35, bump=0.2, scale=0.004))   # scrub green-brown
+me.materials.append(S.hill_material('MAT_CoastHills', haze=0.25))   # tree cover, scrub, dry grass, bare earth
 L.obj('COAST_Hills', me)
 town = L.tex_pbr('MAT_Town', 'painted_concrete', 0.05, tint=(0.3, 0.27, 0.23), tint_amount=0.55, grime=0.7)   # stained concrete and plaster
 win = L.pbr('MAT_TownLights', (1.0, 0.75, 0.45), 0.5, estrength=4.0)
@@ -208,8 +208,10 @@ lme.materials.append(win)
 L.obj('COAST_Lights', lme)
 # lighthouse on the headland
 hx, hy = -900, 2470
-L.cyl('LIGHTHOUSE', 4.0, 34.0, (hx, hy, 150), mats['paint_white'], 16, r2=3.0, origin='base')
-L.cyl('LIGHTHOUSE_Lamp', 3.2, 4.0, (hx, hy, 184), L.pbr('MAT_Beacon', (1.0, 0.85, 0.6), 0.3, estrength=8.0), 16, origin='base')
+_hz = max((v.co.z for v in bpy.data.objects['COAST_Hills'].data.vertices
+           if abs(v.co.x - hx) < 60 and abs(v.co.y - hy) < 60), default=150.0) - 3.0   # stand on the (noisy) headland
+L.cyl('LIGHTHOUSE', 4.0, 34.0, (hx, hy, _hz), mats['paint_white'], 16, r2=3.0, origin='base')
+L.cyl('LIGHTHOUSE_Lamp', 3.2, 4.0, (hx, hy, _hz + 34), L.pbr('MAT_Beacon', (1.0, 0.85, 0.6), 0.3, estrength=8.0), 16, origin='base')
 # boats out on the water (silhouettes against the shore), gulls
 for i, (x, y, rz) in enumerate(((-260, 900, 0.3), (180, 1400, 2.4), (520, 700, 1.2), (-60, 1800, 0.9), (900, 1600, 2.9))):
     S.vessel(f'FARBOAT{i}', loc=(x, y, 0), rot_z=rz, mats=mats, detail=False)
