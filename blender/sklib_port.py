@@ -881,11 +881,27 @@ def reefer_box(name, parent, loc=(0, 0, 0), mats=None):
     mb = MB()
     # own opaque matte paint: no metal, no coat, rough enough that the stacks around it never mirror in its sides
     m = paint_attr('MAT_ReeferPaint', rough=0.62, metal=0.0, grime=0.5, corrugate=60.0)
-    weather(m, streak=(0.3, 0.2, 0.1), amount=0.6, z0=0.0, z1=2.6, dirt=(0.2, 0.17, 0.12), dirt_amount=0.5, scale=1.5)
+    weather(m, streak=(0.34, 0.24, 0.13), amount=0.85, z0=0.0, z1=2.6, dirt=(0.22, 0.18, 0.12), dirt_amount=0.7, scale=2.2)
     for n in m.node_tree.nodes:
         if n.type == 'BUMP':
             n.inputs['Strength'].default_value = 0.8          # deep corrugation
     add_container(mb, (0, 0, 0), m, REEFER_WHITE, True)
+    # real corrugation on the long sides (ribs that catch the light), not just a bump map
+    x = -CL / 2 + 0.35
+    while x < CL / 2 - 0.35:
+        for sy in (-1, 1):
+            mb.box((x, sy * (CW / 2 - 0.005), CH / 2), (0.075, 0.03, CH - 0.36), m, REEFER_WHITE)
+        x += 0.28
+    dark = (0.1, 0.1, 0.11)
+    # refrigeration unit: condenser fan behind a round guard, control box, data plates (blank, no marks)
+    mb.cyl((CL / 2 + 0.05, -0.55, 1.55), (CL / 2 + 0.1, -0.55, 1.55), 0.42, m, 24, (0.16, 0.17, 0.18))
+    mb.cyl((CL / 2 + 0.1, -0.55, 1.55), (CL / 2 + 0.13, -0.55, 1.55), 0.4, m, 24, (0.05, 0.05, 0.055))
+    for k in range(6):
+        mb.box((CL / 2 + 0.135, -0.55, 1.55), (0.015, 0.8, 0.025), m, (0.3, 0.31, 0.32),
+               rot=Matrix.Rotation(math.pi * k / 6, 3, 'X'))
+    mb.box((CL / 2 + 0.08, 0.7, 0.75), (0.12, 0.5, 0.6), m, dark)
+    for (yy, zz, w_, h_) in ((0.75, 1.95, 0.45, 0.3), (-0.75, 2.25, 0.3, 0.18)):
+        mb.box((-CL / 2 - 0.07, yy, zz), (0.01, w_, h_), m, (0.55, 0.56, 0.55))
     o = mb.obj(name, parent, loc)
     return o
 
