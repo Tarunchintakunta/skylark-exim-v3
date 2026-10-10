@@ -142,17 +142,22 @@ def pack_action(C):
     w.rotation_euler = (0, 0, D(-90))
     blk = Part()
     blk.box((0, 0, 0), (0.24, 0.17, 0.05))
-    b = blk.make('IN_PackBlock', bpy.data.materials.get('IN_VacBag') or P.plain('IN_VacBag', (0.8, 0.82, 0.83), 0.15,
-                 alpha=0.85, coat=0.8), None, bevel=0.012, coll=C)
+    b = blk.make('IN_PackBlock', bpy.data.materials.get('IN_VacBag') or P.plain('IN_VacBag', (0.66, 0.58, 0.55), 0.22,
+                 coat=1.0), None, bevel=0.012, coll=C)
     a0 = Vector((x - 0.2, 61.25, DZ + 0.93))             # on the table beside the carton
     a1 = Vector((x, 61.55, DZ + 1.32))                   # lifted over the open carton
-    a2 = Vector((x, 61.55, DZ + 1.0))                    # down inside it
-    for f, loc in ((1, a0), (930, a0), (962, a1), (992, a1), (1018, a2), (1100, a2)):
+    a2 = Vector((x, 61.55, DZ + 1.17))                   # lowered to the rim
+    a3 = Vector((x, 61.55, DZ + 1.04))                   # let go: settles on the two blocks already packed
+    for k in range(2):
+        pk = Part()
+        pk.box((x + (k - 0.5) * 0.02, 61.55, DZ + 0.938 + k * 0.051), (0.24, 0.17, 0.05))
+        pk.make('IN_PackedBlock%d' % k, b.data.materials[0], None, bevel=0.012, coll=C)
+    for f, loc in ((1, a0), (930, a0), (962, a1), (992, a1), (1018, a2), (1030, a2), (1036, a3), (1100, a3)):
         b.location = loc
         b.keyframe_insert('location', frame=f)
     for sd, dx in (('L', -0.1), ('R', 0.1)):
         e = _empty('HUM_Packer_Hand' + sd, (dx, 0.0, 0.035), b, C)
-        _ik(w, sd, e, ((1, 1.0), (1022, 1.0), (1032, 0.0)))
+        _ik(w, sd, e, ((1, 1.0), (1020, 1.0), (1028, 0.0)))
         H.grip(w, sd, curl=0.55)
     base = {'spine': (18, 0, 0), 'chest': (6, 0, 0), 'neck': (10, 0, 0), 'head': (18, 0, 0)}
     H.jitter(w, base, 1, 1100, every=16, amp=3, seed=41, arms=False)

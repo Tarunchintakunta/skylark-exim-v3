@@ -41,7 +41,7 @@ def mats():
         'glass_clear': P.plain('IN_GlassClear', (0.85, 0.9, 0.92), 0.02, transmission=0.95, ior=1.45),
         'tape': P.plain('IN_Tape', (0.7, 0.6, 0.42), 0.3, coat=0.4),
         'strap': P.plain('IN_Strap', (0.75, 0.75, 0.73), 0.4),
-        'vacbag': P.plain('IN_VacBag', (0.8, 0.84, 0.86), 0.08, alpha=0.6, coat=1.0),
+        'vacbag': P.plain('IN_VacBag', (0.66, 0.58, 0.55), 0.22, coat=1.0),      # glazed frozen block in film
         'block': P.plain('IN_FrozenBlock', (0.72, 0.74, 0.74), 0.25, coat=0.5, sss=0.2),
     })
     return M
