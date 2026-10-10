@@ -362,7 +362,7 @@ def _mesh_belt():
     bk.inputs['Mortar Size'].default_value = 0.25
     bk.inputs['Color1'].default_value = (0.02, 0.022, 0.025, 1)
     bk.inputs['Color2'].default_value = (0.03, 0.032, 0.035, 1)
-    bk.inputs['Mortar'].default_value = (0.42, 0.43, 0.44, 1)
+    bk.inputs['Mortar'].default_value = (0.2, 0.21, 0.22, 1)     # wires: dull steel
     L.new(tc.outputs['Object'], bk.inputs['Vector'])
     L.new(bk.outputs['Color'], pb.inputs['Base Color'])
     mr = nt.nodes.new('ShaderNodeMapRange')
@@ -370,7 +370,7 @@ def _mesh_belt():
     mr.inputs['To Max'].default_value = 1.0
     L.new(bk.outputs['Fac'], mr.inputs['Value'])
     L.new(mr.outputs[0], pb.inputs['Metallic'])
-    pb.inputs['Roughness'].default_value = 0.3
+    pb.inputs['Roughness'].default_value = 0.5   # glints, not a mirror sheet at grazing angles
     bp = nt.nodes.new('ShaderNodeBump')
     bp.inputs['Strength'].default_value = 0.6
     L.new(bk.outputs['Fac'], bp.inputs['Height'])
@@ -734,7 +734,31 @@ def freezing(C, M, rnd, shrimp_fn):
         mul.operation = 'MULTIPLY'
         nt.links.new(mr.outputs[0], mul.inputs[0])
         nt.links.new(fz.outputs[0], mul.inputs[1])
-        nt.links.new(mul.outputs[0], pb.inputs['Alpha'])
+        out = mul.outputs[0]
+        for ax in ('X', 'Z'):                         # soft edges all round: a card, never a pane
+            om = nt.nodes.new('ShaderNodeMath')
+            om.operation = 'SUBTRACT'
+            om.inputs[0].default_value = 1.0
+            nt.links.new(gr.outputs[ax], om.inputs[1])
+            pr = nt.nodes.new('ShaderNodeMath')
+            pr.operation = 'MULTIPLY'
+            nt.links.new(gr.outputs[ax], pr.inputs[0])
+            nt.links.new(om.outputs[0], pr.inputs[1])
+            sq = nt.nodes.new('ShaderNodeMath')       # 4x(1-x): 0 at the edges, 1 in the middle, then squared
+            sq.operation = 'MULTIPLY'
+            sq.use_clamp = True
+            nt.links.new(pr.outputs[0], sq.inputs[0])
+            sq.inputs[1].default_value = 4.0
+            sq2 = nt.nodes.new('ShaderNodeMath')
+            sq2.operation = 'MULTIPLY'
+            nt.links.new(sq.outputs[0], sq2.inputs[0])
+            nt.links.new(sq.outputs[0], sq2.inputs[1])
+            m2 = nt.nodes.new('ShaderNodeMath')
+            m2.operation = 'MULTIPLY'
+            nt.links.new(out, m2.inputs[0])
+            nt.links.new(sq2.outputs[0], m2.inputs[1])
+            out = m2.outputs[0]
+        nt.links.new(out, pb.inputs['Alpha'])
     for k, yy in enumerate((y0 - 0.35, y1 + 0.35)):                   # vapour rolling out of each mouth
         for j in range(3):
             p = Part()
