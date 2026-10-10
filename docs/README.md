@@ -4,7 +4,7 @@ Everything Claude Code needs to build and deploy the new skylarkexim.com: a cine
 
 **This zip contains no video, .blend or .glb files** (it's kept small on purpose):
 - Reused clips come from github.com/Tarunchintakunta/skylark; Claude's `scripts/fetch-sources.sh` copies them.
-- **5 Higgsfield clips** (o-catch, p-ponds, p-intake, p-proc, p-freeze): Tarun makes them with `HIGGSFIELD_PROMPTS.md` and saves each 1080p master as `assets-src/video/<id>.mp4`.
+- **5 Higgsfield clips** (o-catch, p-ponds, p-intake, p-proc, p-freeze): Tarun makes them with `HIGGSFIELD.md` and saves each 1080p master as `assets-src/video/<id>.mp4`.
 - **All 3D: Claude builds it itself in Blender through its Blender connector** (`BLENDER_GLB_SPEC.md`): the tuna, swordfish and shrimp models; the port & ship scene (quay, 3 ship-to-shore gantry cranes, refrigerated truck, reefer container, loaded container ship) with the crane-lift and ship sail-out animation, which Claude renders into the `x-cranes` and `x-ship` clips; and truck, reefer, crane and ship models. Tarun only keeps Blender open with the MCP add-on connected, and approves the renders in each PR.
 - Claude's scripts (`scripts/`) compress everything into `public/` within the size budgets.
 
@@ -29,7 +29,7 @@ Everything Claude Code needs to build and deploy the new skylarkexim.com: a cine
 | `STORY.md` | Final scene list, copy, visual source per scene, scroll and HUD behaviour | Claude, Tarun |
 | `CONTENT.md` | Every verified fact/copy block from skylarkexim.com + the "never write" list | Claude |
 | `GIT_WORKFLOW.md` | Issues → branches → micro commits → small PRs; only Tarun merges | Claude |
-| `HIGGSFIELD_PROMPTS.md` | 5 ready prompts (anchors, duration, camera, avoid list, accept checks, credits); port/ship prompts only in an appendix for the no-Blender case | Tarun |
+| `HIGGSFIELD.md` | 5 ready prompts (anchors, duration, camera, avoid list, accept checks, credits); port/ship prompts only in an appendix for the no-Blender case | Tarun |
 | `BLENDER_GLB_SPEC.md` | Everything 3D Claude builds in Blender: connector rules, fish/shrimp models, port & ship scene (objects, rig, frame-by-frame animation, render + encode, acceptance checks), model table, p-intake fallback, export settings, globe-in-code | Claude |
 | `ASSETS_SPEC.md` | Folder layout, budgets, measured encode results, how the scripts work | Claude |
 | `scripts/` | `fetch-sources.sh`, `encode-clips.sh`, `make-posters.sh`, `optimize-glb.sh` (tested) | Claude |
@@ -43,7 +43,7 @@ Everything Claude Code needs to build and deploy the new skylarkexim.com: a cine
 1. Answer `confirm-list.md` (optional; fallbacks exist).
 2. Open Claude Code in an empty folder, put this unzipped folder in it, and paste `CLAUDE_PROMPT.md` (everything below its line). Claude creates the repo `skylark-exim-v3`, issues, and the first Vercel preview.
 3. Open Blender with the MCP add-on connected and leave it open (Claude builds and renders all the 3D through it).
-4. Meanwhile, generate the 5 Higgsfield clips (`HIGGSFIELD_PROMPTS.md`). Put them in `assets-src/video/` of Claude's working copy (or send them to Claude) and say which ones arrived.
+4. Meanwhile, generate the 5 Higgsfield clips (`HIGGSFIELD.md`). Put them in `assets-src/video/` of Claude's working copy (or send them to Claude) and say which ones arrived.
 5. Review each PR's Vercel preview link and the Blender renders; merge the ones you approve (only you merge).
 6. When the release preview is right, say "ship it". Then attach `skylarkexim.com` in Vercel (DNS steps in CLAUDE_PROMPT §11).
 

@@ -759,6 +759,10 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     L._bone_attach(e, arm, 'neck', Matrix.Identity(4))
     hp = skel['headc'] + Vector((0, 0, -0.04))
     hm = skel['head']
+    if gender == 'male' and rnd.random() < 0.6 and not o.get('mask'):
+        L._bone_attach(_acc(name, 'moustache', _part('moustache', _moustache_mesh), hmat), arm, 'neck',
+                       Matrix.Translation(hm + Vector((0.093, 0, -0.047))) @ Matrix.Diagonal((1, rnd.uniform(0.85, 1.15),
+                                                                                              rnd.uniform(0.8, 1.3), 1)))
     if head == 'cap':
         L._bone_attach(_acc(name, 'cap', L._part_mesh('cap', L._cap_mesh), mats['cap_grey'] if rnd.random() < 0.5 else F['tee_navy']),
                        arm, 'neck', Matrix.Translation(hp + Vector((-0.01, 0, 0.045))) @ Matrix.Rotation(-0.2, 4, 'Y') @ Matrix.Diagonal((1.0, 0.86, 0.95, 1)))
@@ -799,7 +803,32 @@ def person(name, outfit='plant', loc=(0, 0, 0), rot_z=0.0, height=1.72, skin=Non
     if arm.pose is None or len(arm.pose.bones) == 0:
         bpy.context.view_layer.update()
     L.pose(arm, 'stand')
+    nb = arm.pose.bones.get('neck')
+    if nb is not None:   # no two heads alike: small differences in head width, depth and length
+        nb.scale = (rnd.uniform(0.95, 1.06), rnd.uniform(0.93, 1.07), rnd.uniform(0.95, 1.06))
     return arm
+
+
+def _moustache_mesh():
+    """Thick moustache over the upper lip: a tapered, drooping roll across the face (local Y), front at +X."""
+    bm = bmesh.new()
+    n, seg = 12, 8
+    rings = []
+    for i in range(n + 1):
+        u = i / n * 2 - 1                         # -1 .. 1 across the lip
+        y = u * 0.03
+        x = -0.012 * u * u                        # follows the face round
+        z = -0.007 * u * u * u * u - 0.003 * abs(u)   # ends droop
+        r = 0.0055 * (1 - 0.65 * u * u) + 0.0012
+        ring = [bm.verts.new((x + r * 0.7 * math.cos(2 * math.pi * k / seg), y, z + r * math.sin(2 * math.pi * k / seg)))
+                for k in range(seg)]
+        rings.append(ring)
+    for i in range(n):
+        for k in range(seg):
+            bm.faces.new((rings[i][k], rings[i][(k + 1) % seg], rings[i + 1][(k + 1) % seg], rings[i + 1][k]))
+    bm.faces.new(rings[0][::-1])
+    bm.faces.new(rings[-1])
+    return L.bm_to_mesh(bm, 'HBODY_moustache', smooth=True)
 
 
 _PARTS = {}
