@@ -11,11 +11,13 @@ from sklib import (M, pbr, weather, new_mat, principled, _node, _sock, mixrgb, e
 
 # ---------------------------------------------------------------- mesh builder (many parts -> one mesh)
 class MB:
-    def __init__(self):
+    def __init__(self, fast=True):
         self.bm = bmesh.new()
         self.col = self.bm.loops.layers.color.new('col')
         self.mats = []
+        self.fast = fast
         self.cont = []          # deferred containers (add_container): appended by obj() in one numpy pass
+        self.boxes = []         # deferred plain boxes (no bevel): same
 
     def mi(self, m):
         if m not in self.mats:
@@ -33,6 +35,10 @@ class MB:
         return faces
 
     def box(self, c, s, m, color=None, rot=None, bevel=0.0):
+        if self.fast and not bevel:     # tens of thousands of these in the port (city, yard): numpy at obj()
+            self.boxes.append((tuple(c), tuple(s), None if rot is None else tuple(map(tuple, rot)), self.mi(m),
+                               (1.0, 1.0, 1.0) if color is None else tuple(color)))
+            return None
         r = bmesh.ops.create_cube(self.bm, size=1.0)
         vs = r['verts']
         mat = Matrix.Diagonal((s[0], s[1], s[2], 1.0))
@@ -98,7 +104,7 @@ class MB:
         me = bpy.data.meshes.new(name)
         self.bm.to_mesh(me)
         self.bm.free()
-        if self.cont:
+        if self.cont or self.boxes:
             _append_containers(me, self)
         for m in self.mats:
             me.materials.append(m)
@@ -170,7 +176,7 @@ def _template(reefer, long):
         return _TEMPL[key]
     out = []
     for col in ((1.0, 1.0, 1.0), (0.5, 0.5, 0.5)):
-        mb = MB()
+        mb = MB(fast=False)
         _container_geo(mb, (0, 0, 0), None, col, reefer, 0.0, long)
         bm = mb.bm
         bm.verts.index_update()
@@ -225,6 +231,24 @@ def _append_containers(me, mb):
         cls.append(np.hstack([col, np.ones((len(col), 1), np.float32)]))
         nv += len(co)
         nl += len(vi)
+    if mb.boxes:   # unit cube template: 8 corners, 6 quads, flat
+        K = len(mb.boxes)
+        cube = np.array([(x, y, z) for x in (-0.5, 0.5) for y in (-0.5, 0.5) for z in (-0.5, 0.5)], np.float32)
+        quads = np.array([(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)], np.int32)
+        C = np.array([b[0] for b in mb.boxes], np.float32)
+        S = np.array([b[1] for b in mb.boxes], np.float32)
+        Rm = np.array([b[2] if b[2] is not None else ((1, 0, 0), (0, 1, 0), (0, 0, 1)) for b in mb.boxes], np.float32)
+        pts = np.einsum('kij,knj->kni', Rm, cube[None, :, :] * S[:, None, :]) + C[:, None, :]
+        cos.append(pts.reshape(-1, 3))
+        vis.append((quads[None, :, :] + (nv + 8 * np.arange(K))[:, None, None]).reshape(-1))
+        sts.append(nl + 4 * np.arange(6 * K))
+        mis.append(np.repeat(np.array([b[3] for b in mb.boxes], np.int32), 6))
+        sms.append(np.zeros(6 * K, bool))
+        col = np.repeat(np.array([b[4] for b in mb.boxes], np.float32), 24, axis=0)
+        cls.append(np.hstack([col, np.ones((len(col), 1), np.float32)]))
+        nv += 8 * K
+        nl += 24 * K
+        mb.boxes = []
     co, vi, st = np.vstack(cos), np.concatenate(vis), np.concatenate(sts)
     mi, sm, cl = np.concatenate(mis), np.concatenate(sms), np.vstack(cls)
     me.clear_geometry()
