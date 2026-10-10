@@ -39,6 +39,50 @@ for f in range(1, 384, 12):
     boat.keyframe_insert('rotation_euler', frame=f)
     boat.keyframe_insert('location', frame=f)
 
+# ---------------------------------------------------------------- deck wear
+def deck_wear(m):
+    nt = m.node_tree
+    l = nt.links
+    p = L.principled(m)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    wet = nt.nodes.new('ShaderNodeTexNoise')
+    wet.inputs['Scale'].default_value = 0.35
+    wet.inputs['Detail'].default_value = 6
+    l.new(tc.outputs['Object'], wet.inputs['Vector'])
+    wr = nt.nodes.new('ShaderNodeMapRange')
+    wr.inputs['From Min'].default_value = 0.5
+    wr.inputs['From Max'].default_value = 0.56
+    wr.inputs['To Min'].default_value = 0.55
+    wr.inputs['To Max'].default_value = 0.18            # wet patches: lower roughness, still matte-ish
+    l.new(wet.outputs['Fac'] if 'Fac' in wet.outputs else wet.outputs[0], wr.inputs['Value'])
+    l.new(wr.outputs[0], p.inputs['Roughness'])
+    sc = nt.nodes.new('ShaderNodeTexNoise')            # scuffs: stretched streaks of worn paint
+    sc.inputs['Scale'].default_value = 3.0
+    sc.inputs['Detail'].default_value = 10
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (0.25, 3.0, 1.0)
+    l.new(tc.outputs['Object'], mp.inputs['Vector'])
+    l.new(mp.outputs[0], sc.inputs['Vector'])
+    sr = nt.nodes.new('ShaderNodeMapRange')
+    sr.inputs['From Min'].default_value = 0.66
+    sr.inputs['From Max'].default_value = 0.74
+    l.new(sc.outputs[0], sr.inputs['Value'])
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else None
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    l.new(sr.outputs[0], mx.inputs['Factor'])
+    if src is not None:
+        l.new(src, mx.inputs['A'])
+    else:
+        mx.inputs['A'].default_value = p.inputs['Base Color'].default_value
+    mx.inputs['B'].default_value = (0.11, 0.075, 0.05, 1)      # worn through to rusty steel
+    l.new(mx.outputs['Result'], p.inputs['Base Color'])
+
+
+for nm in ('MAT_WetDeck',):
+    if nm in bpy.data.materials:
+        deck_wear(bpy.data.materials[nm])
+
 # ---------------------------------------------------------------- sea
 sea = L.ocean('Ocean', size=60, repeat=6, res=11, choppy=1.0, wind=9.0, scale=0.7, f0=1, f1=383, foam=0.3)
 cut = L.box('OceanCut', (24.5, 6.6, 6.0), (0, 0, 0), mats['steel'], 0.0)
@@ -68,7 +112,7 @@ NETX = 1.6
 bag_parent = L.empty('NET_Swing', (0, 0, 0), size=0.6)
 cl = bag_parent.constraints.new('COPY_LOCATION')
 cl.target = V['boom_tip']
-bag_root, net, core, bag_fish, bag_floats = S.net_bag('NET', R=1.25, depth=3.2, mats=mats, n_fish=240, n_tuna=6)   # long heavy sack
+bag_root, net, core, bag_fish, bag_floats = S.net_bag('NET', R=1.15, depth=3.0, mats=mats, n_fish=200, n_tuna=14)   # ~3 m heavy sack
 bag_root.parent = bag_parent
 aim = L.empty('BOOM_Aim', (1.0, 7.0, 9.4), size=0.5)
 dt = V['boom_pivot'].constraints.new('DAMPED_TRACK')
@@ -92,21 +136,23 @@ PILE = Vector((1.9, -0.3, DZ))   # clear of the king post (1.0, 1.3) and the hat
 # boom out over the sea, net in the water
 key_aim(1, (NETX, 8.0, 9.6))
 key_aim(100, (NETX, 8.0, 9.6))
-# boom luffs in over the deck (100-150); tip above the pile
+# boom swings in round the king post (bag outboard of it, never across it), then luffs over the pile
+key_aim(125, (4.2, 4.0, 11.5))
 key_aim(150, (PILE.x, PILE.y, 12.0))
 key_aim(230, (PILE.x, PILE.y, 12.0))
+key_aim(265, (4.2, 4.0, 11.5))   # back out round the king post
 key_aim(300, (NETX, 5.0, 10.5))
 key_rope(1, 10.4)
 key_rope(40, 10.2, 1.0)
-key_rope(100, 2.4, -2.0)
-key_rope(118, 2.4, 8.0)   # pendulum while the boom swings in (<= 8 degrees)
-key_rope(134, 2.4, -5.0)
-key_rope(150, 2.4, 2.0)
-key_rope(160, 4.2, -1.0)
+key_rope(100, 3.5, -1.0)
+key_rope(118, 5.0, 3.0)   # small pendulum while the boom swings in; the sack hangs well below the boom
+key_rope(134, 5.0, -2.0)
+key_rope(150, 5.3, 1.0)
+key_rope(160, 5.6, -0.5)
 key_rope(174, 6.3, 0.0)
 key_rope(178, 6.3, 0.0)
 key_rope(200, 5.6, 0.0)
-key_rope(240, 3.0, 0.0)
+key_rope(240, 5.6, 0.0)   # the empty sack stays well below the boom
 L.smooth_keys(aim)
 L.smooth_keys(bag_root)
 L.smooth_keys(bag_parent)
@@ -323,7 +369,7 @@ for ix in range(6):
         lv = 2 if (ix + iy) % 3 == 0 else 1
         for z in range(lv):
             L.crate(f'HOLD_Crate{k}', rnd.choice(['blue', 'blue', 'white', 'red']), (x, y, hold_floor + z * 0.29),
-                    rnd.uniform(-0.04, 0.04), fill=rnd.choice(['mixed', 'fish', 'tuna', 'ice']) if z == lv - 1 else None,
+                    rnd.uniform(-0.04, 0.04), fill=rnd.choice(['mixed', 'fish', 'fish', 'tuna']) if z == lv - 1 else None,
                     parent=boat, mats=mats, seed=k)
             k += 1
 
@@ -448,8 +494,8 @@ keys = [
     (1, (-3.6, -4.6, 6.2), (3.0, 8.8, 0.4), 26),
     (40, (-2.4, -3.9, 5.6), (2.6, 8.2, 1.2), 26),
     (100, (3.6, -1.4, 2.5), (1.8, 7.0, 5.4), 22),
-    (130, (4.2, -3.1, 3.0), (2.2, 3.6, 6.2), 22),
-    (150, (5.4, -5.0, 3.0), (2.4, 0.6, 7.2), 24),
+    (130, (4.2, -3.1, 3.0), (3.6, 3.2, 5.0), 22),
+    (150, (5.4, -5.0, 3.0), (2.2, 0.2, 5.0), 24),
     (170, (3.0, -4.4, 3.2), (2.4, 0.2, 3.2), 26),
     (192, (-1.3, -3.4, 3.4), (PILE.x, PILE.y, DZ + 0.3), 30),
     (260, (4.8, -3.6, 3.0), (2.6, 0.0, DZ + 0.2), 32),
