@@ -61,7 +61,7 @@ for v in bm.verts:
     h = 120 * (0.5 + 0.5 * math.sin(x / 300.0 + 1.3)) * (0.6 + 0.4 * math.sin(x / 97.0)) * max(0.0, (y - 900) / 800) + 10
     v.co = Vector((x, y, h))
 me = L.bm_to_mesh(bm, 'HILLS', smooth=True)
-me.materials.append(L.pbr('MAT_HillHaze', (0.24, 0.28, 0.22), 0.9, var=0.3, bump=0.0, scale=0.01))
+me.materials.append(L.pbr('MAT_HillHaze', (0.1, 0.14, 0.07), 0.9, var=0.35, bump=0.0, scale=0.01))
 L.obj('HILLS', me)
 
 # ---------------------------------------------------------------- moored boats rafted side by side (no names)
@@ -162,7 +162,7 @@ for i_c, c in enumerate(truck['cargo']):
 # cool interior light so the load reads through the open doors
 il = bpy.data.lights.new('TRK_InteriorLight', 'AREA')
 il.size = 2.0
-il.energy = 220
+il.energy = 90
 il.color = (0.85, 0.93, 1.0)
 ilo = bpy.data.objects.new('TRK_InteriorLight', il)
 s.collection.objects.link(ilo)
@@ -213,7 +213,7 @@ L.pose(drv, 'sit')
 L.box('ROAD', (9, 160, 0.04), (TRK.x - 1.5, -80, WZ + 0.01), mats['asphalt'], 0.0)
 blds = P.MB()
 bmat = L.weather(L.pbr('MAT_Building', (0.78, 0.77, 0.72), 0.85, grime=0.6, var=0.25, bump=0.3, scale=0.5, attr='col'),
-                 streak=(0.32, 0.28, 0.22), amount=0.6, z0=WZ, z1=WZ + 2.5, dirt=(0.3, 0.25, 0.18), dirt_amount=0.6, scale=0.8)
+                 streak=(0.32, 0.28, 0.22), amount=0.6, z0=WZ, z1=WZ + 2.5, dirt=(0.3, 0.25, 0.18), dirt_amount=0.85, scale=0.8)
 shut = L.weather(P.paint_attr('MAT_Shutter', 0.6, 0.3, grime=0.5, corrugate=25.0), amount=0.5, z0=WZ, z1=WZ + 2.0)
 awn = L.pbr('MAT_Awning', (0.5, 0.5, 0.5), 0.8, var=0.3, grime=0.5, attr='col')
 shut_cols = [(0.35, 0.4, 0.42), (0.55, 0.32, 0.18), (0.2, 0.35, 0.45), (0.45, 0.45, 0.4)]
@@ -223,7 +223,7 @@ for i in range(10):
         x = TRK.x + side * rnd.uniform(14, 22)
         y = -20 - i * 14
         w, d, h = rnd.uniform(8, 12), rnd.uniform(8, 11), rnd.uniform(4, 8)
-        col = rnd.choice([(0.82, 0.8, 0.74), (0.75, 0.78, 0.8), (0.85, 0.82, 0.7), (0.7, 0.72, 0.68)])
+        col = rnd.choice([(0.66, 0.62, 0.55), (0.58, 0.62, 0.62), (0.7, 0.64, 0.5), (0.55, 0.56, 0.5), (0.62, 0.5, 0.42)])
         blds.box((x, y, WZ + h / 2), (w, d, h), bmat, col)
         fx = x - side * w / 2 - side * 0.03
         for k2 in range(3):
