@@ -87,8 +87,8 @@ export function Products() {
               <span className="mono">Species offered</span> {SPECIES_OFFERED}
             </p>
           )}
-          <button className="btn products__cta" onClick={() => goTo('quote')} data-reveal>
-            Request specifications
+          <button className="products__cta" onClick={() => goTo('quote')} data-reveal>
+            Request specifications <span aria-hidden="true">→</span>
           </button>
         </div>
       </div>
