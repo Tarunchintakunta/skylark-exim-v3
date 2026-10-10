@@ -33,8 +33,8 @@ def mats():
         'tray_blue': P.plain('IN_TrayBlue', (0.12, 0.22, 0.38), 0.4),
         'rubber_mat': P.plain('IN_FootDip', (0.05, 0.06, 0.07), 0.6),
         'frost': P.plain('IN_Frost', (0.86, 0.9, 0.93), 0.6, bump=0.6, bump_scale=80),
-        'rack_blue': P.grime_paint('IN_RackBlue', (0.08, 0.2, 0.38), rough=0.4, grime=0.2, streak=0.1, coat=0.2),
-        'rack_orange': P.grime_paint('IN_RackOrange', (0.62, 0.3, 0.05), rough=0.4, grime=0.2, streak=0.1, coat=0.2),
+        'rack_blue': P.grime_paint('IN_RackBlue', (0.08, 0.2, 0.38), rough=0.4, grime=0.65, streak=0.35, coat=0.2),   # chipped, scuffed
+        'rack_orange': P.grime_paint('IN_RackOrange', (0.62, 0.3, 0.05), rough=0.4, grime=0.65, streak=0.35, coat=0.2),
         'wrap': P.plain('IN_StretchWrap', (0.85, 0.88, 0.9), 0.12, alpha=0.45, coat=0.8, bump=0.2, bump_scale=6),
         'label': P.plain('IN_LabelBlank', (0.95, 0.95, 0.94), 0.5),
         'label_line': P.plain('IN_LabelLine', (0.45, 0.47, 0.5), 0.5),
@@ -346,6 +346,50 @@ def _conveyor(name, a, b, width, C, M, legs=True):
     return belt
 
 
+def _cold_fog():
+    """Cold vapour volume: noisy density that thins upward and toward the box edges (no hard faces)."""
+    m = bpy.data.materials.get('IN_ColdFog')
+    if m:
+        return m
+    m = bpy.data.materials.new('IN_ColdFog')
+    m.use_nodes = True
+    nt = m.node_tree
+    L = nt.links
+    nt.nodes.remove(nt.nodes['Principled BSDF'])
+    out = nt.nodes['Material Output']
+    vol = nt.nodes.new('ShaderNodeVolumePrincipled')
+    vol.inputs['Color'].default_value = (0.93, 0.96, 0.98, 1)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 3.5
+    nz.inputs['Detail'].default_value = 4
+    L.new(tc.outputs['Generated'], nz.inputs['Vector'])
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    L.new(tc.outputs['Generated'], sep.inputs[0])
+    acc = nt.nodes.new('ShaderNodeMapRange')            # noise -> wisps
+    acc.inputs['From Min'].default_value = 0.45
+    acc.inputs['From Max'].default_value = 0.75
+    acc.inputs['To Max'].default_value = 4.0
+    L.new(nz.outputs['Fac'], acc.inputs['Value'])
+    cur = acc.outputs[0]
+    for ax, lo_, hi_ in (('X', 0.0, 0.5), ('Y', 0.0, 0.5), ('Z', 0.0, 0.25)):
+        for flip in (False, True):
+            r = nt.nodes.new('ShaderNodeMapRange')       # fade in from each face (Z: only the floor side, then up)
+            if flip:
+                r.inputs['From Min'].default_value, r.inputs['From Max'].default_value = 1.0, (0.5 if ax != 'Z' else 0.2)
+            else:
+                r.inputs['From Min'].default_value, r.inputs['From Max'].default_value = lo_, hi_
+            L.new(sep.outputs[ax], r.inputs['Value'])
+            mm = nt.nodes.new('ShaderNodeMath')
+            mm.operation = 'MULTIPLY'
+            L.new(cur, mm.inputs[0])
+            L.new(r.outputs[0], mm.inputs[1])
+            cur = mm.outputs[0]
+    L.new(cur, vol.inputs['Density'])
+    L.new(vol.outputs[0], out.inputs['Volume'])
+    return m
+
+
 def _mesh_belt():
     """IQF belt: dark stainless wire mesh (woven grid, dark gaps, glints on the wires)."""
     m = bpy.data.materials.get('IN_MeshBelt')
@@ -358,7 +402,7 @@ def _mesh_belt():
     pb = nt.nodes['Principled BSDF']
     tc = nt.nodes.new('ShaderNodeTexCoord')
     bk = nt.nodes.new('ShaderNodeTexBrick')
-    bk.inputs['Scale'].default_value = 60.0
+    bk.inputs['Scale'].default_value = 35.0     # mesh readable at the IQF close-up
     bk.inputs['Mortar Size'].default_value = 0.25
     bk.inputs['Color1'].default_value = (0.02, 0.022, 0.025, 1)
     bk.inputs['Color2'].default_value = (0.03, 0.032, 0.035, 1)
@@ -620,15 +664,15 @@ def _glaze_mat():
     seg.inputs['Scale'].default_value = 9.0
     L.new(tc.outputs['Object'], seg.inputs['Vector'])
     cr = nt.nodes.new('ShaderNodeValToRGB')
-    cr.color_ramp.elements[0].color = (0.74, 0.64, 0.6, 1)
-    cr.color_ramp.elements[1].color = (0.9, 0.84, 0.8, 1)
+    cr.color_ramp.elements[0].color = (0.56, 0.46, 0.43, 1)   # shell bands read through the glaze
+    cr.color_ramp.elements[1].color = (0.84, 0.76, 0.72, 1)
     L.new(seg.outputs['Fac'], cr.inputs[0])
     fr = nt.nodes.new('ShaderNodeMix')
     fr.data_type = 'RGBA'
     fm = nt.nodes.new('ShaderNodeMapRange')
     fm.inputs['From Min'].default_value = 0.55
     fm.inputs['From Max'].default_value = 0.75
-    fm.inputs['To Max'].default_value = 0.65
+    fm.inputs['To Max'].default_value = 0.35     # frost speckle, not a furry white coat
     L.new(nz.outputs['Fac'], fm.inputs['Value'])
     L.new(fm.outputs[0], fr.inputs[0])
     L.new(cr.outputs[0], fr.inputs[6])
@@ -640,7 +684,7 @@ def _glaze_mat():
     pb.inputs['Subsurface Weight'].default_value = 0.15
     pb.inputs['Transmission Weight'].default_value = 0.25    # translucent ice glaze
     bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.25
+    bp.inputs['Strength'].default_value = 0.1
     L.new(nz.outputs['Fac'], bp.inputs['Height'])
     L.new(bp.outputs[0], pb.inputs['Normal'])
     return m
@@ -759,11 +803,11 @@ def freezing(C, M, rnd, shrimp_fn):
             nt.links.new(sq2.outputs[0], m2.inputs[1])
             out = m2.outputs[0]
         nt.links.new(out, pb.inputs['Alpha'])
-    for k, yy in enumerate((y0 - 0.35, y1 + 0.35)):                   # vapour rolling out of each mouth
-        for j in range(3):
-            p = Part()
-            p.box((tx + (j - 1) * 0.25, yy + (j - 1) * 0.12, DZ + 1.02), (1.3, 0.02, 0.45))
-            p.make('IN_IQFVapour%d_%d' % (k, j), vap, None, coll=C)
+    fog = _cold_fog()
+    for k, yy in enumerate((y0 - 0.45, y1 + 0.45)):                   # vapour rolling out of each mouth: a volume,
+        p = Part()                                                      # not cards (cards read as glass panes)
+        p.box((tx, yy, DZ + 1.15), (1.5, 0.9, 0.6))
+        p.make('IN_IQFVapour%d' % k, fog, None, coll=C)
     belt = _conveyor('IN_IQFBelt', (tx, 51.6, DZ + 0.9), (tx, 59.6, DZ + 0.9), 0.9, C, M)
     # glazing hood: brushed stainless box on legs over the belt, seams, bolts, nozzle manifold, drip lips, frost
     hy = 56.6
@@ -808,8 +852,11 @@ def freezing(C, M, rnd, shrimp_fn):
         if yy > 59.5:
             break
         for col in range(8):
-            o = shrimp_fn('IN_IQF%03d' % k, (tx - 0.38 + col * 0.108 + rnd.uniform(-0.008, 0.008), yy,
-                                           DZ + 0.975), (0, 0, (1.5708 if row % 2 else -1.5708) + rnd.uniform(-0.12, 0.12)))
+            import skfarm as F                        # curled whole prawn (segments, tail fan, legs, antennae), lying
+            o = bpy.data.objects.new('IN_IQF%03d' % k, F.shrimp_mesh())   # on its side: the straight scan read as fish
+            C.objects.link(o)
+            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.008, 0.008), yy, DZ + 0.987)
+            o.rotation_euler = (1.5708, 0, (1.5708 if row % 2 else -1.5708) + rnd.uniform(-0.12, 0.12))
             for sl in o.material_slots:
                 sl.link = 'OBJECT'
                 sl.material = glazed
@@ -1029,11 +1076,51 @@ def _probes(C):
         C.objects.link(o)
 
 
+def _wear(C, rnd):
+    """Working-plant wear and contrast: yellow walkway lines, floor drains, standing water, coiled hoses on hooks."""
+    yel = P.plain('IN_SafetyYellow', (0.75, 0.55, 0.03), 0.55, bump=0.1)
+    p = Part()
+    for x in (CX - 2.7, CX + 2.7):
+        for y0, y1 in ((12.5, 21.0), (29.5, 41.0), (60.5, 76.5)):
+            p.box((x, (y0 + y1) / 2, DZ + 0.002), (0.08, y1 - y0, 0.003))
+    p.make('IN_WalkLines', yel, None, coll=C)
+    grate = P.plain('IN_DrainGrate', (0.05, 0.05, 0.055), 0.35, metal=0.8, bump=0.6, bump_scale=120)
+    p = Part()
+    for y in (14.0, 22.5, 30.5, 38.0, 45.5, 52.5):
+        p.box((CX, y, DZ + 0.0015), (4.6, 0.16, 0.003))
+    p.make('IN_Drains', grate, None, coll=C)
+    pud = P.plain('IN_Puddle', (0.08, 0.1, 0.1), 0.02, coat=1.0)
+    p = Part()
+    for _ in range(26):
+        x, y = CX + rnd.uniform(-4.5, 4.5), rnd.uniform(13.0, 53.0)
+        r = rnd.uniform(0.25, 0.8)
+        p.cyl((x, y, DZ + 0.001), (x, y, DZ + 0.003), r, 20)
+    p.make('IN_Puddles', pud, None, coll=C)
+    hose = P.plain('IN_Hose', (0.08, 0.32, 0.12), 0.5, bump=0.2)
+    hook = P.plain('IN_HoseHook', (0.6, 0.62, 0.64), 0.3, metal=1.0)
+    for k, y in enumerate((15.5, 26.0, 37.0, 48.5)):
+        for sx, x in ((1, XL + 0.12), (-1, XR - 0.12)):
+            bpy.ops.mesh.primitive_torus_add(major_radius=0.26, minor_radius=0.022, major_segments=40,
+                                             minor_segments=8, location=(x + sx * 0.03, y, DZ + 1.35),
+                                             rotation=(0, 1.5708, 0))
+            t = bpy.context.active_object
+            t.name = 'IN_HoseCoil%d%s' % (k, 'L' if sx > 0 else 'R')
+            t.data.materials.append(hose)
+            t.scale = (1.0, 1.0, 0.85)
+            for c in list(t.users_collection):
+                c.objects.unlink(t)
+            C.objects.link(t)
+            q = Part()
+            q.box((x, y, DZ + 1.6), (0.08, 0.05, 0.06))
+            q.make('IN_HoseHook%d%s' % (k, 'L' if sx > 0 else 'R'), hook, None, coll=C)
+
+
 def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11):
     M = mats()
     rnd = random.Random(rnd_seed)
     shell(C, M)
     _probes(C)
+    _wear(C, random.Random(rnd_seed + 7))
     _wet_floor()
     _services(C, M)
     pin = bpy.data.materials.get('PL_PanelInside')                 # warm grey panels, not paper white
