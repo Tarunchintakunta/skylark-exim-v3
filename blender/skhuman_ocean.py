@@ -28,6 +28,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets-src
 
 OCEAN_OUTFITS = {
     'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'cap'],
+    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair'],   # bare-headed: hair and face read
     'port_hivis': ['work_shirt', 'trousers_dark', 'boots_dark', 'vest', 'hair', 'hardhat'],
     'harbour_lungi': ['shirt_farm', 'lungi', 'sandals', 'hair'],
 }
@@ -98,9 +99,9 @@ _base_mats = sk.mats
 
 def mats():
     M = _base_mats()
-    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.5, coat=0.25, bump=0.02, wrinkle=0.25, rand=0.08),
-                           ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.58, 0.26, 0.08), (0.80, 0.30, 0.04),
-                            (0.70, 0.62, 0.20)))   # orange, yellow, sun-faded orange, bright orange, faded yellow
+    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.68, coat=0.08, bump=0.05, wrinkle=0.35, rand=0.12),
+                           ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.26, 0.28, 0.12), (0.58, 0.26, 0.08),
+                            (0.22, 0.30, 0.42), (0.70, 0.62, 0.20)))   # orange, yellow, olive, faded orange, faded blue, faded yellow
     M['work_shirt'] = sk._palette(sk._mat('HUM_WorkShirt', (0.2, 0.25, 0.32), 0.85, sheen=0.2, bump=0.12, rand=0.12,
                                           wrinkle=0.5),
                                   ((0.14, 0.18, 0.28), (0.30, 0.30, 0.26), (0.36, 0.34, 0.28), (0.20, 0.26, 0.34)))
@@ -112,6 +113,9 @@ def mats():
     M['hardhat'] = sk._palette(sk._mat('HUM_HardHat', (0.85, 0.8, 0.1), 0.38, coat=0.35, bump=0.05, rand=0.05),
                                ((0.80, 0.80, 0.76), (0.82, 0.62, 0.04), (0.80, 0.80, 0.76), (0.78, 0.30, 0.04)))
     M['sandal'] = sk._mat('HUM_Sandal', (0.10, 0.06, 0.035), 0.7, bump=0.1)
+    # deck caps: dark knit / faded cloth (a pale cap from above reads as a bald head)
+    M['cap_cloth'] = sk._palette(sk._mat('HUM_CapDeck', (0.1, 0.1, 0.12), 0.9, sheen=0.3, bump=0.2, rand=0.1),
+                                 ((0.06, 0.07, 0.09), (0.25, 0.08, 0.06), (0.12, 0.16, 0.22), (0.2, 0.2, 0.18)))
     return M
 
 
@@ -148,6 +152,8 @@ def _region(body, gender, piece, k):
 
 
 def _region_raw(body, gender, piece, k):
+    if piece == 'stache':   # the base moustache renders as a black open-mouth shape: no moustache, lip skin kept
+        return [False] * len(body.data.vertices)
     if piece == 'pvc_trousers':   # legs tucked into the gumboot (boot top 0.34): no PVC poking through
         base = _base_region(body, gender, 'trousers', k)
         return [m and v.co.z > 0.30 * k for m, v in zip(base, body.data.vertices)]
@@ -333,6 +339,10 @@ def _sandals(body, k, M):
 
 def _shell(body, piece, mask, M):
     _note('piece %s %s' % (body.name, piece))
+    if piece == 'stache':
+        o = bpy.data.objects.new('%s_stache' % body.name, bpy.data.meshes.new('%s_stache' % body.name))
+        bpy.context.scene.collection.objects.link(o)
+        return o
     if piece == 'lungi':
         return _lungi(body, sk.KH, M)
     if piece == 'hardhat':
@@ -391,7 +401,7 @@ _L = None
 
 def outfit_for(old):
     if old.startswith('fisher'):
-        return 'fisher'
+        return 'fisher_bare' if old.endswith('_b') else 'fisher'
     return OLD_OUTFIT.get(old, 'harbour_lungi')
 
 
@@ -405,8 +415,9 @@ def translate(spec):
         # a raised arm keeps the rest pose's 23 deg splay; swing it back in about the vertical (measured: at flex
         # 90 the hand is 26 deg out, a -0.3 * flex twist brings it straight ahead)
         P['upperarm.' + s] = (-y, -20 + x * sg, z * sg - 0.3 * max(0.0, -y))
+        fl = P['upperarm.' + s][0]
         x, y, z = spec.get('el_' + s, (0, -8, 0))
-        P['forearm.' + s] = (max(4.0, -y), 0, 0)
+        P['forearm.' + s] = (max(4.0, -y, 28.0 if fl > 50 else 0.0), 0, 0)   # raised arms keep soft elbows, never locked straight
         x, y, z = spec.get('hp_' + s, (0, 0, 0))
         P['thigh.' + s] = (-y, 2 + x * sg, z * sg)
         x, y, z = spec.get('kn_' + s, (0, 0, 0))
