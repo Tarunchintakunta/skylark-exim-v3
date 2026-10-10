@@ -266,7 +266,9 @@ def freeze_crew(C, rnd, crate_fn):
 
 def build_interior_people(C, R):
     rnd = random.Random(99)
-    H.load(os.path.join(REPO, 'assets-src/blender/humans_lo.blend'), tag='lo')
+    for k, v in list(H._LOADED.items()):        # no low-res crowd: the level-0 set read as stick-legged mannequins;
+        if k.startswith('HUM_'):                 # every worker uses the full masters (triangles are affordable now)
+            H._LOADED['lo' + k] = v
     import plant_chain as PC
     crate_fn = lambda n, c, l, r, par, fill, sd: PC.crate(n, c, l, r, par, fill, sd)
     unload(C, R)
