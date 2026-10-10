@@ -125,7 +125,31 @@ def deck_wear(m):
     else:
         mx.inputs['A'].default_value = p.inputs['Base Color'].default_value
     mx.inputs['B'].default_value = (0.11, 0.075, 0.05, 1)      # worn through to rusty steel
-    l.new(mx.outputs['Result'], p.inputs['Base Color'])
+    # fish scales: sparse silver flecks stuck to the wet deck
+    vs = nt.nodes.new('ShaderNodeTexVoronoi')
+    vs.inputs['Scale'].default_value = 55.0
+    l.new(tc.outputs['Object'], vs.inputs['Vector'])
+    vr2 = nt.nodes.new('ShaderNodeMapRange')
+    vr2.inputs['From Min'].default_value = 0.06
+    vr2.inputs['From Max'].default_value = 0.03
+    l.new(vs.outputs['Distance'], vr2.inputs['Value'])
+    gate = nt.nodes.new('ShaderNodeTexNoise')
+    gate.inputs['Scale'].default_value = 1.2
+    l.new(tc.outputs['Object'], gate.inputs['Vector'])
+    gr = nt.nodes.new('ShaderNodeMapRange')
+    gr.inputs['From Min'].default_value = 0.52
+    gr.inputs['From Max'].default_value = 0.6
+    l.new(gate.outputs[0], gr.inputs['Value'])
+    fl = nt.nodes.new('ShaderNodeMath')
+    fl.operation = 'MULTIPLY'
+    l.new(vr2.outputs[0], fl.inputs[0])
+    l.new(gr.outputs[0], fl.inputs[1])
+    mx2 = nt.nodes.new('ShaderNodeMix')
+    mx2.data_type = 'RGBA'
+    l.new(fl.outputs[0], mx2.inputs['Factor'])
+    l.new(mx.outputs['Result'], mx2.inputs['A'])
+    mx2.inputs['B'].default_value = (0.62, 0.66, 0.66, 1)
+    l.new(mx2.outputs['Result'], p.inputs['Base Color'])
 
     return m
 
@@ -137,8 +161,8 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
     deck_wear(mats['wetdeck'])
     # salt-worn white for bulwarks, rails, stanchions and house: dull, rust runs from fittings, grime low down
     ww = bpy.data.materials.get('MAT_BoatWhite') or weather(
-        pbr('MAT_BoatWhite', (0.74, 0.74, 0.7), 0.62, var=0.25, bump=0.3, grime=0.6, scale=1.5),
-        streak=(0.32, 0.17, 0.08), amount=0.7, z0=deck_z - 0.2, z1=deck_z + 2.6, dirt=(0.2, 0.18, 0.13),
+        pbr('MAT_BoatWhite', (0.72, 0.72, 0.68), 0.62, var=0.2, bump=0.3, grime=0.4, scale=6.0),
+        streak=(0.36, 0.18, 0.07), amount=0.85, z0=deck_z - 0.2, z1=deck_z + 2.6, dirt=(0.2, 0.18, 0.13),
         dirt_amount=0.6, scale=1.2)
     hm = weather(hull or hull_material(), streak=(0.3, 0.15, 0.06), amount=0.65, z0=-0.2, z1=0.9,
                  dirt=(0.12, 0.14, 0.08), dirt_amount=0.55, scale=0.8)
