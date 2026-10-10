@@ -39,6 +39,14 @@ class MB:
             mat = rot.to_4x4() @ mat
         mat = Matrix.Translation(c) @ mat
         bmesh.ops.transform(self.bm, matrix=mat, verts=vs)
+        if bevel:
+            edges = list({e for v in vs for e in v.link_edges})
+            r2 = bmesh.ops.bevel(self.bm, geom=edges, offset=bevel, segments=2, profile=0.5, affect='EDGES',
+                                 clamp_overlap=True)
+            vs = list({v for f in r2['faces'] for v in f.verts} | set(v for v in vs if v.is_valid))
+            fs = {f for v in vs for f in v.link_faces}
+            for f in fs:
+                f.smooth = True
         self._finish(vs, m, color)
         return vs
 
@@ -52,7 +60,7 @@ class MB:
         q = d.to_track_quat('Z', 'Y')
         self.box((a + b) / 2, (w, h or w, L), m, color, rot=q.to_matrix())
 
-    def cyl(self, a, b, r, m, seg=8, color=None, r2=None):
+    def cyl(self, a, b, r, m, seg=8, color=None, r2=None, smooth=True):
         a, b = Vector(a), Vector(b)
         d = b - a
         L = d.length
@@ -63,7 +71,7 @@ class MB:
         bmesh.ops.transform(self.bm, matrix=mat, verts=res['verts'])
         fs = self._finish(res['verts'], m, color)
         for f in fs:
-            f.smooth = True
+            f.smooth = smooth and len(f.verts) == 4      # caps stay flat (no ball-shaded discs)
 
     def sphere(self, c, r, m, seg=10, color=None):
         res = bmesh.ops.create_uvsphere(self.bm, u_segments=seg, v_segments=max(4, seg // 2), radius=r)
@@ -322,7 +330,7 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     # headblock: steel frame (two side girders + cross members) carrying four rope sheaves (axles along X)
     yel = weather(pbr('MAT_SpreaderYellow', (0.78, 0.55, 0.06), 0.45, 0.1, grime=0.45, scale=0.4), amount=0.4, z0=-1.4,
                   z1=-0.4, dirt_amount=0.3)
-    rope = pbr('MAT_WireRope', (0.07, 0.07, 0.075), 0.42, 0.75, var=0.25, bump=0.3, scale=6.0, grime=0.4)
+    rope = pbr('MAT_WireRope', (0.07, 0.07, 0.075), 0.55, 0.5, var=0.3, bump=0.5, scale=8.0, grime=0.6)   # greasy, not chrome
     head = empty(f'{name}_Headblock', (0, 0, -20), trolley, size=1.5)
     hb = MB()
     hb.box((0, 0, 0.06), (3.2, 2.1, 0.12), dark)                      # base plate on the spreader chassis
@@ -332,12 +340,21 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
             hb.box((sx, sy, 0.6), (0.18, 0.2, 0.96), dark)            # stiffeners
     for sx in (-1.62, 1.62):
         hb.box((sx, 0, 0.6), (0.16, 2.1, 1.0), yel)                   # end plates
+    shv = pbr('MAT_SheaveSteel', (0.3, 0.31, 0.3), 0.55, 0.35, var=0.25, grime=0.6, scale=1.5)
+    hole = pbr('MAT_SheaveHole', (0.01, 0.01, 0.01), 0.9)
     for sx in (-1.0, 1.0):
         for sy in (-0.5, 0.5):
-            for dx in (-0.06, 0.06):
-                hb.cyl((sx + dx - 0.015, sy, 1.0), (sx + dx + 0.015, sy, 1.0), 0.42, dark, 28)   # sheave flanges
-            hb.cyl((sx - 0.05, sy, 1.0), (sx + 0.05, sy, 1.0), 0.36, rope, 28)        # rope wrap in the groove
-            hb.cyl((sx - 0.2, sy, 1.0), (sx + 0.2, sy, 1.0), 0.07, dark, 10)          # axle
+            for dx in (-0.065, 0.065):
+                hb.cyl((sx + dx - 0.012, sy, 1.0), (sx + dx + 0.012, sy, 1.0), 0.42, shv, 36, smooth=False)  # flanges
+                hb.cyl((sx + dx * 0.7 - 0.01, sy, 1.0), (sx + dx * 0.7 + 0.01, sy, 1.0), 0.37, shv, 36, r2=0.4,
+                       smooth=False)                                                             # groove walls
+                for k in range(6):                                                               # lightening holes
+                    a = 2 * math.pi * k / 6
+                    hb.cyl((sx + dx * 1.2, sy + 0.24 * math.cos(a), 1.0 + 0.24 * math.sin(a)),
+                           (sx + dx * 1.25, sy + 0.24 * math.cos(a), 1.0 + 0.24 * math.sin(a)), 0.055, hole, 12, smooth=False)
+            hb.cyl((sx - 0.05, sy, 1.0), (sx + 0.05, sy, 1.0), 0.345, rope, 32)       # rope lying in the groove
+            hb.cyl((sx - 0.1, sy, 1.0), (sx + 0.1, sy, 1.0), 0.11, shv, 16, smooth=False)   # hub
+            hb.cyl((sx - 0.24, sy, 1.0), (sx + 0.24, sy, 1.0), 0.05, dark, 10)        # axle
             for dx in (-0.15, 0.15):
                 hb.box((sx + dx, sy, 0.78), (0.04, 0.95, 0.5), yel)                   # guard cheeks (lower half)
     for sx in (-1.3, 1.3):
@@ -675,20 +692,20 @@ def hull_foam_mat(name='MAT_HullFoam'):
     return m
 
 
-def wheel_mesh(name, mats, r=0.52, w=0.3, lugs=28):
+def wheel_mesh(name, mats, r=0.52, w=0.3, lugs=44):
     """Truck wheel along Y: tyre with chevron tread lugs, steel disc rim with hand holes, hub and wheel nuts."""
     if name in bpy.data.meshes:
         return bpy.data.meshes[name]
     rub = mats['rubber']
-    rim = pbr('MAT_RimSteel', (0.55, 0.56, 0.55), 0.38, 0.85, grime=0.6, scale=0.6)
+    rim = pbr('MAT_RimSteel', (0.42, 0.43, 0.42), 0.5, 0.6, var=0.3, grime=0.8, scale=0.6)   # dull, road-grimed steel
     hole = pbr('MAT_RimHole', (0.01, 0.01, 0.012), 0.8)
     mb = MB()
-    mb.cyl((0, -w / 2, 0), (0, w / 2, 0), r - 0.035, rub, 36)
+    mb.cyl((0, -w / 2, 0), (0, w / 2, 0), r - 0.022, rub, 48)
     for k in range(lugs):
         a = 2 * math.pi * k / lugs
         R = Matrix.Rotation(-(a + math.pi / 2), 3, 'Y')
         for sy in (-1, 1):
-            mb.box((math.cos(a) * (r - 0.035), sy * w * 0.24, math.sin(a) * (r - 0.035)), (0.08, w * 0.44, 0.06), rub,
+            mb.box((math.cos(a) * (r - 0.022), sy * w * 0.24, math.sin(a) * (r - 0.022)), (0.045, w * 0.42, 0.03), rub,
                    rot=R @ Matrix.Rotation(sy * 0.3, 3, 'Z'))
     for sy in (-1, 1):
         y = sy * w / 2
@@ -726,9 +743,15 @@ def tractor(name, loc=(0, 0, 0), rot_z=0.0, color=(0.85, 0.85, 0.84), mats=None,
         mb.box((1.6, sy, 1.0), (6.4, 0.16, 0.3), dk)                             # chassis rails
     for x in (-0.6, 1.2, 3.2):
         mb.box((x, 0, 1.0), (0.12, 0.9, 0.22), dk)
-    mb.box((3.9, 0, 2.05), (2.0, 2.45, 2.3), paint)                              # cab-over day cab
-    mb.box((3.95, 0, 1.15), (2.1, 2.48, 0.6), paint)
-    mb.box((3.75, 0, 3.38), (1.7, 2.3, 0.35), paint)                             # roof fairing
+    cab = mb.box((3.9, 0, 2.05), (2.0, 2.45, 2.3), paint, bevel=0.09)           # cab-over day cab, rounded
+    for v in cab:
+        if v.co.z > 2.6 and v.co.x > 4.3:
+            v.co.x -= 0.22 * (v.co.z - 2.6) / 0.6                               # raked windscreen
+    mb.box((3.95, 0, 1.15), (2.1, 2.48, 0.6), paint, bevel=0.06)
+    fair = mb.box((3.6, 0, 3.4), (1.5, 2.2, 0.4), paint, bevel=0.12)              # roof fairing
+    for v in fair:
+        if v.co.x > 4.0:
+            v.co.z -= 0.18                                                       # sloped nose
     for sy in (-0.53, 0.53):
         mb.box((4.92, sy, 2.55), (0.06, 1.0, 0.95), mats['glass'])              # split windscreen
     mb.box((4.94, 0, 2.55), (0.07, 0.08, 1.0), blk)
@@ -740,18 +763,18 @@ def tractor(name, loc=(0, 0, 0), rot_z=0.0, color=(0.85, 0.85, 0.84), mats=None,
             mb.box((x, sy + sg * 0.01, 1.95), (0.025, 0.02, 2.0), blk)           # door shut lines
         mb.box((3.45, sy + sg * 0.03, 2.0), (0.2, 0.04, 0.05), mats['steel'])    # door handle
         for z in (0.45, 0.75):
-            mb.box((4.1, sy * 0.98, z), (0.55, 0.32, 0.05), dk)                  # steps
+            mb.box((4.1, sy * 0.98, z), (0.55, 0.32, 0.05), dk, bevel=0.012)     # steps
         mb.beam((4.85, sy, 2.95), (5.08, sy * 1.42, 2.85), 0.035, mats['steel'])  # mirror arm
-        mb.box((5.08, sy * 1.42, 2.6), (0.07, 0.22, 0.52), blk)                  # mirror
+        mb.box((5.08, sy * 1.42, 2.6), (0.07, 0.22, 0.52), blk, bevel=0.025)     # mirror
         mb.cyl((1.5, sg * 1.12, 0.95), (2.75, sg * 1.12, 0.95), 0.3, alu, 20)    # fuel / air tanks
         for x in (1.75, 2.5):
             mb.cyl((x - 0.03, sg * 1.12, 0.95), (x + 0.03, sg * 1.12, 0.95), 0.315, dk, 20)  # straps
-        mb.box((0.0, sy * 0.83, 1.12), (1.3, 0.72, 0.05), blk)                   # rear mudguards
+        mb.box((0.0, sy * 0.83, 1.12), (1.3, 0.72, 0.05), blk, bevel=0.02)       # rear mudguards
         mb.box((-0.62, sy * 0.83, 0.85), (0.04, 0.72, 0.55), blk)                # mud flaps
-    mb.box((5.02, 0, 0.72), (0.26, 2.5, 0.36), dk)                               # bumper
+    mb.box((5.02, 0, 0.72), (0.26, 2.5, 0.36), dk, bevel=0.05)                   # bumper
     for sy in (-0.95, 0.95):
         mb.box((5.12, sy, 0.8), (0.04, 0.32, 0.16), mats['lamp'])                # headlamps
-    mb.box((4.98, 0, 1.35), (0.05, 1.7, 0.62), mats['steel'])                    # grille frame
+    mb.box((4.98, 0, 1.35), (0.06, 1.7, 0.62), mats['steel'], bevel=0.02)        # grille frame
     for k in range(5):
         mb.box((5.01, 0, 1.12 + k * 0.115), (0.04, 1.6, 0.05), dk)               # grille slats
     mb.cyl((2.72, 1.0, 1.3), (2.72, 1.0, 4.0), 0.09, mats['steel'], 10)          # exhaust stack
