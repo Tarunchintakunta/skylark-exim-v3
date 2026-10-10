@@ -135,6 +135,46 @@ def build(C, crate):
     car.location.z = 0.03
     car.keyframe_insert('location', frame=230)
 
+    # -- second forklift on the near apron (in the review frames): brings a pallet of iced crates in behind the truck
+    fl2, car2 = forklift('YD_Forklift2', C, M)
+    fl2.location = (14.4, -7.3, 0)
+    pal2 = S.pallet('YD_FL2Pallet', (0.75, 0, 0.05), M, C, 0.0)
+    pal2.parent = car2
+    k = 0
+    for lv in range(2):
+        for ix in (-0.3, 0.3):
+            for iy in (-0.21, 0.21):
+                crate('YD_FL2Crate%d' % k, ('blue', 'red', 'white')[k % 3], (ix, iy, 0.15 + lv * 0.3), D(90), pal2,
+                      'shrimp' if lv else 'ice', 760 + k)
+                k += 1
+    op2 = H.person('HUM_ForkliftOp2', 'driver', 'female', coll=C, seed=43)
+    op2.parent = fl2
+    op2.location = (-0.55, 0, 0.38)
+    op2.rotation_euler = (0, 0, D(-90))
+    H.jitter(op2, sit, 1, 300, every=20, amp=3, seed=43)
+    _mover(fl2, 60, 190, [(14.4, -7.3), (13.5, -7.4), (12.6, -7.5)])
+    car2.keyframe_insert('location', frame=196)
+    car2.location.z = 0.03
+    car2.keyframe_insert('location', frame=226)
+
+    # -- two crate carriers walking the apron toward the dock, a crate held in both hands
+    for nm, gnd, path, col, sd in (('HUM_Carrier1', 'male', [(20, (15.4, -5.5)), (190, (11.9, -5.7))], 'blue', 44),
+                                   ('HUM_Carrier2', 'female', [(50, (16.2, -6.0)), (230, (12.6, -6.1))], 'red', 45)):
+        w = H.person(nm, 'plant', gnd, coll=C, seed=sd)
+        H.walk_cycle(w, path[0][0], path[1][0], path, stride=0.55, phase=sd * 0.5,
+                     base={'upperarm': (38, -10, 0), 'forearm': (55, 0, 0), 'spine': (6, 0, 0)}, arms=False)
+        H.jitter(w, {'upperarm': (38, -10, 0), 'forearm': (55, 0, 0), 'spine': (6, 0, 0), 'head': (8, 0, 0)},
+                 path[1][0] + 2, 300, every=24, amp=3, seed=sd)
+        crate(nm + '_Crate', col, (0, -0.42, 0.86), D(90), w, 'shrimp', 800 + sd)
+        for sdd, hx in (('L', 0.29), ('R', -0.29)):
+            h = bpy.data.objects.new(nm + '_Hand' + sdd, None)
+            C.objects.link(h)
+            h.parent = w
+            h.location = (hx, -0.42, 1.0)
+            c = w.pose.bones['forearm.' + sdd].constraints.new('IK')
+            c.target, c.chain_count, c.use_tail = h, 2, True
+            H.grip(w, sdd, curl=0.75)
+
     # -- hand pallet jack: a worker pushes a pallet of iced crates along the apron toward our bay
     pj = H.person('HUM_JackPusher', 'plant', 'male', coll=C, seed=34)
     pj.location = (0, 0, 0)

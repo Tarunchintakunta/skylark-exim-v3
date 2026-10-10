@@ -73,10 +73,25 @@ test('RFQ shows validation errors, then falls back to a pre-filled mailto', asyn
 test('every nav link lands on its section', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  for (const id of ['products', 'about', 'quote']) {
+  for (const id of ['products', 'about', 'contact']) {
     await page.locator(`.nav a[href="#${id}"]`).click()
     await page.waitForTimeout(1800)
     const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)
     expect(Math.abs(top)).toBeLessThan(80)
   }
+})
+
+test('Enquire on a species lands on #quote with category and species pre-filled', async ({ page }) => {
+  await page.goto('/')
+  await ready(page)
+  await page.evaluate(() => document.getElementById('products')!.scrollIntoView())
+  await page.locator('#products').getByRole('button', { name: 'Shrimps', exact: true }).click()
+  await page.getByRole('button', { name: 'Enquire about Black Tiger Shrimp' }).click()
+  await page.waitForTimeout(1800)
+  const top = await page.locator('#quote').evaluate((el) => el.getBoundingClientRect().top)
+  expect(Math.abs(top)).toBeLessThan(80)
+  const form = page.locator('form.rfq')
+  await expect(form.getByLabel('Product category')).toHaveValue('shrimps')
+  await expect(form.getByLabel('Black Tiger Shrimp', { exact: true })).toBeChecked()
+  await expect(form.getByLabel('Vannamei', { exact: true })).not.toBeChecked()
 })

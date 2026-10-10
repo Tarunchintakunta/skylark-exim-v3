@@ -1763,11 +1763,11 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
         level = 0.2
         if fill in ('fish', 'tuna', 'mixed'):
             kinds = {'fish': ['mackerel'], 'tuna': ['tuna_s'], 'mixed': ['mackerel', 'seer', 'ribbon']}[fill]
-            cnt = 3 if fill == 'tuna' else 14
+            cnt = 4 if fill == 'tuna' else 24
             for i in range(cnt):
                 k = rnd.choice(kinds)
                 fo = fish(f'{name}_f{i}', k, parent=c, loc=(rnd.uniform(-0.15, 0.15), rnd.uniform(-0.1, 0.1),
-                                                          level + 0.045 + rnd.uniform(0, 0.035)),
+                                                          level + 0.045 + (i // 12) * 0.03 + rnd.uniform(0, 0.03)),
                           rot=(D(rnd.choice((90, -90)) + rnd.uniform(-10, 10)), 0, D(rnd.uniform(-8, 8))),
                           scale=(0.95 if fill == 'tuna' else 1.0))
                 # keep the whole fish inside the crate walls (inner 0.54 x 0.34): shrink anything longer, pull it in

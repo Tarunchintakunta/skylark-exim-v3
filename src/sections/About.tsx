@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { ABOUT } from '../config/content'
 import { bindReveals } from './reveal'
 
-/** About (STORY §14): company, vision, mission, managing partners (initials until photos are supplied, confirm-list #9). */
+/** About (STORY §14): company, vision, mission, managing partners by name only (redesign §6). */
 export function About() {
   const root = useRef<HTMLElement>(null)
   useEffect(() => bindReveals(root.current!), [])
@@ -32,13 +32,11 @@ export function About() {
         </div>
       </div>
       <div className="partners">
-        <h3 className="products__sub mono" data-reveal>Managing partners</h3>
+        <h3 className="eyebrow mono" data-reveal>Managing partners</h3>
         <ul className="partners__list">
           {ABOUT.partners.map((p) => (
             <li key={p.name} className="partner" data-reveal>
-              <span className="partner__mono display" aria-hidden="true">{p.initials}</span>
-              <span className="partner__name">{p.name}</span>
-              <span className="partner__role mono">Managing partner</span>
+              {p.name}
             </li>
           ))}
         </ul>
