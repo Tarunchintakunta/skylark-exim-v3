@@ -282,6 +282,8 @@ def hdri_world(name, strength=1.0, rot_deg=0.0, sun_elev=45.0, sun_az=0.0, sun_e
 
 def look_settings(kind='exterior', exposure=0.0, samples=32, haze=None):
     s = bpy.context.scene
+    if s.world is not None and hasattr(s.world, 'use_sun_shadow'):
+        s.world.use_sun_shadow = False     # the Sun lamp casts the shadows; world sun extraction doubled them
     s.render.engine = 'BLENDER_EEVEE'
     e = s.eevee
     e.taa_render_samples = samples
