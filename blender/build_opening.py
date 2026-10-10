@@ -28,6 +28,15 @@ s = L.reset()
 s.frame_start, s.frame_end = 1, F_END
 mats = L.M()
 L.hdri('qwantani_morning_puresky_4k', strength=0.5, rot=96.0, sun_strength=3.0, sun_color=(1.0, 0.74, 0.52))
+_wn = s.world.node_tree      # warm coastal haze over the whole sky
+_bg = [n for n in _wn.nodes if n.type == 'BACKGROUND'][0]
+_src = _bg.inputs['Color'].links[0].from_socket
+_mx = _wn.nodes.new('ShaderNodeMix')
+_mx.data_type = 'RGBA'
+_mx.inputs['Factor'].default_value = 0.25
+_wn.links.new(_src, _mx.inputs['A'])
+_mx.inputs['B'].default_value = (0.9, 0.78, 0.62, 1)
+_wn.links.new(_mx.outputs['Result'], _bg.inputs['Color'])
 
 # ---------------------------------------------------------------- sea surface: water from above, a bright window from below
 wmat = L.water_mat('MAT_Water_Open', (0.004, 0.04, 0.06))
@@ -86,7 +95,7 @@ inv.inputs[0].default_value = 1.0
 sn.links.new(lw.outputs['Facing'], inv.inputs[1])
 pw = sn.nodes.new('ShaderNodeMath')
 pw.operation = 'POWER'
-pw.inputs[1].default_value = 3.0
+pw.inputs[1].default_value = 6.0
 sn.links.new(inv.outputs[0], pw.inputs[0])
 tc = sn.nodes.new('ShaderNodeTexCoord')
 sx = sn.nodes.new('ShaderNodeSeparateXYZ')
@@ -104,7 +113,7 @@ sn.links.new(pw.outputs[0], m1.inputs[0])
 sn.links.new(sine.outputs[0], m1.inputs[1])
 m2 = sn.nodes.new('ShaderNodeMath')
 m2.operation = 'MULTIPLY'
-m2.inputs[1].default_value = 0.22                       # overall strength of the rays
+m2.inputs[1].default_value = 0.1                       # overall strength of the rays
 sn.links.new(m1.outputs[0], m2.inputs[0])
 sn.links.new(m2.outputs[0], mx.inputs['Fac'])
 sn.links.new(tr.outputs[0], mx.inputs[1])
@@ -114,12 +123,13 @@ sun = bpy.data.objects['Sun']
 sd = sun.rotation_euler.to_matrix() @ Vector((0, 0, 1))          # toward the sun
 refr = Vector((sd.x * 0.75, sd.y * 0.75, sd.z)).normalized()     # bent steeper on entering the water
 for i in range(16):
-    top = Vector((rnd.uniform(-10, 10), rnd.uniform(6, 34), -0.2))
+    top = Vector((rnd.choice((-1, 1)) * rnd.uniform(3, 10), rnd.uniform(8, 34), -1.3))   # under the wave troughs, clear of the lens
     bot = top - refr * rnd.uniform(14, 24)
-    o = L.cyl(f'SHAFT_{i}', rnd.uniform(0.25, 0.7), (top - bot).length, tuple((top + bot) / 2), shaft, 10,
+    o = L.cyl(f'SHAFT_{i}', rnd.uniform(0.12, 0.35), (top - bot).length, tuple((top + bot) / 2), shaft, 10,
               r2=None)
     o.rotation_euler = (top - bot).to_track_quat('Z', 'Y').to_euler()
     o.visible_shadow = False
+    L.key_vis(o, 1, BREAK - 2)
     for f in range(1, F_END + 1, 24):
         o.scale = (1 + 0.3 * math.sin(f / 13 + i), 1 + 0.3 * math.sin(f / 13 + i), 1)
         o.keyframe_insert('scale', frame=f)
@@ -171,9 +181,9 @@ for v in bm.verts:
     h = max(0.0, ridge * head * min(1.0, yy * 3.2) - 6)
     v.co = Vector((x, y - (head - 1) * 160 * (1 - yy), h))
 me = L.bm_to_mesh(bm, 'COAST_Hills', smooth=True)
-me.materials.append(L.pbr('MAT_CoastHills', (0.32, 0.36, 0.33), 0.9, var=0.25, bump=0.2, scale=0.004))
+me.materials.append(L.pbr('MAT_CoastHills', (0.16, 0.19, 0.11), 0.9, var=0.35, bump=0.2, scale=0.004))   # scrub green-brown
 L.obj('COAST_Hills', me)
-town = L.pbr('MAT_Town', (0.7, 0.68, 0.62), 0.8, var=0.35, scale=0.05, attr=None)
+town = L.pbr('MAT_Town', (0.5, 0.45, 0.38), 0.85, var=0.5, scale=0.05, attr=None, grime=0.4)
 win = L.pbr('MAT_TownLights', (1.0, 0.75, 0.45), 0.5, estrength=4.0)
 tb = bmesh.new()
 for i in range(420):
@@ -213,7 +223,7 @@ for i in range(6):
 spl = L.pbr('MAT_Splash', (0.85, 0.93, 0.95), 0.05, transmission=0.9, ior=1.33, coat=0.6)
 dm = L.sphere_mesh('SPLASH_m', 1.0, 8, 6)
 dm.materials.append(spl)
-for i in range(90):
+for i in range(40):
     a = rnd.uniform(0, 2 * math.pi)
     r0 = rnd.uniform(0.2, 0.9)
     o = L.obj(f'SPLASH_{i}', dm, None, (0, 0, 0))
@@ -223,7 +233,7 @@ for i in range(90):
     f0 = BREAK - 2 + rnd.randint(0, 4)
     for k in range(0, 22, 2):
         t = k / 24
-        p = Vector((math.cos(a) * r0, 2.2 + math.sin(a) * r0, 0.05)) + v * t + Vector((0, 0, -4.9 * t * t))
+        p = Vector((math.cos(a) * r0 * 2, 4.5 + math.sin(a) * r0, 0.05)) + v * t + Vector((0, 0, -4.9 * t * t))
         o.location = p
         o.keyframe_insert('location', frame=f0 + k)
     L.key_vis(o, f0, f0 + 22)
