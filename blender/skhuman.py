@@ -461,6 +461,21 @@ def _shell(body, piece, mask, M):
                 clr = 0.018 if piece == 'boots' else 0.007      # boots: no toes showing through
                 if hit is not None and d < clr:
                     v.co = hit + nrm * clr
+        if piece == 'boots':                      # rubber boot toe box: hull of the foot, no toes
+            zc = 0.15 * KH
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.co.z < zc for v in f.verts)], context='FACES')
+            bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+            for sx in (-1, 1):
+                pts = [v.co.copy() for v in body.data.vertices if v.co.z < zc + 0.02 and v.co.x * sx > 0]
+                if len(pts) < 8:
+                    continue
+                ctr = sum(pts, Vector()) / len(pts)
+                new = [bm.verts.new(ctr + (q - ctr) * 1.0 + (q - ctr).normalized() * 0.014) for q in pts]
+                hull = bmesh.ops.convex_hull(bm, input=new)
+                loose = {g for g in hull.get('geom_interior', []) + hull.get('geom_unused', [])
+                         if isinstance(g, bmesh.types.BMVert)}
+                bmesh.ops.delete(bm, geom=list(loose), context='VERTS')
+            inner = [v for v in bm.verts if not v.is_boundary]
         bm.normal_update()
         t = 0.006
     for v in bm.verts:

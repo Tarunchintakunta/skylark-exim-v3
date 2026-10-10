@@ -94,12 +94,14 @@ def unload(C, R):
         a = (w.location.x, w.location.y)
         b = (t.location.x - 0.0, 2.75)
         w.animation_data_clear()
+        H.set_pose(w, {'upperarm.L': (8, -26, 0), 'forearm.L': (14, 0, 0), 'upperarm.R': (10, -24, 0),
+                       'forearm.R': (24, 0, 0), 'spine': (4, 0, 0), 'head': (8, 0, 0)}, 1)   # no A-pose while waiting
         w.location.z = 0.0
         H.walk_cycle(w, f0, f1, [(f0, a), (f1, b)], stride=0.55, base=H.POSES['push'], arms=False)
         _lift(w)
         w.rotation_euler = (0, 0, 0)
         w.keyframe_insert('rotation_euler', frame=f1 + 2)
-        H.jitter(w, H.POSES['look'], f1 + 4, 1060, every=24, amp=4, seed=hash(nm) % 97)
+        H.jitter(w, H.POSES['look'], f1 + 4, 1060, every=24, amp=4, seed=sum(map(ord, nm)) % 97)
     # crates: top of the first rows (k index in the truck cargo)
     moves = [(3, tA, (0, -0.24, 0)), (12, tB, (0, -0.24, 0)), (8, tA, (0, 0.24, 0)), (2, tB, (0, 0.24, 0)),
              (11, tA, (0, -0.24, 1)), (7, tB, (0, -0.24, 1))]
