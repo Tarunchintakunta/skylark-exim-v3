@@ -538,8 +538,8 @@ def water_mat():
     nz.inputs['Roughness'].default_value = 0.6
     L.new(mp.outputs[0], nz.inputs['Vector'])
     b = nt.nodes.new('ShaderNodeBump')
-    b.inputs['Strength'].default_value = 0.03
-    b.inputs['Distance'].default_value = 0.05
+    b.inputs['Strength'].default_value = 0.07           # visible swell: the surface reads as water, not a floor
+    b.inputs['Distance'].default_value = 0.08
     L.new(nz.outputs['Fac'], b.inputs['Height'])
     # wind ripples: fine wavelets stretched across the wind, in patches (cat's paws)
     mp2 = nt.nodes.new('ShaderNodeMapping')
@@ -560,7 +560,7 @@ def water_mat():
     pm.inputs['To Max'].default_value = 1.0
     L.new(pw.outputs['Fac'], pm.inputs['Value'])
     b2 = nt.nodes.new('ShaderNodeBump')
-    b2.inputs['Distance'].default_value = 0.012
+    b2.inputs['Distance'].default_value = 0.02
     L.new(pm.outputs[0], b2.inputs['Strength'])
     L.new(fn.outputs['Fac'], b2.inputs['Height'])
     L.new(b.outputs[0], b2.inputs['Normal'])
