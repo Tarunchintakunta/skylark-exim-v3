@@ -370,6 +370,28 @@ def _inflate(o, body, d):
             v.co += (v.co - hit).normalized() * d
 
 
+_base_slim_hands = sk._slim_hands
+
+
+def _close_mouth(body, ao):
+    """The base heads rest with the jaw dropped (a dark open mouth at any distance): lift the lower lip and chin
+    region toward the upper lip so the mouth is closed and relaxed. Runs on the rest body before skinning copies."""
+    _base_slim_hands(body, ao)
+    k = sk.KH
+    vs = body.data.vertices
+    zone = [v for v in vs if abs(v.co.x) < 0.034 * k and 1.455 * k < v.co.z < 1.506 * k]
+    if not zone:
+        return
+    front = min(v.co.y for v in zone)
+    for v in zone:
+        if v.co.y > front + 0.03 * k:          # back of the mouth / throat: leave
+            continue
+        t = (v.co.z - 1.455 * k) / (0.051 * k)  # 0 at the chin .. 1 at the upper lip line
+        lift = 0.006 * k * math.sin(math.pi * min(1.0, t))
+        side = max(0.0, 1.0 - abs(v.co.x) / (0.034 * k))
+        v.co.z += lift * side
+
+
 def build(out_path=OUT, level=1, progress_dir=None):
     """Patch skhuman for the ocean outfits only, then run its own build_masters."""
     global _progress_dir
@@ -380,6 +402,7 @@ def build(out_path=OUT, level=1, progress_dir=None):
     sk.mats = mats
     sk._region = _region
     sk._shell = _shell
+    sk._slim_hands = _close_mouth
     _note('build start -> %s' % out_path)
     sk.build_masters(os.path.abspath(out_path), level)
     _note('BUILT %s' % out_path)
