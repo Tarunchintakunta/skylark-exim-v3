@@ -198,7 +198,7 @@ for i_c, c in enumerate(truck['cargo']):
 # cool interior light so the load reads through the open doors
 il = bpy.data.lights.new('TRK_InteriorLight', 'AREA')
 il.size = 2.0
-il.energy = 90
+il.energy = 45
 il.color = (0.85, 0.93, 1.0)
 ilo = bpy.data.objects.new('TRK_InteriorLight', il)
 s.collection.objects.link(ilo)
@@ -249,7 +249,7 @@ L.pose(drv, 'sit')
 # road, harbour buildings, ice shed, palms, parked trucks, crate stacks, lamp posts, gulls
 L.box('ROAD', (9, 160, 0.04), (TRK.x - 1.5, -80, WZ + 0.01), mats['asphalt'], 0.0)
 blds = P.MB()
-bmat = L.weather(L.pbr('MAT_Building', (0.78, 0.77, 0.72), 0.85, grime=0.6, var=0.25, bump=0.3, scale=0.5, attr='col'),
+bmat = L.weather(L.tex_pbr('MAT_Building', 'painted_plaster_wall', 0.3, attr='col', tint_amount=0.55, grime=0.6, bump=0.6),   # real plaster
                  streak=(0.32, 0.28, 0.22), amount=0.6, z0=WZ, z1=WZ + 2.5, dirt=(0.3, 0.25, 0.18), dirt_amount=0.85, scale=0.8)
 shut = L.weather(P.paint_attr('MAT_Shutter', 0.6, 0.3, grime=0.5, corrugate=25.0), amount=0.5, z0=WZ, z1=WZ + 2.0)
 awn = L.pbr('MAT_Awning', (0.5, 0.5, 0.5), 0.8, var=0.3, grime=0.5, attr='col')
