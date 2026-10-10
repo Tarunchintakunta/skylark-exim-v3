@@ -31,6 +31,7 @@ mats = L.M()
 sun = L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.85, rot=0.0, sun_strength=3.0)
 bpy.data.objects['Sun'].data.angle = math.radians(6.0)   # soft-edged sea-haze shadows, no black holes on the deck
 bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
+S.haze_world()   # humid coastal sky: lower saturation and contrast, grey-green haze (not a postcard blue)
 
 SO.progress('section: vessel')
 # ---------------------------------------------------------------- vessel
@@ -39,6 +40,13 @@ boat = V['root']
 for _o in [o for o in bpy.data.objects if o.name.startswith('BOAT_Bucket')]:   # smooth blue drums read as toy balls
     bpy.data.objects.remove(_o)
 DZ = V['deck_z']
+# a season of work on the paint and deck: primer chips, rust from every stanchion foot, dirty runs, blood and scales
+for _mn, _top in (('MAT_BoatWhite', 1.2), ('MAT_IceBox', 0.9)):
+    if _mn in bpy.data.materials:
+        S.hard_wear(bpy.data.materials[_mn], DZ, _top)
+S.hard_wear(V['hull'].active_material, DZ, 1.0)   # outer topsides and the blue band too
+S.gut_stains(mats['wetdeck'])
+S.hull_contact('BOAT_WaterFoam', boat)   # churned water where the hull meets the sea, wider at the bow
 # gentle roll and pitch (the sea moves the boat; crew and props are children so they move with it)
 for f in range(1, 384, 12):
     boat.rotation_euler = (D(1.3 * math.sin(f / 26.0)), D(0.6 * math.sin(f / 37.0 + 1)), 0)
@@ -58,6 +66,7 @@ bm.operation = 'DIFFERENCE'
 bm.object = cut
 bm.solver = 'FLOAT' if 'FLOAT' in [e.identifier for e in bm.bl_rna.properties['solver'].enum_items] else 'FAST'
 far = L.far_water('SeaFar', 8000, -0.3, hole=330.0)
+S.sea_tone(bpy.data.materials['MAT_Water_Sea'])   # green-grey coastal water, more whitecaps
 
 SO.progress('section: distant boats + gulls')
 # ---------------------------------------------------------------- distant boats + gulls
@@ -372,7 +381,7 @@ L.anim_poses(w, [(1, 'idle'), (36, 'pull'), (60, 'pull2'), (84, 'pull'), (100, '
                  (180, 'idle'), (383, 'idle')])
 r1 = crew_member('CREW_Rail1', 'fisherman_o', (0.2, 2.25), 90, 1.75, 1.05)
 L.anim_poses(r1, [(1, 'idle'), (40, 'reach'), (95, 'reach'), (110, 'guide'), (150, 'guide'), (170, 'reach'), (186, 'idle')])
-r2 = crew_member('CREW_Rail2', 'fisherman_y', (2.9, 2.2), 100, 1.7)
+r2 = crew_member('CREW_Rail2', 'fisherman_b', (2.9, 2.2), 100, 1.7)
 L.anim_poses(r2, [(1, 'reach'), (42, 'guide'), (90, 'reach'), (112, 'guide'), (155, 'guide'), (175, 'pull'), (186, 'idle')])
 c3 = crew_member('CREW_Mid', 'fisherman_o', (HAUL[1][0], HAUL[1][1]), 90, 1.74)
 L.anim_poses(c3, haul_seq(0) + [(110, 'stand'), (150, 'idle')])
@@ -471,6 +480,7 @@ keys = [
     (170, (3.0, -4.4, 3.2), (2.4, 0.2, 3.2), 26),
     (192, (-4.5, -2.6, 7.0), (PILE.x + 0.6, PILE.y - 0.3, DZ), 30),   # from aft-port: the king post sits well off to the side
     (260, (-3.6, -4.6, 7.2), (2.8, -0.6, DZ), 30),
+    (296, (0.6, -5.2, 7.0), (3.4, -0.4, DZ), 30),   # slow drift around the pile, aim held: no whip (rotational blur at f300)
     (330, (5.2, -2.4, 6.4), (HC.x, 0.0, hold_floor + 0.6), 30),
     (383, (HC.x + 0.05, -0.02, 4.4), (HC.x, 0.0, hold_floor), 32),   # tight on the hatch: no crew cut at the frame edge
 ]
