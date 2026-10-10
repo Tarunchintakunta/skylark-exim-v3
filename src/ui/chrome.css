@@ -60,3 +60,11 @@
 @media (max-width: 767px) {
   .caption { bottom: 72px; }
 }
+
+/* tap targets ≥ 44×44 (#131): the toggle, nav links and menu button grow their hit area, not their type */
+.path-toggle a, .nav__link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+.menu-btn { min-width: 44px; min-height: 44px; }
+@media (max-width: 899px) {
+  .nav { padding: 6px 20px; }
+  .nav ul { gap: 0; }
+}

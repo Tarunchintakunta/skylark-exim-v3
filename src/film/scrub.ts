@@ -198,7 +198,9 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  if (want) {
+  // the clip waits for the loader (fonts + hero poster) or a first scroll, so its download never competes with the
+  // first paint; the poster covers the frame until then (#131)
+  if (want && (store.getState().ready || frame.scroll > 2)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock

@@ -20,6 +20,10 @@ jobs:
       - name: scroll perf (report only; runners have no GPU)
         run: if [ -f tests/scroll-perf.spec.ts ]; then npx playwright test tests/scroll-perf.spec.ts || true; fi
       - run: npx lhci autorun
+      - name: Lighthouse summary (LCP per run)
+        if: always()
+        run: |
+          node -e "const fs=require('fs');const d='.lighthouseci';if(!fs.existsSync(d))process.exit(0);for(const f of fs.readdirSync(d).filter(f=>/^lhr-.*\.json$/.test(f))){const r=JSON.parse(fs.readFileSync(d+'/'+f));if(!r.audits)continue;console.log('LCP',Math.round(r.audits['largest-contentful-paint'].numericValue),'ms perf',r.categories.performance.score,'a11y',r.categories.accessibility.score,'CLS',r.audits['cumulative-layout-shift'].numericValue.toFixed(3))}"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -28,3 +32,4 @@ jobs:
             .lighthouseci
             perf-report.json
           if-no-files-found: ignore
+          include-hidden-files: true
