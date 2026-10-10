@@ -517,7 +517,7 @@ def _drip_mesh():
         bm = bmesh.new()
         bmesh.ops.create_uvsphere(bm, u_segments=6, v_segments=4, radius=0.012)
         for v in bm.verts:
-            v.co.z *= 2.5
+            v.co.z *= 1.4
         me = bpy.data.meshes.new('HV_DripMesh')
         bm.to_mesh(me)
         bm.free()
@@ -811,21 +811,31 @@ def _bag(cx, yw, C, rnd):
         for f in range(62, 100, 3):
             ch.rotation_euler.x += rnd.uniform(-0.5, 0.5)
             ch.keyframe_insert('rotation_euler', frame=f)
-    # water streaming off the belly while it hangs: thin falling threads (stretch + flicker)
-    wm = P.plain('HV_WaterThread', (0.8, 0.85, 0.85), 0.02, transmission=0.9, ior=1.33)
-    for k in range(7):
+    # water running off the belly while it hangs: droplets falling from the mesh, staggered, accelerating
+    dm = _drip_mesh()
+    for k in range(9):
         th = rnd.uniform(0, 2 * math.pi)
         u = rnd.uniform(0.82, 0.98)
         r, z = _bag_profile('hang', u)
-        tp = Part()
-        tp.cyl((0, 0, 0), (0, 0, -1.0), rnd.uniform(0.0018, 0.003), 5)
-        t = tp.make('HV_BagStream%d' % k, wm, root, coll=C)
-        t.location = (math.cos(th) * r * 0.9, math.sin(th) * r * 0.9, z)
-        for f in range(56, 102, 3):
-            ln = (0.0 if f < 60 else rnd.uniform(0.12, 0.38)) * (1.0 if f < 88 else max(0.0, (100 - f) / 12))
-            t.scale = (1, 1, max(0.01, ln))
-            t.keyframe_insert('scale', frame=f)
-        key_hide(t, [(F0, True), (60, False), (100, True)], children=False)
+        x0, y0 = math.cos(th) * r * 0.9, math.sin(th) * r * 0.9
+        for j in range(3):
+            d = bpy.data.objects.new('HV_BagDrop%d_%d' % (k, j), dm)
+            C.objects.link(d)
+            d.parent = root
+            sc = rnd.uniform(0.35, 0.6)
+            d.scale = (sc, sc, sc)
+            per = rnd.randint(7, 10)
+            ph = (j * per) // 3 + rnd.randint(0, 2)
+            for f in range(56 + ph, 100, per):                  # each cycle: hang, fall ~0.6 m, reset
+                for df, fall in ((0, 0.0), (1, 0.02), (per - 1, 0.6)):
+                    d.location = (x0, y0, z - fall)
+                    d.keyframe_insert('location', frame=f + df)
+            if d.animation_data:
+                for fc in T._fcurves(d.animation_data.action):
+                    for kp in fc.keyframe_points:
+                        kp.interpolation = 'QUAD'
+                        kp.easing = 'EASE_IN'
+            key_hide(d, [(F0, True), (58 + ph, False), (100, True)], children=False)
     return root
 
 
