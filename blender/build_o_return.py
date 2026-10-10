@@ -245,10 +245,20 @@ for i in range(10):
         col = rnd.choice([(0.66, 0.62, 0.55), (0.58, 0.62, 0.62), (0.7, 0.64, 0.5), (0.55, 0.56, 0.5), (0.62, 0.5, 0.42)])
         blds.box((x, y, WZ + h / 2), (w, d, h), bmat, col)
         fx = x - side * w / 2 - side * 0.03
-        for k2 in range(3):
-            yy = y - d / 3 + k2 * d / 3
-            blds.box((fx, yy, WZ + h * 0.62), (0.06, 1.2, 1.1), mats['glass'])
-            blds.box((fx - side * 0.02, yy, WZ + h * 0.62), (0.05, 1.5, 1.4), shut, rnd.choice(shut_cols))
+        for fl in range(1, max(2, int(h / 3.0))):        # a row of windows per upper floor, sills and grilles
+            zf = WZ + fl * 3.0 + 1.0
+            if zf > WZ + h - 0.8:
+                break
+            for k2 in range(3):
+                yy = y - d / 3 + k2 * d / 3 + rnd.uniform(-0.2, 0.2)
+                blds.box((fx, yy, zf), (0.06, 1.2, 1.1), mats['glass'])
+                blds.box((fx - side * 0.02, yy, zf), (0.05, 1.5, 1.4), shut, rnd.choice(shut_cols))
+                blds.box((fx - side * 0.08, yy, zf - 0.62), (0.16, 1.5, 0.08), bmat, col)            # sill
+                if rnd.random() < 0.4:                                                          # AC unit / grille
+                    blds.box((fx - side * 0.25, yy + 0.9, zf - 0.3), (0.5, 0.7, 0.45), mats['steel'])
+        blds.box((x, y, WZ + h + 0.45), (w, d, 0.9), bmat, col)                                 # parapet band
+        blds.box((x, y, WZ + h + 0.46), (w - 0.4, d - 0.4, 0.9), bmat, (0.3, 0.29, 0.27))       # roof (darker, stained)
+        blds.cyl((fx - side * 0.06, y + d * 0.45, WZ), (fx - side * 0.06, y + d * 0.45, WZ + h), 0.05, mats['steel'], 6)   # drainpipe
         blds.box((fx, y, WZ + 1.15), (0.08, 2.4, 2.3), shut, rnd.choice(shut_cols))       # rolling shutter / door
         ac = rnd.choice(awn_cols)                       # canvas awning: canopy, hanging valance, two poles to the kerb
         blds.box((fx - side * 0.9, y, WZ + 2.6), (1.8, d * 0.9, 0.06), awn, ac)
@@ -258,7 +268,7 @@ for i in range(10):
         if h > 6:
             blds.box((fx - side * 0.5, y, WZ + h * 0.5), (1.0, d * 0.6, 0.12), bmat, col)        # balcony slab
             blds.box((fx - side * 0.98, y, WZ + h * 0.5 + 0.5), (0.05, d * 0.6, 0.9), mats['steel'])
-        blds.box((x, y, WZ + h + 0.4), (w * 0.2, d * 0.2, 0.8), bmat, (0.3, 0.32, 0.34))     # water tank
+        blds.box((x + w * 0.2, y, WZ + h + 1.3), (w * 0.2, d * 0.2, 0.8), mats['steel'])           # water tank on the roof
 blds.obj('HARBOUR_Buildings')
 shed = P.MB()
 shed.box((24, -14, WZ + 3.5), (16, 10, 0.3), L.pbr('MAT_ShedRoof', (0.55, 0.57, 0.58), 0.5, 0.6, grime=0.4, scale=0.3))
