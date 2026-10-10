@@ -156,18 +156,8 @@ _LM = {}
 def crate(name, color, loc, rot, parent, fill, seed, C=None):
     if 'm' not in _LM:
         _LM['m'] = L.M()
-    o = L.crate(name, color, loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)
-    o.material_slots[0].material = crate_mat(color)
+    o = L.crate(name, color, loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)   # library HDPE: bump + wear
     return o
-
-
-CRATE_COL = {'blue': (0.05, 0.10, 0.19), 'red': (0.19, 0.065, 0.055), 'white': (0.66, 0.67, 0.65),
-             'yellow': (0.6, 0.45, 0.08)}
-
-
-def crate_mat(color):
-    """Desaturated, slightly scuffed HDPE crate plastic."""
-    return P.grime_paint('CR_%s' % color, CRATE_COL[color], rough=0.42, grime=0.35, streak=0.15, coat=0.0, metal=0.0)
 
 
 def shrimp_fn(C):
@@ -425,9 +415,9 @@ def camera_truck_reverse():
         (200, (3.4, -13.4, 2.3), (7.5, -8.7, 1.2)),       # driver steps down from the cab
         (222, (4.4, -12.6, 1.85), (7.9, -8.7, 0.75)),     # ... walks to the front wheel
         (240, (4.0, -11.3, 1.6), (7.7, -8.9, 0.5)),      # chock goes under the tyre, held in frame
-        (256, (4.0, -5.0, 2.4), (6.2, 1.0, 2.3)),
-        (272, (5.9, 1.9, 2.85), (8.8, 1.0, 2.45)),
-        (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY, -1.4, 2.15)),
+        (256, (4.6, -5.0, 2.6), (5.2, 1.0, 2.4)),         # centred on bay 4.6: the dock seals stay at the edges
+        (272, (5.0, 1.9, 2.85), (8.8, 1.0, 2.45)),
+        (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY - 0.45, -1.4, 2.15)),   # door opener's glove stays out of frame
     ]
     for f, loc, t in keys:
         cam.location = loc
