@@ -26,6 +26,17 @@ rnd = random.Random(9)
 QZ = 3.0
 
 s = L.reset()
+import skhuman_ocean as SO  # noqa: E402
+SK = SO.install(L)   # quay crew are skhuman people (port hi-vis outfit); sklib choreography drives them
+_container_block = P.container_block
+
+
+def _block_with_progress(name, *a, **k):   # ~70 blocks, ~10 s each: one stage file per block for the gate's watchdog
+    SO.progress('block ' + name)
+    return _container_block(name, *a, **k)
+
+
+P.container_block = _block_with_progress
 print('BUILD port start', flush=True)
 s.frame_start, s.frame_end = 1, 479
 mats = L.M()
@@ -41,6 +52,7 @@ _wn.links.new(_src, _mx.inputs['A'])
 _mx.inputs['B'].default_value = (0.86, 0.8, 0.7, 1)
 _wn.links.new(_mx.outputs['Result'], _bg.inputs['Color'])
 
+SO.progress('section: ground, quay, water')
 # ---------------------------------------------------------------- ground, quay, water
 asph = mats['asphalt']
 conc = mats['concrete']
@@ -83,6 +95,7 @@ for x in range(-300, 301, 60):
     P.light_mast(f'QUAY_Mast{x}', (x + 30, -38.5, QZ), 34)
     P.light_mast(f'YARD_Mast{x}', (x + 5, -150, QZ), 34)
 
+SO.progress('section: yard: container blocks, reefer racks, RT')
 # ---------------------------------------------------------------- yard: container blocks, reefer racks, RTGs
 cmat = P.paint_attr('MAT_ContainerPaint', corrugate=60.0)
 blocks = 0
@@ -133,6 +146,7 @@ for i, (x0, y) in enumerate(((-120, -24.0), (-200, -21.0))):
     P.drive(sc, [(x0, y), (x0 + 140, y)], 1, 479, ease=False, keystep=24)
     L.linear_keys(sc)
 
+SO.progress('section: gate + truck queue')
 # ---------------------------------------------------------------- gate + truck queue
 gate, barriers = P.gatehouse('GATE', (-40, -78, QZ), lanes=4, lane_w=4.5, mats=mats)
 for i, b in enumerate(barriers):
@@ -185,6 +199,7 @@ for i, (path, f0, f1) in enumerate((([(-37.75, -60), (-37.75, -32), (-30, -19), 
 w1t, _, _ = rig('C1TRUCK', (0.6, 0.06, 0.04), False, loc=(-58.5, -12.5, QZ))
 w3t, _, w3box = rig('C3TRUCK', (0.06, 0.15, 0.4), True, loc=(61.5, -20.5, QZ))
 
+SO.progress('section: ship, cranes')
 # ---------------------------------------------------------------- ship, cranes
 SHIP_Y = 21.0
 ship = P.container_ship('SHIP', (10.0, SHIP_Y, 0.0), L=230.0, B=32.0, deck=11.0, mats=mats, rnd=rnd, empty_slot=(4, 3),
@@ -282,6 +297,7 @@ for k, C in enumerate(cranes):
         bh.keyframe_insert('rotation_euler', frame=f)
     L.smooth_keys(bh)
 
+SO.progress('section: tugs, distant ships, mooring lines')
 # ---------------------------------------------------------------- tugs, distant ships, mooring lines
 tugs = []
 for i, x in enumerate((-95.0, 112.0)):
@@ -303,9 +319,9 @@ for x in (-95, -80, 85, 105):
         lines.append(ln)
         L.key_vis(ln, 1, 300)
 
+SO.progress('section: workers (hi-vis, hard hats) on the quay')
 # ---------------------------------------------------------------- workers (hi-vis, hard hats) on the quay
-spots = [(-6, -6.5, 30), (8, -5.5, 200), (-14, -18, 80), (14, -28, 160), (4, -21.5, 250), (-30, -4.5, 10), (30, -5, 180),
-         (-52, -7, 60), (52, -7, 220), (70, -28, 100), (-70, -28, 300), (0, -32, 90)]
+spots = [(-6, -6.5, 30), (8, -5.5, 200), (-14, -18, 80), (-30, -4.5, 10), (30, -5, 180)]   # fewer, larger, distinct (Tarun)
 for i, (x, y, rz) in enumerate(spots):
     w = L.person(f'WORKER{i}', 'port' if i % 3 else 'port_o', (x, y, QZ), D(rz), seed=i, mats=mats)
     if i < 3:
@@ -313,13 +329,22 @@ for i, (x, y, rz) in enumerate(spots):
     else:
         L.anim_poses(w, [(1, 'idle'), (100 + i * 7, 'point' if i % 4 == 0 else 'idle'), (200, 'idle')])
 
-for i, (x, y, rz) in enumerate(((-9, -9.5, 60), (-5, -15.5, 120), (9, -16, 240), (12, -8.5, 300), (-18, -11, 20),
-                                 (20, -14, 200), (-24, -16, 90), (26, -9, 150))):          # crew at mid distance
+for i, (x, y, rz) in enumerate(((-9, -9.5, 60), (12, -8.5, 300), (20, -14, 200))):          # crew at mid distance
     w = L.person(f'YARDCREW{i}', 'port' if i % 2 else 'port_o', (x, y, QZ), D(rz), seed=60 + i, mats=mats)
     L.anim_poses(w, [(1, 'idle'), (40 + i * 13, 'point' if i % 3 == 0 else 'idle'), (160 + i * 9, 'idle'), (479, 'idle')])
 for i, x in enumerate((-6.0, -3.0, 2.5)):                                              # lashing crew at the ship's side
     w = L.person(f'LASHER{i}', 'port', (x, -1.6, QZ), D(90), seed=80 + i, mats=mats)
     L.anim_poses(w, [(1, 'reach'), (30 + i * 10, 'pull'), (70 + i * 10, 'reach'), (130, 'idle'), (479, 'idle')])
+    # a lashing bar in both fists, foot planted on the quay, head up toward the ship
+    bar = L.cyl(f'LASHBAR{i}', 0.022, 2.3, (x + 0.42, -1.6 + 0.35, QZ + 0.02), mats['steel'], 8, origin='base')
+    bar.rotation_euler = (D(-14), D(-8), 0)
+    hl, hr = L.empty(f'LASHBAR_HL{i}', (0, 0, 0), size=0.05), L.empty(f'LASHBAR_HR{i}', (0, 0, 0), size=0.05)
+    for e, zb in ((hl, 1.02), (hr, 1.32)):
+        e.parent = bar
+        e.location = (0, 0, zb)
+    SK.ik_hands(w, hl, hr)
+    SO.grip(w, 'L')
+    SO.grip(w, 'R')
 q2, q2w, _ = rig('QUEUE2', (0.12, 0.2, 0.32), True, loc=(-60.0, -12.5, QZ))               # second truck queueing
 pk = L.pbr('MAT_PickupPaint', (0.75, 0.74, 0.7), 0.4, 0.2, grime=0.5, coat=0.3)
 for i, (x, y, rz) in enumerate(((-34.0, -33.5, 0.0), (44.0, -34.0, math.pi))):           # pickups parked by the lanes
@@ -334,6 +359,7 @@ for i, (x, y, rz) in enumerate(((-34.0, -33.5, 0.0), (44.0, -34.0, math.pi))):  
     po = pb.obj(f'PICKUP{i}', None, (x, y, QZ))
     po.rotation_euler = (0, 0, rz)
 
+SO.progress('section: x-ship: lines off, tugs pull, ship sails')
 # ---------------------------------------------------------------- x-ship: lines off, tugs pull, ship sails out
 shp = ship['root']
 ship_keys = [(288, (SHIP_X, SHIP_Y, 0), 0.0), (336, (SHIP_X + 4, SHIP_Y + 30, 0), D(4)), (380, (40.0, SHIP_Y + 59, 0), D(30)),
@@ -387,10 +413,17 @@ for i, T in enumerate(tugs):
     st_.rest_length = 1.0
     L.key_vis(line, 288, 392)
 
+SO.progress('section: hero reefer: keyed per frame (trailer ->')
 # ---------------------------------------------------------------- hero reefer: keyed per frame (trailer -> spreader -> ship)
 LOCK, RELEASE = 182, 280
 dg = bpy.context.evaluated_depsgraph_get()
+# the per-frame keying below evaluates the whole scene 530 times: people (armature deform) are switched off for it
+_people = [o for o in bpy.data.objects if o.type == 'ARMATURE' or any(m.type == 'ARMATURE' for m in o.modifiers)]
+for o in _people:
+    o.hide_viewport = True
 for f in range(1, 480):
+    if f % 60 == 0:
+        SO.progress('reefer keys frame %d' % f)
     s.frame_set(f)
     if f < LOCK:
         m = hero_trailer.matrix_world
@@ -429,7 +462,10 @@ carried = reefer.matrix_world.translation.copy()
 landed = (carried - SLOT_W).length
 print('PLACEMENT min clearance over the slot %.3f m, landing error %.4f m, intersecting frames %s' % (worst, landed, hits), flush=True)
 assert landed < 0.01 and not hits
+for o in _people:
+    o.hide_viewport = False
 
+SO.progress('section: coastline, breakwaters, city (seen from ')
 # ---------------------------------------------------------------- coastline, breakwaters, city (seen from the top-down end)
 def coast_y(x):
     """Shoreline (y of the waterline) east and west of the 700 m container quay: bays, a headland, beaches."""
@@ -578,6 +614,7 @@ for i, (x, y, r, Ls) in enumerate(((-400, 300, D(90), 190), (-380, 520, D(88), 9
     o = far.obj(f'BASIN_Ship{i}', None, (x, y, 0))
     o.rotation_euler = (0, 0, r)
 
+SO.progress('section: camera')
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (-40, -92, 12), (-40, -55, 2))
 cam.data.clip_end = 30000
