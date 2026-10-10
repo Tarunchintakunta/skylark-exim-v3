@@ -73,7 +73,7 @@ pv.inputs['Density'].default_value = 0.05
 pv.inputs['Anisotropy'].default_value = 0.65
 pv.inputs['Absorption Color'].default_value = (0.02, 0.25, 0.3, 1)
 vn.links.new(pv.outputs[0], vo.inputs['Volume'])
-L.box('WaterColumn', (6000, 6000, 40), (0, 40, -20.02), vm, 0.0)   # edge far past the horizon: its side face showed as a cyan band
+L.box('WaterColumn', (6000, 6000, 40), (0, 40, -20.12), vm, 0.0)   # edge far past the horizon: its side face showed as a cyan band
 # light shafts slanting down from the surface along the sun (soft, additive, fading with depth)
 # soft god rays: emission + transparency, fading to nothing at the shaft's edges (facing) and along its length
 shaft = bpy.data.materials.new('MAT_Shaft')
