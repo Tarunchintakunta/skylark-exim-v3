@@ -102,7 +102,7 @@ def deck_wear(m):
     wr.inputs['From Min'].default_value = 0.5
     wr.inputs['From Max'].default_value = 0.56
     wr.inputs['To Min'].default_value = 0.55
-    wr.inputs['To Max'].default_value = 0.18            # wet patches: lower roughness, still matte-ish
+    wr.inputs['To Max'].default_value = 0.38            # wet patches: a little lower roughness, still matte
     l.new(wet.outputs['Fac'] if 'Fac' in wet.outputs else wet.outputs[0], wr.inputs['Value'])
     l.new(wr.outputs[0], p.inputs['Roughness'])
     sc = nt.nodes.new('ShaderNodeTexNoise')            # scuffs: stretched streaks of worn paint
