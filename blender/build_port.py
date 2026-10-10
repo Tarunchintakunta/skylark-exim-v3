@@ -28,7 +28,17 @@ QZ = 3.0
 s = L.reset()
 s.frame_start, s.frame_end = 1, 479
 mats = L.M()
-L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.55, rot=40.0, sun_strength=4.2, sun_color=(1.0, 0.94, 0.84))
+L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.55, rot=40.0, sun_strength=4.2, sun_color=(1.0, 0.92, 0.8))
+_wn = s.world.node_tree      # warm coastal haze over the whole sky
+_bg = [n for n in _wn.nodes if n.type == 'BACKGROUND'][0]
+_src = _bg.inputs['Color'].links[0].from_socket
+_mx = _wn.nodes.new('ShaderNodeMix')
+_mx.data_type = 'RGBA'
+_mx.blend_type = 'MIX'
+_mx.inputs['Factor'].default_value = 0.22
+_wn.links.new(_src, _mx.inputs['A'])
+_mx.inputs['B'].default_value = (0.86, 0.8, 0.7, 1)
+_wn.links.new(_mx.outputs['Result'], _bg.inputs['Color'])
 
 # ---------------------------------------------------------------- ground, quay, water
 asph = mats['asphalt']
@@ -37,7 +47,7 @@ L.box('QUAY_Yard', (700, 300, 5.0), (0, -190, QZ - 2.5), asph, 0.0)
 L.box('QUAY_Apron', (700, 40.2, 5.02), (0, -20, QZ - 2.49), conc, 0.0)
 L.box('QUAY_Face', (700, 0.6, 5.5), (0, -0.1, QZ - 3.0), pbr_face := L.pbr('MAT_QuayFace', (0.42, 0.41, 0.38), 0.85,
                                                                               grime=0.5, scale=0.2), 0.0)
-water_port = L.water_mat('MAT_Water_Port', (0.004, 0.05, 0.07), swell=0.6)
+water_port = L.water_mat('MAT_Water_Port', (0.004, 0.05, 0.07), swell=0.6, chop=0.45)
 sea = L.ocean('Harbour', size=60, repeat=8, res=10, choppy=0.6, wind=5.5, scale=0.35, f0=1, f1=479, foam=0.1,
               mat=water_port, loc=(0, 200, 0))
 full = L.box('SeaFull', (60000, 60000, 0.1), (0, 0, -0.3), water_port, 0.0)
@@ -144,7 +154,7 @@ def rig(name, color, with_box, reefer=False, loc=(0, 0, 0), rot_z=0.0, col=None)
 
 
 # the hero: white tractor + skeletal trailer + white reefer (the reefer is its own object, keyed per frame later)
-hero, hero_w, _ = rig('HERO', (0.86, 0.86, 0.85), False, loc=(-42.25, -96, QZ), rot_z=D(90))
+hero, hero_w, _ = rig('HERO', (0.42, 0.08, 0.05), False, loc=(-42.25, -96, QZ), rot_z=D(90))   # faded red cab
 hero_trailer = bpy.data.objects['HERO_Trailer']
 reefer = P.reefer_box('HERO_Reefer', None)
 HERO_PATH = [(-42.25, -96), (-42.25, -74), (-42.25, -45), (-41.0, -26), (-34, -15.5), (-22, -12.5), (-8, -12.5), (1.5, -12.5)]
@@ -302,6 +312,27 @@ for i, (x, y, rz) in enumerate(spots):
     else:
         L.anim_poses(w, [(1, 'idle'), (100 + i * 7, 'point' if i % 4 == 0 else 'idle'), (200, 'idle')])
 
+for i, (x, y, rz) in enumerate(((-9, -9.5, 60), (-5, -15.5, 120), (9, -16, 240), (12, -8.5, 300), (-18, -11, 20),
+                                 (20, -14, 200), (-24, -16, 90), (26, -9, 150))):          # crew at mid distance
+    w = L.person(f'YARDCREW{i}', 'port' if i % 2 else 'port_o', (x, y, QZ), D(rz), seed=60 + i, mats=mats)
+    L.anim_poses(w, [(1, 'idle'), (40 + i * 13, 'point' if i % 3 == 0 else 'idle'), (160 + i * 9, 'idle'), (479, 'idle')])
+for i, x in enumerate((-6.0, -3.0, 2.5)):                                              # lashing crew at the ship's side
+    w = L.person(f'LASHER{i}', 'port', (x, -1.6, QZ), D(90), seed=80 + i, mats=mats)
+    L.anim_poses(w, [(1, 'reach'), (30 + i * 10, 'pull'), (70 + i * 10, 'reach'), (130, 'idle'), (479, 'idle')])
+q2, q2w, _ = rig('QUEUE2', (0.12, 0.2, 0.32), True, loc=(-60.0, -12.5, QZ))               # second truck queueing
+pk = L.pbr('MAT_PickupPaint', (0.75, 0.74, 0.7), 0.4, 0.2, grime=0.5, coat=0.3)
+for i, (x, y, rz) in enumerate(((-34.0, -33.5, 0.0), (44.0, -34.0, math.pi))):           # pickups parked by the lanes
+    pb = P.MB()
+    pb.box((0, 0, 0.75), (5.2, 1.85, 0.7), pk, bevel=0.08)
+    pb.box((0.6, 0, 1.45), (2.3, 1.75, 0.75), pk, bevel=0.1)
+    pb.box((1.78, 0, 1.45), (0.05, 1.6, 0.6), mats['glass'])
+    pb.box((-1.6, 0, 1.15), (1.9, 1.8, 0.08), pk)
+    for wx in (-1.6, 1.6):
+        for sy_ in (-0.85, 0.85):
+            pb.cyl((wx, sy_ - 0.13, 0.38), (wx, sy_ + 0.13, 0.38), 0.38, mats['rubber'], 18)
+    po = pb.obj(f'PICKUP{i}', None, (x, y, QZ))
+    po.rotation_euler = (0, 0, rz)
+
 # ---------------------------------------------------------------- x-ship: lines off, tugs pull, ship sails out
 shp = ship['root']
 ship_keys = [(288, (SHIP_X, SHIP_Y, 0), 0.0), (336, (SHIP_X + 4, SHIP_Y + 30, 0), D(4)), (380, (40.0, SHIP_Y + 59, 0), D(30)),
@@ -446,7 +477,7 @@ for by in range(1, 46, 3):
 rd.obj('LAND_Roads')
 # rubble-mound breakwaters closing the basin; the harbour mouth opens to the north-east, on the ship's heading
 rock = L.tex_pbr('MAT_Breakwater', 'rust_coarse_01', 0.02, tint=(0.42, 0.41, 0.39), tint_amount=0.9, grime=0.3) \
-    if False else L.pbr('MAT_Breakwater', (0.42, 0.41, 0.39), 0.9, var=0.45, bump=0.8, scale=0.4, grime=0.4)
+    if False else L.pbr('MAT_Breakwater', (0.17, 0.165, 0.155), 0.92, var=0.5, bump=1.0, scale=0.4, grime=0.6)   # dark wet rock
 bwm = P.MB()
 for pts in (((-450, 0), (-450, 640), (240, 780)), ((720, -20), (720, 340), (580, 440))):
     for (xa, ya), (xb, yb) in zip(pts[:-1], pts[1:]):
