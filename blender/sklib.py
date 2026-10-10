@@ -1786,6 +1786,15 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
             ice.location.z = level + 0.015
         # loose crushed ice: over the bed, between and partly over the fish
         obj(f'{name}_icech', _CRATE['chunks'], mats['ice'], (0, 0, level + (0.055 if fill != 'ice' else 0.07)), parent=c)
+        if fill in ('fish', 'tuna', 'mixed'):
+            # fish bedded in ice, not lying on it: a lumpy crushed-ice top layer the upper fish break through, and a
+            # second scatter of bigger shards over everything
+            if 'top' not in _CRATE:
+                _CRATE['top'] = ice_mesh('LIB_CrateIceTop', 0.52, 0.32, 0.035, 18, 7)
+                _CRATE['chunks2'] = ice_chunks('LIB_CrateIceChunks2', 0.48, 0.28, 220, 9, 0.0, 0.02)
+            top = obj(f'{name}_icetop', _CRATE['top'], mats['ice'], (0, 0, level + 0.058), parent=c)
+            top.rotation_euler.z = rnd.choice((0.0, math.pi))
+            obj(f'{name}_icech2', _CRATE['chunks2'], mats['ice'], (0, 0, level + 0.085), parent=c)
     return c
 
 
