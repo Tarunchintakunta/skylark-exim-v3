@@ -298,9 +298,14 @@ for k, C in enumerate(cranes):
     L.smooth_keys(bh)
 
 # working paint: chips to primer, rust at the feet and runs on the spreader and the crane lattice (not showroom)
-for _mn, _z0, _top in (('MAT_SpreaderYellow', -1.4, 1.4), ('MAT_CraneWhite', 0.0, 60.0), ('MAT_CraneBlue', 0.0, 60.0)):
-    if _mn in bpy.data.materials:
-        P.hard_wear(bpy.data.materials[_mn], _z0, _top)
+for _m in list(bpy.data.materials):   # every copy (pbr() makes .001 duplicates: the crane booms used one of those)
+    for _pre, _z0, _top in (('MAT_SpreaderYellow', -1.4, 1.4), ('MAT_CraneWhite', 0.0, 60.0), ('MAT_CraneBlue', 0.0, 60.0)):
+        if _m.name.startswith(_pre):
+            P.hard_wear(_m, _z0, _top)
+            if _pre != 'MAT_SpreaderYellow':    # metre-scale rust runs and salt grime that still read from 30-300 m
+                P._over(_m, P._noise_band(_m, 1.2, 0.55, 0.72, 0.8, stretch=(3.0, 3.0, 0.08), loc=(-3600, -2600)),
+                        (0.3, 0.14, 0.06))
+                P._over(_m, P._noise_band(_m, 0.4, 0.45, 0.7, 0.45, loc=(-3600, -3000)), (0.42, 0.42, 0.38))
 # quay apron: oil blotches, tyre marks along the lanes, drainage grates (not a pale flat slab)
 P._over(conc, P._noise_band(conc, 0.06, 0.55, 0.7, 0.55, loc=(-2600, -5200)), (0.09, 0.085, 0.08))            # big oil/water blotches
 P._over(conc, P._noise_band(conc, 0.8, 0.5, 0.62, 0.45, stretch=(0.03, 1.0, 1.0), loc=(-2600, -5600)), (0.12, 0.115, 0.11))   # tyre tracks along X
@@ -526,9 +531,9 @@ for _m in (cityp, trees):   # aerial haze: the town fades into humid air with di
     _nt = _m.node_tree
     _cd = _nt.nodes.new('ShaderNodeCameraData')
     _hr = _nt.nodes.new('ShaderNodeMapRange')
-    _hr.inputs['From Min'].default_value = 300.0
+    _hr.inputs['From Min'].default_value = 1500.0
     _hr.inputs['From Max'].default_value = 3500.0
-    _hr.inputs['To Max'].default_value = 0.65
+    _hr.inputs['To Max'].default_value = 0.4
     _nt.links.new(_cd.outputs['View Distance'], _hr.inputs['Value'])
     P._over(_m, _hr.outputs[0], (0.56, 0.6, 0.62))
 crnd = random.Random(21)
@@ -551,7 +556,9 @@ for bx in range(-55, 56):
             rc = crnd.choice(roof_cols)
             cm.box((px, py, QZ + h / 2 - 0.5), (w, d, h), cityp, rc)
             # roof read from the air: darker inset slab inside a parapet, water tanks and plant, a stair hut
-            cm.box((px, py, QZ + h - 0.45), (w - 1.4, d - 1.4, 0.1), cityp, tuple(c * 0.62 for c in rc))
+            cm.box((px, py, QZ + h - 0.45), (w - 1.4, d - 1.4, 0.1), cityp,
+                   crnd.choice(((0.32, 0.14, 0.07), (0.42, 0.19, 0.11), (0.28, 0.28, 0.26), (0.22, 0.23, 0.24),
+                                (0.36, 0.33, 0.28))))   # rusted sheet, terracotta, grey concrete roofs
             if by < 16 and crnd.random() < 0.5:        # a water tank on the roofs the aerial can resolve
                 tank_pts.append((px + crnd.uniform(-w / 3, w / 3), py + crnd.uniform(-d / 3, d / 3), QZ + h + 0.3))
         for _ in range(crnd.randint(2, 6) if by < 20 else 0):   # street and yard trees (instanced, not copied)
@@ -654,6 +661,7 @@ keys = [
     (40, (-29.0, -100.0, 13.0), (-42.0, -68.0, 3.0), 28),
     (72, (-48.0, -74.0, 18.5), (-41.0, -46.0, 3.0), 28),
     (132, (-50.0, -42.0, 21.0), (-12.0, -14.0, 6.0), 26),
+    (160, (-14.6, -27.4, 5.0), (1.2, -12.6, 6.5), 30),   # settles before f168: the banksman pair reads sharp
     (168, (-14.0, -27.0, 5.0), (1.5, -12.5, 6.5), 30),
     (178, (BOX.x - 10.5, BOX.y - 6.5, truck_box_top + 2.0), (BOX.x - 5.4, BOX.y - 1.0, truck_box_top + 0.2), 40),
     (186, (BOX.x - 10.0, BOX.y - 7.0, truck_box_top + 2.4), (BOX.x - 5.0, BOX.y - 1.0, truck_box_top + 0.6), 40),
