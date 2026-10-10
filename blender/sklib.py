@@ -552,8 +552,8 @@ def M():
         'hivis_orange': pbr('MAT_HiVisOrange', (0.95, 0.35, 0.02), 0.6, var=0.05),
         'reflect': pbr('MAT_ReflectStripe', (0.8, 0.8, 0.8), 0.25, 0.8, var=0.0),
         'hardhat': pbr('MAT_HardHat', (0.92, 0.92, 0.9), 0.3, var=0.05, coat=0.5),
-        'crate_blue': pbr('MAT_CrateBlue', (0.16, 0.27, 0.4), 0.45, var=0.25, bump=0.15, grime=0.5, scale=6),
-        'crate_red': pbr('MAT_CrateRed', (0.42, 0.15, 0.1), 0.45, var=0.25, bump=0.15, grime=0.5, scale=6),
+        'crate_blue': pbr('MAT_CrateBlue', (0.11, 0.2, 0.32), 0.55, var=0.35, bump=0.35, grime=0.85, scale=6),
+        'crate_red': pbr('MAT_CrateRed', (0.34, 0.11, 0.07), 0.55, var=0.35, bump=0.35, grime=0.85, scale=6),
         'crate_white': pbr('MAT_CrateWhite', (0.66, 0.68, 0.67), 0.45, var=0.2, bump=0.15, grime=0.5, scale=6),
         'crate_yellow': pbr('MAT_CrateYellow', (0.5, 0.42, 0.18), 0.5, var=0.2, grime=0.45, scale=5),
         'ice': ice_mat(),
@@ -710,8 +710,8 @@ def ice_mat():
     if 'MAT_Ice' in bpy.data.materials:
         return bpy.data.materials['MAT_Ice']
     # crushed ice: clear but frosted, faint blue, light scatters inside (reads translucent, not white plastic)
-    m = pbr('MAT_Ice', (0.93, 0.96, 0.99), 0.2, var=0.08, bump=0.5, scale=30, sss=0.0, transmission=0.85, ior=1.31,
-            rough_var=0.14)
+    m = pbr('MAT_Ice', (0.88, 0.94, 1.0), 0.09, var=0.06, bump=0.5, scale=30, sss=0.0, transmission=0.92, ior=1.31,
+            rough_var=0.06)
     p = principled(m)
     p.inputs['Coat Weight'].default_value = 0.6
     p.inputs['Coat Roughness'].default_value = 0.02
@@ -1785,12 +1785,12 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
         rnd = random.Random(seed)
         level = 0.2
         if fill in ('fish', 'tuna', 'mixed'):
-            kinds = {'fish': ['mackerel'], 'tuna': ['tuna_s'], 'mixed': ['mackerel', 'seer', 'ribbon']}[fill]
+            kinds = {'fish': ['mackerel'], 'tuna': ['tuna_s'], 'mixed': ['mackerel', 'seer', 'mackerel']}[fill]
             cnt = 4 if fill == 'tuna' else 24
             for i in range(cnt):
                 k = rnd.choice(kinds)
                 fo = fish(f'{name}_f{i}', k, parent=c, loc=(rnd.uniform(-0.15, 0.15), rnd.uniform(-0.1, 0.1),
-                                                          level + 0.045 + (i // 12) * 0.03 + rnd.uniform(0, 0.03)),
+                                                          level + 0.022 + (i // 12) * 0.022 + rnd.uniform(0, 0.015)),
                           rot=(D(rnd.choice((90, -90)) + rnd.uniform(-10, 10)), 0, D(rnd.uniform(-8, 8))),
                           scale=(0.95 if fill == 'tuna' else 1.0))
                 # keep the whole fish inside the crate walls (inner 0.54 x 0.34): shrink anything longer, pull it in
@@ -1801,10 +1801,12 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
                 shrimp_proxy(f'{name}_s{i}', parent=c, loc=(rnd.uniform(-0.22, 0.22), rnd.uniform(-0.13, 0.13),
                                                             level + rnd.uniform(0, 0.04)),
                              rot=(rnd.uniform(0, 6.28), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)))
-        ice = obj(f'{name}_ice', _CRATE['ice'], mats['ice'], (0, 0, level + (0.05 if fill != 'ice' else 0.02)), parent=c)
+        bed = bpy.data.materials.get('MAT_IcePacked') or pbr('MAT_IcePacked', (0.82, 0.88, 0.93), 0.35, var=0.08, bump=0.9,
+                                                                scale=60, sss=0.4)   # bulk crushed ice scatters white
+        ice = obj(f'{name}_ice', _CRATE['ice'], bed, (0, 0, level + (0.05 if fill != 'ice' else 0.02)), parent=c)
         if fill != 'ice':
-            ice.scale = (1, 1, 0.5)
-            ice.location.z = level + 0.015
+            ice.scale = (1, 1, 0.9)        # fish sink 30-50% into the packed bed
+            ice.location.z = level + 0.02
         # loose crushed ice: over the bed, between and partly over the fish
         obj(f'{name}_icech', _CRATE['chunks'], mats['ice'], (0, 0, level + (0.055 if fill != 'ice' else 0.07)), parent=c)
         if fill in ('fish', 'tuna', 'mixed'):
