@@ -15,6 +15,7 @@ class MB:
         self.bm = bmesh.new()
         self.col = self.bm.loops.layers.color.new('col')
         self.mats = []
+        self.cont = []          # deferred containers (add_container): appended by obj() in one numpy pass
 
     def mi(self, m):
         if m not in self.mats:
@@ -97,6 +98,8 @@ class MB:
         me = bpy.data.meshes.new(name)
         self.bm.to_mesh(me)
         self.bm.free()
+        if self.cont:
+            _append_containers(me, self)
         for m in self.mats:
             me.materials.append(m)
         o = bpy.data.objects.new(name, me)
@@ -150,7 +153,96 @@ CL, CW, CH = 12.19, 2.44, 2.59
 
 def add_container(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
     """One 40 ft box (or 20 ft if not long) centred at c (bottom at c.z), with corner posts, door end and, for reefers,
-    the machinery front."""
+    the machinery front. Deferred: MB.obj() stamps a cached template per box (numpy), ~100x faster than building
+    ~60 bmesh boxes per container (the yard has ~10k containers)."""
+    mb.cont.append((Vector(c), m, tuple(color), bool(reefer), float(rot_z), bool(long)))
+
+
+_TEMPL = {}
+
+
+def _template(reefer, long):
+    """Container geometry at the origin as numpy arrays. Per-loop colour is either a factor of the box colour
+    (body, darker frame, castings) or a constant (door bars, reefer machinery): found by building it twice."""
+    import numpy as np
+    key = (reefer, long)
+    if key in _TEMPL:
+        return _TEMPL[key]
+    out = []
+    for col in ((1.0, 1.0, 1.0), (0.5, 0.5, 0.5)):
+        mb = MB()
+        _container_geo(mb, (0, 0, 0), None, col, reefer, 0.0, long)
+        bm = mb.bm
+        bm.verts.index_update()
+        co = np.array([v.co[:] for v in bm.verts], dtype=np.float32)
+        starts, verts, cols, smooth = [], [], [], []
+        for f in bm.faces:
+            starts.append(len(verts))
+            smooth.append(f.smooth)
+            for lp in f.loops:
+                verts.append(lp.vert.index)
+                cols.append(lp[mb.col][:3])
+        out.append((co, np.array(starts), np.array(verts), np.array(cols, dtype=np.float32), np.array(smooth)))
+        bm.free()
+    (co, st, vi, c1, sm), (_co2, _st2, _vi2, c2, _sm2) = out
+    fac = np.abs(c1 - c2).max(axis=1) > 1e-4
+    _TEMPL[key] = (co, st, vi, c1, fac, sm)
+    return _TEMPL[key]
+
+
+def _append_containers(me, mb):
+    """Add mb.cont boxes to a mesh already filled from bmesh: concatenate all arrays and rebuild once."""
+    import numpy as np
+    nv0, nl0, np0 = len(me.vertices), len(me.loops), len(me.polygons)
+    co0 = np.empty(nv0 * 3, np.float32)
+    me.vertices.foreach_get('co', co0)
+    vi0 = np.empty(nl0, np.int32)
+    me.loops.foreach_get('vertex_index', vi0)
+    st0 = np.empty(np0, np.int32)
+    me.polygons.foreach_get('loop_start', st0)
+    mi0 = np.empty(np0, np.int32)
+    me.polygons.foreach_get('material_index', mi0)
+    sm0 = np.empty(np0, bool)
+    me.polygons.foreach_get('use_smooth', sm0)
+    # MB writes sRGB values into a byte colour layer: read and write through color_srgb so the stamped boxes
+    # match boxes built the old way (writing raw values into 'color' would read them as linear: too bright)
+    cattr = me.color_attributes.get('col')
+    ctype = cattr.data_type if cattr is not None else 'BYTE_COLOR'
+    cl0 = np.ones(nl0 * 4, np.float32)
+    if cattr is not None and nl0:
+        cattr.data.foreach_get('color_srgb', cl0)
+    cos, vis, sts, mis, sms, cls = [co0.reshape(-1, 3)], [vi0], [st0], [mi0], [sm0], [cl0.reshape(-1, 4)]
+    nv, nl = nv0, nl0
+    for (c, m, color, reefer, rz, long) in mb.cont:
+        co, st, vi, c1, fac, sm = _template(reefer, long)
+        R = np.array(Matrix.Rotation(rz, 3, 'Z'), dtype=np.float32)
+        cos.append(co @ R.T + np.array(c[:], np.float32))
+        vis.append(vi + nv)
+        sts.append(st + nl)
+        mis.append(np.full(len(st), mb.mi(m), np.int32))
+        sms.append(sm)
+        col = np.where(fac[:, None], c1 * np.array(color, np.float32), c1)
+        cls.append(np.hstack([col, np.ones((len(col), 1), np.float32)]))
+        nv += len(co)
+        nl += len(vi)
+    co, vi, st = np.vstack(cos), np.concatenate(vis), np.concatenate(sts)
+    mi, sm, cl = np.concatenate(mis), np.concatenate(sms), np.vstack(cls)
+    me.clear_geometry()
+    me.vertices.add(len(co))
+    me.vertices.foreach_set('co', co.ravel())
+    me.loops.add(len(vi))
+    me.loops.foreach_set('vertex_index', vi.astype(np.int32))
+    me.polygons.add(len(st))
+    me.polygons.foreach_set('loop_start', st.astype(np.int32))
+    me.polygons.foreach_set('material_index', mi)
+    me.polygons.foreach_set('use_smooth', sm)
+    me.update(calc_edges=True)
+    a = me.color_attributes.get('col') or me.color_attributes.new('col', ctype, 'CORNER')
+    a.data.foreach_set('color_srgb', cl.ravel())
+    mb.cont = []
+
+
+def _container_geo(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
     L = CL if long else 6.06
     R = Matrix.Rotation(rot_z, 3, 'Z')
     cx = Vector(c) + Vector((0, 0, CH / 2))
