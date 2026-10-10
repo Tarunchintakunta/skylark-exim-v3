@@ -27,9 +27,9 @@ JOINTS_M = {
 
 OUTFITS = {
     # name: list of (piece, material key)
-    'plant': ['jacket', 'trousers', 'boots', 'gloves', 'haircap', 'mask', 'apron'],
-    'plant_coat': ['labcoat', 'trousers', 'boots', 'gloves', 'haircap', 'mask'],
-    'coldstore': ['parka', 'trousers', 'boots', 'gloves', 'haircap', 'mask'],
+    'plant': ['jacket', 'trousers', 'boots', 'gloves', 'hair', 'haircap', 'mask', 'apron'],   # hairline under the cap
+    'plant_coat': ['labcoat', 'trousers', 'boots', 'gloves', 'hair', 'haircap', 'mask'],
+    'coldstore': ['parka', 'trousers', 'boots', 'gloves', 'hair', 'haircap', 'mask'],
     'driver': ['shirt', 'trousers_dark', 'shoes', 'hair', 'vest'],
     'farm': ['shirt_farm', 'shorts', 'hair', 'cap'],
     'farm_long': ['shirt_farm', 'trousers_rolled', 'hair', 'gloves_rubber'],
@@ -244,8 +244,8 @@ def mats():
         'eye': _eye_mat(),
         'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.6, 0.61, 0.6), 0.85, sheen=0.3, bump=0.12, rand=0.04,
                                       wrinkle=0.6, normal_tex=fab, tex_scale=45.0),
-                                 ((0.62, 0.63, 0.62), (0.6, 0.62, 0.63), (0.45, 0.55, 0.65), (0.62, 0.62, 0.6),
-                                  (0.5, 0.6, 0.52), (0.61, 0.62, 0.62))),   # smocks: mostly white, some section colours
+                                 ((0.06, 0.09, 0.2), (0.3, 0.05, 0.07), (0.62, 0.63, 0.62), (0.08, 0.2, 0.32),
+                                  (0.12, 0.25, 0.16), (0.6, 0.62, 0.63))),   # navy, maroon, white, teal-blue, green: roles by colour
         'white_pvc': _palette(_mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
                               ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
                                (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
@@ -444,7 +444,7 @@ CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap'
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.016, 'shoes': 0.008,
          'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
-         'vest': 0.04, 'stache': 0.0012}
+         'vest': 0.042, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
         'trousers_rolled': 'trousers_dark', 'shorts': 'shorts', 'boots': 'boot', 'shoes': 'shoe',
@@ -479,7 +479,7 @@ def _shell(body, piece, mask, M):
                             'trousers_rolled', 'shorts', 'vest', 'boots', 'shoes')
     bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
     bnd = [v for v in bm.verts if v.is_boundary]
-    for _ in range(8):                      # straighten the hem line (1D smoothing along the border)
+    for _ in range(30):                     # straighten the hem line (1D smoothing along the border): no ragged cuffs
         new = {}
         for v in bnd:
             nb = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
@@ -505,7 +505,7 @@ def _shell(body, piece, mask, M):
         front = nxt
     if loose_cloth:
         # cloth drapes over the anatomy: push out, then relax (removes muscle detail); hems hug the body
-        hem = {'labcoat': 0.022, 'parka': 0.022, 'vest': 0.06}.get(piece, 0.012)   # vest sits over the shirt
+        hem = {'labcoat': 0.022, 'parka': 0.022, 'vest': 0.045}.get(piece, 0.012)   # vest sits over the shirt
         for v in bm.verts:
             v.co += v.normal * (hem if v.is_boundary else t * 1.6)
         inner = [v for v in bm.verts if not v.is_boundary]
@@ -577,13 +577,36 @@ def _shell(body, piece, mask, M):
                 u = min(1.0, (1.25 * KH - z) / 0.5)
                 extra += 0.007 * u * u * (3 - 2 * u) * (0.5 + 0.5 * math.sin(a * 9 + math.sin(z * 7) * 0.8))
         v.co += v.normal * (t + extra)
-    if piece == 'mask':                     # pleated mask spans the face: fill nostrils/lips/cheek hollows, no moulding
-        tv = min(bm.verts, key=lambda q: q.co.y)
-        tip, tz = tv.co.y, tv.co.z
-        for v in bm.verts:              # tent: curves back toward the cheeks and under the chin
-            front = tip + 0.004 + (5.0 * v.co.x ** 2 + 6.0 * max(0.0, tz - v.co.z) ** 2) / KH
-            if v.co.y > front and not v.is_boundary:
-                v.co.y = front
+    if piece == 'mask':                     # rebuilt as a smooth pleated panel over the face (no moulded nose/lips)
+        bm.clear()
+        nx, nz = 26, 14
+        x0, x1, z0, z1 = -0.08 * KH, 0.08 * KH, 1.458 * KH, 1.556 * KH
+        hits = {}
+        for ix in range(nx + 1):
+            for iz in range(nz + 1):
+                x = x0 + (x1 - x0) * ix / nx
+                z = z0 + (z1 - z0) * iz / nz
+                h = bvh.ray_cast(Vector((x, -1.0, z)), Vector((0, 1, 0)))
+                if h[0] is not None:
+                    hits[ix, iz] = h[0].y
+        tip = min(hits.values())
+        tz = 1.535 * KH
+        grid = {}
+        for (ix, iz), fy in hits.items():
+            x = x0 + (x1 - x0) * ix / nx
+            z = z0 + (z1 - z0) * iz / nz
+            tent = tip - 0.006 + (5.0 * x * x + 6.0 * max(0.0, tz - z) ** 2 + 20.0 * max(0.0, z - tz) ** 2) / KH
+            pleat = 0.0015 * math.sin((z - z0) / (z1 - z0) * math.pi * 6) * (1 - abs(x) / x1)
+            grid[ix, iz] = bm.verts.new((x, min(fy - 0.005, tent) - pleat, z))
+        for ix in range(nx):
+            for iz in range(nz):
+                q = [grid.get(k) for k in ((ix, iz), (ix + 1, iz), (ix + 1, iz + 1), (ix, iz + 1))]
+                if all(q):
+                    bm.faces.new(q)
+        for _ in range(2):
+            bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if not v.is_boundary], factor=0.5,
+                                  use_axis_x=False, use_axis_y=True, use_axis_z=False)
+        bm.normal_update()
     bm.to_mesh(me)
     bm.free()
     # copy weights from body (same vertex order before delete is lost, so transfer by nearest)
@@ -686,6 +709,21 @@ def _apron(body, k, M):
     return o
 
 
+def _close_mouth(body):
+    """Pull the mouth bag (verts behind the lip line) forward to just behind the lips: closed mouth, no black hole."""
+    vs = [v for v in body.data.vertices if abs(v.co.x) < 0.03 * KH and 1.468 * KH < v.co.z < 1.508 * KH]
+    if not vs:
+        return
+    front = min(v.co.y for v in vs)
+    lips = [v for v in vs if v.co.y < front + 0.012]
+    if not lips:
+        return
+    lip_y = sum(v.co.y for v in lips) / len(lips)
+    for v in vs:
+        if v.co.y > lip_y + 0.004 and abs(v.co.x) < 0.024 * KH:
+            v.co.y = lip_y + 0.004 + (v.co.y - lip_y) * 0.05
+
+
 def _slim_hands(body, ao):
     """Base-mesh hands read puffy under gloves: flatten each hand (palm-to-back) by 22 % about its mid plane and
     pull the fingers 10 % toward the hand axis, fading in from the wrist."""
@@ -728,6 +766,7 @@ def build_masters(out_path, level=1):
         ao = _build_armature(body, h, 'HUM_Rig_' + gender)
         _skin(body, eyes, ao, bpy.data.objects.get('HUMB_male') if gender == 'female' else None)
         _slim_hands(body, ao)
+        _close_mouth(body)
         body.data.materials.clear()
         body.data.materials.append(M['skin'])
         for e in eyes:
@@ -750,8 +789,7 @@ def build_masters(out_path, level=1):
                 regions[p] = _region(body, gender, p, k)
                 pieces[p] = _shell(body, p, regions[p], M)
         for oname, plist in OUTFITS.items():
-            if gender == 'male' and 'mask' not in plist:
-                plist = plist + ['stache']
+            # no moustache piece: it rendered as a black lip-shaped blob (lip skin stays)
             parts = [body] + eyes + [pieces[p] for p in plist]
             cps = []
             for src in parts:
@@ -919,35 +957,54 @@ def walk_cycle(ao, f0, f1, path, stride=0.72, base=None, arms=True, bob=0.025, p
         ao.keyframe_insert('location', frame=f)
 
 
-def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
-    """Curl the fingers of one hand around a handle: shape key on a single-user copy of this person's mesh.
-    Fingers (everything past the knuckle line) rotate about the knuckle axis, more toward the tips.
-    The rest-pose palm faces the thigh; the curl direction was checked visually (+1 = toward the palm)."""
+def _finger_curl(me, ao, side, curl, knuckle=0.085):
+    """{vertex index: curled position} for the fingers of one hand. The palm normal comes from the flat back-of-hand
+    plate (the spread fingers picked a sideways axis: long hooks), and each finger wraps on an arc through all three
+    joints instead of bending rigidly at the knuckle (lifted from the ocean lane's skhuman_ocean.grip)."""
     import numpy as np
+    hb = ao.data.bones['hand.' + side]
+    h0, d = hb.head_local, (hb.tail_local - hb.head_local).normalized()
+    co = np.array([v.co[:] for v in me.vertices])
+    rel = co - np.array(h0[:])
+    along = rel @ np.array(d[:])
+    perp = rel - np.outer(along, np.array(d[:]))
+    dist = np.linalg.norm(perp, axis=1)
+    pm = (along > 0.01) & (along < 0.075) & (dist < 0.06)
+    plate = perp[pm] - perp[pm].mean(axis=0)
+    _w, ev = np.linalg.eigh(plate.T @ plate)
+    nrm = Vector(ev[:, 0])
+    nrm = (nrm - d * nrm.dot(d)).normalized()
+    tips = perp[(along > 0.15) & (along < 0.24) & (dist < 0.075)]
+    if len(tips) and float(tips.mean(axis=0) @ np.array(nrm[:])) - float(perp[pm].mean(axis=0) @ np.array(nrm[:])) < 0:
+        nrm = -nrm                                    # palm side = where the relaxed fingertips already lean
+    axis = d.cross(nrm).normalized()
+    piv = h0 + d * knuckle
+    fing = (along > knuckle) & (along < 0.27) & (dist < 0.11)    # spread fingertips sit far off the bone axis
+    out = {}
+    lf = max(0.06, float(along[fing].max() - knuckle)) if fing.any() else 0.09
+    theta = curl * math.radians(250)
+    if abs(theta) < 1e-3:
+        return out
+    R = lf / abs(theta)
+    pal = nrm * math.copysign(1.0, theta)
+    for i in np.nonzero(fing)[0]:
+        q = Vector(co[i]) - piv
+        a_, n_, w_ = q.dot(d), q.dot(pal), q.dot(axis)
+        ph = a_ / R
+        out[int(i)] = piv + axis * w_ + pal * R + (R - n_) * (d * math.sin(ph) - pal * math.cos(ph))
+    return out
+
+
+def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
+    """Curl the fingers of one hand around a handle: shape key on a single-user copy of this person's mesh."""
     mo = ao.children[0]
     if mo.data.users > 1:
         mo.data = mo.data.copy()
-    hb = ao.data.bones['hand.' + side]
-    h0, d = hb.head_local, (hb.tail_local - hb.head_local).normalized()
-    co = np.array([v.co[:] for v in mo.data.vertices])
-    rel = co - np.array(h0[:])
-    along = rel @ np.array(d[:])
-    dist = np.linalg.norm(rel - np.outer(along, np.array(d[:])), axis=1)
-    hand = (along > -0.01) & (along < 0.25) & (dist < 0.08)
-    fin = hand & (along > 0.09)
-    pts = co[fin] - co[fin].mean(axis=0)
-    _w, ev = np.linalg.eigh(pts.T @ pts)
-    nrm = Vector(ev[:, 0])
-    if nrm.x * h0.x > 0:              # palm normal points toward the body's midline (the rest palm faces the thigh)
-        nrm = -nrm
-    axis = d.cross(nrm).normalized()  # (a cross product of mirrored vectors is the mirrored rotation axis)
-    piv = h0 + d * knuckle
     if not mo.data.shape_keys:
         mo.shape_key_add(name='Basis')
     sk = mo.shape_key_add(name=name or ('grip_' + side))
-    for i in np.nonzero(hand & (along > knuckle))[0]:
-        ang = curl * min(1.0, (along[i] - knuckle) / 0.07) * math.radians(105)
-        sk.data[i].co = piv + Matrix.Rotation(ang, 3, axis) @ (Vector(co[i]) - piv)
+    for i, c in _finger_curl(mo.data, ao, side, curl, knuckle).items():
+        sk.data[i].co = c
     sk.value = 1.0
     return sk
 
@@ -969,6 +1026,30 @@ def ik_hands(ao, tgt_l, tgt_r, pole_l=None, pole_r=None):
         cr = hb.constraints.new('COPY_ROTATION')
         cr.target = t
         cr.influence = 0.0
+
+
+def auto_poles(objs=None):
+    """Every arm IK without a pole gets one (out to the side, behind, at waist height): elbows drop down and back
+    instead of winging out to shoulder height. Call once after all people are rigged."""
+    n = 0
+    for ao in objs or [o for o in bpy.data.objects if o.type == 'ARMATURE' and o.pose]:
+        for sd in ('L', 'R'):
+            pb = ao.pose.bones.get('forearm.' + sd)
+            if pb is None:
+                continue
+            for c in pb.constraints:
+                if c.type == 'IK' and c.pole_target is None:
+                    pole = bpy.data.objects.get('%s_Pole%s' % (ao.name, sd))
+                    if pole is None:
+                        pole = bpy.data.objects.new('%s_Pole%s' % (ao.name, sd), None)
+                        for col in ao.users_collection:
+                            col.objects.link(pole)
+                        pole.parent = ao
+                        pole.location = (0.6 if sd == 'L' else -0.6, 0.5, 0.9)
+                    c.pole_target = pole
+                    c.pole_angle = math.radians(-90)
+                    n += 1
+    return n
 
 
 def ik_feet(ao, tgt_l, tgt_r):
