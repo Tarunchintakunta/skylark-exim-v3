@@ -534,7 +534,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
                         continue
                     c = crate_fn('%s_Cargo%02d' % (name, k), rnd.choice(['blue', 'blue', 'white', 'red']),
                                  (REAR + 0.3 + ix * 0.43, iy, BZ + 0.04 + lv * 0.3), math.pi / 2, root,
-                                 'ice' if lv == 4 or ix == 0 else None, k)
+                                 'shrimp' if lv == 4 else ('ice' if ix == 0 else None), k)   # iced catch on top
                     R['cargo'].append(c)
                     k += 1
     return R
