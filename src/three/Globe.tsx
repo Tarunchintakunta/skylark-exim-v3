@@ -11,11 +11,17 @@ import { film } from '../film/controller'
 import { faceRotation, latLon, routePoints } from './geo'
 import { globeUi } from './globeState'
 
-const BRASS = new Color('#d7a84f')
+const BRASS = new Color('#e08a5f')
 const N = 64 // points per route
 const ease = (t: number) => t * t * (3 - 2 * t)
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+/** market labels: lift above the dot (.globe-label translateY), gap between labels, margin to the viewport edge (px) */
+const LIFT = 16
+const GAP = 4
+const EDGE = 8
+/** the fixed header (.topbar height): labels stay below it */
+const HEADER = 68
 
 const atmosphere = {
   uniforms: { color: { value: new Color('#9fd3ff') } },
@@ -28,7 +34,7 @@ const haze = {
   fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = pow(1.0 - max(dot(vN, vec3(0.0, 0.0, 1.0)), 0.0), 3.0); gl_FragColor = vec4(color * i * 0.75, 1.0); }',
 }
 
-/** Scroll-driven globe: camera pulls back from the Bay of Bengal, routes draw one by one (STORY §11). */
+/** Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11). */
 function Earth({ worldIndex }: { worldIndex: number }) {
   // 2048×1024 everywhere (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
   const tex = useTexture('/textures/earth_day_2048.webp')
@@ -40,7 +46,7 @@ function Earth({ worldIndex }: { worldIndex: number }) {
   const dots = useRef<(Mesh | null)[]>([])
   const labels = useRef<(HTMLSpanElement | null)[]>([])
   const originDot = useRef<Mesh>(null)
-  const { camera, invalidate, gl, scene } = useThree()
+  const { camera, invalidate, gl, scene, get } = useThree()
 
   // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile, then one render
   useEffect(() => {
@@ -64,6 +70,10 @@ function Earth({ worldIndex }: { worldIndex: number }) {
   useEffect(() => {
     const tmp = new Vector3()
     const camDir = new Vector3()
+    /** labels that have landed and face the camera this frame; label sizes (measured once) and current nudges */
+    const want: number[] = []
+    const sizes: [number, number][] = []
+    const nudges: string[] = []
     let t0 = -1
     let lastHl = -2
     return onTick((time) => {
@@ -74,7 +84,7 @@ function Earth({ worldIndex }: { worldIndex: number }) {
         return
       }
       const p = i === worldIndex ? frame.local : 0
-      // camera: close over the Bay of Bengal → full globe
+      // camera: close over the sea off Visakhapatnam → full globe
       const k = ease(clamp01(p / 0.5))
       const d = lerp(1.45, env.mobile ? 4.6 : 4.1, k)
       camera.position.set(0, 0, d)
@@ -83,7 +93,7 @@ function Earth({ worldIndex }: { worldIndex: number }) {
       group.current.position.x = env.mobile ? 0 : lerp(0, 0.78, k)
       group.current.position.y = env.mobile ? lerp(0, 0.55, k) : 0
       originDot.current?.scale.setScalar(d / 3.2)
-      // rotate from the Bay of Bengal toward Europe, then East Asia, as routes draw
+      // rotate from the sea off Visakhapatnam toward Europe, then East Asia, as routes draw
       let lon = p < 0.45 ? lerp(88, 62, ease(p / 0.45)) : lerp(62, 104, ease(clamp01((p - 0.45) / 0.45)))
       const lat = lerp(15, 26, k)
       // ends with a slow auto-rotation while in view
@@ -112,18 +122,41 @@ function Earth({ worldIndex }: { worldIndex: number }) {
         const landed = a >= 1
         const dot = dots.current[j]
         if (dot) dot.scale.setScalar(landed ? 1 : 0)
-        const label = labels.current[j]
-        if (label) {
-          tmp.copy(r.to).applyMatrix4(group.current!.matrixWorld).sub(group.current!.position)
-          const facing = tmp.dot(camDir) > 0.25
-          const o = landed && facing ? (hl < 0 || hl === j ? '1' : '0.4') : '0'
-          if (label.style.opacity !== o) label.style.opacity = o
-        }
+        tmp.copy(r.to).applyMatrix4(group.current!.matrixWorld).sub(group.current!.position)
+        if (landed && labels.current[j] && tmp.dot(camDir) > 0.25) want.push(j)
+      })
+
+      // labels in screen space, the highlighted one first, then list order: a label that would overlap one already
+      // placed stays hidden (Thailand / Bangkok, Taiwan / Hong Kong on phones), and placed ones are nudged inside the view
+      const { width: vw, height: vh } = get().size
+      camera.updateMatrixWorld()
+      const boxes: number[][] = []
+      const placed = new Set<number>()
+      for (const j of want.includes(hl) ? [hl, ...want.filter((k) => k !== hl)] : want) {
+        const label = labels.current[j]!
+        const [w, h] = (sizes[j] ??= [label.offsetWidth, label.offsetHeight])
+        tmp.copy(routes[j].to).applyMatrix4(group.current!.matrixWorld).project(camera)
+        const x = ((tmp.x + 1) / 2) * vw - w / 2
+        const y = ((1 - tmp.y) / 2) * vh - LIFT - h / 2
+        const l = Math.min(Math.max(x, EDGE), vw - EDGE - w)
+        // above the dot, else below it, else hidden
+        const free = (t: number) => !boxes.some(([bl, bt, br, bb]) => l < br + GAP && l + w > bl - GAP && t < bb + GAP && t + h > bt - GAP)
+        const t = [y, y + 2 * LIFT].map((t) => Math.min(Math.max(t, HEADER + EDGE), vh - EDGE - h)).find(free)
+        if (t === undefined) continue
+        boxes.push([l, t, l + w, t + h])
+        placed.add(j)
+        const nudge = `${Math.round(l - x)}px ${Math.round(t - y)}px`
+        if (nudges[j] !== nudge) label.style.translate = nudges[j] = nudge
+      }
+      want.length = 0
+      labels.current.forEach((label, j) => {
+        const o = placed.has(j) ? (hl < 0 || hl === j ? '1' : '0.4') : '0'
+        if (label && label.style.opacity !== o) label.style.opacity = o
       })
       lastHl = hl
       invalidate()
     })
-  }, [camera, invalidate, routes, worldIndex])
+  }, [camera, get, invalidate, routes, worldIndex])
 
   return (
     <group ref={group}>
