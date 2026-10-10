@@ -984,6 +984,36 @@ def fcurves(action):
     return out
 
 
+def decimate_shared(min_users=8, min_tris=8000, ratio=0.25, skip=('HUM_',)):
+    """Render cost: meshes repeated many times (scans, palms, crates) carry most of the triangles. Collapse each
+    shared mesh once to `ratio` and point every user at the lighter copy. Returns (meshes, tris before, after)."""
+    s = bpy.context.scene
+    done, before, after = 0, 0, 0
+    for me in list(bpy.data.meshes):
+        users = [o for o in bpy.data.objects if o.type == 'MESH' and o.data == me]
+        if len(users) < min_users or me.name.startswith(skip) or any(o.modifiers for o in users):
+            continue
+        tris = sum(len(p.vertices) - 2 for p in me.polygons)
+        if tris < min_tris:
+            continue
+        tmp = bpy.data.objects.new('_dec', me.copy())
+        s.collection.objects.link(tmp)
+        dm = tmp.modifiers.new('dec', 'DECIMATE')
+        dm.ratio = ratio
+        with bpy.context.temp_override(object=tmp, active_object=tmp):
+            bpy.ops.object.modifier_apply(modifier=dm.name)
+        new = tmp.data
+        new.name = me.name + '_dec'
+        for o in users:
+            o.data = new
+        bpy.data.objects.remove(tmp)
+        done += 1
+        before += tris * len(users)
+        after += sum(len(p.vertices) - 2 for p in new.polygons) * len(users)
+    print('DECIMATE shared meshes %d, tris %d -> %d' % (done, before, after), flush=True)
+    return done, before, after
+
+
 def linear_keys(idb):
     ad = idb.animation_data
     if ad and ad.action:

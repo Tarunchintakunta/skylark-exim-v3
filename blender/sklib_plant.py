@@ -69,6 +69,14 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, mats=None, ca
     for sy in (-1, 1):
         mb.box((bx, sy * (BW / 2 - 0.04), BZ + BH / 2), (BL, 0.08, BH), boxw)
     mb.box((rear + BL - 0.04, 0, BZ + BH / 2), (0.08, BW, BH), boxw)
+    # inside: scuffed grey liner and a dark aluminium floor, not bare white (seen through the open doors)
+    liner = weather(pbr('MAT_ReeferLiner', (0.46, 0.48, 0.48), 0.45, 0.3, grime=0.8, scale=0.4), streak=(0.3, 0.28, 0.24),
+                    amount=0.7, z0=BZ, z1=BZ + 1.4, dirt=(0.18, 0.16, 0.13), dirt_amount=0.8)
+    mb.box((bx, 0, BZ + 0.085), (BL - 0.2, BW - 0.2, 0.01), pbr('MAT_ReeferFloor', (0.16, 0.17, 0.17), 0.5, 0.7, grime=0.9))
+    for sy in (-1, 1):
+        mb.box((bx, sy * (BW / 2 - 0.085), BZ + BH / 2), (BL - 0.2, 0.01, BH - 0.2), liner)
+    mb.box((rear + BL - 0.085, 0, BZ + BH / 2), (0.01, BW - 0.2, BH - 0.2), liner)
+    mb.box((bx, 0, BZ + BH - 0.085), (BL - 0.2, BW - 0.2, 0.01), liner)
     for sy in (-1, 1):
         mb.box((bx, sy * (BW / 2 + 0.01), BZ + 0.08), (BL, 0.04, 0.16), mats['steel'])
         mb.box((bx, sy * (BW / 2 + 0.01), BZ + BH - 0.06), (BL, 0.04, 0.12), mats['steel'])
