@@ -36,7 +36,7 @@ def _mats():
         'grille': P.plain('TRK_Grille', (0.06, 0.065, 0.07), 0.45, 0.6),
         'unit': P.grime_paint('TRK_UnitGrey', (0.62, 0.64, 0.66), rough=0.4, grime=0.5, streak=0.3, coat=0.2),
         'plate': P.plain('TRK_PlateBlank', (0.85, 0.82, 0.55), 0.35, 0.1),
-        'interior': P.plain('TRK_BoxInterior', (0.6, 0.62, 0.63), 0.35, 0.3, bump=0.08),
+        'interior': P.plain('TRK_BoxInterior', (0.42, 0.43, 0.43), 0.4, 0.3, bump=0.08),   # used aluminium liner, not paper white
         'floor': P.tex_mat('TRK_FloorAlu', 'metal_plate', scale=1.0, tint=(0.8, 0.8, 0.82), metal=1.0, rough_mul=0.8),
     }
 
