@@ -322,7 +322,7 @@ for ix in range(6):
         y = -1.45 + iy * 0.45
         if False:  # the hold is fully stowed
             continue  # space where the chain lands its crates
-        lv = 2 if (ix + iy) % 3 == 0 else 1
+        lv = 6 if (ix + iy) % 3 == 0 else 5          # stowed up near the coaming: no empty white hold from above
         for z in range(lv):
             L.crate(f'HOLD_Crate{k}', rnd.choice(['blue', 'blue', 'white', 'red']), (x, y, hold_floor + z * 0.29),
                     rnd.uniform(-0.04, 0.04), fill=rnd.choice(['mixed', 'fish', 'fish', 'tuna']) if z == lv - 1 else None,
