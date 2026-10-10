@@ -98,7 +98,7 @@ _base_mats = sk.mats
 
 def mats():
     M = _base_mats()
-    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.5, coat=0.25, bump=0.02, wrinkle=0.25, rand=0.08),
+    M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.68, coat=0.08, bump=0.05, wrinkle=0.35, rand=0.12),
                            ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.58, 0.26, 0.08), (0.80, 0.30, 0.04),
                             (0.70, 0.62, 0.20)))   # orange, yellow, sun-faded orange, bright orange, faded yellow
     M['work_shirt'] = sk._palette(sk._mat('HUM_WorkShirt', (0.2, 0.25, 0.32), 0.85, sheen=0.2, bump=0.12, rand=0.12,
@@ -112,6 +112,9 @@ def mats():
     M['hardhat'] = sk._palette(sk._mat('HUM_HardHat', (0.85, 0.8, 0.1), 0.38, coat=0.35, bump=0.05, rand=0.05),
                                ((0.80, 0.80, 0.76), (0.82, 0.62, 0.04), (0.80, 0.80, 0.76), (0.78, 0.30, 0.04)))
     M['sandal'] = sk._mat('HUM_Sandal', (0.10, 0.06, 0.035), 0.7, bump=0.1)
+    # deck caps: dark knit / faded cloth (a pale cap from above reads as a bald head)
+    M['cap_cloth'] = sk._palette(sk._mat('HUM_CapDeck', (0.1, 0.1, 0.12), 0.9, sheen=0.3, bump=0.2, rand=0.1),
+                                 ((0.06, 0.07, 0.09), (0.25, 0.08, 0.06), (0.12, 0.16, 0.22), (0.2, 0.2, 0.18)))
     return M
 
 
