@@ -563,6 +563,9 @@ for _l in s.objects:
     if _l.type == 'LIGHT' and _l.data.type == 'SUN':
         _l.light_linking.receiver_collection = _wcol
 print('WATER no-sun', [o.name for o in _wcol.objects])
+# EEVEE also extracts a sun from the HDRI (world sun threshold) and casts its own shadows: that second shadow is what lay on
+# the sea under the ship and cranes (verified at f360 with the sun lamp hidden). The sun lamp already carries the key light.
+s.world.use_sun_shadow = False
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'port', '1', '479', 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
