@@ -84,7 +84,7 @@ def shell(C, M):
     p.make('IN_LED', M['led'], None, coll=C)
     for k, y in enumerate(range(15, 84, 6)):
         for j, x in enumerate((2.0, 14.4)):
-            _light('IN_Area_%d_%d' % (k, j), (x, y, CEIL - 0.25), (7, 4), 420, C)
+            _light('IN_Area_%d_%d' % (k, j), (x, y, CEIL - 0.25), (7, 4), 330, C)
     # floor drains along the line + wet sheen patches
     p = Part()
     for x in (2.0, 14.4):
@@ -191,11 +191,38 @@ def wash(C, M, rnd, shrimp_fn):
         for sx in (-1.6, 1.6):
             p.cyl((x + sx, y + 0.75, DZ + 1.1), (x + sx, y + 0.75, DZ + 1.8), 0.025, 8)
         p.make('IN_SprayBar%d' % t, M['stainless'], None, coll=C)
-        sp = Part()
-        for k in range(9):
+        st = Part()
+        sc = Part()
+        for k in (1, 3, 5, 7):                                         # four nozzles run, the rest are off
             xx = x - 1.4 + k * 0.35
-            sp.box((xx, y, DZ + 1.31), (0.18, 0.004, 0.72), Euler((0, 0, rnd.uniform(-0.2, 0.2))))
-        so = sp.make('IN_Spray%d' % t, _spray_mat(), None, coll=C)
+            st.cyl((xx, y, DZ + 1.68), (xx, y, DZ + 0.93), 0.022, 14, r2=0.03)
+            for j in range(10):                                        # splash crown where the stream hits
+                a = j * 0.628
+                st.cyl((xx + 0.06 * math.cos(a), y + 0.06 * math.sin(a), DZ + 0.93),
+                       (xx + 0.1 * math.cos(a), y + 0.1 * math.sin(a), DZ + 0.99 + 0.02 * (j % 2)), 0.006, 6)
+            sc.cyl((xx, y, DZ + 0.931), (xx, y, DZ + 0.934), 0.16, 20)  # foam ring on the surface
+        st.make('IN_Stream%d' % t, _stream_mat(), None, smooth=True, coll=C)
+        dm = bpy.data.meshes.get('IN_DropMesh')
+        if dm is None:                                               # droplets thrown off around each stream
+            bmd = bmesh.new()
+            bmesh.ops.create_icosphere(bmd, subdivisions=1, radius=0.006)
+            dm = bpy.data.meshes.new('IN_DropMesh')
+            bmd.to_mesh(dm)
+            bmd.free()
+            dm.materials.append(_stream_mat())
+        for k in (1, 3, 5, 7):
+            xx = x - 1.4 + k * 0.35
+            for j in range(6):
+                d = bpy.data.objects.new('IN_Drop%d_%d_%d' % (t, k, j), dm)
+                C.objects.link(d)
+                a = rnd.uniform(0, 6.28)
+                r0 = rnd.uniform(0.03, 0.05)
+                per = rnd.randint(9, 14)
+                for f0 in range(1 + j * 2, 1100, per):               # spray out from the stream, fall to the water
+                    for df, rr, zz in ((0, r0, rnd.uniform(1.0, 1.5)), (per - 1, r0 + 0.12, 0.93)):
+                        d.location = (xx + rr * math.cos(a), y + rr * math.sin(a), DZ + zz)
+                        d.keyframe_insert('location', frame=f0 + df)
+        sc.make('IN_StreamFoam%d' % t, _foam_ring_mat(), None, coll=C)
         # product in the tank (under/at the surface)
         for k in range(60):
             shrimp_fn('IN_TankShrimp%d_%02d' % (t, k), (x + rnd.uniform(-1.4, 1.4), y + rnd.uniform(-0.6, 0.6),
@@ -211,6 +238,44 @@ def wash(C, M, rnd, shrimp_fn):
 
 
 _SPRAY = {}
+
+
+def _brushed():
+    return P.plain('IN_BrushedSteel', (0.66, 0.67, 0.68), 0.24, 1.0, bump=0.04, bump_scale=200, aniso=0.7)
+
+
+def _stream_mat():
+    """Clear running water: transmissive, glossy, a little rippled (animated by the spray map clock)."""
+    m = bpy.data.materials.get('IN_StreamWater')
+    if m:
+        return m
+    m = P.plain('IN_StreamWater', (0.92, 0.96, 0.98), 0.02, transmission=1.0, ior=1.33, bump=0.3, bump_scale=60)
+    return m
+
+
+def _foam_ring_mat():
+    """White aerated water where a stream lands: soft-edged, opaque in the middle."""
+    m = bpy.data.materials.get('IN_StreamFoam')
+    if m:
+        return m
+    m = bpy.data.materials.new('IN_StreamFoam')
+    m.use_nodes = True
+    m.surface_render_method = 'BLENDED'
+    nt = m.node_tree
+    pb = nt.nodes['Principled BSDF']
+    pb.inputs['Base Color'].default_value = (0.9, 0.93, 0.94, 1)
+    pb.inputs['Roughness'].default_value = 0.4
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 40.0
+    nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = 0.4
+    mr.inputs['From Max'].default_value = 0.65
+    mr.inputs['To Max'].default_value = 0.85
+    nt.links.new(nz.outputs['Fac'], mr.inputs['Value'])
+    nt.links.new(mr.outputs[0], pb.inputs['Alpha'])
+    return m
 
 
 def _spray_mat():
@@ -277,8 +342,40 @@ def _conveyor(name, a, b, width, C, M, legs=True):
     p.make(name + '_Frame', M['stainless'], None, bevel=0.005, coll=C)
     p = Part()
     p.box(mid + Vector((0, 0, 0.06)), (width, Lg, 0.02), rot)
-    belt = p.make(name + '_Belt', M['belt'], None, coll=C)
+    belt = p.make(name + '_Belt', _mesh_belt() if 'IQF' in name else M['belt'], None, coll=C)
     return belt
+
+
+def _mesh_belt():
+    """IQF belt: dark stainless wire mesh (woven grid, dark gaps, glints on the wires)."""
+    m = bpy.data.materials.get('IN_MeshBelt')
+    if m:
+        return m
+    m = bpy.data.materials.new('IN_MeshBelt')
+    m.use_nodes = True
+    nt = m.node_tree
+    L = nt.links
+    pb = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    bk = nt.nodes.new('ShaderNodeTexBrick')
+    bk.inputs['Scale'].default_value = 60.0
+    bk.inputs['Mortar Size'].default_value = 0.25
+    bk.inputs['Color1'].default_value = (0.02, 0.022, 0.025, 1)
+    bk.inputs['Color2'].default_value = (0.03, 0.032, 0.035, 1)
+    bk.inputs['Mortar'].default_value = (0.2, 0.21, 0.22, 1)     # wires: dull steel
+    L.new(tc.outputs['Object'], bk.inputs['Vector'])
+    L.new(bk.outputs['Color'], pb.inputs['Base Color'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['To Min'].default_value = 0.0
+    mr.inputs['To Max'].default_value = 1.0
+    L.new(bk.outputs['Fac'], mr.inputs['Value'])
+    L.new(mr.outputs[0], pb.inputs['Metallic'])
+    pb.inputs['Roughness'].default_value = 0.5   # glints, not a mirror sheet at grazing angles
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.6
+    L.new(bk.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], pb.inputs['Normal'])
+    return m
 
 
 def grading(C, M, rnd, shrimp_fn):
@@ -435,7 +532,7 @@ def lab(C, M, rnd, shrimp_fn):
         p.box(((x0 + x1) / 2, 47.0, DZ + 0.45), (x1 - x0, 0.7, 0.85))
         p.box(((x0 + x1) / 2, 50.4, DZ + 0.9), (x1 - x0, 0.75, 0.04))
         p.box(((x0 + x1) / 2, 50.4, DZ + 0.45), (x1 - x0, 0.7, 0.85))
-    p.make('IN_LabBenches', P.plain('IN_LabTop', (0.82, 0.83, 0.84), 0.25, coat=0.4), None, bevel=0.01, coll=C)
+    p.make('IN_LabBenches', M['stainless'], None, bevel=0.01, coll=C)
     p = Part()
     p.box((CX + 3.2, 47.0, DZ + 0.98), (0.35, 0.3, 0.12))           # balance
     p.box((CX + 3.2, 46.95, DZ + 1.12), (0.25, 0.2, 0.16))
@@ -523,8 +620,8 @@ def _glaze_mat():
     seg.inputs['Scale'].default_value = 9.0
     L.new(tc.outputs['Object'], seg.inputs['Vector'])
     cr = nt.nodes.new('ShaderNodeValToRGB')
-    cr.color_ramp.elements[0].color = (0.62, 0.5, 0.47, 1)
-    cr.color_ramp.elements[1].color = (0.82, 0.74, 0.7, 1)
+    cr.color_ramp.elements[0].color = (0.74, 0.64, 0.6, 1)
+    cr.color_ramp.elements[1].color = (0.9, 0.84, 0.8, 1)
     L.new(seg.outputs['Fac'], cr.inputs[0])
     fr = nt.nodes.new('ShaderNodeMix')
     fr.data_type = 'RGBA'
@@ -541,6 +638,7 @@ def _glaze_mat():
     pb.inputs['Coat Weight'].default_value = 1.0                 # the ice glaze
     pb.inputs['Coat Roughness'].default_value = 0.06
     pb.inputs['Subsurface Weight'].default_value = 0.15
+    pb.inputs['Transmission Weight'].default_value = 0.25    # translucent ice glaze
     bp = nt.nodes.new('ShaderNodeBump')
     bp.inputs['Strength'].default_value = 0.25
     L.new(nz.outputs['Fac'], bp.inputs['Height'])
@@ -574,7 +672,7 @@ def freezing(C, M, rnd, shrimp_fn):
     p.box((tx, ym, DZ + 2.0), (2.4, y1 - y0, 1.6))                    # roof block over the belt
     for sx in (-1, 1):
         p.box((tx + sx * 0.88, ym, DZ + 0.75), (0.64, y1 - y0, 1.1))  # side walls, belt path open between
-    p.make('IN_IQFTunnel', M['stainless'], None, bevel=0.03, coll=C)
+    p.make('IN_IQFTunnel', _brushed(), None, bevel=0.03, coll=C)
     p = Part()                                                        # panel seams + door frames + handles
     for k in range(1, 6):
         yy = y0 + k * (y1 - y0) / 6
@@ -636,7 +734,31 @@ def freezing(C, M, rnd, shrimp_fn):
         mul.operation = 'MULTIPLY'
         nt.links.new(mr.outputs[0], mul.inputs[0])
         nt.links.new(fz.outputs[0], mul.inputs[1])
-        nt.links.new(mul.outputs[0], pb.inputs['Alpha'])
+        out = mul.outputs[0]
+        for ax in ('X', 'Z'):                         # soft edges all round: a card, never a pane
+            om = nt.nodes.new('ShaderNodeMath')
+            om.operation = 'SUBTRACT'
+            om.inputs[0].default_value = 1.0
+            nt.links.new(gr.outputs[ax], om.inputs[1])
+            pr = nt.nodes.new('ShaderNodeMath')
+            pr.operation = 'MULTIPLY'
+            nt.links.new(gr.outputs[ax], pr.inputs[0])
+            nt.links.new(om.outputs[0], pr.inputs[1])
+            sq = nt.nodes.new('ShaderNodeMath')       # 4x(1-x): 0 at the edges, 1 in the middle, then squared
+            sq.operation = 'MULTIPLY'
+            sq.use_clamp = True
+            nt.links.new(pr.outputs[0], sq.inputs[0])
+            sq.inputs[1].default_value = 4.0
+            sq2 = nt.nodes.new('ShaderNodeMath')
+            sq2.operation = 'MULTIPLY'
+            nt.links.new(sq.outputs[0], sq2.inputs[0])
+            nt.links.new(sq.outputs[0], sq2.inputs[1])
+            m2 = nt.nodes.new('ShaderNodeMath')
+            m2.operation = 'MULTIPLY'
+            nt.links.new(out, m2.inputs[0])
+            nt.links.new(sq2.outputs[0], m2.inputs[1])
+            out = m2.outputs[0]
+        nt.links.new(out, pb.inputs['Alpha'])
     for k, yy in enumerate((y0 - 0.35, y1 + 0.35)):                   # vapour rolling out of each mouth
         for j in range(3):
             p = Part()
@@ -650,7 +772,7 @@ def freezing(C, M, rnd, shrimp_fn):
     for sx in (-1, 1):
         for sy in (-1, 1):
             p.box((tx + sx * 0.62, hy + sy * 0.55, DZ + 0.68), (0.06, 0.06, 1.36))     # legs
-    p.make('IN_GlazeHood', M['stainless'], None, bevel=0.012, coll=C)
+    p.make('IN_GlazeHood', _brushed(), None, bevel=0.012, coll=C)
     p = Part()
     for sy in (-0.3, 0.0, 0.3):
         p.box((tx, hy + sy, DZ + 1.905), (1.31, 0.01, 0.012))                         # roof seams
@@ -686,8 +808,8 @@ def freezing(C, M, rnd, shrimp_fn):
         if yy > 59.5:
             break
         for col in range(8):
-            o = shrimp_fn('IN_IQF%03d' % k, (tx - 0.38 + col * 0.108 + rnd.uniform(-0.02, 0.02), yy + rnd.uniform(-0.04, 0.04),
-                                           DZ + 0.975), (0, 0, rnd.uniform(0, 6.28)))
+            o = shrimp_fn('IN_IQF%03d' % k, (tx - 0.38 + col * 0.108 + rnd.uniform(-0.008, 0.008), yy,
+                                           DZ + 0.975), (0, 0, (1.5708 if row % 2 else -1.5708) + rnd.uniform(-0.12, 0.12)))
             for sl in o.material_slots:
                 sl.link = 'OBJECT'
                 sl.material = glazed
@@ -847,12 +969,12 @@ def _wet_floor():
     nz.inputs['Detail'].default_value = 8
     L.new(tc.outputs['Object'], nz.inputs['Vector'])
     wet = nt.nodes.new('ShaderNodeMapRange')
-    wet.inputs['From Min'].default_value = 0.5
-    wet.inputs['From Max'].default_value = 0.58
+    wet.inputs['From Min'].default_value = 0.57
+    wet.inputs['From Max'].default_value = 0.63
     L.new(nz.outputs['Fac'], wet.inputs['Value'])
     rr = nt.nodes.new('ShaderNodeMapRange')
-    rr.inputs['To Min'].default_value = 0.34
-    rr.inputs['To Max'].default_value = 0.04
+    rr.inputs['To Min'].default_value = 0.58   # dry epoxy is satin, not a mirror
+    rr.inputs['To Max'].default_value = 0.1
     L.new(wet.outputs[0], rr.inputs['Value'])
     L.new(rr.outputs[0], pb.inputs['Roughness'])
     cm = nt.nodes.new('ShaderNodeMix')
@@ -897,10 +1019,21 @@ def _services(C, M):
     d.make('IN_Dado', P.plain('IN_PVCDado', (0.36, 0.42, 0.4), 0.35, coat=0.3), None, coll=C)
 
 
+def _probes(C):
+    """Sphere reflection probes down the hall: glass and the wet floor reflect the room, not the sky HDRI."""
+    for k, y in enumerate((16, 25, 35, 47, 57, 65, 73, 86)):
+        lp = bpy.data.lightprobes.new('IN_Probe%d' % k, 'SPHERE')
+        lp.influence_distance = 9.0
+        o = bpy.data.objects.new('IN_Probe%d' % k, lp)
+        o.location = (CX, y, DZ + 2.4)
+        C.objects.link(o)
+
+
 def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11):
     M = mats()
     rnd = random.Random(rnd_seed)
     shell(C, M)
+    _probes(C)
     _wet_floor()
     _services(C, M)
     pin = bpy.data.materials.get('PL_PanelInside')                 # warm grey panels, not paper white
@@ -909,8 +1042,8 @@ def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11
             if n.type == 'MIX' and n.data_type == 'RGBA' and not n.inputs[6].links:
                 c = n.inputs[6].default_value
                 if min(c[:3]) > 0.7:                               # the clean panel colour (not the grime tone)
-                    n.inputs[6].default_value = (0.66, 0.66, 0.63, 1)
-                    n.inputs[7].default_value = (0.36, 0.35, 0.31, 1)
+                    n.inputs[6].default_value = (0.44, 0.48, 0.51, 1)   # blue-grey hygienic panel
+                    n.inputs[7].default_value = (0.25, 0.27, 0.28, 1)
         pin['warm'] = True
     led = bpy.data.materials.get('PL_LED')
     if led:

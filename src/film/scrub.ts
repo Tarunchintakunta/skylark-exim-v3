@@ -40,6 +40,7 @@ let shown: Slot | null = null
 let over = -1
 let hidden = false
 let isLight = false
+let isSoft = false
 let lastY = 0
 /** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
 const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
@@ -197,7 +198,9 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  if (want) {
+  // the clip waits for the loader (fonts + hero poster) or a first scroll, so its download never competes with the
+  // first paint; the poster covers the frame until then (#131)
+  if (want && (store.getState().ready || frame.scroll > 2)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
@@ -238,6 +241,11 @@ function tick() {
   if (light !== isLight) {
     isLight = light
     stage?.classList.toggle('is-light', light)
+  }
+  const soft = seg.scrim === 'soft'
+  if (soft !== isSoft) {
+    isSoft = soft
+    stage?.classList.toggle('is-soft', soft)
   }
   if (o >= 0 && posters[o]) {
     posters[o]!.classList.add('is-over')

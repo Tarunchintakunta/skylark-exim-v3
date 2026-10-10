@@ -191,6 +191,34 @@ def _palette(m, colors):
     return m
 
 
+def _hairnet(m):
+    """Disposable non-woven bouffant cap: crinkled (noise bump) with soft creases darkening the palette colour.
+    (A wave-grid net aliased into contour rings / grey curls at 1080, so no hair shows through.)"""
+    nt = m.node_tree
+    L = nt.links
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    src = p.inputs['Base Color'].links[0].from_socket
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 45.0
+    nz.inputs['Detail'].default_value = 10.0
+    nz.inputs['Distortion'].default_value = 0.4
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    cm = nt.nodes.new('ShaderNodeMix')
+    cm.data_type = 'RGBA'
+    cm.blend_type = 'MULTIPLY'
+    L.new(nz.outputs['Fac'], cm.inputs[0])
+    L.new(src, cm.inputs[6])
+    cm.inputs[7].default_value = (0.8, 0.8, 0.82, 1)       # creases
+    L.new(cm.outputs[2], p.inputs['Base Color'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.55
+    bp.inputs['Distance'].default_value = 0.002
+    L.new(nz.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], p.inputs['Normal'])
+    return m
+
+
 def _stache_mat():
     """Moustache on about half the men (Object Info random > 0.45), hidden on the rest."""
     m = bpy.data.materials.get('HUM_Stache')
@@ -214,18 +242,18 @@ def mats():
     return {
         'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.45, sss=0.15, bump=0.05, rand=0.25),
         'eye': _eye_mat(),
-        'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.68, 0.69, 0.68), 0.85, sheen=0.3, bump=0.12, rand=0.04,
-                                      wrinkle=0.45),
-                                 ((0.68, 0.69, 0.68), (0.66, 0.68, 0.69), (0.50, 0.60, 0.70), (0.68, 0.68, 0.66),
-                                  (0.55, 0.65, 0.57), (0.67, 0.68, 0.68))),   # smocks: mostly white, some section colours
+        'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.6, 0.61, 0.6), 0.85, sheen=0.3, bump=0.12, rand=0.04,
+                                      wrinkle=0.6, normal_tex=fab, tex_scale=45.0),
+                                 ((0.62, 0.63, 0.62), (0.6, 0.62, 0.63), (0.45, 0.55, 0.65), (0.62, 0.62, 0.6),
+                                  (0.5, 0.6, 0.52), (0.61, 0.62, 0.62))),   # smocks: mostly white, some section colours
         'white_pvc': _palette(_mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
                               ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
                                (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
         'boot': _mat('HUM_WhiteBoot', (0.70, 0.71, 0.69), 0.35, coat=0.2, bump=0.02),
         'nitrile_blue': _mat('HUM_NitrileBlue', (0.16, 0.33, 0.62), 0.38, coat=0.25, rand=0.06),
-        'cap_white': _palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
-                              ((0.74, 0.75, 0.77), (0.42, 0.58, 0.74), (0.74, 0.75, 0.77), (0.36, 0.56, 0.40),
-                               (0.74, 0.75, 0.77), (0.70, 0.45, 0.50))),   # caps by role: white, blue, green, pink
+        'cap_white': _hairnet(_palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
+                                       ((0.74, 0.75, 0.77), (0.42, 0.58, 0.74), (0.74, 0.75, 0.77), (0.36, 0.56, 0.40),
+                                        (0.74, 0.75, 0.77), (0.70, 0.45, 0.50)))),   # caps by role: white, blue, green, pink
         'mask_blue': _mat('HUM_MaskBlue', (0.55, 0.70, 0.80), 0.9, sheen=0.3, bump=0.15),
         'parka': _mat('HUM_ParkaNavy', (0.10, 0.14, 0.22), 0.55, coat=0.1, bump=0.12, wrinkle=0.45),
         'shirt_blue': _mat('HUM_ShirtBlue', (0.22, 0.30, 0.42), 0.8, sheen=0.2, bump=0.12, rand=0.15, wrinkle=0.45),
@@ -393,7 +421,7 @@ def _region(body, gender, piece, k):
             sel = sa > (0.50 if piece == 'gloves' else 0.44)
         elif piece == 'haircap':
             sel = (z > 1.60) or (z > 1.49 and n.y > 0.1 and ax < 0.10) or (z > 1.545 and ax > 0.055 and n.y > -0.3)
-            sel = sel and ax < 0.125
+            sel = sel and ax < 0.125 and not (1.5 * KH < z < 1.61 * KH and ax > 0.066 * KH)   # ears stay out
         elif piece in ('hair', 'cap'):
             sel = ((z > 1.60) or (z > 1.52 and n.y > 0.3) or (z > 1.56 and ax > 0.06 and n.y > -0.2)) and ax < 0.12
             sel = sel and not (z < 1.605 and ax > 0.07)        # ears stay bare
@@ -413,8 +441,8 @@ STACHE = (1.505, 1.517, 0.030)       # upper lip band (z lo, z hi, half width) o
 SLEEVE = {'jacket': 0.545, 'parka': 0.55, 'labcoat': 0.535, 'shirt': 0.17, 'shirt_farm': 0.31}
 CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap', 'shirt', 'trousers', 'trousers_dark',
         'shorts')
-THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
-         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.018, 'shoes': 0.008,
+THICK = {'jacket': 0.038, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.042, 'trousers': 0.03,
+         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.036, 'shoes': 0.008,
          'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
          'vest': 0.04, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',

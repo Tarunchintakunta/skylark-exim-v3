@@ -136,9 +136,10 @@ def iqf_action(C):
         for kp in fc.keyframe_points:
             kp.interpolation = 'LINEAR'
     tx = CX + 3.6                                     # (tunnel mouth frost + vapour are built with the tunnel)
-    return _cam('CAM_IQF', [(910, (CX + 2.15, 59.3, DZ + 1.5), (tx, 55.7, DZ + 0.95)),
-                            (1053, (CX + 2.35, 57.9, DZ + 1.38), (tx, 56.6, DZ + 1.0)),
-                            (1070, (CX + 2.36, 57.85, DZ + 1.38), (tx, 56.6, DZ + 1.0))], lens=40, fstop=3.2)
+    # low and close over the belt: the glazed prawns read as prawns, the hood and tunnel steel behind them
+    return _cam('CAM_IQF', [(910, (tx - 0.75, 58.9, DZ + 1.16), (tx + 0.05, 57.3, DZ + 0.98)),
+                            (1053, (tx - 0.6, 58.15, DZ + 1.14), (tx + 0.05, 56.5, DZ + 1.05)),
+                            (1070, (tx - 0.59, 58.1, DZ + 1.14), (tx + 0.05, 56.45, DZ + 1.05))], lens=45, fstop=4.0)
 
 
 def pack_action(C):

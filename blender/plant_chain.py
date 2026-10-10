@@ -172,8 +172,20 @@ def shrimp_fn(C):
             return o
         return fn
 
+    lo = {}
+
     def fn(name, loc, rot):
-        return F.shrimp(name, loc, rot, None, C)
+        o = F.shrimp(name, loc, rot, None, C)
+        if 'm' not in lo:               # the 60k-face scan made 83 M of p-proc's 94 M triangles; 25% (15k faces) reads the same at 1080 (46.9 dB)
+            t = bpy.data.objects.new('_dec', o.data)
+            C.objects.link(t)
+            t.modifiers.new('dec', 'DECIMATE').ratio = 0.25
+            dg = bpy.context.evaluated_depsgraph_get()
+            lo['m'] = bpy.data.meshes.new_from_object(t.evaluated_get(dg))
+            lo['m'].name = o.data.name + '_lo'
+            bpy.data.objects.remove(t)
+        o.data = lo['m']
+        return o
     return fn
 
 
@@ -289,6 +301,12 @@ def build_truck_reverse(C_people):
         ch.location = loc
         ch.keyframe_insert('location', frame=f)
     key_hide(ch, [(1, True), (222, False)])
+    ik = drv.pose.bones['forearm.R'].constraints.new('IK')         # his hand carries the chock to the tyre
+    ik.target, ik.chain_count, ik.use_tail = ch, 2, True
+    for f, v in ((1, 0.0), (220, 0.0), (223, 1.0), (237, 1.0), (242, 0.0)):
+        ik.influence = v
+        ik.keyframe_insert('influence', frame=f)
+    H.grip(drv, 'R', curl=0.8)
 
     # dock workers: two open the rear doors from inside (hands on the door handles via IK), one pushes a trolley
     # across, two wait with empty trolleys, one at the strip curtain
@@ -309,7 +327,7 @@ def build_truck_reverse(C_people):
         ik.pole_angle = D(-90)
         ik.chain_count = 2
         ik.use_tail = True
-        for f, v in ((1, 0.0), (f0 - 10, 0.0), (f0 - 2, 1.0), (f1 - 2, 1.0), (f1 + 4, 0.0)):
+        for f, v in ((1, 0.0), (f0 - 10, 0.0), (f0 - 2, 1.0), (310, 1.0)):     # holds the door open
             ik.influence = v
             ik.keyframe_insert('influence', frame=f)
         w.location = (*p0, S.DZ)
@@ -524,6 +542,7 @@ def build(scene, out):
         vs.exposure = ev
         vs.keyframe_insert('exposure', frame=f)
     f0, f1 = OFFSETS[scene]
+    B.frame_people(s, (1, 909) if s.camera == cam else (f0, f1))
     if scene in ('p-proc', 'p-freeze', 'p-lab', 'p-iqf', 'p-pack', 'p-store'):
         for cn in ('SET_PlantExterior',):
             bpy.data.collections[cn].hide_render = True

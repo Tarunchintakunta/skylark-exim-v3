@@ -36,7 +36,7 @@ def _mats():
         'grille': P.plain('TRK_Grille', (0.06, 0.065, 0.07), 0.45, 0.6),
         'unit': P.grime_paint('TRK_UnitGrey', (0.62, 0.64, 0.66), rough=0.4, grime=0.5, streak=0.3, coat=0.2),
         'plate': P.plain('TRK_PlateBlank', (0.85, 0.82, 0.55), 0.35, 0.1),
-        'interior': P.plain('TRK_BoxInterior', (0.75, 0.77, 0.78), 0.3, 0.3, bump=0.05),
+        'interior': P.plain('TRK_BoxInterior', (0.42, 0.43, 0.43), 0.4, 0.3, bump=0.08),   # used aluminium liner, not paper white
         'floor': P.tex_mat('TRK_FloorAlu', 'metal_plate', scale=1.0, tint=(0.8, 0.8, 0.82), metal=1.0, rough_mul=0.8),
     }
 
@@ -170,8 +170,18 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     if cab_color:
         M['white'] = P.grime_paint('TRK_Paint_%s' % name, cab_color, rough=0.3, grime=0.55, streak=0.25, coat=0.6)
     import sklib
-    sklib.weather(M['box'], streak=(0.36, 0.3, 0.2), amount=0.45, z0=BZ, z1=BZ + 1.1, dirt=(0.24, 0.19, 0.13),
-                  dirt_amount=0.55, scale=0.8)                     # rain streaks + road spray up the box sides
+    M['door'] = M['box'].copy()
+    M['door'].name = 'TRK_BoxGRP_Door'
+    sklib.weather(M['door'], streak=(0.33, 0.26, 0.17), amount=0.6, z0=-BH / 2 + 0.11, z1=-BH / 2 + 0.95,
+                  dirt=(0.2, 0.15, 0.1), dirt_amount=0.75, scale=0.8)   # doors live in hinge space (z centred on 0)
+    sklib.weather(M['interior'], streak=(0.36, 0.33, 0.28), amount=0.35, z0=BZ, z1=BZ + 0.7, dirt=(0.24, 0.21, 0.17),
+                  dirt_amount=0.7, scale=1.2)                      # scuffed, stained liner near the floor
+    sklib.weather(M['box'], streak=(0.33, 0.26, 0.17), amount=0.75, z0=BZ, z1=BZ + 0.9, dirt=(0.2, 0.15, 0.1),
+                  dirt_amount=0.9, scale=0.8)                      # heavy road grime on the lower third + streaks
+    M['rust'] = sklib.weather(P.grime_paint('TRK_RearSteel', (0.32, 0.32, 0.33), rough=0.5, grime=0.7, streak=0.6,
+                                             coat=0.1, metal=0.4),
+                              streak=(0.36, 0.15, 0.05), amount=0.85, z0=0.0, z1=4.5, dirt=(0.3, 0.13, 0.05),
+                              dirt_amount=0.5, scale=1.6)          # rust bleeding from hinges and the rear frame
     sklib.weather(M['white'], streak=(0.3, 0.24, 0.16), amount=0.35, z0=0.35, z1=1.45, dirt=(0.22, 0.17, 0.11),
                   dirt_amount=0.65, scale=0.8)                     # mud on the cab's lower panels and steps
     root = _empty(name, loc, None, coll)
@@ -260,7 +270,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     p.box((REAR - 0.02, -BW / 2 + 0.05, BZ + BH / 2), (0.1, 0.12, BH + 0.02))
     p.box((REAR - 0.02, 0, BZ + BH - 0.06), (0.1, BW, 0.14))
     p.box((REAR - 0.04, 0, BZ - 0.02), (0.14, BW, 0.16))
-    p.make(name + '_RearFrame', M['alu'], root, bevel=0.01, coll=coll)
+    p.make(name + '_RearFrame', M['rust'], root, bevel=0.01, coll=coll)
     # rear lights, reflectors, blank plate, bumper lamps
     p = Part()
     for sy in (-1, 1):
@@ -312,7 +322,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         h = _empty(hn, (REAR - 0.08, sy * (BW / 2 - 0.1), BZ + BH / 2), root, coll)
         p = Part()
         p.box((0, -sy * dw / 2, 0), (0.07, dw, BH - 0.22))
-        d = p.make(hn + '_Panel', M['box'], h, bevel=0.015, coll=coll)
+        d = p.make(hn + '_Panel', M['door'], h, bevel=0.015, coll=coll)
         p = Part()
         for k in (0.22, 0.78):                                    # lock rods
             yy = -sy * dw * k
@@ -324,7 +334,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
             p.box((-0.1, yy - sy * 0.06, -0.05), (0.03, 0.14, 0.04))  # handle
         for zz in (-0.95, -0.3, 0.35, 0.95):                       # hinges
             p.box((-0.05, 0.0, zz), (0.05, 0.16, 0.08))
-        p.make(hn + '_Hardware', M['alu'], h, bevel=0.005, coll=coll)
+        p.make(hn + '_Hardware', M['rust'], h, bevel=0.005, coll=coll)
         p = Part()
         p.box((0.03, -sy * dw / 2, BH / 2 - 0.1), (0.04, dw, 0.03))
         p.box((0.03, -sy * dw / 2, -BH / 2 + 0.1), (0.04, dw, 0.03))
@@ -529,12 +539,11 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         k = 0
         for ix in range(5):
             for iy in (-0.66, 0.0, 0.66):
-                for lv in range(5):
-                    if ix == 0 and lv == 4 and iy != 0:
-                        continue
+                top = 3 if ix == 0 else rnd.choice((2, 3, 3))       # uneven stacks; the front row is unloaded
+                for lv in range(top):                                # three high at most: the top layer is seen into
                     c = crate_fn('%s_Cargo%02d' % (name, k), rnd.choice(['blue', 'blue', 'white', 'red']),
                                  (REAR + 0.3 + ix * 0.43, iy, BZ + 0.04 + lv * 0.3), math.pi / 2, root,
-                                 'shrimp' if lv == 4 else ('ice' if ix == 0 else None), k)   # iced catch on top
+                                 'shrimp' if lv == top - 1 else ('ice' if ix == 0 else None), k)   # iced catch on top
                     R['cargo'].append(c)
                     k += 1
     return R
