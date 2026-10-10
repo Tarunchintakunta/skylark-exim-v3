@@ -415,7 +415,7 @@ def camera_truck_reverse():
         (200, (3.4, -13.4, 2.3), (7.5, -8.7, 1.2)),       # driver steps down from the cab
         (222, (4.4, -12.6, 1.85), (7.9, -8.7, 0.75)),     # ... walks to the front wheel
         (240, (4.0, -11.3, 1.6), (7.7, -8.9, 0.5)),      # chock goes under the tyre, held in frame
-        (256, (4.6, -5.0, 2.6), (5.2, 1.0, 2.4)),         # centred on bay 4.6: the dock seals stay at the edges
+        (256, (4.6, -1.6, 2.6), (4.9, 3.0, 2.4)),         # at the door plane of bay 4.6: the dock seals fall outside the frame
         (272, (5.0, 1.9, 2.85), (8.8, 1.0, 2.45)),
         (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY - 0.45, -1.4, 2.15)),   # door opener's glove stays out of frame
     ]
