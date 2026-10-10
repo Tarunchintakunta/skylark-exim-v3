@@ -7,6 +7,7 @@ import random
 import bpy
 from mathutils import Vector, Euler
 import skhuman as H
+import skpbr as P
 import skplant as S
 import skinterior as SI
 import sktruck as T
@@ -310,8 +311,10 @@ def freeze_crew(C, rnd, crate_fn):
     else:
         H.jitter(qc2, {'spine': (12, 0, 0), 'upperarm': (25, -12, 0), 'forearm': (70, 0, 0), 'head': (16, 0, 0)}, 1, 1060,
                  every=14, amp=6, seed=2)
-    for k, (x, y, rz) in enumerate(((CX - 2.8, 54.0, 90), (CX - 2.2, 55.6, 120), (CX + 2.4, 57.2, -90))):
-        w = H.person('HUM_Freeze%d' % k, 'plant', 'male' if k != 1 else 'female', coll=C, seed=510 + k, lod='lo')
+    for k, (x, y, rz) in enumerate(((CX - 2.8, 54.0, 90), (CX - 2.2, 55.6, 120), (CX + 4.75, 57.0, 90))):
+        iqf = k == 2                                 # IQF line worker: across the belt from the low camera, coat, no apron
+        w = H.person('HUM_Freeze%d' % k, 'plant_coat' if iqf else 'plant', 'male' if k != 1 else 'female', coll=C,
+                     seed=510 + k, lod='' if iqf else 'lo')
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz))
         bpy.context.view_layer.update()
@@ -341,17 +344,27 @@ def freeze_crew(C, rnd, crate_fn):
     M = S.MATS()
     p = Part()
     for sx in (-0.28, 0.28):
-        p.box((sx, 0.6, 0.06), (0.16, 1.15, 0.06))
-    p.box((0, -0.05, 0.25), (0.6, 0.3, 0.4))
-    p.cyl((0, -0.1, 0.4), (0, -0.62, 0.98), 0.02, 8)                 # tow handle angled up to his hand
-    p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.01, coll=C)
-    S.pallet('IN_ColdJackPallet', (0, 0.62, 0.08), M, C, 0.0, cartons=3).parent = pt
+        p.box((sx, 0.72, 0.055), (0.16, 1.15, 0.05))                    # forks under the pallet
+    p.box((0, 0.05, 0.16), (0.56, 0.16, 0.12))                        # fork yoke
+    p.cyl((0, 0.0, 0.2), (0, 0.0, 0.55), 0.06, 14)                   # pump cylinder
+    p.cyl((0, -0.02, 0.55), (0, -0.33, 0.93), 0.018, 8)              # handle shaft up to his hand
+    for sx in (-0.07, 0.07):                                          # loop grip
+        p.cyl((sx, -0.33, 0.93), (sx, -0.41, 1.02), 0.014, 8)
+    p.cyl((-0.07, -0.41, 1.02), (0.07, -0.41, 1.02), 0.016, 8)
+    p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.006, coll=C)
+    q = Part()
+    for sx in (-0.12, 0.12):                                          # steer wheels + load rollers
+        q.cyl((sx - 0.03, 0.0, 0.08), (sx + 0.03, 0.0, 0.08), 0.08, 16)
+    for sx in (-0.28, 0.28):
+        q.cyl((sx - 0.04, 1.2, 0.04), (sx + 0.04, 1.2, 0.04), 0.035, 12)
+    q.make('IN_ColdJackWheels', P.plain('IN_JackWheel', (0.05, 0.05, 0.06), 0.6), pt, coll=C)
+    S.pallet('IN_ColdJackPallet', (0, 0.78, 0.09), M, C, 0.0, cartons=3).parent = pt
     H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 77.5))], stride=0.55,
                  base={'upperarm.L': (4, -24, 0), 'forearm.L': (16, 0, 0)}, arms=False, step=2)
     th = bpy.data.objects.new('HUM_Cold_Tow', None)
     C.objects.link(th)
     th.parent = pt
-    th.location = (0, -0.62, 0.98)
+    th.location = (0, -0.41, 1.02)
     c = cs.pose.bones['forearm.R'].constraints.new('IK')
     c.target = th
     c.chain_count = 2
@@ -359,6 +372,39 @@ def freeze_crew(C, rnd, crate_fn):
     H.grip(cs, 'R', curl=0.85)
     _lift(cs)
     cs.rotation_euler = (0, 0, D(180))
+    # stacker: lifts a carton from the staged pallet onto the next one (both hands on the carton)
+    st = H.person('HUM_ColdStack', 'coldstore', 'female', coll=C, seed=531)
+    st.location = (CX - 0.05, 66.9, DZ)
+    st.rotation_euler = (0, 0, D(90))
+    cb = bpy.data.objects.new('IN_ColdLiftCarton', None)
+    C.objects.link(cb)
+    p = Part()
+    p.box((0, 0, 0), (0.4, 0.3, 0.26))
+    p.make('IN_ColdLiftCartonBox', bpy.data.materials.get('IN_CartonKraft') or M['wood'], cb, bevel=0.008, coll=C)
+    for f, loc in ((880, (CX - 0.75, 66.75, DZ + 1.48)), (930, (CX - 0.75, 66.75, DZ + 1.48)),
+                   (960, (CX - 0.45, 66.9, DZ + 1.12)), (1000, (CX - 0.45, 67.25, DZ + 1.12)),
+                   (1030, (CX + 0.55, 67.35, DZ + 1.47)), (1070, (CX + 0.55, 67.35, DZ + 1.47))):
+        cb.location = loc
+        cb.keyframe_insert('location', frame=f)
+    for sd, dx in (('L', -0.2), ('R', 0.2)):
+        e = bpy.data.objects.new('HUM_ColdStack_Hand' + sd, None)
+        C.objects.link(e)
+        e.parent = cb
+        e.location = (0, dx, 0.02)
+        c = st.pose.bones['forearm.' + sd].constraints.new('IK')
+        c.target, c.chain_count, c.use_tail = e, 2, True
+        for f, v in ((880, 0.0), (926, 0.0), (932, 1.0), (1032, 1.0), (1040, 0.0)):
+            c.influence = v
+            c.keyframe_insert('influence', frame=f)
+        H.grip(st, sd, curl=0.7)
+    H.jitter(st, {'spine': (14, 0, 0), 'neck': (6, 0, 0), 'head': (10, 0, 0)}, 880, 1070, every=14, amp=4, seed=61,
+             arms=False)
+    H.settle_reach(st, 932, 1032, step=2, iters=4, max_shift=0.4)
+    # checker further down the aisle, reading the rack labels
+    ck = H.person('HUM_ColdCheck', 'coldstore', 'male', coll=C, seed=532)
+    H.walk_cycle(ck, 880, 1070, [(880, (CX - 0.6, 80.5)), (1070, (CX - 0.7, 76.5))], stride=0.5,
+                 base={'head': (6, 0, -25)}, arms=True, step=2)
+    _lift(ck)
     return out
 
 
