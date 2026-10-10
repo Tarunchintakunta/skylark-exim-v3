@@ -1790,7 +1790,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
             for i in range(cnt):
                 k = rnd.choice(kinds)
                 fo = fish(f'{name}_f{i}', k, parent=c, loc=(rnd.uniform(-0.15, 0.15), rnd.uniform(-0.1, 0.1),
-                                                          level + 0.022 + (i // 12) * 0.022 + rnd.uniform(0, 0.015)),
+                                                          level + 0.03 + (i // 12) * 0.024 + rnd.uniform(0, 0.012)),
                           rot=(D(rnd.choice((90, -90)) + rnd.uniform(-10, 10)), 0, D(rnd.uniform(-8, 8))),
                           scale=(0.95 if fill == 'tuna' else 1.0))
                 # keep the whole fish inside the crate walls (inner 0.54 x 0.34): shrink anything longer, pull it in
@@ -1801,12 +1801,12 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
                 shrimp_proxy(f'{name}_s{i}', parent=c, loc=(rnd.uniform(-0.22, 0.22), rnd.uniform(-0.13, 0.13),
                                                             level + rnd.uniform(0, 0.04)),
                              rot=(rnd.uniform(0, 6.28), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)))
-        bed = bpy.data.materials.get('MAT_IcePacked') or pbr('MAT_IcePacked', (0.82, 0.88, 0.93), 0.35, var=0.08, bump=0.9,
-                                                                scale=60, sss=0.4)   # bulk crushed ice scatters white
+        bed = bpy.data.materials.get('MAT_IcePacked') or pbr('MAT_IcePacked', (0.9, 0.95, 1.0), 0.25, var=0.08, bump=0.9,
+                                                                scale=60, sss=0.5)   # bulk crushed ice scatters white
         ice = obj(f'{name}_ice', _CRATE['ice'], bed, (0, 0, level + (0.05 if fill != 'ice' else 0.02)), parent=c)
         if fill != 'ice':
-            ice.scale = (1, 1, 0.9)        # fish sink 30-50% into the packed bed
-            ice.location.z = level + 0.02
+            ice.scale = (1, 1, 0.55)       # fish sink 30-50% into the packed bed (backs and heads stay out)
+            ice.location.z = level + 0.012
         # loose crushed ice: over the bed, between and partly over the fish
         obj(f'{name}_icech', _CRATE['chunks'], mats['ice'], (0, 0, level + (0.055 if fill != 'ice' else 0.07)), parent=c)
         if fill in ('fish', 'tuna', 'mixed'):

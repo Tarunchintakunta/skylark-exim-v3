@@ -37,7 +37,7 @@ ALIAS = {'pvc_jacket': ('jacket', 'pvc'), 'pvc_trousers': ('trousers', 'pvc'),
          'work_shirt': ('jacket', 'work_shirt'), 'boots_dark': ('boots', 'boot_dark'),
          'towel': ('haircap', 'towel')}   # head towel wrapped like the deck crews wear (gathered cap shape)
 # oilskins stand off the body (stiff PVC over layers): shell thickness per alias, read by skhuman._shell via THICK
-ALIAS_THICK = {'pvc_jacket': 0.036, 'pvc_trousers': 0.024, 'work_shirt': 0.032}
+ALIAS_THICK = {'pvc_jacket': 0.026, 'pvc_trousers': 0.02, 'work_shirt': 0.03}   # thicker read as an inflated suit
 CUSTOM = ('lungi', 'hardhat', 'sandals')
 
 _progress_dir = None
