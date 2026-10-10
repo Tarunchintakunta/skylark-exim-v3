@@ -533,10 +533,11 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         k = 0
         for ix in range(5):
             for iy in (-0.66, 0.0, 0.66):
-                for lv in range(3):                                  # three high: the top layer is seen into
+                top = 3 if ix == 0 else rnd.choice((2, 3, 3))       # uneven stacks; the front row is unloaded
+                for lv in range(top):                                # three high at most: the top layer is seen into
                     c = crate_fn('%s_Cargo%02d' % (name, k), rnd.choice(['blue', 'blue', 'white', 'red']),
                                  (REAR + 0.3 + ix * 0.43, iy, BZ + 0.04 + lv * 0.3), math.pi / 2, root,
-                                 'shrimp' if lv == 2 else ('ice' if ix == 0 else None), k)   # iced catch on top
+                                 'shrimp' if lv == top - 1 else ('ice' if ix == 0 else None), k)   # iced catch on top
                     R['cargo'].append(c)
                     k += 1
     return R
