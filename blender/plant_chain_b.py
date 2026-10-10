@@ -306,7 +306,7 @@ SHADOW_LIGHTS = {'PL_DockArea4', 'PL_DockArea6', 'PL_DockArea7', 'IN_Area_0_0', 
                  'IN_Area_6_1', 'IN_Area_8_0', 'IN_ColdArea1'}
 
 
-def frame_people(s, rng, limit=1.9):
+def frame_people(s, rng, limit=0.0):
     """Hide people the camera passes within `limit` m of (chest) while they are in frame, over frames rng (the main
     camera's whole plant run, so every plant build hides the same people), and thin the processing tables."""
     from bpy_extras.object_utils import world_to_camera_view as w2c
@@ -319,7 +319,7 @@ def frame_people(s, rng, limit=1.9):
                 continue
             pb = o.pose.bones.get('chest')
             w = o.matrix_world @ pb.head
-            if (w - c).length < limit:
+            if (w - c).length < limit:                    # (limit 0: Tarun wants fewer, larger people kept in frame)
                 v = w2c(s, s.camera, w)
                 if -0.15 < v.x < 1.15 and -0.15 < v.y < 1.15 and v.z > 0:
                     near.add(o.name)

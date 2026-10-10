@@ -202,6 +202,26 @@ def wash(C, M, rnd, shrimp_fn):
                        (xx + 0.1 * math.cos(a), y + 0.1 * math.sin(a), DZ + 0.99 + 0.02 * (j % 2)), 0.006, 6)
             sc.cyl((xx, y, DZ + 0.931), (xx, y, DZ + 0.934), 0.16, 20)  # foam ring on the surface
         st.make('IN_Stream%d' % t, _stream_mat(), None, smooth=True, coll=C)
+        dm = bpy.data.meshes.get('IN_DropMesh')
+        if dm is None:                                               # droplets thrown off around each stream
+            bmd = bmesh.new()
+            bmesh.ops.create_icosphere(bmd, subdivisions=1, radius=0.006)
+            dm = bpy.data.meshes.new('IN_DropMesh')
+            bmd.to_mesh(dm)
+            bmd.free()
+            dm.materials.append(_stream_mat())
+        for k in (1, 3, 5, 7):
+            xx = x - 1.4 + k * 0.35
+            for j in range(6):
+                d = bpy.data.objects.new('IN_Drop%d_%d_%d' % (t, k, j), dm)
+                C.objects.link(d)
+                a = rnd.uniform(0, 6.28)
+                r0 = rnd.uniform(0.03, 0.05)
+                per = rnd.randint(9, 14)
+                for f0 in range(1 + j * 2, 1100, per):               # spray out from the stream, fall to the water
+                    for df, rr, zz in ((0, r0, rnd.uniform(1.0, 1.5)), (per - 1, r0 + 0.12, 0.93)):
+                        d.location = (xx + rr * math.cos(a), y + rr * math.sin(a), DZ + zz)
+                        d.keyframe_insert('location', frame=f0 + df)
         sc.make('IN_StreamFoam%d' % t, _foam_ring_mat(), None, coll=C)
         # product in the tank (under/at the surface)
         for k in range(60):
@@ -322,8 +342,40 @@ def _conveyor(name, a, b, width, C, M, legs=True):
     p.make(name + '_Frame', M['stainless'], None, bevel=0.005, coll=C)
     p = Part()
     p.box(mid + Vector((0, 0, 0.06)), (width, Lg, 0.02), rot)
-    belt = p.make(name + '_Belt', M['belt'], None, coll=C)
+    belt = p.make(name + '_Belt', _mesh_belt() if 'IQF' in name else M['belt'], None, coll=C)
     return belt
+
+
+def _mesh_belt():
+    """IQF belt: dark stainless wire mesh (woven grid, dark gaps, glints on the wires)."""
+    m = bpy.data.materials.get('IN_MeshBelt')
+    if m:
+        return m
+    m = bpy.data.materials.new('IN_MeshBelt')
+    m.use_nodes = True
+    nt = m.node_tree
+    L = nt.links
+    pb = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    bk = nt.nodes.new('ShaderNodeTexBrick')
+    bk.inputs['Scale'].default_value = 60.0
+    bk.inputs['Mortar Size'].default_value = 0.25
+    bk.inputs['Color1'].default_value = (0.02, 0.022, 0.025, 1)
+    bk.inputs['Color2'].default_value = (0.03, 0.032, 0.035, 1)
+    bk.inputs['Mortar'].default_value = (0.42, 0.43, 0.44, 1)
+    L.new(tc.outputs['Object'], bk.inputs['Vector'])
+    L.new(bk.outputs['Color'], pb.inputs['Base Color'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['To Min'].default_value = 0.0
+    mr.inputs['To Max'].default_value = 1.0
+    L.new(bk.outputs['Fac'], mr.inputs['Value'])
+    L.new(mr.outputs[0], pb.inputs['Metallic'])
+    pb.inputs['Roughness'].default_value = 0.3
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.6
+    L.new(bk.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], pb.inputs['Normal'])
+    return m
 
 
 def grading(C, M, rnd, shrimp_fn):
@@ -568,8 +620,8 @@ def _glaze_mat():
     seg.inputs['Scale'].default_value = 9.0
     L.new(tc.outputs['Object'], seg.inputs['Vector'])
     cr = nt.nodes.new('ShaderNodeValToRGB')
-    cr.color_ramp.elements[0].color = (0.62, 0.5, 0.47, 1)
-    cr.color_ramp.elements[1].color = (0.82, 0.74, 0.7, 1)
+    cr.color_ramp.elements[0].color = (0.74, 0.64, 0.6, 1)
+    cr.color_ramp.elements[1].color = (0.9, 0.84, 0.8, 1)
     L.new(seg.outputs['Fac'], cr.inputs[0])
     fr = nt.nodes.new('ShaderNodeMix')
     fr.data_type = 'RGBA'
@@ -586,6 +638,7 @@ def _glaze_mat():
     pb.inputs['Coat Weight'].default_value = 1.0                 # the ice glaze
     pb.inputs['Coat Roughness'].default_value = 0.06
     pb.inputs['Subsurface Weight'].default_value = 0.15
+    pb.inputs['Transmission Weight'].default_value = 0.25    # translucent ice glaze
     bp = nt.nodes.new('ShaderNodeBump')
     bp.inputs['Strength'].default_value = 0.25
     L.new(nz.outputs['Fac'], bp.inputs['Height'])
