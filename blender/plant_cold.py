@@ -113,12 +113,14 @@ def lab_action(C):
     qc.location = (CX + 3.0, 47.44, DZ)                   # a step closer, in front of the balance
     qc.keyframe_insert('location', frame=798)
     hr = _empty('HUM_QC_HandR', (0.0, 0.14, 0.03), tray, C)
-    hl = _empty('HUM_QC_HandL', (CX + 2.75, 47.33, DZ + 0.93), None, C)
-    _ik(qc, 'R', hr, ((1, 0.0), (804, 0.0), (814, 1.0), (856, 1.0), (866, 0.0)))
-    _ik(qc, 'L', hl, ((1, 0.0), (800, 0.0), (812, 1.0), (1100, 1.0)))
+    hl = _empty('HUM_QC_HandL', (CX + 2.75, 47.12, DZ + 0.955), None, C)    # palm flat on the bench top
+    _ik(qc, 'R', hr, ((1, 1.0), (856, 1.0), (866, 0.0)))    # checks tray 2 (hand on its rim), then lifts it
+    _ik(qc, 'L', hl, ((1, 1.0), (1100, 1.0)))                # steadies herself on the bench edge throughout
+    H.grip(qc, 'R', curl=0.45)
+    H.grip(qc, 'L', curl=0.25)
     H.set_pose(qc, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (16, 0, 0), 'upperarm.R': (12, -20, 0),
                     'forearm.R': (30, 0, 0)}, 870)
-    H.settle_reach(qc, 800, 909, step=3, iters=3, max_shift=0.25)
+    H.settle_reach(qc, 1, 909, step=3, iters=3, max_shift=0.3)
     H.set_pose(qc, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (18, 0, 0), 'upperarm.R': (12, -20, 0),
                     'forearm.R': (30, 0, 0)}, 1100)
 
@@ -163,10 +165,11 @@ def pack_action(C):
     for f, loc in ((1, a0), (930, a0), (962, a1), (992, a1), (1018, a2), (1030, a2), (1036, a3), (1100, a3)):
         b.location = loc
         b.keyframe_insert('location', frame=f)
-    for sd, dx in (('L', -0.1), ('R', 0.1)):
-        e = _empty('HUM_Packer_Hand' + sd, (dx, 0.0, 0.035), b, C)
+    for sd, dx in (('L', -0.14), ('R', 0.14)):           # palms on the two short ends, fingers under the edge
+        e = _empty('HUM_Packer_Hand' + sd, (dx, 0.0, -0.005), b, C)
         _ik(w, sd, e, ((1, 1.0), (1020, 1.0), (1028, 0.0)))
-        H.grip(w, sd, curl=0.55)
+        H.grip(w, sd, curl=0.3)
+    H.settle_reach(w, 930, 1020, step=2, iters=4, max_shift=0.3)
     base = {'spine': (18, 0, 0), 'chest': (6, 0, 0), 'neck': (10, 0, 0), 'head': (18, 0, 0)}
     H.jitter(w, base, 1, 1100, every=16, amp=3, seed=41, arms=False)
     H.set_pose(w, {'upperarm': (10, -22, 0), 'forearm': (40, 0, 0)}, 1040)
@@ -178,11 +181,18 @@ def pack_action(C):
     cm = bpy.data.materials.get('PL_Carton')
     p = Part()
     q = Part()
+    t = Part()
+    ln = Part()
     for k in range(5):
         yy = 60.8 + k * 0.75
         if k != 1:
             p.box((x, yy, DZ + 1.05), (0.55, 0.38, 0.3))
             q.box((x - 0.276, yy, DZ + 1.08), (0.004, 0.2, 0.12))
+            t.box((x, yy, DZ + 1.2015), (0.57, 0.05, 0.003))                     # sealing tape over the top
+            t.box((x - 0.2765, yy, DZ + 1.17), (0.003, 0.05, 0.065))            # ... and down the end
+            ln.box((x - 0.279, yy, DZ + 1.11), (0.002, 0.16, 0.008))            # printed lines on the label
+            ln.box((x - 0.279, yy - 0.03, DZ + 1.09), (0.002, 0.1, 0.006))
+            ln.box((x - 0.279, yy + 0.05, DZ + 1.055), (0.002, 0.07, 0.03))     # barcode-like block
             continue
         p.box((x, yy, DZ + 0.905), (0.55, 0.38, 0.01))                 # floor
         for sx in (-1, 1):
@@ -191,6 +201,8 @@ def pack_action(C):
             p.box((x + sx * 0.34, yy, DZ + 1.25), (0.01, 0.38, 0.16), Euler((0, sx * 0.55, 0)))   # flaps out
     p.make('IN_PackCartonsOpen', cm, None, bevel=0.003, coll=C)
     q.make('IN_PackLabelsOpen', bpy.data.materials.get('IN_LabelBlank'), None, coll=C)
+    t.make('IN_PackTape', bpy.data.materials.get('IN_Tape'), None, coll=C)
+    ln.make('IN_PackLabelPrint', bpy.data.materials.get('IN_LabelLine'), None, coll=C)
     return _cam('CAM_Pack', [(910, (x + 1.25, 60.55, DZ + 1.75), (x - 0.05, 61.5, DZ + 1.05)),
                              (1053, (x + 1.05, 60.85, DZ + 1.6), (x - 0.05, 61.5, DZ + 1.02)),
                              (1070, (x + 1.04, 60.86, DZ + 1.6), (x - 0.05, 61.5, DZ + 1.02))], lens=40, fstop=3.2)
