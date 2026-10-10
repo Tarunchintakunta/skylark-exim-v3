@@ -226,10 +226,16 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         for y in (ys, yl):
             mb.box((sx, y, (gz - 1.0) / 2 + 1.2), (1.8, 1.8, gz - 1.0), white)
             for dx in (-2.5, 2.5):
-                mb.box((sx + dx, y, 0.7), (4.2, 1.6, 1.2), blue)
+                for sy_ in (-0.62, 0.62):
+                    mb.box((sx + dx, y + sy_, 0.75), (4.2, 0.28, 0.9), blue, bevel=0.04)       # bogie side frames
+                mb.box((sx + dx, y, 1.15), (4.0, 1.5, 0.22), blue, bevel=0.03)
                 for wx in (-1.4, -0.45, 0.45, 1.4):
-                    mb.cyl((sx + dx + wx, y - 0.9, 0.45), (sx + dx + wx, y + 0.9, 0.45), 0.42, dark, 12)
-            mb.box((sx, y, 1.5), (7.0, 2.0, 0.8), blue)
+                    mb.cyl((sx + dx + wx, y - 0.35, 0.42), (sx + dx + wx, y + 0.35, 0.42), 0.4, mats['steel'], 20)   # rail wheels
+                    mb.cyl((sx + dx + wx, y - 0.4, 0.42), (sx + dx + wx, y - 0.34, 0.42), 0.46, mats['steel'], 20)  # flange
+                    mb.cyl((sx + dx + wx, y - 0.5, 0.42), (sx + dx + wx, y + 0.5, 0.42), 0.09, dark, 8)             # axle
+                mb.box((sx + dx + 2.25, y, 0.5), (0.3, 1.6, 0.5), mats['paint_yellow'] if 'paint_yellow' in mats else blue, bevel=0.03)   # buffer
+            mb.box((sx, y, 1.5), (7.0, 2.0, 0.8), blue, bevel=0.06)                            # equalizer beam
+            mb.box((sx, y, 0.06), (8.5, 0.18, 0.12), mats['steel'])                            # crane rail
         # portal beam + sill + diagonal bracing across (Y) at each side
         mb.box((sx, 0, 20.0), (1.6, gauge, 2.2), white)
         mb.beam((sx, ys, 21.5), (sx, yl, gz - 2), 0.8, white)
@@ -328,18 +334,23 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     tb.sphere((0, 3.4, 1.6), 0.3, mats['lamp_amber'], 8)
     tb.obj(f'{name}_TrolleyBody', trolley)
     # headblock: steel frame (two side girders + cross members) carrying four rope sheaves (axles along X)
-    yel = weather(pbr('MAT_SpreaderYellow', (0.78, 0.55, 0.06), 0.45, 0.1, grime=0.45, scale=0.4), amount=0.4, z0=-1.4,
-                  z1=-0.4, dirt_amount=0.3)
+    yel = bpy.data.materials.get('MAT_SpreaderYellow') or weather(pbr('MAT_SpreaderYellow', (0.6, 0.43, 0.07), 0.6, 0.1,
+                                                                       grime=0.6, scale=0.4), amount=0.6, z0=-1.4, z1=-0.4)
+    grease = pbr('MAT_Grease', (0.03, 0.028, 0.025), 0.25, 0.0, var=0.4, bump=0.4, scale=8)
+    hose = pbr('MAT_Hose', (0.02, 0.02, 0.022), 0.6, var=0.2)
     rope = pbr('MAT_WireRope', (0.07, 0.07, 0.075), 0.55, 0.5, var=0.3, bump=0.5, scale=8.0, grime=0.6)   # greasy, not chrome
     head = empty(f'{name}_Headblock', (0, 0, -20), trolley, size=1.5)
     hb = MB()
     hb.box((0, 0, 0.06), (3.2, 2.1, 0.12), dark)                      # base plate on the spreader chassis
     for sy in (-0.98, 0.98):
-        hb.box((0, sy, 0.6), (3.4, 0.16, 1.0), yel)                   # side girders
+        hb.box((0, sy, 0.6), (3.4, 0.16, 1.0), yel, bevel=0.025)      # side girders
         for sx in (-1.45, 0.0, 1.45):
             hb.box((sx, sy, 0.6), (0.18, 0.2, 0.96), dark)            # stiffeners
     for sx in (-1.62, 1.62):
-        hb.box((sx, 0, 0.6), (0.16, 2.1, 1.0), yel)                   # end plates
+        hb.box((sx, 0, 0.6), (0.16, 2.1, 1.0), yel, bevel=0.025)      # end plates
+    hb.box((0, 1.15, 1.25), (2.8, 0.3, 0.08), mats['steel'])            # cable tray
+    for k in range(8):
+        hb.box((-1.3 + k * 0.37, 1.15, 1.31), (0.04, 0.3, 0.06), mats['steel'])
     shv = pbr('MAT_SheaveSteel', (0.3, 0.31, 0.3), 0.55, 0.35, var=0.25, grime=0.6, scale=1.5)
     hole = pbr('MAT_SheaveHole', (0.01, 0.01, 0.01), 0.9)
     for sx in (-1.0, 1.0):
@@ -364,10 +375,14 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     # telescopic spreader at 40 ft: chassis, outer beams, narrower inner beams run out to the end beams, guide flippers
     # and a twistlock housing + cone at each corner casting (bottom of the cones = z -1.35 below the headblock)
     sp = MB()
-    sp.box((0, 0, -0.45), (3.6, 2.3, 0.75), yel)                                       # chassis
+    sp.box((0, 0, -0.45), (3.6, 2.3, 0.75), yel, bevel=0.04)                           # chassis
     sp.box((0, 0, -0.06), (2.4, 1.6, 0.04), dark)
     for sy in (-0.45, 0.45):
-        sp.box((0, sy, -0.75), (8.4, 0.48, 0.48), yel)                                 # outer beams
+        sp.box((0, sy, -0.75), (8.4, 0.48, 0.48), yel, bevel=0.03)                     # outer beams
+        for k in range(9):                                                             # stiffener ribs
+            sp.box((-4.0 + k * 1.0, sy, -0.75), (0.05, 0.52, 0.52), yel)
+        sp.cyl((-4.0, sy + 0.3, -0.52), (4.0, sy + 0.3, -0.52), 0.03, hose, 6)       # hydraulic hoses
+        sp.cyl((-4.0, sy + 0.36, -0.52), (4.0, sy + 0.36, -0.52), 0.025, hose, 6)
         for sgn in (-1, 1):
             sp.box((sgn * 4.95, sy, -0.75), (1.75, 0.34, 0.34), yel)                   # inner (telescoped) beams
             sp.box((sgn * 4.95, sy, -0.575), (1.75, 0.2, 0.02), steel)                 # wear strip
@@ -375,10 +390,13 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     sp.cyl((-1.6, 1.0, -0.2), (1.6, 1.0, -0.2), 0.06, dark, 8)                         # hydraulic line
     for sx in (-6.0, 6.0):
         sg = math.copysign(1, sx)
-        sp.box((sx, 0, -0.85), (0.55, 2.62, 0.55), yel)                                # end beams
+        sp.box((sx, 0, -0.85), (0.55, 2.62, 0.55), yel, bevel=0.035)                   # end beams
+        for k in (-0.8, -0.3, 0.3, 0.8):
+            sp.box((sx, k, -0.85), (0.6, 0.05, 0.6), yel)                              # end-beam ribs
         for sy in (-1.13, 1.13):
             sgy = math.copysign(1, sy)
-            sp.box((sx, sy, -1.0), (0.44, 0.42, 0.26), dark)                           # twistlock housing
+            sp.box((sx, sy, -1.0), (0.44, 0.42, 0.26), dark, bevel=0.02)               # twistlock housing
+            sp.box((sx, sy, -1.12), (0.36, 0.34, 0.03), grease)                        # grease round the twistlock
             sp.cyl((sx, sy, -1.13), (sx, sy, -1.35), 0.11, steel, 12, r2=0.05)         # twistlock cone
             sp.box((sx, sy, -1.3), (0.2, 0.09, 0.05), steel)                           # cone head
             sp.box((sx + sg * 0.42, sy, -1.02), (0.06, 0.55, 0.5), yel,
@@ -547,6 +565,8 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
     bm.faces.new(secs[0][::-1])
     top = [s[len(s) // 2:] for s in secs]
     me = bm_to_mesh(bm, f'{name}_Hull', smooth=True)
+    hm = weather(hm, streak=(0.3, 0.12, 0.05), amount=0.75, z0=-0.5, z1=3.5, dirt=(0.12, 0.13, 0.08), dirt_amount=0.8,
+                 scale=0.35)
     me.materials.append(hm)
     h = obj(f'{name}_Hull', me, None, parent=root)
     for p in me.polygons:
@@ -567,6 +587,25 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
     fme.materials.append(hull_foam_mat())
     fo = obj(f'{name}_HullFoam', fme, None, parent=root)
     fo.visible_shadow = False
+    # draft marks at bow and stern, both sides: numerals in metres above the keel, white paint (numbers only)
+    if detail:
+        dm = pbr('MAT_DraftMark', (0.82, 0.82, 0.78), 0.6, grime=0.4)
+        for xm in (L / 2 - 9.0, -L / 2 + 4.0):
+            bx_ = [b for (x_, b) in wl if abs(x_ - xm) < L / 48 + 0.1]
+            bw_ = bx_[0] if bx_ else B / 2
+            for sy in (-1, 1):
+                for k, zz in enumerate((-2.0, 0.0, 2.0)):
+                    cu = bpy.data.curves.new(f'{name}_Draft{k}', 'FONT')
+                    cu.body = str(9 + k)
+                    cu.size = 0.9
+                    cu.extrude = 0.01
+                    cu.align_x = 'CENTER'
+                    t = bpy.data.objects.new(f'{name}_Draft', cu)
+                    _link(t)
+                    t.data.materials.append(dm)
+                    t.parent = root
+                    t.location = (xm, sy * (bw_ + 0.03), zz + 1.0)
+                    t.rotation_euler = (math.pi / 2, 0, 0 if sy < 0 else math.pi)
     # main deck plate
     box(f'{name}_DeckPlate', (L * 0.9, B - 1.0, 0.4), (-L * 0.02, 0, deck - 0.2), pbr('MAT_ShipDeck', (0.3, 0.12, 0.08), 0.6,
                                                                                     grime=0.4), 0.0, parent=root)
@@ -594,6 +633,9 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
             t_here = max(2, base_t - (1 if r in (0, rows - 1) else 0))
             if empty_slot and bi == empty_slot[0] and r < empty_slot[1]:
                 t_here = min(t_here, base_t - 3)   # lower rows on the quay side: the box under the slot stays in view
+            if empty_slot and bi == empty_slot[0] and r in (empty_slot[1] + 1, empty_slot[1] + 2):
+                t_here = min(t_here, base_t - 2)   # seaward neighbours no higher than the slot floor: at touchdown the
+                #                                    whole reefer side shows, not half of it behind a pale box
             if empty_slot and bi == empty_slot[0] - 1 and r <= empty_slot[1] + 1:
                 t_here = min(t_here, base_t - 2)   # and the bay behind it: the reefer end and the doors below show
             for t in range(t_here):
@@ -733,7 +775,9 @@ def wheel_mesh(name, mats, r=0.52, w=0.3, lugs=44):
 def tractor(name, loc=(0, 0, 0), rot_z=0.0, color=(0.85, 0.85, 0.84), mats=None, driver=True):
     """Day-cab tractor unit, facing +X, origin under the rear axle at ground. Returns (root, wheels)."""
     mats = mats or M()
-    paint = pbr(f'MAT_Tractor_{name}', color, 0.3, 0.2, grime=0.25, coat=0.6, scale=0.5)
+    paint = weather(pbr(f'MAT_Tractor_{name}', color, 0.38, 0.2, grime=0.45, coat=0.4, scale=0.5), streak=(0.25, 0.18, 0.1),
+                    amount=0.5, z0=0.2, z1=1.6, dirt=(0.22, 0.17, 0.11), dirt_amount=0.9, scale=1.0)
+    cabglass = pbr('MAT_CabGlassDirty', (0.32, 0.3, 0.26), 0.3, 0.0, var=0.5, bump=0.0, scale=3, alpha=0.45)
     root = empty(name, loc, size=1.5)
     root.rotation_euler = (0, 0, rot_z)
     mb = MB()
@@ -754,11 +798,11 @@ def tractor(name, loc=(0, 0, 0), rot_z=0.0, color=(0.85, 0.85, 0.84), mats=None,
         if v.co.x > 4.0:
             v.co.z -= 0.18                                                       # sloped nose
     for sy in (-0.53, 0.53):
-        mb.box((4.92, sy, 2.55), (0.06, 1.0, 0.95), mats['glass'])              # split windscreen
+        mb.box((4.92, sy, 2.55), (0.06, 1.0, 0.95), cabglass)                   # split windscreen (grimy, see-through)
     mb.box((4.94, 0, 2.55), (0.07, 0.08, 1.0), blk)
     mb.box((5.0, 0, 3.1), (0.25, 2.35, 0.07), blk)                               # sun visor
     for sy in (-1.23, 1.23):
-        mb.box((4.15, sy, 2.45), (1.0, 0.04, 0.75), mats['glass'])               # door window
+        mb.box((4.15, sy, 2.45), (1.0, 0.04, 0.75), cabglass)                    # door window
         sg = math.copysign(1, sy)
         for x in (3.3, 4.75):
             mb.box((x, sy + sg * 0.01, 1.95), (0.025, 0.02, 2.0), blk)           # door shut lines
@@ -834,7 +878,12 @@ def skeletal_trailer(name, parent, mats=None, length=12.5):
 def reefer_box(name, parent, loc=(0, 0, 0), mats=None):
     """The hero white 40 ft reefer as its own object (so the crane can carry it). Origin at the bottom centre."""
     mb = MB()
-    m = paint_attr('MAT_ContainerPaint', corrugate=60.0)
+    # own opaque matte paint: no metal, no coat, rough enough that the stacks around it never mirror in its sides
+    m = paint_attr('MAT_ReeferPaint', rough=0.62, metal=0.0, grime=0.5, corrugate=60.0)
+    weather(m, streak=(0.3, 0.2, 0.1), amount=0.6, z0=0.0, z1=2.6, dirt=(0.2, 0.17, 0.12), dirt_amount=0.5, scale=1.5)
+    for n in m.node_tree.nodes:
+        if n.type == 'BUMP':
+            n.inputs['Strength'].default_value = 0.8          # deep corrugation
     add_container(mb, (0, 0, 0), m, REEFER_WHITE, True)
     o = mb.obj(name, parent, loc)
     return o
