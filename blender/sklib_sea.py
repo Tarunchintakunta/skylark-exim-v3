@@ -184,7 +184,7 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
                               (hx0, 0, 0.08, 2 * hy), (hx1, 0, 0.08, 2 * hy)):
         box(f'{name}_Coaming', (sx, sy2, 0.45), (cx, cy, deck_z + 0.225), mats['paint_white'], 0.02, parent=root)
     hold_floor = deck_z - 2.6
-    ins = pbr('MAT_HoldInsulation', (0.86, 0.88, 0.88), 0.4, var=0.06, grime=0.25, scale=2)
+    ins = pbr('MAT_HoldInsulation', (0.42, 0.44, 0.43), 0.55, var=0.15, grime=0.6, scale=2)   # worn, wet, not a white void
     hc = (hx0 + hx1) / 2
     box(f'{name}_HoldFloor', (4.6, 3.6, 0.1), (hc, 0, hold_floor - 0.05), ins, 0.0, parent=root)
     for (cx, cy, sx, sy2) in ((hc, 1.8, 4.6, 0.1), (hc, -1.8, 4.6, 0.1), (hc - 2.3, 0, 0.1, 3.6), (hc + 2.3, 0, 0.1, 3.6)):

@@ -50,14 +50,14 @@ for x in range(-120, 121, 8):
     L.obj('WHARF_Tyre', tyre, None, (x + 4, 0.18, 1.0), (D(90), 0, 0))
 # breakwater of boulders
 bm = bmesh.new()
-for i in range(260):
-    t = i / 260
+for i in range(420):
+    t = i / 420
     c = Vector((40 + t * 160, 70 - t * 10, -0.5)) + Vector((rnd.uniform(-3, 3), rnd.uniform(-4, 4), rnd.uniform(0, 2.5)))
     r = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=rnd.uniform(1.2, 2.4))
     for v in r['verts']:
         v.co = Vector((v.co.x * rnd.uniform(0.8, 1.3), v.co.y * rnd.uniform(0.8, 1.3), v.co.z * 0.7)) + c
 me = L.bm_to_mesh(bm, 'BREAKWATER')
-me.materials.append(L.pbr('MAT_Rock', (0.42, 0.4, 0.37), 0.85, var=0.3, bump=0.6, scale=1.5, grime=0.4))
+me.materials.append(L.pbr('MAT_Rock', (0.16, 0.15, 0.14), 0.8, var=0.45, bump=1.0, scale=1.5, grime=0.6))   # dark wet rock
 L.obj('BREAKWATER', me)
 L.box('BREAKWATER_Light', (1.2, 1.2, 5.0), (200, 60, 2.5), mats['paint_white'], 0.05)
 if DEPART:   # beacon on the breakwater head at the harbour mouth the boat passes
@@ -72,7 +72,7 @@ for v in bm.verts:
     h = 120 * (0.5 + 0.5 * math.sin(x / 300.0 + 1.3)) * (0.6 + 0.4 * math.sin(x / 97.0)) * max(0.0, (y - 900) / 800) + 10
     v.co = Vector((x, y, h))
 me = L.bm_to_mesh(bm, 'HILLS', smooth=True)
-me.materials.append(L.pbr('MAT_HillHaze', (0.36, 0.44, 0.42), 0.9, var=0.2, bump=0.0, scale=0.01))
+me.materials.append(L.pbr('MAT_HillHaze', (0.24, 0.28, 0.22), 0.9, var=0.3, bump=0.0, scale=0.01))
 L.obj('HILLS', me)
 
 # ---------------------------------------------------------------- moored boats rafted side by side (no names)
