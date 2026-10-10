@@ -68,7 +68,7 @@ NETX = 1.6
 bag_parent = L.empty('NET_Swing', (0, 0, 0), size=0.6)
 cl = bag_parent.constraints.new('COPY_LOCATION')
 cl.target = V['boom_tip']
-bag_root, net, core, bag_fish, bag_floats = S.net_bag('NET', R=1.45, depth=2.5, mats=mats, n_fish=170, n_tuna=6)
+bag_root, net, core, bag_fish, bag_floats = S.net_bag('NET', R=1.25, depth=3.2, mats=mats, n_fish=240, n_tuna=6)   # long heavy sack
 bag_root.parent = bag_parent
 aim = L.empty('BOOM_Aim', (1.0, 7.0, 9.4), size=0.5)
 dt = V['boom_pivot'].constraints.new('DAMPED_TRACK')
@@ -103,9 +103,9 @@ key_rope(118, 2.4, 8.0)   # pendulum while the boom swings in (<= 8 degrees)
 key_rope(134, 2.4, -5.0)
 key_rope(150, 2.4, 2.0)
 key_rope(160, 4.2, -1.0)
-key_rope(174, 6.75, 0.0)
-key_rope(178, 6.75, 0.0)
-key_rope(200, 6.0, 0.0)
+key_rope(174, 6.3, 0.0)
+key_rope(178, 6.3, 0.0)
+key_rope(200, 5.6, 0.0)
 key_rope(240, 3.0, 0.0)
 L.smooth_keys(aim)
 L.smooth_keys(bag_root)
@@ -464,9 +464,9 @@ for dpo, f0, a in drops:
     con = dpo.constraints.new('COPY_LOCATION')
     con.target = bag_root
     con.use_offset = True
-    rr = 0.95 * math.sqrt(rnd.random())
+    rr = 0.75 * math.sqrt(rnd.random())
     x, y = rr * math.cos(a), rr * math.sin(a)
-    z0 = -2.25 - 0.25 * (1 - (rr / 0.95) ** 2)
+    z0 = -2.85 - 0.3 * (1 - (rr / 0.75) ** 2)   # under the long sack
     for k, dz in ((0, 0.0), (3, -0.11), (6, -0.44), (9, -0.99), (12, -1.76)):   # free fall at 24 fps
         dpo.location = (x, y, z0 + dz)
         dpo.keyframe_insert('location', frame=f0 + k)

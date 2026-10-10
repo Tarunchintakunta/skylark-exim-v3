@@ -390,12 +390,60 @@ def flap(g, f0, f1, period=10, amp=35, path=None):
 def bag_radius(t, R):
     # loaded sack: gathered neck under the ring, sides swelling slowly (weight drags the load down), widest low
     # (t ~ 0.66), then a round sagging bottom
-    g = min(1.0, t / 0.62)
+    g = min(1.0, t / 0.78)
     g = g * g * (3 - 2 * g)
-    r = R * (0.09 + 0.91 * g ** 1.25)
-    if t > 0.66:
-        r *= max(0.04, math.sqrt(max(0.0, 1 - ((t - 0.66) / 0.34) ** 2)))
+    r = R * (0.08 + 0.92 * g ** 1.7)          # long tapering upper half: the weight is all at the bottom
+    if t > 0.8:
+        r *= max(0.04, math.sqrt(max(0.0, 1 - ((t - 0.8) / 0.2) ** 2)))
     return r
+
+
+def net_sack_mat(name='MAT_NetSack', mesh=0.075, twine=0.16):
+    """Knotted diamond netting as a texture on a continuous sack surface: cylindrical coordinates (angle x radius,
+    height) from object space, two diagonal triangle waves -> twine mask -> alpha. Reads as fine mesh stretched over
+    the load instead of a wire cage."""
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    m = new_mat(name)
+    if hasattr(m, 'surface_render_method'):
+        m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    p.inputs['Base Color'].default_value = (0.05, 0.09, 0.07, 1)
+    p.inputs['Roughness'].default_value = 0.4
+    if 'Coat Weight' in p.inputs:
+        p.inputs['Coat Weight'].default_value = 0.5           # wet twine
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1600, 0))
+    sep = _node(nt, 'ShaderNodeSeparateXYZ', (-1400, 0))
+    l.new(_sock(tc, 'Object', out=True), sep.inputs[0])
+
+    def math_(op, a, b=None, loc=(0, 0)):
+        n = _node(nt, 'ShaderNodeMath', loc)
+        n.operation = op
+        for i, v in enumerate((a, b)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = v
+            else:
+                l.new(v, n.inputs[i])
+        return n.outputs[0]
+    ang = math_('ARCTAN2', sep.outputs[1], sep.outputs[0], (-1200, 100))
+    u = math_('MULTIPLY', ang, 1.3, (-1000, 100))               # ~ arc length at the sack's mean radius
+    v = sep.outputs[2]
+    masks = []
+    for k, (a, b) in enumerate(((u, v), (u, v))):
+        d = math_('ADD' if k == 0 else 'SUBTRACT', a, b, (-800, 200 - k * 200))
+        q = math_('DIVIDE', d, mesh, (-650, 200 - k * 200))
+        f = math_('FRACT', q, None, (-500, 200 - k * 200))
+        c = math_('SUBTRACT', f, 0.5, (-350, 200 - k * 200))
+        t = math_('ABSOLUTE', c, None, (-200, 200 - k * 200))
+        masks.append(t)
+    mx = math_('MAXIMUM', masks[0], masks[1], (-50, 100))
+    tw = math_('GREATER_THAN', mx, 0.5 - twine / 2, (100, 100))
+    l.new(tw, p.inputs['Alpha'])
+    return m
 
 
 def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=3):
@@ -430,11 +478,8 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         for j in range(seg):
             bm.faces.new((vs[i][j], vs[i + 1][j], vs[i + 1][(j + 1) % seg], vs[i][(j + 1) % seg]))
     me = bm_to_mesh(bm, f'{name}_Mesh', smooth=True)
-    me.materials.append(mats['net'])
-    net = obj(f'{name}_Mesh', me, None, parent=root)
-    wm = net.modifiers.new('Wire', 'WIREFRAME')
-    wm.thickness = 0.009
-    wm.use_even_offset = True
+    me.materials.append(net_sack_mat())
+    net = obj(f'{name}_Mesh', me, None, parent=root)   # textured diamond mesh stretched over the load (no wire cage)
     bmc = bmesh.new()
     bmesh.ops.create_icosphere(bmc, subdivisions=4, radius=1.0)
     for v in bmc.verts:
