@@ -19,7 +19,7 @@ TR = 0.52                                 # tyre radius
 def _mats():
     return {
         'white': P.grime_paint('TRK_PaintWhite', (0.80, 0.81, 0.80), rough=0.28, grime=0.55, streak=0.25, coat=0.6),
-        'box': P.grime_paint('TRK_BoxGRP', (0.84, 0.85, 0.84), rough=0.32, grime=0.45, streak=0.35, coat=0.35, metal=0.0),
+        'box': P.grime_paint('TRK_BoxGRP', (0.8, 0.79, 0.74), rough=0.36, grime=0.6, streak=0.5, coat=0.3, metal=0.0),
         'alu': P.tex_mat('TRK_Alu', 'Metal009', scale=1.5, tint=(0.85, 0.86, 0.88), rough_mul=0.9, metal=1.0, aniso=0.4),
         'dark': P.plain('TRK_DarkGrey', (0.035, 0.037, 0.04), 0.5, 0.2, bump=0.05),
         'chassis': P.grime_paint('TRK_Chassis', (0.03, 0.03, 0.032), rough=0.45, grime=0.3, streak=0.2, coat=0.0, metal=0.3),
@@ -169,6 +169,11 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     M = _mats()
     if cab_color:
         M['white'] = P.grime_paint('TRK_Paint_%s' % name, cab_color, rough=0.3, grime=0.55, streak=0.25, coat=0.6)
+    import sklib
+    sklib.weather(M['box'], streak=(0.36, 0.3, 0.2), amount=0.45, z0=BZ, z1=BZ + 1.1, dirt=(0.24, 0.19, 0.13),
+                  dirt_amount=0.55, scale=0.8)                     # rain streaks + road spray up the box sides
+    sklib.weather(M['white'], streak=(0.3, 0.24, 0.16), amount=0.35, z0=0.35, z1=1.45, dirt=(0.22, 0.17, 0.11),
+                  dirt_amount=0.65, scale=0.8)                     # mud on the cab's lower panels and steps
     root = _empty(name, loc, None, coll)
     root.rotation_euler = (0, 0, rot_z)
     root.empty_display_size = 1.5
@@ -242,6 +247,13 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         p.box((x, 0, BZ - 0.06), (0.06, BW - 0.1, 0.1))
     p.box((bx, 0, BZ - 0.12), (BL, 0.9, 0.04))
     p.make(name + '_BoxTrim', M['alu'], root, bevel=0.006, coll=coll)
+    p = Part()                                                    # bonded panel seams on the box sides and roof
+    for sy in (-1, 1):
+        for k in range(1, 6):
+            p.box((REAR + k * BL / 6, sy * (BW / 2 + 0.003), BZ + BH / 2), (0.012, 0.004, BH - 0.2))
+    for k in range(1, 6):
+        p.box((REAR + k * BL / 6, 0, BZ + BH + 0.003), (0.012, BW - 0.2, 0.004))
+    p.make(name + '_BoxSeams', M['dark'], root, coll=coll)
     # rear frame (portal) around the doors
     p = Part()
     p.box((REAR - 0.02, BW / 2 - 0.05, BZ + BH / 2), (0.1, 0.12, BH + 0.02))
@@ -387,6 +399,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         p.box((cx1 - 0.08, sy * (W2 + 0.004), 1.85), (0.012, 0.012, 1.55))   # front door seam
         p.box((cx0 + 0.35, sy * (W2 + 0.004), 1.85), (0.012, 0.012, 1.55))   # rear door seam
         p.box((cx1 - 0.5, sy * (W2 + 0.012), 1.75), (0.18, 0.02, 0.04))      # door handle
+        p.box((cx1 + 0.04, sy * (W2 + 0.03), 1.55), (0.025, 0.025, 0.55))    # grab handle by the door
     p.make(name + '_CabSeams', M['dark'], root, coll=coll)
     # Indian rigid-truck front (Tata LPT / Ashok Leyland style, no badges): black slatted grille panel in a bright
     # frame, twin round headlamps in square bezels, a deep painted steel bumper with fog lamps and a blank yellow
