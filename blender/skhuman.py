@@ -562,8 +562,8 @@ def _apron(body, k, M):
             y = (min(ys) if ys else -0.12) - 0.042           # clear of the jacket folds
             y = min(y, -0.10 * k) if z / k < 0.85 else y
             hang = max(0.0, (0.98 * k - z) / (0.46 * k))              # 0 at the waist .. 1 at the hem
-            fold = 0.013 * hang * math.sin((x / (w * k)) * math.pi * 2.6 + 0.4) + 0.006 * hang * math.sin(x * 61 / k)
-            flare = 0.035 * hang ** 2 * (abs(x) / (w * k))            # hem swings out a little at the sides
+            fold = 0.009 * hang * math.sin((x / (w * k)) * math.pi * 2.6 + 0.4) + 0.006 * hang * math.sin(x * 61 / k)
+            flare = 0.012 * hang ** 2 * (abs(x) / (w * k))            # hem swings out a little at the sides
             row.append(bm.verts.new((x * (1 + 0.06 * hang), y + 0.02 * (abs(x) / (w * k)) ** 2 - fold - flare, z)))
         grid.append(row)
     for j in range(nz):
@@ -914,7 +914,7 @@ def ik_feet(ao, tgt_l, tgt_r):
 
 
 POSES = {
-    'stand': {'upperarm': (4, -25, 0), 'forearm': (12, 0, 0)},
+    'stand': {'upperarm': (4, -37, 0), 'forearm': (12, 0, 0)},          # arms hang by the sides, not A-pose
     'table': {'spine': (10, 0, 0), 'chest': (8, 0, 0), 'neck': (14, 0, 0), 'head': (12, 0, 0),
               'upperarm': (28, -10, 0), 'forearm': (72, 0, 0), 'hand': (-10, 0, 0)},
     'lift_low': {'spine': (30, 0, 0), 'chest': (12, 0, 0), 'head': (-10, 0, 0),
@@ -922,7 +922,7 @@ POSES = {
                  'upperarm': (50, -8, 0), 'forearm': (20, 0, 0)},
     'carry': {'spine': (-4, 0, 0), 'upperarm': (12, -10, 0), 'forearm': (80, 0, 0)},
     'push': {'spine': (14, 0, 0), 'upperarm': (42, -6, 0), 'forearm': (35, 0, 0)},
-    'look': {'upperarm': (6, -24, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
+    'look': {'upperarm': (6, -36, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
 }
 
 
