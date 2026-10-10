@@ -467,6 +467,8 @@ def build(out, scene='p-harvest'):
     if scene == 'p-sample':                     # the sampling beat that opens onto this frame 1
         import p_sample
         p_sample.add(dict(cx=cx, yb=yb, yw=yw, Cp=Cp, cam=cam, tgt=tgt))
+    if hasattr(H, 'auto_poles'):
+        print('POLES', H.auto_poles())          # elbows down and back on every pole-less arm IK
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print('OUT built p-harvest', out)
 
