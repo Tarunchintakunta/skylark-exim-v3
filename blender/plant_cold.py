@@ -80,7 +80,30 @@ def _empty(name, loc, parent=None, C=None):
 
 
 def lab_action(C):
-    """QC technician: left hand steadies the bench edge, right hand lifts sample tray 2 onto the balance (820-850)."""
+    """QC technician: left hand steadies the bench edge, right hand lifts sample tray 2 onto the balance (820-850);
+    two more technicians work at the back bench."""
+    import random
+    import plant_chain_b as B
+    rnd = random.Random(77)
+    for k, (x, g) in enumerate(((CX - 4.2, 'female'), (CX - 6.4, 'male'))):
+        w = H.person('HUM_LabTech%d' % k, 'plant_coat', g, coll=C, seed=560 + k, lod='')
+        w.location = (x, 49.65, DZ)
+        w.rotation_euler = (0, 0, math.radians(180))
+        bpy.context.view_layer.update()
+        if B.hands_on_work(w, rnd, reach=0.42, C=C):
+            H.jitter(w, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (16, 0, 0)}, 1, 1100, every=11 + k, amp=4,
+                     seed=70 + k, arms=False)
+    import random
+    import plant_chain_b as B
+    rnd = random.Random(77)
+    for k, (x, g) in enumerate(((CX - 4.2, 'female'), (CX - 6.4, 'male'))):     # two more technicians, back bench
+        w = H.person('HUM_LabTech%d' % k, 'plant_coat', g, coll=C, seed=560 + k)
+        w.location = (x, 49.65, DZ)
+        w.rotation_euler = (0, 0, math.radians(180))
+        bpy.context.view_layer.update()
+        if B.hands_on_work(w, rnd, reach=0.42, C=C):
+            H.jitter(w, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (16, 0, 0)}, 1, 1100, every=11 + k, amp=4,
+                     seed=70 + k, arms=False)
     qc = bpy.data.objects['HUM_QC']
     tray = bpy.data.objects.get('IN_LabTray2')
     kids = [o for o in bpy.data.objects if o.name.startswith('IN_LabTray2_S')]
@@ -123,12 +146,7 @@ def iqf_action(C):
     for fc in T._fcurves(flow.animation_data.action):
         for kp in fc.keyframe_points:
             kp.interpolation = 'LINEAR'
-    # light frost bloom on the tunnel mouth (edges only)
-    tx = CX + 3.6
-    p = Part()
-    p.box((tx, 55.8, DZ + 1.3), (2.22, 0.04, 1.62))
-    p.make('IN_IQFMouthFrost', P.plain('IN_IQFFrostLip', (0.85, 0.88, 0.9), 0.65, alpha=0.35, bump=0.4,
-                                       bump_scale=60), None, coll=C)
+    tx = CX + 3.6                                     # (tunnel mouth frost + vapour are built with the tunnel)
     return _cam('CAM_IQF', [(910, (CX + 2.15, 59.3, DZ + 1.5), (tx, 55.7, DZ + 0.95)),
                             (1053, (CX + 2.35, 57.9, DZ + 1.38), (tx, 56.6, DZ + 1.0)),
                             (1070, (CX + 2.36, 57.85, DZ + 1.38), (tx, 56.6, DZ + 1.0))], lens=40, fstop=3.2)
