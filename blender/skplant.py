@@ -147,7 +147,7 @@ def MATS():
         'line_white': line_mat('PL_LineWhite', (0.85, 0.85, 0.82)),
         'line_yellow': line_mat('PL_LineYellow', (0.8, 0.58, 0.05)),
         'epoxy': P.plain('PL_Epoxy', (0.50, 0.55, 0.58), 0.16, coat=0.7, bump=0.03, bump_scale=3),
-        'curtain': P.plain('PL_StripCurtain', (0.62, 0.76, 0.80), 0.03, 0.0, alpha=0.2, coat=0.8),   # clear PVC
+        'curtain': P.plain('PL_StripCurtain', (0.45, 0.6, 0.64), 0.05, 0.0, alpha=0.12, coat=0.35),   # clear PVC, no milky haze
         'led': P.plain('PL_LED', (1, 1, 1), 0.3, emission=(0.94, 0.97, 1.0), estr=18.0),
         'lamp_ext': P.plain('PL_WallLamp', (1, 1, 1), 0.3, emission=(1.0, 0.97, 0.92), estr=6.0),
         'lamp_red': P.plain('PL_SigRed', (0.3, 0.02, 0.02), 0.2, emission=(1, 0.05, 0.02), estr=3.0),
