@@ -39,50 +39,6 @@ for f in range(1, 384, 12):
     boat.keyframe_insert('rotation_euler', frame=f)
     boat.keyframe_insert('location', frame=f)
 
-# ---------------------------------------------------------------- deck wear
-def deck_wear(m):
-    nt = m.node_tree
-    l = nt.links
-    p = L.principled(m)
-    tc = nt.nodes.new('ShaderNodeTexCoord')
-    wet = nt.nodes.new('ShaderNodeTexNoise')
-    wet.inputs['Scale'].default_value = 0.35
-    wet.inputs['Detail'].default_value = 6
-    l.new(tc.outputs['Object'], wet.inputs['Vector'])
-    wr = nt.nodes.new('ShaderNodeMapRange')
-    wr.inputs['From Min'].default_value = 0.5
-    wr.inputs['From Max'].default_value = 0.56
-    wr.inputs['To Min'].default_value = 0.55
-    wr.inputs['To Max'].default_value = 0.18            # wet patches: lower roughness, still matte-ish
-    l.new(wet.outputs['Fac'] if 'Fac' in wet.outputs else wet.outputs[0], wr.inputs['Value'])
-    l.new(wr.outputs[0], p.inputs['Roughness'])
-    sc = nt.nodes.new('ShaderNodeTexNoise')            # scuffs: stretched streaks of worn paint
-    sc.inputs['Scale'].default_value = 3.0
-    sc.inputs['Detail'].default_value = 10
-    mp = nt.nodes.new('ShaderNodeMapping')
-    mp.inputs['Scale'].default_value = (0.25, 3.0, 1.0)
-    l.new(tc.outputs['Object'], mp.inputs['Vector'])
-    l.new(mp.outputs[0], sc.inputs['Vector'])
-    sr = nt.nodes.new('ShaderNodeMapRange')
-    sr.inputs['From Min'].default_value = 0.66
-    sr.inputs['From Max'].default_value = 0.74
-    l.new(sc.outputs[0], sr.inputs['Value'])
-    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else None
-    mx = nt.nodes.new('ShaderNodeMix')
-    mx.data_type = 'RGBA'
-    l.new(sr.outputs[0], mx.inputs['Factor'])
-    if src is not None:
-        l.new(src, mx.inputs['A'])
-    else:
-        mx.inputs['A'].default_value = p.inputs['Base Color'].default_value
-    mx.inputs['B'].default_value = (0.11, 0.075, 0.05, 1)      # worn through to rusty steel
-    l.new(mx.outputs['Result'], p.inputs['Base Color'])
-
-
-for nm in ('MAT_WetDeck',):
-    if nm in bpy.data.materials:
-        deck_wear(bpy.data.materials[nm])
-
 # ---------------------------------------------------------------- sea
 sea = L.ocean('Ocean', size=60, repeat=6, res=11, choppy=1.0, wind=9.0, scale=0.7, f0=1, f1=383, foam=0.3)
 cut = L.box('OceanCut', (24.5, 6.6, 6.0), (0, 0, 0), mats['steel'], 0.0)
