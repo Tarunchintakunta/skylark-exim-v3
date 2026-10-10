@@ -19,4 +19,6 @@
   background: var(--scrim), linear-gradient(90deg, rgba(4, 34, 44, 0.72) 0%, rgba(4, 34, 44, 0.35) 38%, rgba(4, 34, 44, 0) 62%);
 }
 .stage.is-light .stage__scrim { opacity: 0; }
+/* daylight chapters (the port): neutral, bottom-only shade under the caption, no deep-sea tint over the footage */
+.stage.is-soft .stage__scrim { background: linear-gradient(to top, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.3) 26%, rgba(0, 0, 0, 0) 48%); }
 .globe-canvas { position: absolute !important; inset: 0; }
