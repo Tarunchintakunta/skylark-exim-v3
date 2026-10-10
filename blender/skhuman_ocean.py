@@ -358,7 +358,7 @@ def _hardhat(body, k, M):
 
 def _pvc_trim(body, k, M):
     """Oilskin details that make the jacket read as PVC gear, not a sweater: a low collar band at the neck base
-    with a storm flap down the front, and seam welts over the shoulders. Weights from the nearest body surface."""
+    and seam welts over the shoulders. Weights from the nearest body surface."""
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
     off = (ALIAS_THICK['pvc_jacket'] * 1.6 + 0.008) * k          # sits just outside the jacket shell
