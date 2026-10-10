@@ -26,7 +26,8 @@ s = L.reset()
 s.frame_start, s.frame_end = 1, 383
 s.render.fps = 24
 mats = L.M()
-sun = L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
+sun = L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.85, rot=0.0, sun_strength=3.0)
+bpy.data.objects['Sun'].data.angle = math.radians(6.0)   # soft-edged sea-haze shadows, no black holes on the deck
 
 # ---------------------------------------------------------------- vessel
 V = S.vessel('BOAT', mats=mats)
@@ -322,7 +323,7 @@ for ix in range(6):
         y = -1.45 + iy * 0.45
         if False:  # the hold is fully stowed
             continue  # space where the chain lands its crates
-        lv = 6 if (ix + iy) % 3 == 0 else 5          # stowed up near the coaming: no empty white hold from above
+        lv = 8 if (ix + iy) % 3 == 0 else 7          # stowed up to the coaming: the hold reads full from any angle
         for z in range(lv):
             L.crate(f'HOLD_Crate{k}', rnd.choice(['blue', 'blue', 'white', 'red']), (x, y, hold_floor + z * 0.29),
                     rnd.uniform(-0.04, 0.04), fill=rnd.choice(['mixed', 'fish', 'fish', 'tuna']) if z == lv - 1 else None,
@@ -441,7 +442,7 @@ shovel.rotation_euler = (0, D(-90), 0)
 shovel.keyframe_insert('location', frame=197)
 shovel.keyframe_insert('rotation_euler', frame=197)
 # hand chain to the hatch: CREW_Hatch + one crewman in the hold
-L.anim_poses(c4, [(240, 'idle')] + [(f, 'kneel' if (f // 14) % 2 == 0 else 'kneel2') for f in range(258, 383, 14)])
+L.anim_poses(c4, [(240, 'idle')] + [(f, 'reach' if (f // 14) % 2 == 0 else 'lift') for f in range(258, 383, 14)])   # stands at the coaming (no kneel into the deck)
 
 # ---------------------------------------------------------------- camera (one continuous shot)
 cam = L.camera('Camera', 30, (-6, -6, 6.5), (2, 8, 0))
@@ -453,10 +454,10 @@ keys = [
     (130, (4.2, -3.1, 3.0), (3.6, 3.2, 5.0), 22),
     (150, (5.4, -5.0, 3.0), (2.2, 0.2, 5.0), 24),
     (170, (3.0, -4.4, 3.2), (2.4, 0.2, 3.2), 26),
-    (192, (-2.4, -5.4, 5.8), (PILE.x, PILE.y, DZ + 0.2), 30),     # higher and further back: the crew stay mid-distance
-    (260, (5.8, -5.6, 5.6), (2.4, -0.4, DZ + 0.1), 30),
+    (192, (-2.0, -5.0, 7.2), (PILE.x, PILE.y - 0.3, DZ), 30),     # high and back: crew mid-distance, king post short in frame
+    (260, (5.6, -5.4, 7.0), (2.6, -0.6, DZ), 30),
     (330, (5.2, -2.4, 6.4), (HC.x, 0.0, hold_floor + 0.6), 30),
-    (383, (HC.x + 0.05, -0.02, 4.9), (HC.x, 0.0, hold_floor), 32),
+    (383, (HC.x + 0.05, -0.02, 4.4), (HC.x, 0.0, hold_floor), 32),   # tight on the hatch: no crew cut at the frame edge
 ]
 L.cam_path(cam, keys, focus=[(1, 14.0), (40, 12.5), (100, 8.0), (130, 6.5), (150, 5.5), (192, 7.0), (260, 6.6), (330, 6.0), (383, 6.0)])
 s.camera = cam
