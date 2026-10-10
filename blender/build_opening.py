@@ -184,7 +184,7 @@ for v in bm.verts:
 me = L.bm_to_mesh(bm, 'COAST_Hills', smooth=True)
 me.materials.append(L.pbr('MAT_CoastHills', (0.16, 0.19, 0.11), 0.9, var=0.35, bump=0.2, scale=0.004))   # scrub green-brown
 L.obj('COAST_Hills', me)
-town = L.pbr('MAT_Town', (0.38, 0.34, 0.29), 0.85, var=0.6, scale=0.05, attr=None, grime=0.5)
+town = L.tex_pbr('MAT_Town', 'painted_concrete', 0.05, tint=(0.3, 0.27, 0.23), tint_amount=0.55, grime=0.7)   # stained concrete and plaster
 win = L.pbr('MAT_TownLights', (1.0, 0.75, 0.45), 0.5, estrength=4.0)
 tb = bmesh.new()
 for i in range(420):
