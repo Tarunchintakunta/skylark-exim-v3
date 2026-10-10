@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { TRUST } from '../config/content'
 import { bindReveals } from './reveal'
 
-/** Why choose us (STORY §13): six tiles, the compliance line exactly as the site states it, a facts row. No badges. */
+/** Why choose us (STORY §13): the facts set large, then six editorial statements (no boxes), the compliance line exactly as the site states it, a facts row. No badges. */
 export function Trust() {
   const root = useRef<HTMLElement>(null)
   useEffect(() => bindReveals(root.current!), [])
@@ -20,15 +20,15 @@ export function Trust() {
           </li>
         ))}
       </ul>
-      <ul className="tiles">
+      <ol className="statements">
         {TRUST.tiles.map((t, i) => (
-          <li key={t.title} className="tile" data-reveal>
-            <span className="tile__no mono">{String(i + 1).padStart(2, '0')}</span>
-            <h3 className="tile__title">{t.title}</h3>
-            <p className="tile__line">{t.line}</p>
+          <li key={t.title} className="statement" data-reveal>
+            <span className="statement__no mono">{String(i + 1).padStart(2, '0')}</span>
+            <h3 className="statement__title">{t.title}</h3>
+            <p className="statement__line">{t.line}</p>
           </li>
         ))}
-      </ul>
+      </ol>
       <p className="compliance" data-reveal>
         <span className="mono">Certificates</span>
         {TRUST.compliance}
