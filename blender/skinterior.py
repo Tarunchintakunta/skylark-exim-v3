@@ -84,7 +84,7 @@ def shell(C, M):
     p.make('IN_LED', M['led'], None, coll=C)
     for k, y in enumerate(range(15, 84, 6)):
         for j, x in enumerate((2.0, 14.4)):
-            _light('IN_Area_%d_%d' % (k, j), (x, y, CEIL - 0.25), (7, 4), 420, C)
+            _light('IN_Area_%d_%d' % (k, j), (x, y, CEIL - 0.25), (7, 4), 330, C)
     # floor drains along the line + wet sheen patches
     p = Part()
     for x in (2.0, 14.4):
@@ -191,11 +191,18 @@ def wash(C, M, rnd, shrimp_fn):
         for sx in (-1.6, 1.6):
             p.cyl((x + sx, y + 0.75, DZ + 1.1), (x + sx, y + 0.75, DZ + 1.8), 0.025, 8)
         p.make('IN_SprayBar%d' % t, M['stainless'], None, coll=C)
-        sp = Part()
-        for k in range(9):
+        st = Part()
+        sc = Part()
+        for k in (1, 3, 5, 7):                                         # four nozzles run, the rest are off
             xx = x - 1.4 + k * 0.35
-            sp.box((xx, y, DZ + 1.31), (0.18, 0.004, 0.72), Euler((0, 0, rnd.uniform(-0.2, 0.2))))
-        so = sp.make('IN_Spray%d' % t, _spray_mat(), None, coll=C)
+            st.cyl((xx, y, DZ + 1.68), (xx, y, DZ + 0.93), 0.022, 14, r2=0.03)
+            for j in range(10):                                        # splash crown where the stream hits
+                a = j * 0.628
+                st.cyl((xx + 0.06 * math.cos(a), y + 0.06 * math.sin(a), DZ + 0.93),
+                       (xx + 0.1 * math.cos(a), y + 0.1 * math.sin(a), DZ + 0.99 + 0.02 * (j % 2)), 0.006, 6)
+            sc.cyl((xx, y, DZ + 0.931), (xx, y, DZ + 0.934), 0.16, 20)  # foam ring on the surface
+        st.make('IN_Stream%d' % t, _stream_mat(), None, smooth=True, coll=C)
+        sc.make('IN_StreamFoam%d' % t, _foam_ring_mat(), None, coll=C)
         # product in the tank (under/at the surface)
         for k in range(60):
             shrimp_fn('IN_TankShrimp%d_%02d' % (t, k), (x + rnd.uniform(-1.4, 1.4), y + rnd.uniform(-0.6, 0.6),
@@ -211,6 +218,44 @@ def wash(C, M, rnd, shrimp_fn):
 
 
 _SPRAY = {}
+
+
+def _brushed():
+    return P.plain('IN_BrushedSteel', (0.66, 0.67, 0.68), 0.24, 1.0, bump=0.04, bump_scale=200, aniso=0.7)
+
+
+def _stream_mat():
+    """Clear running water: transmissive, glossy, a little rippled (animated by the spray map clock)."""
+    m = bpy.data.materials.get('IN_StreamWater')
+    if m:
+        return m
+    m = P.plain('IN_StreamWater', (0.92, 0.96, 0.98), 0.02, transmission=1.0, ior=1.33, bump=0.3, bump_scale=60)
+    return m
+
+
+def _foam_ring_mat():
+    """White aerated water where a stream lands: soft-edged, opaque in the middle."""
+    m = bpy.data.materials.get('IN_StreamFoam')
+    if m:
+        return m
+    m = bpy.data.materials.new('IN_StreamFoam')
+    m.use_nodes = True
+    m.surface_render_method = 'BLENDED'
+    nt = m.node_tree
+    pb = nt.nodes['Principled BSDF']
+    pb.inputs['Base Color'].default_value = (0.9, 0.93, 0.94, 1)
+    pb.inputs['Roughness'].default_value = 0.4
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 40.0
+    nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = 0.4
+    mr.inputs['From Max'].default_value = 0.65
+    mr.inputs['To Max'].default_value = 0.85
+    nt.links.new(nz.outputs['Fac'], mr.inputs['Value'])
+    nt.links.new(mr.outputs[0], pb.inputs['Alpha'])
+    return m
 
 
 def _spray_mat():
@@ -435,7 +480,7 @@ def lab(C, M, rnd, shrimp_fn):
         p.box(((x0 + x1) / 2, 47.0, DZ + 0.45), (x1 - x0, 0.7, 0.85))
         p.box(((x0 + x1) / 2, 50.4, DZ + 0.9), (x1 - x0, 0.75, 0.04))
         p.box(((x0 + x1) / 2, 50.4, DZ + 0.45), (x1 - x0, 0.7, 0.85))
-    p.make('IN_LabBenches', P.plain('IN_LabTop', (0.82, 0.83, 0.84), 0.25, coat=0.4), None, bevel=0.01, coll=C)
+    p.make('IN_LabBenches', M['stainless'], None, bevel=0.01, coll=C)
     p = Part()
     p.box((CX + 3.2, 47.0, DZ + 0.98), (0.35, 0.3, 0.12))           # balance
     p.box((CX + 3.2, 46.95, DZ + 1.12), (0.25, 0.2, 0.16))
@@ -574,7 +619,7 @@ def freezing(C, M, rnd, shrimp_fn):
     p.box((tx, ym, DZ + 2.0), (2.4, y1 - y0, 1.6))                    # roof block over the belt
     for sx in (-1, 1):
         p.box((tx + sx * 0.88, ym, DZ + 0.75), (0.64, y1 - y0, 1.1))  # side walls, belt path open between
-    p.make('IN_IQFTunnel', M['stainless'], None, bevel=0.03, coll=C)
+    p.make('IN_IQFTunnel', _brushed(), None, bevel=0.03, coll=C)
     p = Part()                                                        # panel seams + door frames + handles
     for k in range(1, 6):
         yy = y0 + k * (y1 - y0) / 6
@@ -650,7 +695,7 @@ def freezing(C, M, rnd, shrimp_fn):
     for sx in (-1, 1):
         for sy in (-1, 1):
             p.box((tx + sx * 0.62, hy + sy * 0.55, DZ + 0.68), (0.06, 0.06, 1.36))     # legs
-    p.make('IN_GlazeHood', M['stainless'], None, bevel=0.012, coll=C)
+    p.make('IN_GlazeHood', _brushed(), None, bevel=0.012, coll=C)
     p = Part()
     for sy in (-0.3, 0.0, 0.3):
         p.box((tx, hy + sy, DZ + 1.905), (1.31, 0.01, 0.012))                         # roof seams
@@ -686,8 +731,8 @@ def freezing(C, M, rnd, shrimp_fn):
         if yy > 59.5:
             break
         for col in range(8):
-            o = shrimp_fn('IN_IQF%03d' % k, (tx - 0.38 + col * 0.108 + rnd.uniform(-0.02, 0.02), yy + rnd.uniform(-0.04, 0.04),
-                                           DZ + 0.975), (0, 0, rnd.uniform(0, 6.28)))
+            o = shrimp_fn('IN_IQF%03d' % k, (tx - 0.38 + col * 0.108 + rnd.uniform(-0.008, 0.008), yy,
+                                           DZ + 0.975), (0, 0, (1.5708 if row % 2 else -1.5708) + rnd.uniform(-0.12, 0.12)))
             for sl in o.material_slots:
                 sl.link = 'OBJECT'
                 sl.material = glazed
@@ -909,8 +954,8 @@ def build_all(C, crate_fn, trolley_fn, shrimp_fn, fish_fn, ice_mesh, rnd_seed=11
             if n.type == 'MIX' and n.data_type == 'RGBA' and not n.inputs[6].links:
                 c = n.inputs[6].default_value
                 if min(c[:3]) > 0.7:                               # the clean panel colour (not the grime tone)
-                    n.inputs[6].default_value = (0.66, 0.66, 0.63, 1)
-                    n.inputs[7].default_value = (0.36, 0.35, 0.31, 1)
+                    n.inputs[6].default_value = (0.44, 0.48, 0.51, 1)   # blue-grey hygienic panel
+                    n.inputs[7].default_value = (0.25, 0.27, 0.28, 1)
         pin['warm'] = True
     led = bpy.data.materials.get('PL_LED')
     if led:
