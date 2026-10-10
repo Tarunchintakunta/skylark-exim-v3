@@ -28,13 +28,14 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets-src
 
 OCEAN_OUTFITS = {
     'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'cap'],
-    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair'],   # bare-headed: hair and face read
+    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'towel'],   # cotton towel wrap: face reads
     'port_hivis': ['work_shirt', 'trousers_dark', 'boots_dark', 'vest', 'hair', 'hardhat'],
     'harbour_lungi': ['shirt_farm', 'lungi', 'sandals', 'hair'],
 }
 # new piece -> (skhuman piece whose shell it reuses, material key)
 ALIAS = {'pvc_jacket': ('jacket', 'pvc'), 'pvc_trousers': ('trousers', 'pvc'),
-         'work_shirt': ('jacket', 'work_shirt'), 'boots_dark': ('boots', 'boot_dark')}
+         'work_shirt': ('jacket', 'work_shirt'), 'boots_dark': ('boots', 'boot_dark'),
+         'towel': ('haircap', 'towel')}   # head towel wrapped like the deck crews wear (gathered cap shape)
 # oilskins stand off the body (stiff PVC over layers): shell thickness per alias, read by skhuman._shell via THICK
 ALIAS_THICK = {'pvc_jacket': 0.036, 'pvc_trousers': 0.024, 'work_shirt': 0.032}
 CUSTOM = ('lungi', 'hardhat', 'sandals')
@@ -113,6 +114,9 @@ def mats():
     M['hardhat'] = sk._palette(sk._mat('HUM_HardHat', (0.85, 0.8, 0.1), 0.38, coat=0.35, bump=0.05, rand=0.05),
                                ((0.80, 0.80, 0.76), (0.82, 0.62, 0.04), (0.80, 0.80, 0.76), (0.78, 0.30, 0.04)))
     M['sandal'] = sk._mat('HUM_Sandal', (0.10, 0.06, 0.035), 0.7, bump=0.1)
+    M['towel'] = _plaid(sk._palette(sk._mat('HUM_HeadTowel', (0.6, 0.6, 0.58), 0.95, sheen=0.4, bump=0.3, rand=0.1,
+                                            wrinkle=0.6),
+                                    ((0.62, 0.6, 0.55), (0.5, 0.14, 0.1), (0.55, 0.55, 0.5), (0.2, 0.3, 0.45))), scale=40.0)
     # deck caps: dark knit / faded cloth (a pale cap from above reads as a bald head)
     M['cap_cloth'] = sk._palette(sk._mat('HUM_CapDeck', (0.1, 0.1, 0.12), 0.9, sheen=0.3, bump=0.2, rand=0.1),
                                  ((0.06, 0.07, 0.09), (0.25, 0.08, 0.06), (0.12, 0.16, 0.22), (0.2, 0.2, 0.18)))
@@ -124,7 +128,7 @@ _base_region = sk._region
 _base_shell = sk._shell
 
 
-CLEAN = ('pvc_jacket', 'pvc_trousers', 'work_shirt', 'shirt_farm', 'vest', 'trousers_dark')
+CLEAN = ('pvc_jacket', 'pvc_trousers', 'work_shirt', 'shirt_farm', 'vest', 'trousers_dark', 'hair')   # hair: no zigzag hairline
 
 
 def _clean(body, mask, n=2):
