@@ -172,8 +172,20 @@ def shrimp_fn(C):
             return o
         return fn
 
+    lo = {}
+
     def fn(name, loc, rot):
-        return F.shrimp(name, loc, rot, None, C)
+        o = F.shrimp(name, loc, rot, None, C)
+        if 'm' not in lo:               # the 60k-face scan made 83 M of p-proc's 94 M triangles; 25% (15k faces) reads the same at 1080 (46.9 dB)
+            t = bpy.data.objects.new('_dec', o.data)
+            C.objects.link(t)
+            t.modifiers.new('dec', 'DECIMATE').ratio = 0.25
+            dg = bpy.context.evaluated_depsgraph_get()
+            lo['m'] = bpy.data.meshes.new_from_object(t.evaluated_get(dg))
+            lo['m'].name = o.data.name + '_lo'
+            bpy.data.objects.remove(t)
+        o.data = lo['m']
+        return o
     return fn
 
 
