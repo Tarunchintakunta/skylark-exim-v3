@@ -26,6 +26,7 @@ rnd = random.Random(9)
 QZ = 3.0
 
 s = L.reset()
+print('BUILD port start', flush=True)
 s.frame_start, s.frame_end = 1, 479
 mats = L.M()
 L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.55, rot=40.0, sun_strength=4.2, sun_color=(1.0, 0.92, 0.8))
@@ -426,7 +427,7 @@ for f in range(236, 289):
 s.frame_set(RELEASE - 1)
 carried = reefer.matrix_world.translation.copy()
 landed = (carried - SLOT_W).length
-print('PLACEMENT min clearance over the slot %.3f m, landing error %.4f m, intersecting frames %s' % (worst, landed, hits))
+print('PLACEMENT min clearance over the slot %.3f m, landing error %.4f m, intersecting frames %s' % (worst, landed, hits), flush=True)
 assert landed < 0.01 and not hits
 
 # ---------------------------------------------------------------- coastline, breakwaters, city (seen from the top-down end)
@@ -469,6 +470,7 @@ cityp = L.weather(L.tex_pbr('MAT_CityPaint', 'painted_concrete', 0.08, attr='col
                   z1=QZ + 6, dirt_amount=0.5, scale=0.2)   # stained concrete and plaster, not flat paint
 trees = P.paint_attr('MAT_CityTrees', 0.9, grime=0.2, scale=0.3)
 crnd = random.Random(21)
+tree_pts, tank_pts = [[], [], []], []
 blk = 120.0
 for bx in range(-55, 56):
     for by in range(1, 46):
@@ -488,15 +490,33 @@ for bx in range(-55, 56):
             cm.box((px, py, QZ + h / 2 - 0.5), (w, d, h), cityp, rc)
             # roof read from the air: darker inset slab inside a parapet, water tanks and plant, a stair hut
             cm.box((px, py, QZ + h - 0.45), (w - 1.4, d - 1.4, 0.1), cityp, tuple(c * 0.62 for c in rc))
-            for _ in range(crnd.randint(0, 3)):
-                cm.box((px + crnd.uniform(-w / 3, w / 3), py + crnd.uniform(-d / 3, d / 3), QZ + h + 0.3),
-                       (crnd.uniform(1.5, 3.5), crnd.uniform(1.5, 3.5), crnd.uniform(1.0, 2.2)), cityp,
-                       crnd.choice(((0.12, 0.13, 0.15), (0.75, 0.74, 0.7), (0.3, 0.32, 0.33))))
-        for _ in range(crnd.randint(2, 7)):            # street and yard trees between the buildings
-            tx, ty = x + crnd.uniform(-blk / 2 + 4, blk / 2 - 4), y + crnd.uniform(-blk / 2 + 4, blk / 2 - 4)
-            cm.sphere((tx, ty, QZ + 4.0), crnd.uniform(3.0, 6.5), trees, 6,
-                      crnd.choice(((0.07, 0.15, 0.05), (0.1, 0.18, 0.06), (0.06, 0.12, 0.05))))
+            if by < 16 and crnd.random() < 0.5:        # a water tank on the roofs the aerial can resolve
+                tank_pts.append((px + crnd.uniform(-w / 3, w / 3), py + crnd.uniform(-d / 3, d / 3), QZ + h + 0.3))
+        for _ in range(crnd.randint(2, 6) if by < 20 else 0):   # street and yard trees (instanced, not copied)
+            tree_pts[crnd.randrange(3)].append((x + crnd.uniform(-blk / 2 + 4, blk / 2 - 4),
+                                                y + crnd.uniform(-blk / 2 + 4, blk / 2 - 4), QZ + 3.5))
 cm.obj('LAND_City')
+print('BUILD city boxes done', flush=True)
+
+
+def vert_instancer(name, pts, child):
+    me = bpy.data.meshes.new(name + 'M')
+    me.from_pydata(pts, [], [])
+    o = bpy.data.objects.new(name, me)
+    s.collection.objects.link(o)
+    o.instance_type = 'VERTS'
+    child.parent = o
+    return o
+
+
+for k, (rad, col) in enumerate(((3.2, (0.07, 0.15, 0.05)), (4.5, (0.1, 0.18, 0.06)), (6.0, (0.06, 0.12, 0.05)))):
+    tb = P.MB()
+    tb.sphere((0, 0, 0), rad, trees, 8, col)
+    vert_instancer(f'LAND_Trees{k}', tree_pts[k], tb.obj(f'LAND_TreeProto{k}'))
+tk = P.MB()
+tk.box((0, 0, 0.8), (2.6, 2.6, 1.6), cityp, (0.14, 0.15, 0.17))
+vert_instancer('LAND_RoofTanks', tank_pts, tk.obj('LAND_TankProto'))
+print('BUILD city instances', [len(t) for t in tree_pts], len(tank_pts), flush=True)
 rd = P.MB()
 for bx in range(-55, 56, 3):
     rd.box((bx * blk + blk / 2, (Y0 - 340) / 2, QZ - 0.45), (10, abs(Y0) - 340, 0.2), roadm)
