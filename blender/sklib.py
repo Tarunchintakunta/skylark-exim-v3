@@ -520,7 +520,7 @@ def M():
         'rust': pbr('MAT_Rust', (0.28, 0.12, 0.05), 0.8, grime=0.4),
         'rubber': pbr('MAT_Rubber', (0.025, 0.025, 0.027), 0.75, var=0.1),
         'glass': pbr('MAT_Glass', (0.05, 0.08, 0.1), 0.04, 0.0, var=0.0, bump=0.0, coat=0.0),
-        'wetdeck': pbr('MAT_WetDeck', (0.05, 0.06, 0.065), 0.2, 0.0, var=0.35, bump=0.35, scale=2.5, grime=0.5, coat=0.35),
+        'wetdeck': pbr('MAT_WetDeck', (0.2, 0.2, 0.19), 0.55, 0.0, var=0.4, bump=0.45, scale=2.5, grime=0.6, coat=0.05),   # worn matte steel
         'concrete': pbr('MAT_Concrete', (0.4, 0.395, 0.375), 0.85, var=0.18, bump=0.25, scale=0.8, grime=0.35),
         'asphalt': pbr('MAT_Asphalt', (0.11, 0.11, 0.115), 0.85, var=0.2, bump=0.25, scale=0.6, grime=0.2),
         'rope': pbr('MAT_Rope', (0.32, 0.27, 0.18), 0.9, var=0.25),

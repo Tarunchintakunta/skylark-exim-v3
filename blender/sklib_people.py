@@ -174,9 +174,9 @@ def fabric(name, color, rough=0.85, bump=0.35, coat=0.0, scale=1.0, plaid=None, 
 def fabrics():
     """The garment palette (desaturated, real working clothes)."""
     F = {
-        'pvc_orange': fabric('MAT_PVCOrange', (0.62, 0.22, 0.05), 0.3, bump=0.15, coat=0.6, grime=0.35),
-        'pvc_yellow': fabric('MAT_PVCYellow', (0.64, 0.48, 0.07), 0.3, bump=0.15, coat=0.6, grime=0.35),
-        'pvc_green': fabric('MAT_PVCGreen', (0.07, 0.2, 0.1), 0.32, bump=0.15, coat=0.55, grime=0.3),
+        'pvc_orange': fabric('MAT_PVCOrange', (0.55, 0.2, 0.05), 0.55, bump=0.4, coat=0.15, grime=0.55),   # worn, scuffed PVC
+        'pvc_yellow': fabric('MAT_PVCYellow', (0.56, 0.42, 0.07), 0.55, bump=0.4, coat=0.15, grime=0.55),
+        'pvc_green': fabric('MAT_PVCGreen', (0.07, 0.2, 0.1), 0.55, bump=0.4, coat=0.15, grime=0.5),
         'shirt_check_red': fabric('MAT_ShirtCheckRed', (0.42, 0.1, 0.07), plaid=((0.12, 0.12, 0.2), (0.7, 0.7, 0.7), 9.0)),
         'shirt_check_blue': fabric('MAT_ShirtCheckBlue', (0.12, 0.2, 0.38), plaid=((0.55, 0.55, 0.5), (0.8, 0.8, 0.85), 8.0)),
         'shirt_check_green': fabric('MAT_ShirtCheckGreen', (0.15, 0.25, 0.15), plaid=((0.5, 0.45, 0.3), (0.75, 0.75, 0.7), 10.0)),
@@ -384,8 +384,8 @@ GARMENTS = {
     'banian': dict(zones={'torso', 'pelvis'}, off=0.004, fold=0.003, smooth=6, cuff_t=0.0),
     'trousers': dict(zones={'pelvis', 'thigh', 'shin'}, off=0.011, fold=0.006, smooth=10),
     'shorts': dict(zones={'pelvis', 'thigh'}, off=0.012, fold=0.005, smooth=8),
-    'pvc_jacket': dict(zones={'torso', 'upperarm', 'forearm', 'pelvis'}, off=0.03, fold=0.016, smooth=24, cuff_t=0.8),
-    'pvc_bib': dict(zones={'torso', 'pelvis', 'thigh', 'shin'}, off=0.03, fold=0.016, smooth=24, bib=True),
+    'pvc_jacket': dict(zones={'torso', 'upperarm', 'forearm', 'pelvis'}, off=0.022, fold=0.02, smooth=14, cuff_t=0.8),   # hangs, creases
+    'pvc_bib': dict(zones={'torso', 'pelvis', 'thigh', 'shin'}, off=0.022, fold=0.02, smooth=14, bib=True),
     'coat': dict(zones={'torso', 'upperarm', 'forearm', 'pelvis', 'thigh'}, off=0.026, fold=0.008, smooth=26, cuff_t=0.8),
 }
 
