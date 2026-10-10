@@ -65,10 +65,51 @@ pv.inputs['Absorption Color'].default_value = (0.02, 0.25, 0.3, 1)
 vn.links.new(pv.outputs[0], vo.inputs['Volume'])
 L.box('WaterColumn', (240, 240, 40), (0, 40, -20.02), vm, 0.0)
 # light shafts slanting down from the surface along the sun (soft, additive, fading with depth)
-shaft = L.pbr('MAT_Shaft', (0.6, 0.9, 0.9), 0.5, alpha=0.05, estrength=0.0)
-sp = L.principled(shaft)
-sp.inputs['Emission Color'].default_value = (0.55, 0.85, 0.85, 1)
-sp.inputs['Emission Strength'].default_value = 0.35
+# soft god rays: emission + transparency, fading to nothing at the shaft's edges (facing) and along its length
+shaft = bpy.data.materials.new('MAT_Shaft')
+shaft.use_nodes = True
+if hasattr(shaft, 'surface_render_method'):
+    shaft.surface_render_method = 'BLENDED'
+sn = shaft.node_tree
+sn.nodes.clear()
+so = sn.nodes.new('ShaderNodeOutputMaterial')
+em = sn.nodes.new('ShaderNodeEmission')
+em.inputs['Color'].default_value = (0.6, 0.9, 0.88, 1)
+em.inputs['Strength'].default_value = 1.0
+tr = sn.nodes.new('ShaderNodeBsdfTransparent')
+mx = sn.nodes.new('ShaderNodeMixShader')
+lw = sn.nodes.new('ShaderNodeLayerWeight')
+lw.inputs['Blend'].default_value = 0.5
+inv = sn.nodes.new('ShaderNodeMath')
+inv.operation = 'SUBTRACT'
+inv.inputs[0].default_value = 1.0
+sn.links.new(lw.outputs['Facing'], inv.inputs[1])
+pw = sn.nodes.new('ShaderNodeMath')
+pw.operation = 'POWER'
+pw.inputs[1].default_value = 3.0
+sn.links.new(inv.outputs[0], pw.inputs[0])
+tc = sn.nodes.new('ShaderNodeTexCoord')
+sx = sn.nodes.new('ShaderNodeSeparateXYZ')
+sn.links.new(tc.outputs['Generated'], sx.inputs[0])
+sn_ = sn.nodes.new('ShaderNodeMath')
+sn_.operation = 'MULTIPLY'
+sn_.inputs[1].default_value = math.pi
+sn.links.new(sx.outputs[2], sn_.inputs[0])
+sine = sn.nodes.new('ShaderNodeMath')
+sine.operation = 'SINE'
+sn.links.new(sn_.outputs[0], sine.inputs[0])
+m1 = sn.nodes.new('ShaderNodeMath')
+m1.operation = 'MULTIPLY'
+sn.links.new(pw.outputs[0], m1.inputs[0])
+sn.links.new(sine.outputs[0], m1.inputs[1])
+m2 = sn.nodes.new('ShaderNodeMath')
+m2.operation = 'MULTIPLY'
+m2.inputs[1].default_value = 0.22                       # overall strength of the rays
+sn.links.new(m1.outputs[0], m2.inputs[0])
+sn.links.new(m2.outputs[0], mx.inputs['Fac'])
+sn.links.new(tr.outputs[0], mx.inputs[1])
+sn.links.new(em.outputs[0], mx.inputs[2])
+sn.links.new(mx.outputs[0], so.inputs['Surface'])
 sun = bpy.data.objects['Sun']
 sd = sun.rotation_euler.to_matrix() @ Vector((0, 0, 1))          # toward the sun
 refr = Vector((sd.x * 0.75, sd.y * 0.75, sd.z)).normalized()     # bent steeper on entering the water
@@ -98,9 +139,9 @@ for i in range(500):
 # ---------------------------------------------------------------- a school of mackerel streams across, a tuna passes close
 for i in range(70):
     u = rnd.random()
-    lane = Vector((rnd.uniform(-1.5, 1.5), 12 + rnd.uniform(-2.5, 2.5) + u * 2, -4.2 + rnd.uniform(-1.0, 1.0)))
+    lane = Vector((rnd.uniform(-1.2, 1.2), 7.5 + rnd.uniform(-1.8, 1.8) + u * 1.5, -3.6 + rnd.uniform(-0.8, 0.8)))
     f0 = int(4 + u * 30)
-    fo = L.fish(f'SCHOOL_{i}', 'mackerel', (0, 0, 0), (0, 0, 0), rnd.uniform(0.9, 1.15))
+    fo = L.fish(f'SCHOOL_{i}', 'mackerel', (0, 0, 0), (0, 0, 0), rnd.uniform(1.3, 1.6))
     ph = rnd.uniform(0, 6.28)
     for k in range(0, 110, 6):
         x = -16 + (k / 110) * 34
