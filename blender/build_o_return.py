@@ -33,6 +33,16 @@ s.frame_start, s.frame_end = 1, F_END
 mats = L.M()
 if DEPART:   # low sun over the sea (+Y = east), warm
     L.hdri('qwantani_morning_puresky_4k', strength=0.45, rot=-64.0, sun_strength=3.4, sun_color=(1.0, 0.72, 0.5))
+    _wn = bpy.context.scene.world.node_tree      # dawn: warm the whole sky a little
+    _bg = [n for n in _wn.nodes if n.type == 'BACKGROUND'][0]
+    _src = _bg.inputs['Color'].links[0].from_socket
+    _mx = _wn.nodes.new('ShaderNodeMix')
+    _mx.data_type = 'RGBA'
+    _mx.blend_type = 'MULTIPLY'
+    _mx.inputs['Factor'].default_value = 1.0
+    _wn.links.new(_src, _mx.inputs['A'])
+    _mx.inputs['B'].default_value = (1.0, 0.82, 0.7, 1)
+    _wn.links.new(_mx.outputs['Result'], _bg.inputs['Color'])
 else:
     L.hdri('qwantani_mid_morning_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
 
@@ -99,8 +109,8 @@ for i in range(4):
 # ---------------------------------------------------------------- our vessel comes home (same library vessel as o-catch)
 V = S.vessel('BOAT', (120, 30, 0), D(180), mats=mats)
 boat = V['root']
-BOAT_KEYS = ((1, (2, 4.0, 0), 180), (40, (2, 4.0, 0), 180), (80, (-6, 10, 0), 150), (120, (-8, 26, 0), 110),
-             (170, (-4, 55, 0), 95), (240, (4, 115, 0), 88)) if DEPART else \
+BOAT_KEYS = ((1, (2, 4.0, 0), 180), (40, (2, 4.0, 0), 180), (80, (-6, 10, 0), 150), (120, (-2, 28, 0), 100),
+             (170, (24, 62, 0), 75), (240, (32, 128, 0), 86)) if DEPART else \
     ((1, (120, 34, 0), 180), (50, (68, 34, 0), 182), (90, (26, 29, 0), 196), (120, (8, 12, 0), 200), (140, (2, 4.0, 0), 180),
      (288, (2, 4.0, 0), 180))
 for f, p, rz in BOAT_KEYS:
@@ -425,7 +435,7 @@ if DEPART:
         s.frame_set(f)
         bp = boat.matrix_world.translation
         u = (f - 64) / (F_END - 64)
-        keys.append((f, (bp.x + 12.0 - 6 * u, bp.y - 22.0, 11.0 + 3 * u), (bp.x - 1.0, bp.y + 40.0, 1.5), 30))
+        keys.append((f, (bp.x - 15.0 + 4 * u, bp.y - 12.0 - 6 * u, 5.0 + 2 * u), (bp.x + 5.0, bp.y + 30.0, 2.0), 30))
         focus.append((f, 32.0))
     s.frame_set(1)
     L.cam_path(cam, keys, focus=focus)
