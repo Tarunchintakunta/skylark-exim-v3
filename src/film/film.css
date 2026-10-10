@@ -13,12 +13,16 @@
   opacity: 0;
   pointer-events: none;
 }
-.caption__eyebrow { color: var(--brass); margin-bottom: 1.1rem; }
-.caption__title { font-size: var(--fs-display); max-width: 14ch; text-wrap: balance; }
+.caption__eyebrow { display: flex; align-items: baseline; gap: 0.75em; color: var(--brass); margin-bottom: 1.2rem; }
+.caption__num { font-family: var(--f-display); font-size: 1.6em; line-height: 1; color: var(--ice); font-variant-numeric: lining-nums tabular-nums; }
+.caption__title { font-size: var(--fs-h1); max-width: 13ch; text-wrap: balance; }
+/* right-hand column chapters: copy sits right, the scrim follows it */
+.caption--right { left: auto; right: var(--gutter); width: min(34rem, calc(100vw - 2 * var(--gutter))); }
+@media (max-width: 819px) { .caption--right { left: var(--gutter); right: auto; } }
 .caption__title .line { padding-bottom: 0.06em; }
-.caption__body { margin-top: 1.2rem; max-width: 36rem; color: rgba(244, 250, 250, 0.86); }
+.caption__body { margin-top: 1.4rem; max-width: 36ch; font-size: var(--fs-lead); line-height: 1.45; color: rgba(246, 242, 234, 0.86); }
 .caption__note { margin-top: 1.2rem; color: var(--steel); }
-.caption__list { margin-top: 1.2rem; max-width: 40rem; color: rgba(244, 250, 250, 0.72); font-size: 0.9375rem; letter-spacing: 0.02em; }
+.caption__list { margin-top: 1.2rem; max-width: 40rem; color: rgba(246, 242, 234, 0.72); font-size: 0.9375rem; letter-spacing: 0.02em; }
 .caption__fields { margin: 1.4rem 0 0; padding: 0; list-style: none; max-width: 26rem; }
 .caption__fields > * { display: flex; gap: 16px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--hairline); }
 .caption__fields > *:last-child { border-bottom: 1px solid var(--hairline); }
@@ -30,4 +34,4 @@
 .markets { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 1.4rem; max-width: 40rem; pointer-events: auto; }
 .markets__item { padding: 2px 0; border: 0; background: none; color: var(--ink); font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.2s; }
 .markets__item:hover, .markets__item:focus-visible { text-decoration-color: currentColor; }
-.globe-label { display: block; padding: 3px 6px; white-space: nowrap; color: var(--ink); background: rgba(238, 245, 246, 0.82); border-radius: 2px; font-size: 10px; transform: translateY(-16px); transition: opacity 0.35s; }
+.globe-label { display: block; padding: 3px 6px; white-space: nowrap; color: var(--ink); background: rgba(244, 239, 230, 0.82); border-radius: 2px; font-size: 10px; transform: translateY(-16px); transition: opacity 0.35s; }
