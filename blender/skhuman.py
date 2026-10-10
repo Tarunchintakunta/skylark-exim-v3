@@ -210,13 +210,13 @@ def _hairnet(m):
     L.new(w1.outputs['Fac'], mx.inputs[0])
     L.new(w2.outputs['Fac'], mx.inputs[1])
     th = nt.nodes.new('ShaderNodeMapRange')                  # threads where either band peaks
-    th.inputs['From Min'].default_value = 0.55
-    th.inputs['From Max'].default_value = 0.8
+    th.inputs['From Min'].default_value = 0.2     # threads dominate; hair only in small holes (no grey-curls look)
+    th.inputs['From Max'].default_value = 0.42
     L.new(mx.outputs[0], th.inputs['Value'])
     cm = nt.nodes.new('ShaderNodeMix')
     cm.data_type = 'RGBA'
     L.new(th.outputs[0], cm.inputs[0])
-    cm.inputs[6].default_value = (0.05, 0.04, 0.035, 1)     # hair under the net
+    cm.inputs[6].default_value = (0.12, 0.1, 0.09, 1)       # hair under the net
     L.new(src, cm.inputs[7])
     L.new(cm.outputs[2], p.inputs['Base Color'])
     bp = nt.nodes.new('ShaderNodeBump')
@@ -448,8 +448,8 @@ STACHE = (1.505, 1.517, 0.030)       # upper lip band (z lo, z hi, half width) o
 SLEEVE = {'jacket': 0.545, 'parka': 0.55, 'labcoat': 0.535, 'shirt': 0.17, 'shirt_farm': 0.31}
 CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap', 'shirt', 'trousers', 'trousers_dark',
         'shorts')
-THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
-         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.018, 'shoes': 0.008,
+THICK = {'jacket': 0.038, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.042, 'trousers': 0.03,
+         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.036, 'shoes': 0.008,
          'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
          'vest': 0.04, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
