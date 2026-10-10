@@ -192,36 +192,29 @@ def _palette(m, colors):
 
 
 def _hairnet(m):
-    """Mesh hairnet: the palette colour as a fine net (wave grid) with dark hair showing through the holes."""
+    """Disposable non-woven bouffant cap: crinkled (noise bump) with soft creases darkening the palette colour.
+    (A wave-grid net aliased into contour rings / grey curls at 1080, so no hair shows through.)"""
     nt = m.node_tree
     L = nt.links
     p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
     src = p.inputs['Base Color'].links[0].from_socket
     tc = nt.nodes.new('ShaderNodeTexCoord')
-    w1 = nt.nodes.new('ShaderNodeTexWave')
-    w2 = nt.nodes.new('ShaderNodeTexWave')
-    for w, ax in ((w1, 'X'), (w2, 'Y')):
-        w.wave_type = 'BANDS'
-        w.bands_direction = ax
-        w.inputs['Scale'].default_value = 180.0
-        L.new(tc.outputs['Object'], w.inputs['Vector'])
-    mx = nt.nodes.new('ShaderNodeMath')
-    mx.operation = 'MAXIMUM'
-    L.new(w1.outputs['Fac'], mx.inputs[0])
-    L.new(w2.outputs['Fac'], mx.inputs[1])
-    th = nt.nodes.new('ShaderNodeMapRange')                  # threads where either band peaks
-    th.inputs['From Min'].default_value = 0.2     # threads dominate; hair only in small holes (no grey-curls look)
-    th.inputs['From Max'].default_value = 0.42
-    L.new(mx.outputs[0], th.inputs['Value'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 45.0
+    nz.inputs['Detail'].default_value = 10.0
+    nz.inputs['Distortion'].default_value = 0.4
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
     cm = nt.nodes.new('ShaderNodeMix')
     cm.data_type = 'RGBA'
-    L.new(th.outputs[0], cm.inputs[0])
-    cm.inputs[6].default_value = (0.12, 0.1, 0.09, 1)       # hair under the net
-    L.new(src, cm.inputs[7])
+    cm.blend_type = 'MULTIPLY'
+    L.new(nz.outputs['Fac'], cm.inputs[0])
+    L.new(src, cm.inputs[6])
+    cm.inputs[7].default_value = (0.8, 0.8, 0.82, 1)       # creases
     L.new(cm.outputs[2], p.inputs['Base Color'])
     bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.4
-    L.new(th.outputs[0], bp.inputs['Height'])
+    bp.inputs['Strength'].default_value = 0.55
+    bp.inputs['Distance'].default_value = 0.002
+    L.new(nz.outputs['Fac'], bp.inputs['Height'])
     L.new(bp.outputs[0], p.inputs['Normal'])
     return m
 
