@@ -984,7 +984,7 @@ def _finger_curl(me, ao, side, curl, knuckle=0.085):
     lf = max(0.06, float(along[fing].max() - knuckle)) if fing.any() else 0.09
     theta = curl * math.radians(250)
     if abs(theta) < 1e-3:
-        return out
+        return out, axis
     R = lf / abs(theta)
     pal = nrm * math.copysign(1.0, theta)
     for i in np.nonzero(fing)[0]:
@@ -992,7 +992,7 @@ def _finger_curl(me, ao, side, curl, knuckle=0.085):
         a_, n_, w_ = q.dot(d), q.dot(pal), q.dot(axis)
         ph = a_ / R
         out[int(i)] = piv + axis * w_ + pal * R + (R - n_) * (d * math.sin(ph) - pal * math.cos(ph))
-    return out
+    return out, axis
 
 
 def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
@@ -1003,8 +1003,11 @@ def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
     if not mo.data.shape_keys:
         mo.shape_key_add(name='Basis')
     sk = mo.shape_key_add(name=name or ('grip_' + side))
-    for i, c in _finger_curl(mo.data, ao, side, curl, knuckle).items():
+    pts, axis = _finger_curl(mo.data, ao, side, curl, knuckle)
+    for i, c in pts.items():
         sk.data[i].co = c
+    hb = ao.data.bones['hand.' + side]
+    ao['grip_axis_' + side] = list(hb.matrix_local.inverted().to_3x3() @ axis)   # knuckle axis, bone space (wrap_hand)
     sk.value = 1.0
     return sk
 
@@ -1050,6 +1053,42 @@ def auto_poles(objs=None):
                     c.pole_angle = math.radians(-90)
                     n += 1
     return n
+
+
+def wrap_hand(ao, side, parent, palm, fing, nrm, inf, C=None):
+    """Hand closes around a bar/handle on `parent`: palm centre at `palm` (parent space), fingers along `fing`,
+    palm facing `nrm` (toward the object's axis). Wrist IK + hand bone aimed so the curl axis lies along the object.
+    inf: [(frame, influence)]. Call grip() first (it stores the knuckle axis). Returns the wrist target."""
+    C = C or bpy.context.scene.collection
+    fing, nrm = Vector(fing).normalized(), Vector(nrm).normalized()
+    along = fing.cross(nrm)
+    wrist = Vector(palm) - fing * 0.06
+    tg = {}
+    for k, v in (('W', wrist), ('F', wrist + fing * 0.4), ('A', wrist + along * 0.4)):
+        e = bpy.data.objects.new('%s_Wrap%s%s_%s' % (ao.name, side, k, parent.name), None)
+        C.objects.link(e)
+        e.parent = parent
+        e.location = v
+        tg[k] = e
+    ax = Vector(ao.get('grip_axis_' + side, (1, 0, 0)))
+    i = 0 if abs(ax.x) > abs(ax.z) else 2
+    trk = ('TRACK_' if ax[i] > 0 else 'TRACK_NEGATIVE_') + 'XYZ'[i]
+    cs = []
+    c = ao.pose.bones['forearm.' + side].constraints.new('IK')
+    c.target, c.chain_count, c.use_tail = tg['W'], 2, True
+    cs.append(c)
+    hb = ao.pose.bones['hand.' + side]
+    c = hb.constraints.new('DAMPED_TRACK')
+    c.target, c.track_axis = tg['F'], 'TRACK_Y'
+    cs.append(c)
+    c = hb.constraints.new('LOCKED_TRACK')
+    c.target, c.lock_axis, c.track_axis = tg['A'], 'LOCK_Y', trk
+    cs.append(c)
+    for c in cs:
+        for f, v in inf:
+            c.influence = v
+            c.keyframe_insert('influence', frame=f)
+    return tg['W']
 
 
 def ik_feet(ao, tgt_l, tgt_r):
