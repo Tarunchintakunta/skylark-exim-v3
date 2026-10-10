@@ -1744,6 +1744,27 @@ def ice_chunks(name, w, d, n=60, seed=2, z=0.0, size=0.025):
     return bm_to_mesh(bm, name)
 
 
+def ice_heap(name, w, d, n=380, seed=11, size=0.03, mound=0.07):
+    """Crushed ice heaped in a crate: angular shards of mixed size, piled higher in the middle (above the rim),
+    thinning to scattered pieces at the edges so fish heads and tails show through the gaps."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    for _ in range(n):
+        x, y = rnd.uniform(-w / 2, w / 2), rnd.uniform(-d / 2, d / 2)
+        r2 = (2 * x / w) ** 2 + (2 * y / d) ** 2
+        if r2 > 1.0 and rnd.random() < 0.5:
+            continue
+        sz = size * rnd.uniform(0.3, 1.0) ** 1.5
+        r = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=sz)
+        for v in r['verts']:
+            v.co *= rnd.uniform(0.55, 1.3)
+        sc = Matrix.Diagonal((rnd.uniform(0.7, 1.5), rnd.uniform(0.6, 1.3), rnd.uniform(0.4, 0.9), 1))
+        z = mound * max(0.0, 1.0 - r2) * rnd.uniform(0.3, 1.0)
+        m = Matrix.Translation((x, y, z)) @ Euler((rnd.random() * 3, rnd.random() * 3, rnd.random() * 3)).to_matrix().to_4x4() @ sc
+        bmesh.ops.transform(bm, matrix=m, verts=r['verts'])
+    return bm_to_mesh(bm, name)
+
+
 _CRATE = {}
 
 
@@ -1787,14 +1808,16 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
         # loose crushed ice: over the bed, between and partly over the fish
         obj(f'{name}_icech', _CRATE['chunks'], mats['ice'], (0, 0, level + (0.055 if fill != 'ice' else 0.07)), parent=c)
         if fill in ('fish', 'tuna', 'mixed'):
-            # fish bedded in ice, not lying on it: a lumpy crushed-ice top layer the upper fish break through, and a
-            # second scatter of bigger shards over everything
-            if 'top' not in _CRATE:
-                _CRATE['top'] = ice_mesh('LIB_CrateIceTop', 0.52, 0.32, 0.035, 18, 7)
-                _CRATE['chunks2'] = ice_chunks('LIB_CrateIceChunks2', 0.48, 0.28, 220, 9, 0.0, 0.02)
-            top = obj(f'{name}_icetop', _CRATE['top'], mats['ice'], (0, 0, level + 0.058), parent=c)
-            top.rotation_euler.z = rnd.choice((0.0, math.pi))
-            obj(f'{name}_icech2', _CRATE['chunks2'], mats['ice'], (0, 0, level + 0.085), parent=c)
+            # fish bedded in ice, not lying on it: crushed ice heaped over them (above the rim in the middle, thinner
+            # at the edges so heads and tails poke through), meltwater dark in the corners
+            if 'heap' not in _CRATE:
+                _CRATE['heap'] = [ice_heap('LIB_CrateIceHeap%d' % k, 0.52, 0.32, 380, 11 + k, 0.032, 0.075) for k in range(3)]
+                _CRATE['melt'] = box_mesh('LIB_CrateMelt', (0.54, 0.34, 0.004), 0.0, 1)
+                mw = pbr('MAT_Meltwater', (0.03, 0.045, 0.05), 0.04, var=0.1, coat=0.8)   # dark wet pooling in the corners
+                _CRATE['melt'].materials.append(mw)
+            obj(f'{name}_melt', _CRATE['melt'], None, (0, 0, level + 0.004), parent=c)
+            heap = obj(f'{name}_iceheap', rnd.choice(_CRATE['heap']), mats['ice'], (0, 0, level + 0.06), parent=c)
+            heap.rotation_euler.z = rnd.choice((0.0, math.pi))
     return c
 
 
