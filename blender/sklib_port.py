@@ -221,20 +221,21 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
     mb = MB()
     ys, yl = gauge / 2, -gauge / 2
     gz = girder_z
-    # legs (box columns) with bogies
+    # legs (box columns) with bogies (dark grey running gear, so they read as machinery, not a blue vehicle)
+    bg = weather(pbr('MAT_BogieGrey', (0.16, 0.17, 0.17), 0.6, 0.2, grime=0.6, scale=0.6), amount=0.6, z0=0.0, z1=1.6)
     for sx in (-legx, legx):
         for y in (ys, yl):
             mb.box((sx, y, (gz - 1.0) / 2 + 1.2), (1.8, 1.8, gz - 1.0), white)
             for dx in (-2.5, 2.5):
                 for sy_ in (-0.62, 0.62):
-                    mb.box((sx + dx, y + sy_, 0.75), (4.2, 0.28, 0.9), blue, bevel=0.04)       # bogie side frames
-                mb.box((sx + dx, y, 1.15), (4.0, 1.5, 0.22), blue, bevel=0.03)
+                    mb.box((sx + dx, y + sy_, 0.75), (4.2, 0.28, 0.9), bg, bevel=0.04)       # bogie side frames
+                mb.box((sx + dx, y, 1.15), (4.0, 1.5, 0.22), bg, bevel=0.03)
                 for wx in (-1.4, -0.45, 0.45, 1.4):
                     mb.cyl((sx + dx + wx, y - 0.35, 0.42), (sx + dx + wx, y + 0.35, 0.42), 0.4, mats['steel'], 20)   # rail wheels
                     mb.cyl((sx + dx + wx, y - 0.4, 0.42), (sx + dx + wx, y - 0.34, 0.42), 0.46, mats['steel'], 20)  # flange
                     mb.cyl((sx + dx + wx, y - 0.5, 0.42), (sx + dx + wx, y + 0.5, 0.42), 0.09, dark, 8)             # axle
                 mb.box((sx + dx + 2.25, y, 0.5), (0.3, 1.6, 0.5), mats['paint_yellow'] if 'paint_yellow' in mats else blue, bevel=0.03)   # buffer
-            mb.box((sx, y, 1.5), (7.0, 2.0, 0.8), blue, bevel=0.06)                            # equalizer beam
+            mb.box((sx, y, 1.5), (7.0, 2.0, 0.8), bg, bevel=0.06)                            # equalizer beam
             mb.box((sx, y, 0.06), (8.5, 0.18, 0.12), mats['steel'])                            # crane rail
         # portal beam + sill + diagonal bracing across (Y) at each side
         mb.box((sx, 0, 20.0), (1.6, gauge, 2.2), white)
