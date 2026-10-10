@@ -157,6 +157,12 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
     if 'm' not in _LM:
         _LM['m'] = L.M()
     o = L.crate(name, color, loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)   # library HDPE: bump + wear
+    if fill:                                    # packed full: product and crushed ice heaped to the rim, readable
+        for ch in o.children:                   # from a standing eye line (the library bed sits 10 cm down)
+            if ch.name.startswith(name + '_'):
+                ch.location.z += 0.075
+                if ch.name.endswith('_ice'):
+                    ch.scale.z *= 1.8
     return o
 
 
@@ -536,7 +542,12 @@ def build(scene, out):
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
     P.sky_haze()                                          # warm dusty haze low in the sky
     P.look_settings('exterior', exposure=0.0)
-    vs = s.view_settings          # step down the exposure as the camera goes from daylight into the lit hall
+    vs = s.view_settings
+    if scene != 'truck-reverse':
+        try:
+            vs.look = 'AgX - Medium High Contrast'    # interiors: separate the whites from the greys (no milky frames)
+        except TypeError:
+            pass          # step down the exposure as the camera goes from daylight into the lit hall
     for f, ev in ((236, 0.0), (264, -0.3), (330, -0.3), (420, -0.5), (780, -0.5), (800, -0.8), (905, -0.8),
                   (910, -0.5)):   # white hall: hold highlights; the bright lab eased down further
         vs.exposure = ev
@@ -551,6 +562,8 @@ def build(scene, out):
     s.frame_current = 1
     s.render.filepath = '//../render/%s/' % scene
     os.makedirs(os.path.dirname(out), exist_ok=True)
+    if hasattr(H, 'auto_poles'):
+        print('POLES', H.auto_poles())          # elbows down and back on every pole-less arm IK
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print('OUT built', scene, out)
 
