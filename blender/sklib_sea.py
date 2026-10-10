@@ -197,7 +197,7 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
     for (cx, cy, sx, sy2) in ((hc, 1.8, 4.6, 0.1), (hc, -1.8, 4.6, 0.1), (hc - 2.3, 0, 0.1, 3.6), (hc + 2.3, 0, 0.1, 3.6)):
         box(f'{name}_HoldWall', (sx, sy2, 2.6), (cx, cy, hold_floor + 1.3), ins, 0.0, parent=root)
     ld = bpy.data.lights.new(f'{name}_HoldLight', 'AREA')
-    ld.energy = 400
+    ld.energy = 140      # a working light, not a glowing white box
     ld.size = 3.0
     ld.color = (0.92, 0.96, 1.0)
     lo = bpy.data.objects.new(f'{name}_HoldLight', ld)

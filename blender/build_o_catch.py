@@ -237,7 +237,7 @@ for i in range(1, _rings):
 pm = L.bm_to_mesh(_hb, 'PILE_Mound', smooth=True)
 pm.materials.append(bpy.data.materials['MAT_FishMass'])
 pm.materials.clear()
-pm.materials.append(L.pbr('MAT_PileMass', (0.56, 0.6, 0.62), 0.35, 0.3, var=0.6, bump=1.0, scale=22, coat=0.2))   # silver, not a dark disc
+pm.materials.append(L.pbr('MAT_PileMass', (0.5, 0.55, 0.57), 0.45, 0.0, var=0.6, bump=1.0, scale=22, coat=0.1))   # silver, not a dark disc
 PRX, PRY, PH = 1.05, 1.0, 0.6
 mound = L.obj('PILE_Mound', pm, None, tuple(PILE), scale=(PRX, PRY, PH), parent=boat)
 for f, sc in ((REL + 2, 0.05), (REL + 10, 0.85), (192, 1.0), (330, 0.75)):
@@ -253,11 +253,11 @@ def mound_z(x, y):
 
 
 spill = []
-for i in range(540):
+for i in range(720):
     kind = 'tuna' if i < 6 else ('tuna_s' if i < 46 else ('seer' if i < 52 else 'mackerel'))
     sc = rnd.uniform(0.7, 0.85) if kind == 'tuna' else rnd.uniform(0.85, 1.15)
     a = rnd.uniform(0, 2 * math.pi)
-    rr = math.sqrt(rnd.random()) * (0.6 if kind == 'tuna' else 1.0)   # fish cover the mound out to its edge (no bare rim)
+    rr = (math.sqrt(rnd.random()) if i < 540 else rnd.uniform(0.8, 1.0)) * (0.6 if kind == 'tuna' else 1.0)   # fish cover the mound out to its edge (no bare rim)
     land = Vector((PILE.x + rr * math.cos(a) * PRX, PILE.y + rr * math.sin(a) * PRY, 0))
     land.z = mound_z(land.x, land.y) + (rnd.uniform(0.03, 0.14) if kind != 'tuna' else 0.12)   # fish on fish
     start = Vector((PILE.x + rnd.uniform(-0.5, 0.5), PILE.y + rnd.uniform(-0.5, 0.5), DZ + rnd.uniform(0.7, 1.6)))
