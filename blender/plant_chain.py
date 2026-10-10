@@ -519,7 +519,8 @@ def build(scene, out):
     P.sky_haze()                                          # warm dusty haze low in the sky
     P.look_settings('exterior', exposure=0.0)
     vs = s.view_settings          # step down the exposure as the camera goes from daylight into the lit hall
-    for f, ev in ((236, 0.0), (264, -0.3), (330, -0.3), (420, -0.5)):   # white hall: hold highlights
+    for f, ev in ((236, 0.0), (264, -0.3), (330, -0.3), (420, -0.5), (780, -0.5), (800, -0.8), (905, -0.8),
+                  (910, -0.5)):   # white hall: hold highlights; the bright lab eased down further
         vs.exposure = ev
         vs.keyframe_insert('exposure', frame=f)
     f0, f1 = OFFSETS[scene]
