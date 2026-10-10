@@ -325,7 +325,7 @@ for i, T in enumerate(tugs):
         T.keyframe_insert('location', frame=f)
     L.smooth_keys(T)
 # wake: churned foam behind the stern widening into streaks + Kelvin arms; bow wave; tugs throw their own wash
-wk = P.wake('SHIP_Wake', shp, -112.0, length=420.0, w0=20.0, w1=90.0, kelvin=False)
+wk = P.wake('SHIP_Wake', shp, -112.0, length=320.0, w0=18.0, w1=60.0, kelvin=False)
 bw = P.wake('SHIP_BowWave', shp, 118.0, length=150.0, w0=6.0, w1=46.0, z=0.18, kelvin=False)
 bw.scale = (0.6, 1, 1)
 for f, sc in ((296, 0.02), (330, 0.35), (380, 0.85), (430, 1.0)):
@@ -334,7 +334,7 @@ for f, sc in ((296, 0.02), (330, 0.35), (380, 0.85), (430, 1.0)):
 L.key_vis(wk, 296)
 L.key_vis(bw, 320)
 for i, T in enumerate(tugs):
-    tw = P.wake(f'TUG{i}_Wake', T, -14.0, length=90.0, w0=4.0, w1=16.0, kelvin=False)
+    tw = P.wake(f'TUG{i}_Wake', T, -14.0, length=45.0, w0=3.5, w1=10.0, kelvin=False)
     for f, sc in ((290, 0.05), (320, 0.8), (479, 1.0)):
         tw.scale = (sc, 1, 1)
         tw.keyframe_insert('scale', frame=f)
