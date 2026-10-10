@@ -327,10 +327,13 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
 
 
 def _dress(name, root, mats, deck_z, L, R, wx1):
-    icebox = box(f'{name}_IceBox', (1.6, 1.1, 0.9), (6.6, -1.8, deck_z), pbr('MAT_IceBox', (0.85, 0.87, 0.86), 0.45, grime=0.3),
-                 0.05, origin='base', parent=root)
+    ibm = weather(pbr('MAT_IceBox', (0.8, 0.82, 0.8), 0.55, grime=0.5, scale=4.0), streak=(0.3, 0.2, 0.1), amount=0.6,
+                  z0=deck_z, z1=deck_z + 0.9, dirt_amount=0.5)
+    icebox = box(f'{name}_IceBox', (1.6, 1.1, 0.9), (6.6, -1.8, deck_z), ibm, 0.05, origin='base', parent=root)
     R['icebox'] = icebox
-    obj(f'{name}_IceBoxIce', ice_mesh(f'{name}_IceBoxIce', 1.4, 0.9, 0.12, 16, 9), mats['ice'], (6.6, -1.8, deck_z + 0.82),
+    # flake ice: fine, matte-white granules (not the clear crate-ice glass, which read as grey blotches from above)
+    flake = pbr('MAT_FlakeIce', (0.84, 0.89, 0.92), 0.4, var=0.25, bump=1.0, scale=70, sss=0.2)
+    obj(f'{name}_IceBoxIce', ice_mesh(f'{name}_IceBoxIce', 1.4, 0.9, 0.12, 40, 26), flake, (6.6, -1.8, deck_z + 0.82),
         parent=root)
     rnd = random.Random(5)
     k = 0
