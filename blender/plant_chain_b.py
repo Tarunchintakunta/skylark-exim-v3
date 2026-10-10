@@ -280,7 +280,7 @@ def proc_crew(C, rnd):
             if 4 <= n < 8:                                     # graders: low trays, lean in and step in until hands land
                 H.settle_reach(w, 470, 780, step=3, iters=6, max_shift=0.35, win=2)
         else:
-            H.jitter(w, {'spine': (10, 0, 0), 'head': (14, 0, 0), 'upperarm': (8, -24, 0), 'forearm': (22, 0, 0)},
+            H.jitter(w, {'spine': (10, 0, 0), 'head': (14, 0, 0), 'upperarm': (8, -36, 0), 'forearm': (22, 0, 0)},
                      1, 1060, every=8 + n % 5, amp=4, seed=n)     # nothing in reach to work on: arms relaxed
         n += 1
     sup = H.person('HUM_Supervisor', 'plant_coat', 'male', coll=C, seed=499, lod='lo')
