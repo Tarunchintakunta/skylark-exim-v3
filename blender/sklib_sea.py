@@ -83,10 +83,56 @@ def hull_keel(x, L=24.0):
     return -1.8
 
 
+def deck_wear(m):
+    """Working deck: wet patches (lower roughness), stretched scuffs worn through to rusty steel. Once per material."""
+    if m.get('worn'):
+        return m
+    m['worn'] = True
+    nt = m.node_tree
+    l = nt.links
+    p = principled(m)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    wet = nt.nodes.new('ShaderNodeTexNoise')
+    wet.inputs['Scale'].default_value = 0.35
+    wet.inputs['Detail'].default_value = 6
+    l.new(tc.outputs['Object'], wet.inputs['Vector'])
+    wr = nt.nodes.new('ShaderNodeMapRange')
+    wr.inputs['From Min'].default_value = 0.5
+    wr.inputs['From Max'].default_value = 0.56
+    wr.inputs['To Min'].default_value = 0.55
+    wr.inputs['To Max'].default_value = 0.18            # wet patches: lower roughness, still matte-ish
+    l.new(wet.outputs['Fac'] if 'Fac' in wet.outputs else wet.outputs[0], wr.inputs['Value'])
+    l.new(wr.outputs[0], p.inputs['Roughness'])
+    sc = nt.nodes.new('ShaderNodeTexNoise')            # scuffs: stretched streaks of worn paint
+    sc.inputs['Scale'].default_value = 3.0
+    sc.inputs['Detail'].default_value = 10
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (0.25, 3.0, 1.0)
+    l.new(tc.outputs['Object'], mp.inputs['Vector'])
+    l.new(mp.outputs[0], sc.inputs['Vector'])
+    sr = nt.nodes.new('ShaderNodeMapRange')
+    sr.inputs['From Min'].default_value = 0.66
+    sr.inputs['From Max'].default_value = 0.74
+    l.new(sc.outputs[0], sr.inputs['Value'])
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else None
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    l.new(sr.outputs[0], mx.inputs['Factor'])
+    if src is not None:
+        l.new(src, mx.inputs['A'])
+    else:
+        mx.inputs['A'].default_value = p.inputs['Base Color'].default_value
+    mx.inputs['B'].default_value = (0.11, 0.075, 0.05, 1)      # worn through to rusty steel
+    l.new(mx.outputs['Result'], p.inputs['Base Color'])
+
+    return m
+
+
 def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=True, L=24.0, deck_z=1.5):
     """White steel fishing vessel with blue trim (catch-reference.png). Returns a dict of key objects/values.
     Names: <name>_Hull, <name>_Deck, <name>_BoomPivot, <name>_BoomTip, <name>_Drum, <name>_HatchCentre."""
     mats = mats or M()
+    deck_wear(mats['wetdeck'])
     hm = weather(hull or hull_material(), streak=(0.3, 0.15, 0.06), amount=0.65, z0=-0.2, z1=0.9,
                  dirt=(0.12, 0.14, 0.08), dirt_amount=0.55, scale=0.8)
     root = empty(name, loc, size=2.0)

@@ -301,6 +301,12 @@ def build_truck_reverse(C_people):
         ch.location = loc
         ch.keyframe_insert('location', frame=f)
     key_hide(ch, [(1, True), (222, False)])
+    ik = drv.pose.bones['forearm.R'].constraints.new('IK')         # his hand carries the chock to the tyre
+    ik.target, ik.chain_count, ik.use_tail = ch, 2, True
+    for f, v in ((1, 0.0), (220, 0.0), (223, 1.0), (237, 1.0), (242, 0.0)):
+        ik.influence = v
+        ik.keyframe_insert('influence', frame=f)
+    H.grip(drv, 'R', curl=0.8)
 
     # dock workers: two open the rear doors from inside (hands on the door handles via IK), one pushes a trolley
     # across, two wait with empty trolleys, one at the strip curtain
@@ -321,7 +327,7 @@ def build_truck_reverse(C_people):
         ik.pole_angle = D(-90)
         ik.chain_count = 2
         ik.use_tail = True
-        for f, v in ((1, 0.0), (f0 - 10, 0.0), (f0 - 2, 1.0), (f1 - 2, 1.0), (f1 + 4, 0.0)):
+        for f, v in ((1, 0.0), (f0 - 10, 0.0), (f0 - 2, 1.0), (310, 1.0)):     # holds the door open
             ik.influence = v
             ik.keyframe_insert('influence', frame=f)
         w.location = (*p0, S.DZ)

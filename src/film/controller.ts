@@ -55,7 +55,9 @@ onTick(() => {
   while (i < n - 1 && y >= tops[i + 1]) i++
   while (i > 0 && y < tops[i]) i--
   frame.local = Math.min(1, Math.max(0, (y - tops[i]) / lens[i]))
-  frame.past = y >= filmEnd
+  const past = y >= filmEnd
+  if (past !== frame.past) store.setState({ past })
+  frame.past = past
   if (i !== frame.index) {
     frame.index = i
     store.setState({ chapter: chapters[i].id })
