@@ -1,117 +1,145 @@
-import { lazy, Suspense, useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { CATEGORIES, SHRIMP_FORMS, SPECIES_OFFERED, STATES, type Category } from '../config/products'
+import gsap from 'gsap'
+import { SplitText } from 'gsap/SplitText'
+import { useEffect, useRef, useState } from 'react'
+import { CATEGORIES, HERO, SHRIMP_FORMS, SPECIES_OFFERED, STATES, type Category } from '../config/products'
+import { env } from '../engine/env'
 import { goTo } from '../engine/path'
 import { store, useApp } from '../engine/store'
-import { Fallback } from '../ui/Fallback'
+import { clipUrl, posterUrl } from '../film/segments'
 import { ProductCard } from './ProductCard'
 import { bindReveals } from './reveal'
 import './sections.css'
+import './products.css'
 
-const ProductStage = lazy(() => import('../three/ProductStage'))
+gsap.registerPlugin(SplitText)
+
 const TABS: Category[] = ['marine', 'shrimps']
+const LATIN = /(Litopenaeus vannamei|Penaeus monodon)/
 
-/** Products (STORY §12): tabs follow the chosen path, models (or DOM cards), species, shrimp forms, states. */
+/** [data-lines] headings rise out of a line mask once, as they enter. */
+function bindLines(root: HTMLElement) {
+  if (env.reduced) return () => {}
+  const splits = [...root.querySelectorAll<HTMLElement>('[data-lines]')].map((el) =>
+    SplitText.create(el, {
+      type: 'lines', mask: 'lines', autoSplit: true,
+      onSplit: (s) => gsap.from(s.lines, { yPercent: 105, duration: 0.9, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } }),
+    }),
+  )
+  return () => splits.forEach((s) => s.revert())
+}
+
+/** Photoreal turntable clip, playing (muted, looped) only while on screen; reduced motion keeps the poster. */
+function Turntable({ id, name }: { id: string; name: string }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const v = ref.current!
+    if (env.reduced) return
+    const io = new IntersectionObserver(([e]) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause()))
+    io.observe(v)
+    return () => io.disconnect()
+  }, [])
+  return (
+    <figure className="pr-hero__media">
+      <video ref={ref} src={env.reduced ? undefined : clipUrl(id)} poster={posterUrl(id)} muted loop playsInline preload="none" aria-label={name} />
+      <figcaption className="display">{name}</figcaption>
+    </figure>
+  )
+}
+
+/** Hero slot: turntables once the clips exist (HERO[].available), else a typographic composition of the same names. */
+function ProductHero() {
+  const live = HERO.filter((h) => h.available)
+  if (live.length) return <div className="pr-hero pr-hero--media">{live.map((h) => <Turntable key={h.id} {...h} />)}</div>
+  return (
+    <div className="pr-hero" aria-hidden="true">
+      {HERO.map((h, i) => (
+        <p key={h.id} className={`pr-hero__word pr-hero__word--${i}`}>
+          <span className="pr-hero__label">{CATEGORIES[h.category].label}</span>
+          <span className="display" data-lines>{i ? <em>{h.name}</em> : h.name}</span>
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/** Products (STORY §12): category follows the chosen path; every product card enquires straight into the RFQ. */
 export function Products() {
   const path = useApp((s) => s.path)
   const [tab, setTab] = useState<Category>(path === 'pond' ? 'shrimps' : 'marine')
-  const root = useRef<HTMLElement>(null)
-  const tabs = useRef<(HTMLButtonElement | null)[]>([])
+  const head = useRef<HTMLElement>(null)
+  const body = useRef<HTMLDivElement>(null)
 
   useEffect(() => setTab(path === 'pond' ? 'shrimps' : 'marine'), [path])
   useEffect(() => store.setState({ prefill: { category: tab } }), [tab])
-  useEffect(() => bindReveals(root.current!), [])
-  // three.js + the GLBs load only when Products is about a section away (never on first paint)
-  const [near, setNear] = useState(false)
   useEffect(() => {
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && (setNear(true), io.disconnect()), { rootMargin: '150% 0px' })
-    io.observe(root.current!)
-    return () => io.disconnect()
+    const a = bindReveals(head.current!)
+    const b = bindLines(head.current!)
+    return () => (a(), b())
   }, [])
+  useEffect(() => bindReveals(body.current!), [tab])
 
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-    const next = TABS[(TABS.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]
-    setTab(next)
-    tabs.current[TABS.indexOf(next)]?.focus()
+  const enquire = (category: Category, species: string) => {
+    store.setState({ prefill: { category, species } })
+    goTo('quote')
   }
   const cat = CATEGORIES[tab]
-  const hasModels = cat.models.some((m) => m.glb)
-  const cards = cat.models.map((m, i) => <ProductCard key={m.name} model={m} index={i} />)
 
   return (
-    <section id="products" className="section theme-light" ref={root} aria-labelledby="products-title">
-      <header className="section__head">
-        <p className="eyebrow mono" data-reveal>Products</p>
-        <h2 id="products-title" className="section__title" data-reveal>Our Products</h2>
+    <section id="products" className="section theme-light pr" aria-labelledby="products-title">
+      <header className="pr-head" ref={head}>
+        <div className="pr-head__copy">
+          <p className="eyebrow mono" data-reveal>Products</p>
+          <h2 id="products-title" className="pr-title" data-lines>
+            Our <em>Products</em>
+          </h2>
+          <ul className="pr-states display" aria-label="Product states" data-reveal>
+            {STATES.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ul>
+        </div>
+        <ProductHero />
       </header>
 
-      <div className="tabs" role="tablist" aria-label="Product category" onKeyDown={onKey} data-reveal>
-        {TABS.map((t, i) => (
-          <button
-            key={t}
-            ref={(el) => void (tabs.current[i] = el)}
-            role="tab"
-            id={`tab-${t}`}
-            aria-selected={tab === t}
-            aria-controls={`panel-${t}`}
-            tabIndex={tab === t ? 0 : -1}
-            className="tab mono"
-            onClick={() => setTab(t)}
-          >
+      <div className="pr-switch" role="group" aria-label="Product category">
+        {TABS.map((t) => (
+          <button key={t} type="button" className="pr-switch__btn" aria-pressed={tab === t} aria-controls="pr-panel" onClick={() => setTab(t)}>
             {CATEGORIES[t].label}
+            <span className="pr-switch__count" aria-hidden="true">{String(CATEGORIES[t].products.length).padStart(2, '0')}</span>
           </button>
         ))}
       </div>
 
-      <div className="products" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        <div className={`products__stage products__stage--${cat.models.length}`}>
-          {hasModels && near ? (
-            <Fallback fallback={cards}>
-              <Suspense fallback={cards}>
-                <ProductStage models={cat.models} />
-              </Suspense>
-            </Fallback>
-          ) : (
-            cards
-          )}
-        </div>
-        <div className="products__info">
-          <h3 className="products__sub mono" data-reveal>{cat.label}</h3>
-          <ul className="species" data-reveal>
-            {cat.species.map((s) => (
-              <li key={s} className="species__item">{s}</li>
-            ))}
-          </ul>
-          {tab === 'shrimps' && (
-            <p className="products__note" data-reveal>
-              <span className="mono">Species offered</span> {SPECIES_OFFERED}
-            </p>
-          )}
-          <button className="products__cta" onClick={() => goTo('quote')} data-reveal>
-            Request specifications <span aria-hidden="true">→</span>
-          </button>
-        </div>
+      <div id="pr-panel" className="pr-panel" ref={body}>
+        <ul className={`pr-grid pr-grid--${cat.products.length}`} aria-label={cat.label}>
+          {cat.products.map((p, i) => (
+            <ProductCard key={p.name} product={p} label={cat.label} index={i} onEnquire={() => enquire(tab, p.name)} />
+          ))}
+        </ul>
+
+        {tab === 'shrimps' && (
+          <div className="pr-forms">
+            <div className="pr-forms__lede" data-reveal>
+              <h3 className="pr-forms__title display">Shrimp forms</h3>
+              <p className="pr-forms__species">
+                <span className="pr-label">Species offered</span>
+                {SPECIES_OFFERED.split(LATIN).map((t, i) => (i % 2 ? <i key={i}>{t}</i> : t))}
+              </p>
+            </div>
+            <dl className="pr-forms__index">
+              {SHRIMP_FORMS.map((f, i) => (
+                <div key={f.name} className="pr-forms__row" data-reveal>
+                  <dt>
+                    <span className="pr-forms__no">{String(i + 1).padStart(2, '0')}</span>
+                    {f.name}
+                  </dt>
+                  <dd>{f.options}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
       </div>
-
-      {tab === 'shrimps' && (
-        <div className="forms">
-          <h3 className="products__sub mono" data-reveal>Shrimp forms</h3>
-          <ul className="forms__grid">
-            {SHRIMP_FORMS.map((f) => (
-              <li key={f.name} className="form-card" data-reveal>
-                <span className="form-card__name">{f.name}</span>
-                <span className="form-card__opt mono">{f.options}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <ul className="states" aria-label="Product states" data-reveal>
-        {STATES.map((s) => (
-          <li key={s} className="states__item display">{s}</li>
-        ))}
-      </ul>
     </section>
   )
 }
