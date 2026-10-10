@@ -36,6 +36,8 @@ export interface ChapterDef {
   joinNext: Join
   /** copy colour scheme; the globe opens into daylight */
   theme?: 'light'
+  /** 'soft': a light, neutral bottom scrim instead of the deep-sea one, for daylight footage (the port) */
+  scrim?: 'soft'
 }
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
@@ -116,7 +118,7 @@ const SHARED: ChapterDef[] = [
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
-    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame',
+    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame', scrim: 'soft',
     media: [{ kind: 'video', id: 'x-cranes', alt: 'A white refrigerated truck parks under a ship-to-shore crane, which lifts the white reefer container on its cables onto the container ship.' }],
     captions: caps('port', [[0.1, 0.92]]),
   },

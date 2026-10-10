@@ -9,6 +9,7 @@ export interface Segment {
   to: number
   /** set on the last segment of a chapter */
   join?: ChapterDef['joinNext']
+  scrim?: ChapterDef['scrim']
 }
 
 /** A chapter's scroll length is split evenly across its media (o1 = a1 then a2), unless a still sets its `span`. */
@@ -18,7 +19,7 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
     return ch.media.map((media, j, all) => {
       const last = j === all.length - 1
       const to = last ? 1 : from + ((media.kind === 'still' && media.span) || 1 / all.length)
-      const seg = { media, chapter, from, to, join: last ? ch.joinNext : undefined }
+      const seg = { media, chapter, from, to, join: last ? ch.joinNext : undefined, scrim: ch.scrim }
       from = to
       return seg
     })
