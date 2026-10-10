@@ -947,7 +947,7 @@ def wake_mat(name='MAT_WakeFoam'):
     nt = m.node_tree
     l = nt.links
     p = principled(m)
-    p.inputs['Base Color'].default_value = (0.86, 0.9, 0.92, 1)
+    p.inputs['Base Color'].default_value = (0.76, 0.8, 0.82, 1)
     p.inputs['Roughness'].default_value = 0.55
     uv = _node(nt, 'ShaderNodeTexCoord', (-1400, 0))
     sep = _node(nt, 'ShaderNodeSeparateXYZ', (-1200, -300))
@@ -1005,10 +1005,19 @@ def wake_mat(name='MAT_WakeFoam'):
     ch.inputs['To Min'].default_value = 0.6
     ch.inputs['To Max'].default_value = 0.0
     l.new(sep.outputs[0], ch.inputs['Value'])
+    # the churn is broken foam too (no smooth glowing cone behind the stern)
+    tn = _node(nt, 'ShaderNodeMapRange', (-500, -900))
+    tn.inputs['From Min'].default_value = 0.4
+    tn.inputs['From Max'].default_value = 0.62
+    l.new(_sock(nz, 'Factor', out=True), tn.inputs['Value'])
+    chn = _node(nt, 'ShaderNodeMath', (-300, -850))
+    chn.operation = 'MULTIPLY'
+    l.new(ch.outputs[0], chn.inputs[0])
+    l.new(tn.outputs[0], chn.inputs[1])
     a3 = _node(nt, 'ShaderNodeMath', (-150, -200))
     a3.operation = 'MAXIMUM'
     l.new(a2.outputs[0], a3.inputs[0])
-    l.new(ch.outputs[0], a3.inputs[1])
+    l.new(chn.outputs[0], a3.inputs[1])
     a4 = _node(nt, 'ShaderNodeMath', (0, -200))
     a4.operation = 'MULTIPLY'
     l.new(a3.outputs[0], a4.inputs[0])
