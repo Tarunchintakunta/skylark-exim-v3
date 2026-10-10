@@ -459,7 +459,8 @@ def build(out):
     sun_az = 130.0
     P.hdri_world('qwantani_mid_morning_puresky_4k.hdr', strength=0.9, rot_deg=sun_az - az_h, sun_elev=el_h, sun_az=sun_az,
                  sun_energy=5.0, sun_color=(1.0, 0.92, 0.8))
-    P.look_settings('exterior', exposure=0.0, haze=(160.0, 900.0, (0.64, 0.76, 0.94), 0.1))
+    P.sky_haze()                                          # warm dusty haze low in the sky
+    P.look_settings('exterior', exposure=0.0, haze=(160.0, 900.0, (0.9, 0.82, 0.7), 0.12))
     s.frame_start, s.frame_end = F0, F1
     s.frame_current = F0
     s.render.filepath = '//../render/p-harvest/'
