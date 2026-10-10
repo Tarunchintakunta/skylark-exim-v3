@@ -299,11 +299,38 @@ def join_static_shrimp():
 
 
 def extend_camera(cam):
-    cam.data.dof.aperture_fstop = 4.0
+    cam.data.dof.aperture_fstop = 2.4             # far figures go soft
 
 
 SHADOW_LIGHTS = {'PL_DockArea4', 'PL_DockArea6', 'PL_DockArea7', 'IN_Area_0_0', 'IN_Area_2_1', 'IN_Area_4_0',
                  'IN_Area_6_1', 'IN_Area_8_0', 'IN_ColdArea1'}
+
+
+def frame_people(s, rng, limit=1.9):
+    """Hide people the camera passes within `limit` m of (chest) while they are in frame, over frames rng (the main
+    camera's whole plant run, so every plant build hides the same people), and thin the processing tables."""
+    from bpy_extras.object_utils import world_to_camera_view as w2c
+    near = set()
+    for f in range(rng[0], rng[1] + 1, 3):
+        s.frame_set(f)
+        c = s.camera.matrix_world.translation
+        for o in s.objects:
+            if o.type != 'ARMATURE' or o.hide_render or o.name in near:
+                continue
+            pb = o.pose.bones.get('chest')
+            w = o.matrix_world @ pb.head
+            if (w - c).length < limit:
+                v = w2c(s, s.camera, w)
+                if -0.15 < v.x < 1.15 and -0.15 < v.y < 1.15 and v.z > 0:
+                    near.add(o.name)
+    for o in bpy.data.objects:
+        nm = o.name
+        thin = nm.startswith('HUM_Proc') and nm[8:10].isdigit() and int(nm[8:10]) >= 8 and int(nm[8:10]) % 2 == 1
+        if o.type == 'ARMATURE' and (nm in near or thin):
+            for ob in [o] + list(o.children_recursive):
+                ob.hide_render = True
+                ob.hide_viewport = True
+    print('people left out:', sorted(near))
 
 
 def shadow_policy():
