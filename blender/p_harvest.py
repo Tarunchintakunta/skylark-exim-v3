@@ -279,7 +279,7 @@ def build(out):
                 e.keyframe_insert('location', frame=f)
             c = w.pose.bones['forearm.' + side].constraints.new('IK')
             c.target = e
-            c.chain_count = 2
+            c.chain_count = 3
             c.use_tail = True
             for f, v in ((F0, 1.0), (78, 1.0), (86, 0.0)):
                 c.influence = v
@@ -306,7 +306,7 @@ def build(out):
             hand.location = gl
             ik = w.pose.bones['forearm.' + hs].constraints.new('IK')
             ik.target = hand
-            ik.chain_count = 2
+            ik.chain_count = 3
             ik.use_tail = True
             # lifter 1 lets go of the belly as lifter 0 tips the bag by the rope
             for f, v in (((F0, 0.0), (50, 0.0), (56, 1.0), (128, 1.0), (134, 0.0)) if k2 == 0 else
@@ -358,6 +358,10 @@ def build(out):
         w.location = (b[0] + 1.6 + k2 * 0.9, 5.4 + k2 * 0.5, TOP)
         w.keyframe_insert('location', frame=fs + 90)
         H.jitter(w, H.POSES['look'], fs + 92, F1 + 10, every=24, amp=4, seed=k2 + 50)
+        for f, dz in ((fs - 6, 0.0), (fs, -0.14), (fs + 8, 0.0)):    # knees bend: hips drop for the pick-up
+            bpy.context.scene.frame_set(f)
+            w.location.z = TOP + dz
+            w.keyframe_insert('location', index=2, frame=f)
         # the crate follows the carrier: hand-height offset in front while walking, then appears in the truck
         cr.parent = None
         cr.keyframe_insert('location', frame=fs)
@@ -378,7 +382,7 @@ def build(out):
             e.location = (hx, 0, 0.22)
             c = w.pose.bones['forearm.' + side].constraints.new('IK')
             c.target = e
-            c.chain_count = 2
+            c.chain_count = 3
             c.use_tail = True
             for f, v in ((F0, 0.0), (fs - 2, 0.0), (fs + 4, 1.0), (fs + 50, 1.0), (fs + 54, 0.0)):
                 c.influence = v
@@ -388,7 +392,9 @@ def build(out):
     # every hand on the net rope, the bag or a crate handle: move the bodies until the IK hands land (2 fps check)
     for n_, a_, b_ in (('HUM_Wader0', F0, 90), ('HUM_Wader1', F0, 90), ('HUM_Lifter0', 44, 136), ('HUM_Lifter1', 44, 100),
                        ('HUM_Carrier0', 140, 210), ('HUM_Carrier1', 152, 222)):
-        H.settle_reach(bpy.data.objects[n_], a_, b_, iters=5, max_shift=0.35, z_fn=z_at if 'Carrier' not in n_ else None)
+        ao = bpy.data.objects[n_]
+        H.settle_reach(ao, a_, b_, step=1, iters=10, max_shift=0.5, win=1 if 'Carrier' in n_ else 3,
+                       z_fn=z_at if 'Carrier' not in n_ else None)
     # driver waiting by the cab, then gets in
     drv = worker('HUM_Driver', 'driver', 'male', 99)
     drv.location = (tx0 + 5.2, -0.4, TOP)
