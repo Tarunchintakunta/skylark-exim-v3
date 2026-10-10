@@ -274,13 +274,10 @@ def proc_crew(C, rnd):
         w.rotation_euler = (0, 0, D(rz + rnd.uniform(-8, 8)))
         bpy.context.view_layer.update()
         if hands_on_work(w, rnd, C=C):
-            H.jitter(w, {k: v for k, v in work.items() if k in ('spine', 'chest', 'neck', 'head')}, 1, 1060,
+            wk = dict(work, spine=(28, 0, 0), chest=(12, 0, 0)) if 4 <= n < 8 else work   # graders lean to low trays
+            H.jitter(w, {k: v for k, v in wk.items() if k in ('spine', 'chest', 'neck', 'head')}, 1, 1060,
                      every=8 + n % 5, amp=5, seed=n, arms=False)
-            if 4 <= n < 8:                                     # graders: low trays, step in until hands land
-                for pb in w.pose.bones:
-                    for c in pb.constraints:
-                        if c.type == 'IK':
-                            c.chain_count = 3
+            if 4 <= n < 8:                                     # graders: low trays, lean in and step in until hands land
                 H.settle_reach(w, 470, 780, step=3, iters=6, max_shift=0.35, win=2)
         else:
             H.jitter(w, {'spine': (10, 0, 0), 'head': (14, 0, 0), 'upperarm': (8, -24, 0), 'forearm': (22, 0, 0)},
