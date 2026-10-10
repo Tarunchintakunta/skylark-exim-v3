@@ -1813,7 +1813,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
             if 'heap' not in _CRATE:
                 _CRATE['heap'] = [ice_heap('LIB_CrateIceHeap%d' % k, 0.52, 0.32, 380, 11 + k, 0.032, 0.075) for k in range(3)]
                 _CRATE['melt'] = box_mesh('LIB_CrateMelt', (0.54, 0.34, 0.004), 0.0, 1)
-                mw = pbr('MAT_Meltwater', (0.03, 0.045, 0.05), 0.04, var=0.1, coat=0.8)   # dark wet pooling in the corners
+                mw = pbr('MAT_Meltwater', (0.11, 0.13, 0.13), 0.08, var=0.15, coat=0.8)   # wet grey pooling (darker read as holes)
                 _CRATE['melt'].materials.append(mw)
             obj(f'{name}_melt', _CRATE['melt'], None, (0, 0, level + 0.004), parent=c)
             heap = obj(f'{name}_iceheap', rnd.choice(_CRATE['heap']), mats['ice'], (0, 0, level + 0.06), parent=c)
