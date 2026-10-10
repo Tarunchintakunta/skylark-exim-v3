@@ -1,6 +1,8 @@
 """Build assets-src/blender/o-return.blend (docs/blender/SCENES.md §3): the boat comes home to a busy fishing harbour,
 iced crates go hand to hand onto trolleys and into the white reefer truck, which pulls away forward. Frames 1-288.
   /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python blender/build_o_return.py
+SK_SCENE=o-depart builds o-depart.blend from the same harbour instead (#164): first light, the boat casts off and heads
+out past the breakwater head toward the sunrise. Frames 1-240.
 World: wharf edge on y = 0 (land y < 0, harbour water y > 0), wharf top z = 1.8, water z = 0. No names, no signs.
 """
 import math
@@ -19,15 +21,20 @@ import sklib_port as P  # noqa: E402
 import sklib_plant as PL  # noqa: E402
 
 REPO = os.path.dirname(HERE)
-OUT = os.path.join(REPO, 'assets-src', 'blender', 'o-return.blend')
+DEPART = os.environ.get('SK_SCENE') == 'o-depart'
+OUT = os.path.join(REPO, 'assets-src', 'blender', 'o-depart.blend' if DEPART else 'o-return.blend')
+F_END = 240 if DEPART else 288
 D = math.radians
 rnd = random.Random(21)
 WZ = 1.8
 
 s = L.reset()
-s.frame_start, s.frame_end = 1, 288
+s.frame_start, s.frame_end = 1, F_END
 mats = L.M()
-L.hdri('qwantani_mid_morning_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
+if DEPART:   # low sun over the sea (+Y = east), warm
+    L.hdri('qwantani_morning_puresky_4k', strength=0.45, rot=-64.0, sun_strength=3.4, sun_color=(1.0, 0.72, 0.5))
+else:
+    L.hdri('qwantani_mid_morning_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
 
 # ---------------------------------------------------------------- water, wharf, breakwater, hills
 sea = L.ocean('Harbour', size=60, repeat=6, res=10, choppy=0.5, wind=4.0, scale=0.25, f0=1, f1=288, foam=0.05,
@@ -53,6 +60,10 @@ me = L.bm_to_mesh(bm, 'BREAKWATER')
 me.materials.append(L.pbr('MAT_Rock', (0.42, 0.4, 0.37), 0.85, var=0.3, bump=0.6, scale=1.5, grime=0.4))
 L.obj('BREAKWATER', me)
 L.box('BREAKWATER_Light', (1.2, 1.2, 5.0), (200, 60, 2.5), mats['paint_white'], 0.05)
+if DEPART:   # beacon on the breakwater head at the harbour mouth the boat passes
+    L.cyl('BREAKWATER_Beacon', 0.9, 7.0, (40, 70, 1.5), mats['paint_white'], 16, origin='base')
+    L.cyl('BREAKWATER_BeaconBand', 0.95, 1.2, (40, 70, 6.0), mats['paint_red'] if 'paint_red' in mats else mats['lamp_red'], 16,
+          origin='base')
 # distant hills (green, lighter with distance) and a far coast line
 bm = bmesh.new()
 bmesh.ops.create_grid(bm, x_segments=80, y_segments=20, size=1.0)
@@ -88,14 +99,17 @@ for i in range(4):
 # ---------------------------------------------------------------- our vessel comes home (same library vessel as o-catch)
 V = S.vessel('BOAT', (120, 30, 0), D(180), mats=mats)
 boat = V['root']
-for f, p, rz in ((1, (120, 34, 0), 180), (50, (68, 34, 0), 182), (90, (26, 29, 0), 196), (120, (8, 12, 0), 200), (140, (2, 4.0, 0), 180),
-                 (288, (2, 4.0, 0), 180)):
+BOAT_KEYS = ((1, (2, 4.0, 0), 180), (40, (2, 4.0, 0), 180), (80, (-6, 10, 0), 150), (120, (-8, 26, 0), 110),
+             (170, (-4, 55, 0), 95), (240, (4, 115, 0), 88)) if DEPART else \
+    ((1, (120, 34, 0), 180), (50, (68, 34, 0), 182), (90, (26, 29, 0), 196), (120, (8, 12, 0), 200), (140, (2, 4.0, 0), 180),
+     (288, (2, 4.0, 0), 180))
+for f, p, rz in BOAT_KEYS:
     boat.location = p
     boat.rotation_euler = (0, 0, D(rz))
     boat.keyframe_insert('location', frame=f)
     boat.keyframe_insert('rotation_euler', frame=f)
 L.smooth_keys(boat)
-for f in range(1, 289, 12):
+for f in range(1, F_END + 1, 12):
     boat.rotation_euler.x = D(1.0 * math.sin(f / 23.0))
     boat.keyframe_insert('rotation_euler', index=0, frame=f)
 # hold full of iced crates (boat local)
@@ -110,7 +124,8 @@ for ix in range(5):
         k += 1
 # bow wave + wake while under way
 wake = P.wake('BOAT_Wake', boat, -11.5, length=70.0, w0=5.0, w1=22.0, z=0.12, kelvin=False)
-for f, sc in ((1, 1.0), (100, 0.7), (130, 0.15), (142, 0.01)):
+for f, sc in (((1, 0.01), (44, 0.01), (90, 0.5), (140, 0.9), (240, 1.0)) if DEPART else
+              ((1, 1.0), (100, 0.7), (130, 0.15), (142, 0.01))):
     wake.scale = (sc, 1, 1)
     wake.keyframe_insert('scale', frame=f)
 
@@ -122,8 +137,14 @@ for i, (x, y, rz, o) in enumerate(((hc, 1.0, 90, 'fisherman_o'), (hc + 0.8, -1.2
     r = L.person(f'CREW{i}', o, (x, y, DZ), D(rz), seed=i, mats=mats)
     r.parent = boat
     crew.append(r)
-L.anim_poses(crew[2], [(1, 'idle'), (110, 'pull'), (125, 'pull2'), (140, 'idle')])
-L.anim_poses(crew[3], [(1, 'idle'), (100, 'point'), (130, 'idle')])
+if DEPART:   # bow line comes aboard and is coiled, the skipper's mate points the way out
+    L.anim_poses(crew[2], [(1, 'pull'), (14, 'pull2'), (28, 'pull'), (42, 'pull2'), (56, 'idle'), (240, 'idle')])
+    L.anim_poses(crew[3], [(1, 'idle'), (70, 'point'), (110, 'idle'), (240, 'idle')])
+    L.anim_poses(crew[0], [(1, 'guide'), (60, 'idle'), (240, 'idle')])
+    L.anim_poses(crew[1], [(1, 'reach'), (50, 'idle'), (240, 'idle')])
+else:
+    L.anim_poses(crew[2], [(1, 'idle'), (110, 'pull'), (125, 'pull2'), (140, 'idle')])
+    L.anim_poses(crew[3], [(1, 'idle'), (100, 'point'), (130, 'idle')])
 # wharf workers
 wk_spots = [(4, -1.4, 90, 'dock'), (1.5, -1.6, 70, 'dock2'), (-1.5, -2.0, 30, 'dock'), (-4.0, -3.5, 120, 'dock'),
             (14, -4, 200, 'dock2'), (22, -9, 250, 'dock'), (-22, -3, 10, 'dock'), (-30, -7, 300, 'dock2'),
@@ -134,10 +155,15 @@ for i, (x, y, rz, o) in enumerate(wk_spots):
     workers.append(w)
     L.anim_poses(w, [(1, 'idle'), (60 + i * 9, 'point' if i % 5 == 0 else 'idle'), (288, 'idle')])
 # hand chain 140-200: deck crew -> wharf workers
-for r in (crew[0], crew[1]):
-    L.anim_poses(r, [(1, 'idle'), (135, 'idle')] + [(f, 'lift' if (f // 8) % 2 == 0 else 'pass') for f in range(140, 210, 8)] + [(220, 'idle')])
-for w in workers[:3]:
-    L.anim_poses(w, [(1, 'idle'), (138, 'idle')] + [(f, 'reach' if (f // 8) % 2 == 0 else 'carry') for f in range(142, 212, 8)] + [(222, 'idle')])
+if DEPART:   # a wharf hand slips the bow line off the bollard and throws it aboard
+    L.anim_poses(workers[2], [(1, 'pull'), (16, 'pull2'), (30, 'reach'), (44, 'point'), (80, 'idle')])
+    mline = L.tube('BOAT_BowLine', [(-8.6, 1.4, 2.5), (-8.3, 0.3, 2.0), (-8.0, -0.6, WZ + 0.55)], 0.03, mats['rope'], 6)
+    L.key_vis(mline, 1, 32)
+else:
+    for r in (crew[0], crew[1]):
+        L.anim_poses(r, [(1, 'idle'), (135, 'idle')] + [(f, 'lift' if (f // 8) % 2 == 0 else 'pass') for f in range(140, 210, 8)] + [(220, 'idle')])
+    for w in workers[:3]:
+        L.anim_poses(w, [(1, 'idle'), (138, 'idle')] + [(f, 'reach' if (f // 8) % 2 == 0 else 'carry') for f in range(142, 212, 8)] + [(222, 'idle')])
 # trolleys on the wharf, crates stacked on them, pushed to the truck
 TRK = Vector((-12.0, -7.0, WZ))
 L.weather(PL.panel_mat("MAT_ReeferBox", (0.84, 0.85, 0.84), 0.6, "X"), streak=(0.4, 0.35, 0.27), amount=0.45,
@@ -161,14 +187,14 @@ ilo = bpy.data.objects.new('TRK_InteriorLight', il)
 s.collection.objects.link(ilo)
 ilo.parent = troot
 ilo.location = (0.5, 0, 3.4)
-for side, sgn in (('l', 1), ('r', -1)):
+for side, sgn in ((() if DEPART else (('l', 1), ('r', -1)))):
     h = truck['door_' + side]
     for f, a in ((1, 0), (140, 0), (152, 100), (215, 100), (226, 0)):
         h.rotation_euler = (0, 0, D(-a * sgn))
         h.keyframe_insert('rotation_euler', frame=f)
 # cold mist puff when the doors open
 mist = L.pbr('MAT_Mist', (0.92, 0.95, 0.97), 0.6, var=0.2, bump=0.0, alpha=0.18)
-for i in range(4):
+for i in range(0 if DEPART else 4):
     mo = L.sphere(f'MIST{i}', 0.6, (0, 0, 0), mist, (1.4, 1.0, 0.8), 12, 8, parent=troot)
     for f, p, sc in ((150, (-2.4, 0.3 * i - 0.4, 2.4), 0.3), (165, (-3.2 - i * 0.2, 0.3 * i - 0.4, 2.7), 1.0), (185, (-3.8, 0.3 * i, 3.2), 0.01)):
         mo.location = p
@@ -177,7 +203,7 @@ for i in range(4):
         mo.keyframe_insert('scale', frame=f)
     L.key_vis(mo, 150, 186)
 trolleys = []
-for i in range(3):
+for i in range(0 if DEPART else 3):
     t = PL.trolley(f'TROLLEY{i}', (2.5 - i * 1.6, -2.4, WZ), D(180), mats)
     for lv in range(3):
         for j in range(2):
@@ -196,7 +222,8 @@ road = [(TRK.x, TRK.y), (TRK.x, TRK.y - 12), (TRK.x - 1.5, TRK.y - 40), (TRK.x -
 for f in (1, 230):
     troot.location = (TRK.x, TRK.y, WZ)
     troot.keyframe_insert('location', frame=f)
-P.drive(troot, road, 230, 288, truck['wheels'], r=0.5, ease=False, keystep=2)
+if not DEPART:
+    P.drive(troot, road, 230, 288, truck['wheels'], r=0.5, ease=False, keystep=2)
 # accelerate: retime by easing in (re-key with ease-in only)
 drv = L.person('DRIVER', 'driver', (0, 0, 0), 0.0, seed=91, mats=mats)
 drv.parent = troot
@@ -390,11 +417,24 @@ for f in list(range(246, 288, 6)) + [288]:
     s.frame_set(f)
     tp = troot.matrix_world.translation
     keys.append((f, (tp.x + 2.0, tp.y + 9.0, WZ + 3.0), (tp.x - 0.5, tp.y - 4.0, WZ + 1.5), 30))
-s.frame_set(1)
-L.cam_path(cam, keys, focus=[(1, 50.0), (72, 30.0), (130, 9.0), (175, 8.0), (204, 10.0), (216, 9.0), (230, 10.0), (288, 9.0)])
+if DEPART:
+    # on the wharf at the bow as the line comes off, then rising behind the boat as it heads for the sunrise
+    keys = [(1, (2.0, -5.0, WZ + 1.8), (-8.0, 2.5, 2.6), 30), (36, (3.0, -6.0, WZ + 2.8), (-6.0, 5.0, 2.6), 30)]
+    focus = [(1, 10.0), (36, 11.0)]
+    for f in list(range(64, F_END, 16)) + [F_END]:
+        s.frame_set(f)
+        bp = boat.matrix_world.translation
+        u = (f - 64) / (F_END - 64)
+        keys.append((f, (bp.x + 12.0 - 6 * u, bp.y - 22.0, 11.0 + 3 * u), (bp.x - 1.0, bp.y + 40.0, 1.5), 30))
+        focus.append((f, 32.0))
+    s.frame_set(1)
+    L.cam_path(cam, keys, focus=focus)
+else:
+    s.frame_set(1)
+    L.cam_path(cam, keys, focus=[(1, 50.0), (72, 30.0), (130, 9.0), (175, 8.0), (204, 10.0), (216, 9.0), (230, 10.0), (288, 9.0)])
 s.camera = cam
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
-sys.argv = [sys.argv[0], '--', 'o-return', '1', '288', 'exterior']
+sys.argv = [sys.argv[0], '--', 'o-depart' if DEPART else 'o-return', '1', str(F_END), 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
 print('BUILT', OUT, len(bpy.data.objects), 'objects')

@@ -7,6 +7,7 @@
 SCENES=(
   "o-catch-a|o-catch|1|192|o-catch"
   "o-catch-b|o-catch|192|383|o-catch"
+  "o-depart|o-depart|1|240|o-depart"
   "o-return|o-return|1|288|o-return"
   "p-ponds|p-ponds|1|192|p-ponds"
   "p-harvest|p-harvest|1|288|p-harvest"
