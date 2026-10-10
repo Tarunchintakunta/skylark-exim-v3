@@ -240,7 +240,7 @@ def mats():
     fab = CC0 + '/tex/Fabric030/Fabric030_2K-JPG_NormalGL.jpg'
     fab2 = CC0 + '/tex/Fabric061/Fabric061_2K-JPG_NormalGL.jpg'
     return {
-        'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.45, sss=0.15, bump=0.05, rand=0.25),
+        'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.5, sss=0.3, bump=0.12, rand=0.25),   # SSS + pore bump
         'eye': _eye_mat(),
         'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.6, 0.61, 0.6), 0.85, sheen=0.3, bump=0.12, rand=0.04,
                                       wrinkle=0.6, normal_tex=fab, tex_scale=45.0),
@@ -428,7 +428,7 @@ def _region(body, gender, piece, k):
             if piece == 'cap':
                 sel = z > 1.60 and ax < 0.12
         elif piece == 'mask':
-            sel = 1.462 < z < 1.552 and ax < 0.078 and n.y < -0.25
+            sel = 1.462 < z < 1.552 and ax < 0.078 and n.y < 0.2    # nostril/lip undersides too: no holes
         elif piece == 'stache':
             sel = STACHE[0] < z < STACHE[1] and ax < STACHE[2] and n.y < -0.12
         elif piece == 'vest':
@@ -441,8 +441,8 @@ STACHE = (1.505, 1.517, 0.030)       # upper lip band (z lo, z hi, half width) o
 SLEEVE = {'jacket': 0.545, 'parka': 0.55, 'labcoat': 0.535, 'shirt': 0.17, 'shirt_farm': 0.31}
 CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap', 'shirt', 'trousers', 'trousers_dark',
         'shorts')
-THICK = {'jacket': 0.038, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.042, 'trousers': 0.03,
-         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.036, 'shoes': 0.008,
+THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
+         'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.016, 'shoes': 0.008,
          'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
          'vest': 0.04, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
@@ -476,7 +476,7 @@ def _shell(body, piece, mask, M):
     bmesh.ops.delete(bm, geom=loose, context='VERTS')
     t = THICK[piece]
     loose_cloth = piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark',
-                            'trousers_rolled', 'shorts', 'vest', 'boots')
+                            'trousers_rolled', 'shorts', 'vest', 'boots', 'shoes')
     bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
     bnd = [v for v in bm.verts if v.is_boundary]
     for _ in range(8):                      # straighten the hem line (1D smoothing along the border)
@@ -515,11 +515,11 @@ def _shell(body, piece, mask, M):
             # smoothing shrinks the shell into the body: re-inflate to keep clearance
             for v in inner:
                 hit, nrm, _i, d = bvh.find_nearest(v.co)
-                clr = 0.018 if piece == 'boots' else 0.007      # boots: no toes showing through
+                clr = 0.018 if piece in ('boots', 'shoes') else 0.007      # boots: no toes showing through
                 if hit is not None and d < clr:
                     v.co = hit + nrm * clr
-        if piece == 'boots':                      # rubber boot toe box: hull of the foot, no toes
-            zc = 0.15 * KH
+        if piece in ('boots', 'shoes'):           # boot / shoe toe box: hull of the foot, no toes
+            zc = (0.15 if piece == 'boots' else 0.06) * KH
             bmesh.ops.delete(bm, geom=[f for f in bm.faces if all(v.co.z < zc for v in f.verts)], context='FACES')
             bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
             for sx in (-1, 1):
@@ -527,7 +527,7 @@ def _shell(body, piece, mask, M):
                 if len(pts) < 8:
                     continue
                 ctr = sum(pts, Vector()) / len(pts)
-                new = [bm.verts.new(ctr + (q - ctr) * 1.0 + (q - ctr).normalized() * 0.014) for q in pts]
+                new = [bm.verts.new(ctr + (q - ctr) * 1.0 + (q - ctr).normalized() * 0.007) for q in pts]   # hugs the foot
                 hull = bmesh.ops.convex_hull(bm, input=new)
                 loose = {g for g in hull.get('geom_interior', []) + hull.get('geom_unused', [])
                          if isinstance(g, bmesh.types.BMVert)}
@@ -577,6 +577,13 @@ def _shell(body, piece, mask, M):
                 u = min(1.0, (1.25 * KH - z) / 0.5)
                 extra += 0.007 * u * u * (3 - 2 * u) * (0.5 + 0.5 * math.sin(a * 9 + math.sin(z * 7) * 0.8))
         v.co += v.normal * (t + extra)
+    if piece == 'mask':                     # pleated mask spans the face: fill nostrils/lips/cheek hollows, no moulding
+        tv = min(bm.verts, key=lambda q: q.co.y)
+        tip, tz = tv.co.y, tv.co.z
+        for v in bm.verts:              # tent: curves back toward the cheeks and under the chin
+            front = tip + 0.004 + (5.0 * v.co.x ** 2 + 6.0 * max(0.0, tz - v.co.z) ** 2) / KH
+            if v.co.y > front and not v.is_boundary:
+                v.co.y = front
     bm.to_mesh(me)
     bm.free()
     # copy weights from body (same vertex order before delete is lost, so transfer by nearest)
@@ -858,6 +865,9 @@ def set_pose(ao, P, frame=None):
         else:
             full.setdefault(k + '.L', v)
             full.setdefault(k + '.R', v)
+    for k, v in list(full.items()):
+        if k.startswith('upperarm.') and v[1] < ARM_IN:      # rest arm is 23 deg out; past -16 it enters the torso
+            full[k] = (v[0], ARM_IN, v[2])
     for pb in ao.pose.bones:
         side = pb.name.split('.')[-1] if '.' in pb.name else ''
         _rot(pb, *full.get(pb.name, (0, 0, 0)), side)
@@ -969,8 +979,9 @@ def ik_feet(ao, tgt_l, tgt_r):
         c.chain_count = 2
 
 
+ARM_IN = -16.0     # most-inward upperarm side angle: arm hangs just clear of the hip
 POSES = {
-    'stand': {'upperarm': (4, -37, 0), 'forearm': (12, 0, 0)},          # arms hang by the sides, not A-pose
+    'stand': {'upperarm': (4, -16, 0), 'forearm': (12, 0, 0)},          # arms hang by the sides, not A-pose
     'table': {'spine': (10, 0, 0), 'chest': (8, 0, 0), 'neck': (14, 0, 0), 'head': (12, 0, 0),
               'upperarm': (28, -10, 0), 'forearm': (72, 0, 0), 'hand': (-10, 0, 0)},
     'lift_low': {'spine': (30, 0, 0), 'chest': (12, 0, 0), 'head': (-10, 0, 0),
@@ -978,7 +989,7 @@ POSES = {
                  'upperarm': (50, -8, 0), 'forearm': (20, 0, 0)},
     'carry': {'spine': (-4, 0, 0), 'upperarm': (12, -10, 0), 'forearm': (80, 0, 0)},
     'push': {'spine': (14, 0, 0), 'upperarm': (42, -6, 0), 'forearm': (35, 0, 0)},
-    'look': {'upperarm': (6, -36, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
+    'look': {'upperarm': (6, -16, 0), 'forearm': (16, 0, 0), 'head': (8, 0, 0)},
 }
 
 
