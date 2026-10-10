@@ -47,17 +47,19 @@ def hull_material(name='MAT_HullWhiteBlue', white=(0.82, 0.83, 0.8), band=(0.03,
     st = _node(nt, 'ShaderNodeMapRange', (-700, -400))
     st.inputs['From Min'].default_value = 0.55
     st.inputs['From Max'].default_value = 0.8
-    st.inputs['To Max'].default_value = 0.45
+    st.inputs['To Max'].default_value = 0.6
     l.new(_sock(nz, 'Factor', out=True), st.inputs['Value'])
     col = mixrgb(nt, st.outputs[0], _sock(ramp, 'Color', out=True), (0.3, 0.18, 0.1), loc=(-400, -100))
     l.new(col, p.inputs['Base Color'])
     rr = _node(nt, 'ShaderNodeMapRange', (-400, -400))
-    rr.inputs['To Min'].default_value = 0.28
-    rr.inputs['To Max'].default_value = 0.6
+    rr.inputs['To Min'].default_value = 0.5
+    rr.inputs['To Max'].default_value = 0.82      # matte, sun-worn paint
     l.new(_sock(nz, 'Factor', out=True), rr.inputs['Value'])
     l.new(rr.outputs[0], p.inputs['Roughness'])
-    p.inputs['Coat Weight'].default_value = 0.25
-    return m
+    p.inputs['Coat Weight'].default_value = 0.04
+    # waterline scum and grime low on the topsides, salt-dulled above
+    return weather(m, streak=(0.28, 0.16, 0.08), amount=0.55, z0=-0.2, z1=1.4, dirt=(0.16, 0.17, 0.11),
+                   dirt_amount=0.7, scale=1.2)
 
 
 def hull_b(x, L=24.0, B=3.2):
