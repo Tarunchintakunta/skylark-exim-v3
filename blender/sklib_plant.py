@@ -65,7 +65,12 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, mats=None, ca
     bx = rear + BL / 2
     # hollow (floor, roof, sides, front wall): the load shows through the open rear doors
     mb.box((bx, 0, BZ + 0.04), (BL, BW, 0.08), boxw)
-    mb.box((bx, 0, BZ + BH - 0.04), (BL, BW, 0.08), boxw)
+    # roof: grey with soot, pooled-water stains and seams (seen from above it was a bare white slab)
+    roofm = weather(pbr('MAT_ReeferRoof', (0.55, 0.56, 0.54), 0.55, 0.2, grime=1.0, scale=0.35), streak=(0.25, 0.23, 0.2),
+                    amount=0.9, z0=BZ + BH - 0.2, z1=BZ + BH + 0.1, dirt=(0.16, 0.15, 0.13), dirt_amount=0.9, scale=0.6)
+    mb.box((bx, 0, BZ + BH - 0.04), (BL, BW, 0.08), roofm)
+    for k in range(1, 6):
+        mb.box((rear + BL * k / 6, 0, BZ + BH + 0.005), (0.05, BW - 0.06, 0.02), mats['steel'])   # roof bows / seams
     for sy in (-1, 1):
         mb.box((bx, sy * (BW / 2 - 0.04), BZ + BH / 2), (BL, 0.08, BH), boxw)
     mb.box((rear + BL - 0.04, 0, BZ + BH / 2), (0.08, BW, BH), boxw)
