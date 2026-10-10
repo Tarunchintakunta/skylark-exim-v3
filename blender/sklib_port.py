@@ -955,7 +955,7 @@ def wake_mat(name='MAT_WakeFoam'):
     l.new(_sock(uv, 'UV', out=True), sep.inputs[0])
     # streaky foam: noise stretched along the wake (u = along, v = across)
     mp = _node(nt, 'ShaderNodeMapping', (-1200, 200))
-    mp.inputs['Scale'].default_value = (14.0, 22.0, 1.0)     # broken into patches along the wake, not a smooth cone
+    mp.inputs['Scale'].default_value = (3.0, 4.0, 1.0)       # big broken foam patches that still read from the air
     l.new(_sock(uv, 'UV', out=True), mp.inputs['Vector'])
     nz = _node(nt, 'ShaderNodeTexNoise', (-1000, 200))
     nz.inputs['Scale'].default_value = 6.0
@@ -1025,7 +1025,7 @@ def wake_mat(name='MAT_WakeFoam'):
     l.new(ce.outputs[0], a4.inputs[1])
     a5 = _node(nt, 'ShaderNodeMath', (100, -200))
     a5.operation = 'MULTIPLY'
-    a5.inputs[1].default_value = 0.55
+    a5.inputs[1].default_value = 0.45
     l.new(a4.outputs[0], a5.inputs[0])
     l.new(a5.outputs[0], p.inputs['Alpha'])
     if hasattr(m, 'surface_render_method'):
