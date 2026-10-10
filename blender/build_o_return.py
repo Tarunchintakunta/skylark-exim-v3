@@ -29,6 +29,8 @@ s.frame_start, s.frame_end = 1, 288
 mats = L.M()
 L.hdri('qwantani_mid_morning_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
 
+bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
+
 # ---------------------------------------------------------------- water, wharf, breakwater, hills
 sea = L.ocean('Harbour', size=60, repeat=6, res=10, choppy=0.5, wind=4.0, scale=0.25, f0=1, f1=288, foam=0.05,
               mat=mats['water_harbour'], loc=(20, 120, 0))
