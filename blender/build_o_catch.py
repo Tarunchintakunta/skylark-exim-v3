@@ -33,6 +33,8 @@ bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's
 # ---------------------------------------------------------------- vessel
 V = S.vessel('BOAT', mats=mats)
 boat = V['root']
+for _o in [o for o in bpy.data.objects if o.name.startswith('BOAT_Bucket')]:   # smooth blue drums read as toy balls
+    bpy.data.objects.remove(_o)
 DZ = V['deck_z']
 # gentle roll and pitch (the sea moves the boat; crew and props are children so they move with it)
 for f in range(1, 384, 12):
@@ -455,8 +457,8 @@ keys = [
     (130, (4.2, -3.1, 3.0), (3.6, 3.2, 5.0), 22),
     (150, (5.4, -5.0, 3.0), (2.2, 0.2, 5.0), 24),
     (170, (3.0, -4.4, 3.2), (2.4, 0.2, 3.2), 26),
-    (192, (-2.0, -5.0, 7.2), (PILE.x, PILE.y - 0.3, DZ), 30),     # high and back: crew mid-distance, king post short in frame
-    (260, (5.6, -5.4, 7.0), (2.6, -0.6, DZ), 30),
+    (192, (-4.5, -2.6, 7.0), (PILE.x + 0.6, PILE.y - 0.3, DZ), 30),   # from aft-port: the king post sits well off to the side
+    (260, (-3.6, -4.6, 7.2), (2.8, -0.6, DZ), 30),
     (330, (5.2, -2.4, 6.4), (HC.x, 0.0, hold_floor + 0.6), 30),
     (383, (HC.x + 0.05, -0.02, 4.4), (HC.x, 0.0, hold_floor), 32),   # tight on the hatch: no crew cut at the frame edge
 ]
