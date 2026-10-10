@@ -438,14 +438,14 @@ for f in list(range(246, 288, 6)) + [288]:
     keys.append((f, (tp.x + 2.0, tp.y + 9.0, WZ + 3.0), (tp.x - 0.5, tp.y - 4.0, WZ + 1.5), 30))
 if DEPART:
     # on the wharf at the bow as the line comes off, then rising behind the boat as it heads for the sunrise
-    keys = [(1, (2.0, -5.0, WZ + 1.8), (-8.0, 2.5, 2.6), 30), (36, (3.0, -6.0, WZ + 2.8), (-6.0, 5.0, 2.6), 30)]
-    focus = [(1, 10.0), (36, 11.0)]
+    keys = [(1, (5.0, -10.0, WZ + 3.4), (-7.0, 3.0, 2.2), 30), (36, (6.0, -11.0, WZ + 4.4), (-5.0, 5.5, 2.2), 30)]   # wharf hands mid-distance
+    focus = [(1, 15.5), (36, 16.5)]
     for f in list(range(64, F_END, 16)) + [F_END]:
         s.frame_set(f)
         bp = boat.matrix_world.translation
         u = (f - 64) / (F_END - 64)
-        keys.append((f, (bp.x - 15.0 + 4 * u, bp.y - 12.0 - 6 * u, 5.0 + 2 * u), (bp.x + 5.0, bp.y + 30.0, 2.0), 30))
-        focus.append((f, 32.0))
+        keys.append((f, (bp.x - 10.0 + 3 * u, bp.y - 24.0 - 6 * u, 9.0 + 3 * u), (bp.x + 2.0, bp.y + 14.0, 0.0), 30))   # high astern: the V-wake opens below
+        focus.append((f, 30.0))
     s.frame_set(1)
     L.cam_path(cam, keys, focus=focus)
 else:
