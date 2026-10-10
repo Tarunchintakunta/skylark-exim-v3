@@ -466,3 +466,51 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         floats.append(obj(f'{name}_Float{i}', fl, None, (r * math.cos(a), r * math.sin(a), -depth * (t ** 0.85)), (0, D(60), a),
                           parent=root))
     return root, net, core, fishes, floats
+
+
+def hill_material(name='MAT_HillTerrain', haze=0.0):
+    """Distant coastal hills: patches of dark tree cover, dry scrub and bare red earth at two scales (object space),
+    with a little bump so ridges catch the light. haze lifts the colours toward the sky for far ranges."""
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    p.inputs['Roughness'].default_value = 0.92
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    n1 = nt.nodes.new('ShaderNodeTexNoise')
+    n1.inputs['Scale'].default_value = 0.006
+    n1.inputs['Detail'].default_value = 8.0
+    n2 = nt.nodes.new('ShaderNodeTexNoise')
+    n2.inputs['Scale'].default_value = 0.05
+    n2.inputs['Detail'].default_value = 6.0
+    for n in (n1, n2):
+        nt.links.new(tc.outputs['Object'], n.inputs['Vector'])
+    mx = nt.nodes.new('ShaderNodeMath')
+    mx.operation = 'MULTIPLY_ADD'
+    nt.links.new(n2.outputs['Fac'], mx.inputs[0])
+    mx.inputs[1].default_value = 0.35
+    nt.links.new(n1.outputs['Fac'], mx.inputs[2])
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    cr = ramp.color_ramp
+    h = lambda c: tuple(c[i] * (1 - haze) + (0.42, 0.45, 0.48)[i] * haze for i in range(3)) + (1.0,)
+    cr.elements[0].position, cr.elements[0].color = 0.45, h((0.03, 0.05, 0.025))     # tree cover
+    cr.elements[1].position, cr.elements[1].color = 0.95, h((0.22, 0.13, 0.07))      # bare laterite
+    e = cr.elements.new(0.62)
+    e.color = h((0.07, 0.09, 0.04))                                                   # scrub
+    e = cr.elements.new(0.78)
+    e.color = h((0.15, 0.14, 0.08))                                                   # dry grass
+    nt.links.new(mx.outputs[0], ramp.inputs[0])
+    nt.links.new(ramp.outputs[0], p.inputs['Base Color'])
+    bump = nt.nodes.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 0.4
+    nt.links.new(n2.outputs['Fac'], bump.inputs['Height'])
+    nt.links.new(bump.outputs['Normal'], p.inputs['Normal'])
+    return m
+
+
+def hill_height(x, y, h):
+    """Add ridges and gullies to a smooth hill profile (metres)."""
+    return h + 0.18 * h * noise.fractal(Vector((x / 180.0, y / 180.0, 0.0)), 0.6, 2.0, 5)
