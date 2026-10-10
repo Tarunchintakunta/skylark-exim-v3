@@ -40,6 +40,7 @@ let shown: Slot | null = null
 let over = -1
 let hidden = false
 let isLight = false
+let isSoft = false
 let lastY = 0
 /** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
 const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
@@ -236,6 +237,11 @@ function tick() {
   if (light !== isLight) {
     isLight = light
     stage?.classList.toggle('is-light', light)
+  }
+  const soft = seg.scrim === 'soft'
+  if (soft !== isSoft) {
+    isSoft = soft
+    stage?.classList.toggle('is-soft', soft)
   }
   if (o >= 0 && posters[o]) {
     posters[o]!.classList.add('is-over')

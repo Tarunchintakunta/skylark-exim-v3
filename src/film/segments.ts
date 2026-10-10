@@ -9,6 +9,7 @@ export interface Segment {
   to: number
   /** set on the last segment of a chapter */
   join?: ChapterDef['joinNext']
+  scrim?: ChapterDef['scrim']
 }
 
 /** A chapter's scroll length is split evenly across its media (o1 = a1 then a2). */
@@ -20,6 +21,7 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
       from: j / all.length,
       to: (j + 1) / all.length,
       join: j === all.length - 1 ? ch.joinNext : undefined,
+      scrim: ch.scrim,
     })),
   )
 }
