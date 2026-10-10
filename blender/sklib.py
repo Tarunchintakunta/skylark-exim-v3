@@ -487,13 +487,13 @@ def textured_overrides():
     tex_pbr('MAT_PaintWhite', 'PaintedMetal004', 0.6, tint=(0.8, 0.81, 0.79), tint_amount=0.85, metal=0.1, grime=0.35, bump=0.12, paint_mask=True)
     tex_pbr('MAT_PaintBlue', 'PaintedMetal004', 0.6, tint=(0.04, 0.12, 0.33), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
     tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
-    tex_pbr('MAT_CraneWhite', 'PaintedMetal004', 0.25, tint=(0.8, 0.81, 0.8), metal=0.15, grime=0.3, paint_mask=True)
+    tex_pbr('MAT_CraneWhite', 'PaintedMetal004', 0.25, tint=(0.72, 0.73, 0.7), metal=0.15, grime=0.55, paint_mask=True)
     tex_pbr('MAT_CraneBlue', 'PaintedMetal004', 0.3, tint=(0.04, 0.17, 0.42), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
     # weathered crane paint: rust runs from the bolted joints, grime low down
     for nm in ('MAT_CraneWhite', 'MAT_CraneBlue'):
-        weather(bpy.data.materials[nm], streak=(0.3, 0.16, 0.07), amount=0.55, z0=0.0, z1=8.0, dirt_amount=0.4, scale=0.7)
-    stains(bpy.data.materials['MAT_Asphalt'], oil=0.55, tyre=0.5)
-    stains(bpy.data.materials['MAT_Concrete'], oil=0.4, tyre=0.3)
+        weather(bpy.data.materials[nm], streak=(0.3, 0.16, 0.07), amount=0.8, z0=0.0, z1=18.0, dirt_amount=0.6, scale=0.7)
+    stains(bpy.data.materials['MAT_Asphalt'], oil=0.7, tyre=0.65)
+    stains(bpy.data.materials['MAT_Concrete'], oil=0.6, tyre=0.5)
     tex_pbr('MAT_ContainerPaint', 'container_side', 0.33, attr='col', tint_amount=0.88, metal=0.2, grime=0.2)
     corrugate(bpy.data.materials['MAT_ContainerPaint'], 0.28, 0.6)
     weather(bpy.data.materials['MAT_ContainerPaint'], streak=(0.25, 0.12, 0.05), amount=0.5, z0=0.0, z1=1.0,
