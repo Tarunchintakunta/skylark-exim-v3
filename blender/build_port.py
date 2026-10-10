@@ -15,7 +15,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import bpy  # noqa: E402
-from mathutils import Vector  # noqa: E402
+from mathutils import Vector, Matrix  # noqa: E402
 import sklib as L  # noqa: E402
 import sklib_port as P  # noqa: E402
 
@@ -37,7 +37,7 @@ L.box('QUAY_Yard', (700, 300, 5.0), (0, -190, QZ - 2.5), asph, 0.0)
 L.box('QUAY_Apron', (700, 40.2, 5.02), (0, -20, QZ - 2.49), conc, 0.0)
 L.box('QUAY_Face', (700, 0.6, 5.5), (0, -0.1, QZ - 3.0), pbr_face := L.pbr('MAT_QuayFace', (0.42, 0.41, 0.38), 0.85,
                                                                               grime=0.5, scale=0.2), 0.0)
-water_port = L.water_mat('MAT_Water_Port', (0.004, 0.05, 0.07), swell=0.6)
+water_port = L.water_mat('MAT_Water_Port', (0.004, 0.05, 0.07), swell=0.6, body_emit=True)
 sea = L.ocean('Harbour', size=60, repeat=8, res=10, choppy=0.6, wind=5.5, scale=0.35, f0=1, f1=479, foam=0.1,
               mat=water_port, loc=(0, 200, 0))
 full = L.box('SeaFull', (60000, 60000, 0.1), (0, 0, -0.3), water_port, 0.0)
@@ -339,6 +339,21 @@ for i, T in enumerate(tugs):
         tw.scale = (sc, 1, 1)
         tw.keyframe_insert('scale', frame=f)
     L.key_vis(tw, 290)
+# tow lines: forward tug on a line to the bow, aft tug to the stern quarter, slack once the ship is under way
+for i, T in enumerate(tugs):
+    a_ship = L.empty(f'TOW_Ship{i}', ((100.0, 0, ship['deck'] + 1.0) if i == 0 else (-100.0, 0, ship['deck'] + 1.0)), size=1)
+    a_ship.parent = shp
+    a_tug = L.empty(f'TOW_Tug{i}', (-9.0, 0, 3.0), size=0.5)
+    a_tug.parent = T
+    line = L.cyl(f'TOW_Line{i}', 0.09, 1.0, (0, 0, 0), mats['rope'], 8, origin='base')
+    line.data.transform(Matrix.Rotation(-math.pi / 2, 4, 'X'))   # STRETCH_TO stretches local +Y
+    c_ = line.constraints.new('COPY_LOCATION')
+    c_.target = a_tug
+    st_ = line.constraints.new('STRETCH_TO')
+    st_.target = a_ship
+    st_.volume = 'NO_VOLUME'
+    st_.rest_length = 1.0
+    L.key_vis(line, 288, 392)
 
 # ---------------------------------------------------------------- hero reefer: keyed per frame (trailer -> spreader -> ship)
 LOCK, RELEASE = 182, 280
