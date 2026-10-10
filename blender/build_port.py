@@ -552,6 +552,17 @@ L.key_vis(sea, 1, 340)
 s.camera = cam
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
+# the sea takes no direct sun: no hard shadows of the ship, cranes or tugs on the water (light linking)
+_wcol = bpy.data.collections.new('SunExcludedWater')
+for _o in s.objects:
+    if _o.type == 'MESH' and any(_m and _m.name.startswith('MAT_Water') for _m in _o.data.materials):
+        _wcol.objects.link(_o)
+for _co in _wcol.collection_objects:
+    _co.light_linking.link_state = 'EXCLUDE'
+for _l in s.objects:
+    if _l.type == 'LIGHT' and _l.data.type == 'SUN':
+        _l.light_linking.receiver_collection = _wcol
+print('WATER no-sun', [o.name for o in _wcol.objects])
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'port', '1', '479', 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
