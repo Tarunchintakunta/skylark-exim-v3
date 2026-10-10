@@ -25,12 +25,15 @@ rnd = random.Random(21)
 WZ = 1.8
 
 s = L.reset()
+import skhuman_ocean as SO  # noqa: E402
+SK = SO.install(L)   # people are skhuman people (real outfits); sklib choreography drives them
 s.frame_start, s.frame_end = 1, 288
 mats = L.M()
 L.hdri('qwantani_mid_morning_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
 
 bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
 
+SO.progress('section: water, wharf, breakwater, hills')
 # ---------------------------------------------------------------- water, wharf, breakwater, hills
 sea = L.ocean('Harbour', size=60, repeat=6, res=10, choppy=0.5, wind=4.0, scale=0.25, f0=1, f1=288, foam=0.05,
               mat=mats['water_harbour'], loc=(20, 120, 0))
@@ -61,11 +64,12 @@ bmesh.ops.create_grid(bm, x_segments=80, y_segments=20, size=1.0)
 for v in bm.verts:
     x, y = v.co.x * 2500, 900 + (v.co.y + 1) * 400
     h = 120 * (0.5 + 0.5 * math.sin(x / 300.0 + 1.3)) * (0.6 + 0.4 * math.sin(x / 97.0)) * max(0.0, (y - 900) / 800) + 10
-    v.co = Vector((x, y, h))
+    v.co = Vector((x, y, S.hill_height(x, y, h)))
 me = L.bm_to_mesh(bm, 'HILLS', smooth=True)
-me.materials.append(L.pbr('MAT_HillHaze', (0.1, 0.14, 0.07), 0.9, var=0.35, bump=0.0, scale=0.01))
+me.materials.append(S.hill_material('MAT_HillHaze', haze=0.15))   # tree cover, scrub, dry grass, bare earth
 L.obj('HILLS', me)
 
+SO.progress('section: moored boats rafted side by side (no nam')
 # ---------------------------------------------------------------- moored boats rafted side by side (no names)
 hull_cols = [((0.08, 0.2, 0.5), (0.8, 0.8, 0.78)), ((0.45, 0.08, 0.06), (0.8, 0.8, 0.78)), ((0.1, 0.35, 0.18), (0.8, 0.8, 0.78)),
              ((0.8, 0.8, 0.78), (0.08, 0.2, 0.5)), ((0.06, 0.32, 0.45), (0.85, 0.6, 0.1))]
@@ -87,6 +91,7 @@ for i in range(4):
     x = 40 + i * 26
     L.tube(f'MOOR{i}', [(x - 9, 0.9, 2.6), (x - 10, -0.2, 2.1), (x - 11, -0.6, WZ + 0.6)], 0.035, mats['rope'], 6)
 
+SO.progress('section: our vessel comes home (same library vess')
 # ---------------------------------------------------------------- our vessel comes home (same library vessel as o-catch)
 V = S.vessel('BOAT', (120, 30, 0), D(180), mats=mats)
 boat = V['root']
@@ -116,6 +121,7 @@ for f, sc in ((1, 1.0), (100, 0.7), (130, 0.15), (142, 0.01)):
     wake.scale = (sc, 1, 1)
     wake.keyframe_insert('scale', frame=f)
 
+SO.progress('section: crew, hand chain, trolleys, truck')
 # ---------------------------------------------------------------- crew, hand chain, trolleys, truck
 DZ = V['deck_z']
 crew = []
@@ -128,8 +134,7 @@ L.anim_poses(crew[2], [(1, 'idle'), (110, 'pull'), (125, 'pull2'), (140, 'idle')
 L.anim_poses(crew[3], [(1, 'idle'), (100, 'point'), (130, 'idle')])
 # wharf workers
 wk_spots = [(4, -1.4, 90, 'dock'), (1.5, -1.6, 70, 'dock2'), (-1.5, -2.0, 30, 'dock'), (-4.0, -3.5, 120, 'dock'),
-            (14, -4, 200, 'dock2'), (22, -9, 250, 'dock'), (-22, -3, 10, 'dock'), (-30, -7, 300, 'dock2'),
-            (30, -2.5, 160, 'dock'), (9, -12, 90, 'driver'), (-18, -14, 45, 'dock'), (38, -6, 180, 'dock2')]
+            (14, -4, 200, 'dock2'), (22, -9, 250, 'dock')]   # fewer, larger, distinct workers (Tarun)
 workers = []
 for i, (x, y, rz, o) in enumerate(wk_spots):
     w = L.person(f'WORKER{i}', o, (x, y, WZ), D(rz), seed=40 + i, mats=mats)
@@ -144,7 +149,19 @@ for w in workers[:3]:
 for i, r in enumerate((crew[0], crew[1]) + tuple(workers[:3])):
     hcr = L.crate(f'CHAIN_Crate{i}', ('blue', 'white', 'blue', 'red', 'blue')[i], (0, 0, 0), 0.0, fill='mixed', mats=mats,
                   seed=500 + i)
-    L._bone_attach(hcr, r, 'spine', Matrix.Translation((0.36, 0.0, 0.92)) @ Matrix.Rotation(math.pi / 2, 4, 'Z'))
+    L._bone_attach(hcr, r, 'spine', Matrix.Translation((0.0, -0.34, 0.95)))   # skhuman faces -Y in armature space
+    hl, hr = L.empty(f'CHAIN_HandL{i}', (0, 0, 0), size=0.05), L.empty(f'CHAIN_HandR{i}', (0, 0, 0), size=0.05)
+    for e, sx in ((hl, 1), (hr, -1)):                  # hands on the crate's end grips
+        e.parent = hcr
+        e.location = (sx * 0.31, 0.0, 0.12)
+    SK.ik_hands(r, hl, hr)
+    for sd in 'LR':                                    # hands go to the crate only while it is carried
+        c_ = r.pose.bones['forearm.' + sd].constraints['IK']
+        for f, v in ((136, 0.0), (141, 1.0), (213, 1.0), (218, 0.0)):
+            c_.influence = v
+            c_.keyframe_insert('influence', frame=f)
+    SO.grip(r, 'L')
+    SO.grip(r, 'R')
     for o in [hcr] + list(hcr.children):
         L.key_vis(o, 140, 214)
 # trolleys on the wharf, crates stacked on them, pushed to the truck
@@ -233,7 +250,11 @@ for i in range(10):
             blds.box((fx, yy, WZ + h * 0.62), (0.06, 1.2, 1.1), mats['glass'])
             blds.box((fx - side * 0.02, yy, WZ + h * 0.62), (0.05, 1.5, 1.4), shut, rnd.choice(shut_cols))
         blds.box((fx, y, WZ + 1.15), (0.08, 2.4, 2.3), shut, rnd.choice(shut_cols))       # rolling shutter / door
-        blds.box((fx - side * 0.9, y, WZ + 2.6), (1.8, d * 0.9, 0.06), awn, rnd.choice(awn_cols))  # awning
+        ac = rnd.choice(awn_cols)                       # canvas awning: canopy, hanging valance, two poles to the kerb
+        blds.box((fx - side * 0.9, y, WZ + 2.6), (1.8, d * 0.9, 0.06), awn, ac)
+        blds.box((fx - side * 1.78, y, WZ + 2.42), (0.04, d * 0.9, 0.36), awn, ac)
+        for py in (y - d * 0.42, y + d * 0.42):
+            blds.cyl((fx - side * 1.75, py, WZ), (fx - side * 1.75, py, WZ + 2.6), 0.035, mats['steel'], 6)
         if h > 6:
             blds.box((fx - side * 0.5, y, WZ + h * 0.5), (1.0, d * 0.6, 0.12), bmat, col)        # balcony slab
             blds.box((fx - side * 0.98, y, WZ + h * 0.5 + 0.5), (0.05, d * 0.6, 0.9), mats['steel'])
@@ -270,6 +291,7 @@ for i in range(8):
     S.flap(g, 1, 288, period=rnd.randint(9, 13), amp=32,
            path=[(cx + rad * math.cos(ph + j * 0.3), cy + rad * 0.6 * math.sin(ph + j * 0.3), cz) for j in range(20)])
 
+SO.progress('section: busier harbour: pennants, buoys, nets, c')
 # ---------------------------------------------------------------- busier harbour: pennants, buoys, nets, crowds, autos, stalls, carts
 flag_cols = [(0.75, 0.2, 0.05), (0.1, 0.45, 0.2), (0.8, 0.6, 0.1), (0.6, 0.08, 0.1), (0.15, 0.3, 0.6)]
 for o in [o for o in bpy.data.objects if o.name.startswith('MOORED') and o.parent is None]:
@@ -306,7 +328,7 @@ for i in range(22):
 crowd_outfits = ['dock', 'dock2', 'dock', 'farm', 'dock2', 'fisherman_b', 'dock']
 placed = 0
 tries = 0
-while placed < 26 and tries < 400:
+while placed < 8 and tries < 400:      # a few distinct people, not a crowd of extras
     tries += 1
     x, y = rnd.uniform(-60, 60), rnd.uniform(-24, -2.5)
     if -19 < x < -5 or (-6 < x < 8 and y > -6) or (16 < x < 32 and -19 < y < -9):
@@ -319,7 +341,7 @@ while placed < 26 and tries < 400:
     placed += 1
 
 
-for i in range(26):
+for i in range(8):
     side = -1 if i % 2 else 1
     x = (-19.3 + rnd.uniform(0.0, 0.9)) if side < 0 else (-8.5 + rnd.uniform(0.0, 3.8))   # kerbs, clear of the facades
     y = -26 - i * 2.1 + rnd.uniform(-0.8, 0.8)
@@ -381,6 +403,7 @@ for i, (x, y, rz) in enumerate(((10, -14, 30), (-36, -4, 100), (48, -20, 200))):
     o = hc_.obj(f'CART{i}', None, (x, y, WZ))
     o.rotation_euler = (0, 0, D(rz))
 
+SO.progress('section: camera')
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (60, -20, 25), (90, 25, 2))
 cam.data.dof.aperture_fstop = 5.6
@@ -402,6 +425,7 @@ for f in list(range(246, 288, 6)) + [288]:
 s.frame_set(1)
 L.cam_path(cam, keys, focus=[(1, 50.0), (72, 30.0), (130, 9.0), (175, 8.0), (204, 10.0), (216, 9.0), (230, 10.0), (288, 9.0)])
 s.camera = cam
+L.decimate_shared()          # repeated scans / palms / crates at 25%: most of the 19 M triangles were repeats
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'o-return', '1', '288', 'exterior']
