@@ -14,7 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import bpy  # noqa: E402
 import bmesh  # noqa: E402
-from mathutils import Vector, noise  # noqa: E402
+from mathutils import Vector, Matrix, noise  # noqa: E402
 import sklib as L  # noqa: E402
 import sklib_sea as S  # noqa: E402
 import sklib_port as P  # noqa: E402
@@ -174,6 +174,13 @@ else:
         L.anim_poses(r, [(1, 'idle'), (135, 'idle')] + [(f, 'lift' if (f // 8) % 2 == 0 else 'pass') for f in range(140, 210, 8)] + [(220, 'idle')])
     for w in workers[:3]:
         L.anim_poses(w, [(1, 'idle'), (138, 'idle')] + [(f, 'reach' if (f // 8) % 2 == 0 else 'carry') for f in range(142, 212, 8)] + [(222, 'idle')])
+    # everyone in the hand chain holds an iced crate against the chest (no empty arms while lifting and passing)
+    for i, r in enumerate((crew[0], crew[1]) + tuple(workers[:3])):
+        hcr = L.crate(f'CHAIN_Crate{i}', ('blue', 'white', 'blue', 'red', 'blue')[i], (0, 0, 0), 0.0, fill='mixed', mats=mats,
+                      seed=500 + i)
+        L._bone_attach(hcr, r, 'spine', Matrix.Translation((0.36, 0.0, 0.92)) @ Matrix.Rotation(math.pi / 2, 4, 'Z'))
+        for o in [hcr] + list(hcr.children):
+            L.key_vis(o, 140, 214)
 # trolleys on the wharf, crates stacked on them, pushed to the truck
 TRK = Vector((-12.0, -7.0, WZ))
 L.weather(PL.panel_mat("MAT_ReeferBox", (0.84, 0.85, 0.84), 0.6, "X"), streak=(0.4, 0.35, 0.27), amount=0.45,
@@ -286,6 +293,8 @@ for i in range(30):
 for i in range(5):
     PL.trolley(f'SPARE_Trolley{i}', (12 + i * 1.5, -6.5, WZ), D(90 + i * 7), mats)
 for x in range(-60, 61, 20):
+    if DEPART and -40 <= x <= 20:   # no lamp post across the foreground of the departure camera
+        continue
     lp = P.MB()
     lp.cyl((x, -1.5, WZ), (x, -1.5, WZ + 8), 0.1, mats['steel'], 8)
     lp.box((x, -1.0, WZ + 8), (0.3, 1.0, 0.15), mats['steel'])

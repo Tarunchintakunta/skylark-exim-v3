@@ -47,17 +47,19 @@ def hull_material(name='MAT_HullWhiteBlue', white=(0.82, 0.83, 0.8), band=(0.03,
     st = _node(nt, 'ShaderNodeMapRange', (-700, -400))
     st.inputs['From Min'].default_value = 0.55
     st.inputs['From Max'].default_value = 0.8
-    st.inputs['To Max'].default_value = 0.45
+    st.inputs['To Max'].default_value = 0.6
     l.new(_sock(nz, 'Factor', out=True), st.inputs['Value'])
     col = mixrgb(nt, st.outputs[0], _sock(ramp, 'Color', out=True), (0.3, 0.18, 0.1), loc=(-400, -100))
     l.new(col, p.inputs['Base Color'])
     rr = _node(nt, 'ShaderNodeMapRange', (-400, -400))
-    rr.inputs['To Min'].default_value = 0.28
-    rr.inputs['To Max'].default_value = 0.6
+    rr.inputs['To Min'].default_value = 0.5
+    rr.inputs['To Max'].default_value = 0.82      # matte, sun-worn paint
     l.new(_sock(nz, 'Factor', out=True), rr.inputs['Value'])
     l.new(rr.outputs[0], p.inputs['Roughness'])
-    p.inputs['Coat Weight'].default_value = 0.25
-    return m
+    p.inputs['Coat Weight'].default_value = 0.04
+    # waterline scum and grime low on the topsides, salt-dulled above
+    return weather(m, streak=(0.28, 0.16, 0.08), amount=0.55, z0=-0.2, z1=1.4, dirt=(0.16, 0.17, 0.11),
+                   dirt_amount=0.7, scale=1.2)
 
 
 def hull_b(x, L=24.0, B=3.2):
@@ -133,6 +135,11 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
     Names: <name>_Hull, <name>_Deck, <name>_BoomPivot, <name>_BoomTip, <name>_Drum, <name>_HatchCentre."""
     mats = mats or M()
     deck_wear(mats['wetdeck'])
+    # salt-worn white for bulwarks, rails, stanchions and house: dull, rust runs from fittings, grime low down
+    ww = bpy.data.materials.get('MAT_BoatWhite') or weather(
+        pbr('MAT_BoatWhite', (0.74, 0.74, 0.7), 0.62, var=0.25, bump=0.3, grime=0.6, scale=1.5),
+        streak=(0.32, 0.17, 0.08), amount=0.7, z0=deck_z - 0.2, z1=deck_z + 2.6, dirt=(0.2, 0.18, 0.13),
+        dirt_amount=0.6, scale=1.2)
     hm = weather(hull or hull_material(), streak=(0.3, 0.15, 0.06), amount=0.65, z0=-0.2, z1=0.9,
                  dirt=(0.12, 0.14, 0.08), dirt_amount=0.55, scale=0.8)
     root = empty(name, loc, size=2.0)
@@ -182,7 +189,7 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
             mats['wetdeck'], 0.0, parent=root)
     for (cx, cy, sx, sy2) in (((hx0 + hx1) / 2, hy, hx1 - hx0 + 0.16, 0.08), ((hx0 + hx1) / 2, -hy, hx1 - hx0 + 0.16, 0.08),
                               (hx0, 0, 0.08, 2 * hy), (hx1, 0, 0.08, 2 * hy)):
-        box(f'{name}_Coaming', (sx, sy2, 0.45), (cx, cy, deck_z + 0.225), mats['paint_white'], 0.02, parent=root)
+        box(f'{name}_Coaming', (sx, sy2, 0.45), (cx, cy, deck_z + 0.225), ww, 0.02, parent=root)
     hold_floor = deck_z - 2.6
     ins = pbr('MAT_HoldInsulation', (0.42, 0.44, 0.43), 0.55, var=0.15, grime=0.6, scale=2)   # worn, wet, not a white void
     hc = (hx0 + hx1) / 2
@@ -201,12 +208,12 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
     R['hatch_c'] = empty(f'{name}_HatchCentre', (hc, 0, deck_z), root)
     for sy in (1, -1):
         pts = [(x, sy * hull_b(x, L) * 1.015, hull_top(x, L) + 0.03) for x in xs[1:-1]]
-        tube(f'{name}_RailCap', pts, 0.05, mats['paint_white'], 8, parent=root)
+        tube(f'{name}_RailCap', pts, 0.05, ww, 8, parent=root)
         if detail:
             for x in xs[2:-3:2]:
                 b = hull_b(x, L)
                 box(f'{name}_Stanchion', (0.06, 0.25, hull_top(x, L) - deck_z), (x, sy * (b - 0.12), (deck_z + hull_top(x, L)) / 2),
-                    mats['paint_white'], 0.01, parent=root)
+                    ww, 0.01, parent=root)
             tyre = bpy.data.meshes.get(f'{name}_Tyre') or torus_mesh(f'{name}_Tyre', 0.35, 0.13, 20, 8)
             if not tyre.materials:
                 tyre.materials.append(mats['rubber'])
@@ -214,7 +221,7 @@ def vessel(name='BOAT', loc=(0, 0, 0), rot_z=0.0, mats=None, hull=None, detail=T
                 obj(f'{name}_Tyre', tyre, None, (x, sy * (hull_b(x, L) + 0.15), 1.1), (D(90), 0, 0), parent=root)
     # wheelhouse (aft)
     wx0, wx1, hw = -10.4, -4.6, 2.5
-    pw = mats['paint_white']
+    pw = ww
     box(f'{name}_House', (wx1 - wx0, 2 * hw, 2.4), ((wx0 + wx1) / 2, 0, deck_z), pw, 0.06, origin='base', parent=root)
     box(f'{name}_HouseBand', (wx1 - wx0 + 0.04, 2 * hw + 0.04, 0.16), ((wx0 + wx1) / 2, 0, deck_z + 2.32), mats['paint_blue'],
         0.02, parent=root)
