@@ -168,7 +168,7 @@ def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None):
         for sd, sg in (('L', 1), ('R', -1)):
             xy = base + fwd * reach - side * sg * spread
             hit, loc, _n, _i, ob, _m = s.ray_cast(dg, Vector((xy.x, xy.y, DZ + 1.5)), Vector((0, 0, -1)), distance=1.3)
-            if hit and DZ + 0.6 < loc.z < DZ + 1.25 and not (ob and ob.name.startswith('HUM_')):
+            if hit and DZ + 0.7 < loc.z < DZ + 1.02 and not (ob and ob.name.startswith('HUM_')):
                 placed.append((sd, loc))
         if len(placed) == 2:
             w.rotation_euler.z = rz                       # face the work surface

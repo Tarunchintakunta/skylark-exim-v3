@@ -1,6 +1,6 @@
-"""p-docs (one shot, global 1100-1243 on the plant set): a loaded reefer pulled two metres off bay -4.6 with its
-doors shut; a dispatcher holds the export folder (blank sheets, no text) and snaps a bolt seal through the lower lock
-rod keeper; the camera starts close on the seal and eases back to the sealed truck and the folder."""
+"""p-docs (one shot, global 1100-1243 on the plant set): a loaded reefer parked nose-in off bay -4.6, rear doors
+shut toward the sunlit yard; a dispatcher holds the export folder (blank sheets, no text) and snaps a plain bolt seal
+through the lower lock-rod keeper; the camera opens wide and ends close on the seal, in daylight."""
 import math
 import bpy
 from mathutils import Vector
@@ -13,7 +13,7 @@ import skpbr as P
 D = math.radians
 WIN = (1100, 1243)
 BX = -4.6                                   # bay
-OY = -3.08 - 2.2                            # truck origin y (rear face ~2.5 m off the dock wall)
+OY = -9.0                                   # truck origin y: nose toward the building, rear to the sunlit yard
 
 
 def _empty(name, loc, parent, C):
@@ -27,11 +27,11 @@ def _empty(name, loc, parent, C):
 def build(C):
     R = T.reefer_truck('TRK_Sealed', coll=C, load=False, seed=7)
     R['root'].location = (BX, OY, 0.0)
-    R['root'].rotation_euler = (0, 0, D(-90))
+    R['root'].rotation_euler = (0, 0, D(90))
     bpy.context.view_layer.update()
     # the right-hand door's inner lock rod, lower keeper: world position of the seal
     dr = R['door_r']
-    keeper = dr.matrix_world @ Vector((-0.06, (T.BW / 2 - 0.05) * 0.78, -T.BH / 2 + 0.36))
+    keeper = dr.matrix_world @ Vector((-0.13, (T.BW / 2 - 0.05) * 0.78, -T.BH / 2 + 0.36))   # through the hasp, proud of the rod
     # bolt seal: steel pin + plain yellow barrel lock (no print)
     pin = Part()
     pin.cyl((0, 0, -0.05), (0, 0, 0.07), 0.005, 10)
@@ -42,14 +42,14 @@ def build(C):
     bo = bar.make('DOC_SealBarrel', P.plain('DOC_SealYellow', (0.85, 0.62, 0.05), 0.4, coat=0.3), None, smooth=True,
                   coll=C)
     po.location = keeper
-    below = keeper + Vector((0.05, 0.3, -0.35))
-    for f, loc in ((1, below), (1118, below), (1140, keeper + Vector((0, 0.04, -0.08))), (1156, keeper)):
+    below = keeper + Vector((0.05, -0.3, -0.35))
+    for f, loc in ((1, below), (1118, below), (1140, keeper + Vector((0, -0.04, -0.08))), (1156, keeper)):
         bo.location = loc
         bo.keyframe_insert('location', frame=f)
     # dispatcher: right hand brings the barrel up and pushes it home; left hand holds the folder at the hip
     w = H.person('HUM_Dispatch', 'driver', 'male', coll=C, seed=611)
-    w.location = (keeper.x - 0.22, keeper.y + 0.55, 0.0)      # between the truck rear and the dock, facing -Y
-    w.rotation_euler = (0, 0, 0)
+    w.location = (keeper.x - 0.22, keeper.y - 0.55, 0.0)      # yard side of the rear doors, facing +Y
+    w.rotation_euler = (0, 0, D(180))
     hr = _empty('HUM_Dispatch_HandR', (0, 0, -0.03), bo, C)
     c = w.pose.bones['forearm.R'].constraints.new('IK')
     c.target = hr
@@ -89,10 +89,10 @@ def build(C):
     tc.track_axis = 'TRACK_NEGATIVE_Z'
     tc.up_axis = 'UP_Y'
     cam.data.dof.focus_object = tgt
-    for f, loc, t in ((1100, keeper + Vector((0.6, 0.75, 0.08)), keeper + Vector((0, 0, -0.04))),
-                      (1160, keeper + Vector((0.85, 1.15, 0.25)), keeper + Vector((-0.05, 0, 0.02))),
-                      (1243, Vector((BX + 1.9, keeper.y + 2.2, 1.85)), Vector((BX - 0.2, keeper.y, 1.6))),
-                      (1260, Vector((BX + 1.92, keeper.y + 2.22, 1.86)), Vector((BX - 0.2, keeper.y, 1.6)))):
+    for f, loc, t in ((1100, Vector((BX + 2.6, keeper.y - 3.6, 1.9)), Vector((BX, keeper.y, 1.5))),
+                      (1150, Vector((BX + 1.7, keeper.y - 2.2, 1.7)), keeper + Vector((-0.2, 0, 0.05))),
+                      (1243, keeper + Vector((0.42, -0.62, 0.1)), keeper + Vector((0, 0, -0.03))),
+                      (1260, keeper + Vector((0.41, -0.6, 0.1)), keeper + Vector((0, 0, -0.03)))):
         cam.location = loc
         cam.keyframe_insert('location', frame=f)
         tgt.location = t
