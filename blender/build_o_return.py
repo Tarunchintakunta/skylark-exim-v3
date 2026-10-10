@@ -49,6 +49,7 @@ else:
     L.hdri('qwantani_mid_morning_puresky_4k', strength=0.7, rot=0.0, sun_strength=3.0)
 
 bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
+S.haze_world(sat=0.6, amount=0.25)   # humid coastal air, not a postcard sky
 
 SO.progress('section: water, wharf, breakwater, hills')
 # ---------------------------------------------------------------- water, wharf, breakwater, hills
@@ -149,6 +150,12 @@ for f, sc in (((1, 0.01), (44, 0.01), (90, 0.5), (140, 0.9), (240, 1.0)) if DEPA
 SO.progress('section: crew, hand chain, trolleys, truck')
 # ---------------------------------------------------------------- crew, hand chain, trolleys, truck
 DZ = V['deck_z']
+# the same season of wear as at sea: primer chips, rust from the stanchion feet, dirty runs; foam at the waterline
+for _mn, _top in (('MAT_BoatWhite', 1.2), ('MAT_IceBox', 0.9)):
+    if _mn in bpy.data.materials:
+        S.hard_wear(bpy.data.materials[_mn], DZ, _top)
+S.hard_wear(V['hull'].active_material, DZ, 1.0)
+S.hull_contact('BOAT_WaterFoam', boat, width=0.4)
 crew = []
 for i, (x, y, rz, o) in enumerate(((hc, 1.0, 90, 'fisherman_o'), (hc + 0.8, -1.2, 60, 'fisherman_y'), (-2.0, 1.8, 100, 'fisherman_b'),
                                    (2.5, -2.2, 200, 'fisherman_o'))):
