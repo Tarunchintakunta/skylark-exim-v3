@@ -410,7 +410,7 @@ CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap'
         'shorts')
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.018, 'shoes': 0.008,
-         'gloves': 0.0035, 'gloves_rubber': 0.005, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
+         'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
          'vest': 0.04, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
@@ -627,6 +627,33 @@ def _apron(body, k, M):
     return o
 
 
+def _slim_hands(body, ao):
+    """Base-mesh hands read puffy under gloves: flatten each hand (palm-to-back) by 22 % about its mid plane and
+    pull the fingers 10 % toward the hand axis, fading in from the wrist."""
+    import numpy as np
+    co = np.array([v.co[:] for v in body.data.vertices])
+    for side in ('L', 'R'):
+        hb = ao.data.bones['hand.' + side]
+        h0, d = np.array(hb.head_local[:]), np.array((hb.tail_local - hb.head_local).normalized()[:])
+        rel = co - h0
+        along = rel @ d
+        perp = rel - np.outer(along, d)
+        dist = np.linalg.norm(perp, axis=1)
+        hand = (along > -0.005) & (along < 0.25) & (dist < 0.08)
+        pts = perp[hand & (along > 0.03)]
+        _w, ev = np.linalg.eigh(pts.T @ pts)
+        nrm = ev[:, 0]                                    # palm normal: least spread across the hand
+        mid = (perp[hand] @ nrm).mean()
+        fade = np.clip(along / 0.04, 0.0, 1.0)
+        for i in np.nonzero(hand)[0]:
+            off = perp[i] @ nrm - mid
+            side_v = perp[i] - nrm * (perp[i] @ nrm)
+            k = fade[i]
+            co[i] = co[i] - nrm * off * 0.22 * k - side_v * 0.10 * k * (along[i] > 0.085)
+    for v, c in zip(body.data.vertices, co):
+        v.co = c
+
+
 def build_masters(out_path, level=1):
     """Run headless once: writes humans.blend with HUM_Rig_<g> armatures and HUM_<g>_<outfit> meshes."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -641,6 +668,7 @@ def build_masters(out_path, level=1):
         body.name = 'HUMB_' + gender
         ao = _build_armature(body, h, 'HUM_Rig_' + gender)
         _skin(body, eyes, ao, bpy.data.objects.get('HUMB_male') if gender == 'female' else None)
+        _slim_hands(body, ao)
         body.data.materials.clear()
         body.data.materials.append(M['skin'])
         for e in eyes:

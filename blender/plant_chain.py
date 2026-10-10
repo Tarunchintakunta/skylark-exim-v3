@@ -468,6 +468,29 @@ def shift_all(delta):
                 kp.handle_right.x += delta
 
 
+def vary_trees(seed=5):
+    """Library trees are built at the world origin; re-base each on its trunk foot, then vary scale, heading, lean."""
+    import random
+    from mathutils import Matrix
+    rnd = random.Random(seed)
+    for o in sorted(bpy.data.objects, key=lambda o: o.name):
+        if o.type != 'MESH' or not (o.name.startswith('SET_Tree') or o.name.startswith('SET_SideTree')):
+            continue
+        if o.data.users > 1 or o.animation_data:
+            continue
+        vs = [o.matrix_world @ v.co for v in o.data.vertices]
+        if not vs:
+            continue
+        zmin = min(v.z for v in vs)
+        foot = [v for v in vs if v.z < zmin + 0.3]
+        base = sum(foot, Vector()) / len(foot)
+        o.data.transform(Matrix.Translation(-(o.matrix_world.inverted() @ base)))
+        o.location = base
+        k = rnd.uniform(0.78, 1.28)
+        o.scale = (k * rnd.uniform(0.9, 1.12), k * rnd.uniform(0.9, 1.12), k)
+        o.rotation_euler = (rnd.uniform(-0.07, 0.07), rnd.uniform(-0.07, 0.07), rnd.uniform(0, 6.283))
+
+
 def build(scene, out):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     s = bpy.context.scene
@@ -484,6 +507,7 @@ def build(scene, out):
     strips = SI._strip_curtain('PL_IntakeStrip', SI.CX - 1.55, SI.CX + 1.55, 12.0, S.DZ, S.DZ + 3.18, C_in, SI.mats())
     SI.swing_strips(strips, [(424, 440, 8.2, 0.85, -1), (462, 478, 7.5, 0.8, -1)])
     SI.animate_spray(1, 1100)
+    vary_trees()
     R = build_truck_reverse(C_people)
     import plant_yard
     plant_yard.build(C_people, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd))
