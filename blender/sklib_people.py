@@ -384,8 +384,8 @@ GARMENTS = {
     'banian': dict(zones={'torso', 'pelvis'}, off=0.004, fold=0.003, smooth=6, cuff_t=0.0),
     'trousers': dict(zones={'pelvis', 'thigh', 'shin'}, off=0.011, fold=0.006, smooth=10),
     'shorts': dict(zones={'pelvis', 'thigh'}, off=0.012, fold=0.005, smooth=8),
-    'pvc_jacket': dict(zones={'torso', 'upperarm', 'forearm', 'pelvis'}, off=0.022, fold=0.02, smooth=14, cuff_t=0.8),   # hangs, creases
-    'pvc_bib': dict(zones={'torso', 'pelvis', 'thigh', 'shin'}, off=0.022, fold=0.02, smooth=14, bib=True),
+    'pvc_jacket': dict(zones={'torso', 'upperarm', 'forearm', 'pelvis'}, off=0.016, fold=0.03, smooth=8, cuff_t=0.8),   # hangs close, deep creases
+    'pvc_bib': dict(zones={'torso', 'pelvis', 'thigh', 'shin'}, off=0.016, fold=0.03, smooth=8, bib=True),
     'coat': dict(zones={'torso', 'upperarm', 'forearm', 'pelvis', 'thigh'}, off=0.026, fold=0.008, smooth=26, cuff_t=0.8),
 }
 
