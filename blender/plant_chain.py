@@ -498,6 +498,7 @@ def build(scene, out):
         vs.exposure = ev
         vs.keyframe_insert('exposure', frame=f)
     f0, f1 = OFFSETS[scene]
+    B.frame_people(s, (1, 909))
     if scene in ('p-proc', 'p-freeze'):
         for cn in ('SET_PlantExterior',):
             bpy.data.collections[cn].hide_render = True
