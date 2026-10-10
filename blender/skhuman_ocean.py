@@ -28,6 +28,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets-src
 
 OCEAN_OUTFITS = {
     'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'cap'],
+    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair'],   # bare-headed: hair and face read
     'port_hivis': ['work_shirt', 'trousers_dark', 'boots_dark', 'vest', 'hair', 'hardhat'],
     'harbour_lungi': ['shirt_farm', 'lungi', 'sandals', 'hair'],
 }
@@ -99,8 +100,8 @@ _base_mats = sk.mats
 def mats():
     M = _base_mats()
     M['pvc'] = sk._palette(sk._mat('HUM_PVCOilskin', (0.75, 0.24, 0.04), 0.68, coat=0.08, bump=0.05, wrinkle=0.35, rand=0.12),
-                           ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.58, 0.26, 0.08), (0.80, 0.30, 0.04),
-                            (0.70, 0.62, 0.20)))   # orange, yellow, sun-faded orange, bright orange, faded yellow
+                           ((0.74, 0.22, 0.03), (0.78, 0.58, 0.04), (0.26, 0.28, 0.12), (0.58, 0.26, 0.08),
+                            (0.22, 0.30, 0.42), (0.70, 0.62, 0.20)))   # orange, yellow, olive, faded orange, faded blue, faded yellow
     M['work_shirt'] = sk._palette(sk._mat('HUM_WorkShirt', (0.2, 0.25, 0.32), 0.85, sheen=0.2, bump=0.12, rand=0.12,
                                           wrinkle=0.5),
                                   ((0.14, 0.18, 0.28), (0.30, 0.30, 0.26), (0.36, 0.34, 0.28), (0.20, 0.26, 0.34)))
@@ -394,7 +395,7 @@ _L = None
 
 def outfit_for(old):
     if old.startswith('fisher'):
-        return 'fisher'
+        return 'fisher_bare' if old.endswith('_b') else 'fisher'
     return OLD_OUTFIT.get(old, 'harbour_lungi')
 
 
@@ -408,8 +409,9 @@ def translate(spec):
         # a raised arm keeps the rest pose's 23 deg splay; swing it back in about the vertical (measured: at flex
         # 90 the hand is 26 deg out, a -0.3 * flex twist brings it straight ahead)
         P['upperarm.' + s] = (-y, -20 + x * sg, z * sg - 0.3 * max(0.0, -y))
+        fl = P['upperarm.' + s][0]
         x, y, z = spec.get('el_' + s, (0, -8, 0))
-        P['forearm.' + s] = (max(4.0, -y), 0, 0)
+        P['forearm.' + s] = (max(4.0, -y, 28.0 if fl > 50 else 0.0), 0, 0)   # raised arms keep soft elbows, never locked straight
         x, y, z = spec.get('hp_' + s, (0, 0, 0))
         P['thigh.' + s] = (-y, 2 + x * sg, z * sg)
         x, y, z = spec.get('kn_' + s, (0, 0, 0))
