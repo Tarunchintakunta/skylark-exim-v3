@@ -488,14 +488,14 @@ def textured_overrides():
     tex_pbr('MAT_PaintBlue', 'PaintedMetal004', 0.6, tint=(0.04, 0.12, 0.33), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
     tex_pbr('MAT_PaintRed', 'PaintedMetal004', 0.6, tint=(0.3, 0.05, 0.04), tint_amount=0.85, metal=0.1, grime=0.3, bump=0.12, paint_mask=True)
     tex_pbr('MAT_CraneWhite', 'PaintedMetal004', 0.25, tint=(0.72, 0.73, 0.7), metal=0.15, grime=0.55, paint_mask=True)
-    tex_pbr('MAT_SpreaderYellow', 'PaintedMetal004', 0.5, tint=(0.6, 0.43, 0.07), tint_amount=0.85, metal=0.1,
-            grime=0.6, paint_mask=True, rough_add=0.15)
+    tex_pbr('MAT_SpreaderYellow', 'PaintedMetal004', 2.0, tint=(0.6, 0.43, 0.07), tint_amount=0.85, metal=0.1,
+            grime=0.6, paint_mask=True, rough_add=0.15, bump=0.12)   # fine chips and edge wear, not foam lumps
     weather(bpy.data.materials['MAT_SpreaderYellow'], streak=(0.3, 0.15, 0.06), amount=0.7, z0=-1.4, z1=-0.4,
             dirt_amount=0.5, scale=1.2)
     tex_pbr('MAT_CraneBlue', 'PaintedMetal004', 0.3, tint=(0.04, 0.17, 0.42), tint_amount=0.85, metal=0.1, grime=0.3, paint_mask=True)
     # weathered crane paint: rust runs from the bolted joints, grime low down
     for nm in ('MAT_CraneWhite', 'MAT_CraneBlue'):
-        weather(bpy.data.materials[nm], streak=(0.3, 0.16, 0.07), amount=0.8, z0=0.0, z1=18.0, dirt_amount=0.6, scale=0.7)
+        weather(bpy.data.materials[nm], streak=(0.3, 0.16, 0.07), amount=1.0, z0=0.0, z1=60.0, dirt_amount=0.45, scale=1.4)   # rust runs and grime up the lattice too
     stains(bpy.data.materials['MAT_Asphalt'], oil=0.7, tyre=0.65)
     stains(bpy.data.materials['MAT_Concrete'], oil=0.6, tyre=0.5)
     tex_pbr('MAT_ContainerPaint', 'container_side', 0.33, attr='col', tint_amount=0.88, metal=0.0, rough_mul=0.6,
