@@ -478,7 +478,9 @@ def textured_overrides():
     name gets the textured one. No-op for sets that are not on disk."""
     if not os.path.isdir(TEXDIR):
         return
-    tex_pbr('MAT_WetDeck', 'rubber_tiles', 1.2, tint=(0.06, 0.07, 0.075), tint_amount=0.8, rough_mul=0.45, coat=0.35, grime=0.3)
+    # worn steel working deck (riveted plate, scuffed and rusty), not rubber tiles
+    tex_pbr('MAT_WetDeck', 'metal_plate', 0.5, tint=(0.3, 0.29, 0.27), tint_amount=0.45, rough_mul=0.8, rough_add=0.15,
+            metal=0.35, coat=0.05, grime=0.65)
     tex_pbr('MAT_Concrete', 'concrete_floor_02', 0.3, tint=(0.46, 0.45, 0.42), tint_amount=0.5, grime=0.3)
     tex_pbr('MAT_Asphalt', 'asphalt_02', 0.25, tint=(0.12, 0.12, 0.125), tint_amount=0.5)
     tex_pbr('MAT_Steel', 'Metal009', 1.0, rough_mul=1.0)
