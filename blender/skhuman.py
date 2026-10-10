@@ -494,6 +494,11 @@ def _shell(body, piece, mask, M):
             extra += (0.004, 0.005, 0.003, 0.0, 0.0)[ring[v]]             # elastic edge
         if piece == 'mask':
             extra += 0.004 + (0.002 if v in ring and ring[v] < 2 else 0.0)  # stands off the face; bound edge
+            zz = (z - 1.462 * KH) / (0.09 * KH)                                # 0 chin .. 1 nose bridge
+            ctr = max(0.0, 1 - abs(v.co.x) / (0.07 * KH))
+            extra += 0.006 * ctr * max(0.0, math.sin(zz * math.pi)) * (1 - zz)   # tented over lips and chin
+            if v not in ring or ring[v] > 1:
+                extra += 0.0022 * max(0.0, math.sin(zz * math.pi * 6)) * (0.4 + 0.6 * ctr)   # three pleats
         if piece in ('jacket', 'parka', 'shirt', 'shirt_farm', 'labcoat', 'trousers', 'trousers_dark', 'shorts',
                      'trousers_rolled'):
             extra += 0.002 * math.sin(z * 38 + v.co.x * 14) * math.sin(v.co.x * 31 + v.co.y * 23)  # soft folds
