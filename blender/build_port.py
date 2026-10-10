@@ -297,6 +297,20 @@ for k, C in enumerate(cranes):
         bh.keyframe_insert('rotation_euler', frame=f)
     L.smooth_keys(bh)
 
+# working paint: chips to primer, rust at the feet and runs on the spreader and the crane lattice (not showroom)
+for _mn, _z0, _top in (('MAT_SpreaderYellow', -1.4, 1.4), ('MAT_CraneWhite', 0.0, 60.0), ('MAT_CraneBlue', 0.0, 60.0)):
+    if _mn in bpy.data.materials:
+        P.hard_wear(bpy.data.materials[_mn], _z0, _top)
+# quay apron: oil blotches, tyre marks along the lanes, drainage grates (not a pale flat slab)
+P._over(conc, P._noise_band(conc, 0.06, 0.55, 0.7, 0.55, loc=(-2600, -5200)), (0.09, 0.085, 0.08))            # big oil/water blotches
+P._over(conc, P._noise_band(conc, 0.8, 0.5, 0.62, 0.45, stretch=(0.03, 1.0, 1.0), loc=(-2600, -5600)), (0.12, 0.115, 0.11))   # tyre tracks along X
+_gr = P.MB()
+for _x in range(-300, 301, 12):
+    for _y in (-7.5, -19.5, -31.5):
+        _gr.box((_x + 3.0, _y, QZ + 0.005), (0.9, 0.45, 0.02), mats['steel'], (0.2, 0.2, 0.2))
+        for _k in range(6):
+            _gr.box((_x + 2.62 + _k * 0.15, _y, QZ + 0.012), (0.04, 0.42, 0.012), mats['plastic_black'])
+_gr.obj('QUAY_DrainGrates')
 SO.progress('section: tugs, distant ships, mooring lines')
 # ---------------------------------------------------------------- tugs, distant ships, mooring lines
 tugs = []
@@ -359,6 +373,9 @@ for i, (x, y, rz) in enumerate(((-34.0, -33.5, 0.0), (44.0, -34.0, math.pi))):  
     po = pb.obj(f'PICKUP{i}', None, (x, y, QZ))
     po.rotation_euler = (0, 0, rz)
 
+for _i, (_x, _y, _p) in enumerate(((-6.7, -20.2, 'point'), (-8.4, -18.6, 'stand'))):   # banksman + yard hand, ~10 m from the f168 camera
+    _w = L.person(f'BANKSMAN{_i}', 'port', (_x, _y, QZ), D(-137 + _i * 20), seed=120 + _i, mats=mats)
+    L.anim_poses(_w, [(1, 'idle'), (150, _p), (200, _p), (240, 'idle')])
 SO.progress('section: x-ship: lines off, tugs pull, ship sails')
 # ---------------------------------------------------------------- x-ship: lines off, tugs pull, ship sails out
 shp = ship['root']
@@ -505,6 +522,15 @@ bmat = L.pbr('MAT_CityRoofs', (0.6, 0.58, 0.55), 0.85, var=0.3, scale=0.05, attr
 cityp = L.weather(L.tex_pbr('MAT_CityPaint', 'painted_concrete', 0.08, attr='col', tint_amount=0.6, grime=0.6), amount=0.6, z0=QZ,
                   z1=QZ + 6, dirt_amount=0.5, scale=0.2)   # stained concrete and plaster, not flat paint
 trees = P.paint_attr('MAT_CityTrees', 0.9, grime=0.2, scale=0.3)
+for _m in (cityp, trees):   # aerial haze: the town fades into humid air with distance instead of reading as a tiled map
+    _nt = _m.node_tree
+    _cd = _nt.nodes.new('ShaderNodeCameraData')
+    _hr = _nt.nodes.new('ShaderNodeMapRange')
+    _hr.inputs['From Min'].default_value = 300.0
+    _hr.inputs['From Max'].default_value = 3500.0
+    _hr.inputs['To Max'].default_value = 0.65
+    _nt.links.new(_cd.outputs['View Distance'], _hr.inputs['Value'])
+    P._over(_m, _hr.outputs[0], (0.56, 0.6, 0.62))
 crnd = random.Random(21)
 tree_pts, tank_pts = [[], [], []], []
 blk = 120.0
@@ -675,10 +701,44 @@ _src = _wp.inputs['Base Color'].links[0].from_socket
 _wnt.links.new(_src, _dm.inputs['A'])
 _dm.inputs['B'].default_value = (0.02, 0.05, 0.055, 1)          # shallower, greener water in patches
 _wnt.links.new(_dm.outputs['Result'], _wp.inputs['Base Color'])
+# from altitude: wave normals at the 25 m scale too (not paint), a broader sun-glint lobe, and greener, siltier water
+# within ~300 m of the quay (y = 0)
+_n6 = _wnt.nodes.new('ShaderNodeTexNoise')
+_n6.inputs['Scale'].default_value = 0.04
+_n6.inputs['Detail'].default_value = 8
+_wnt.links.new(_tc.outputs['Object'], _n6.inputs['Vector'])
+_b6 = _wnt.nodes.new('ShaderNodeBump')
+_b6.inputs['Strength'].default_value = 0.3
+_b6.inputs['Distance'].default_value = 3.0
+_wnt.links.new(_n6.outputs[0], _b6.inputs['Height'])
+_wnt.links.new(_b6.outputs[0], _b4.inputs['Normal'])
+for _n in _wnt.nodes:
+    if _n.type == 'MAP_RANGE' and abs(_n.inputs['To Min'].default_value - 0.03) < 1e-6:
+        _n.inputs['To Min'].default_value = 0.075            # glint spreads into a visible lobe at altitude
+_geo = _wnt.nodes.new('ShaderNodeNewGeometry')
+_sep = _wnt.nodes.new('ShaderNodeSeparateXYZ')
+_wnt.links.new(_geo.outputs['Position'], _sep.inputs[0])
+_sh = _wnt.nodes.new('ShaderNodeMapRange')
+_sh.inputs['From Min'].default_value = 20.0
+_sh.inputs['From Max'].default_value = 320.0
+_sh.inputs['To Min'].default_value = 0.7
+_sh.inputs['To Max'].default_value = 0.0
+_wnt.links.new(_sep.outputs[1], _sh.inputs['Value'])
+_sm = _wnt.nodes.new('ShaderNodeMix')
+_sm.data_type = 'RGBA'
+_wnt.links.new(_sh.outputs[0], _sm.inputs['Factor'])
+_wnt.links.new(_dm.outputs['Result'], _sm.inputs['A'])
+_sm.inputs['B'].default_value = (0.045, 0.07, 0.055, 1)        # silty green-brown near the quay and breakwaters
+_wnt.links.new(_sm.outputs['Result'], _wp.inputs['Base Color'])
 # EEVEE also extracts a sun from the HDRI (world sun threshold) and casts its own shadows: that second shadow is what lay on
 # the sea under the ship and cranes (verified at f360 with the sun lamp hidden). The sun lamp already carries the key light.
 s.world.use_sun_shadow = False
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'port', '1', '479', 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
+# f288-340: the camera climbs from the quay to 330 m; a short shutter there (no smear across the boom), 180 deg elsewhere
+for _f, _sh_v in ((286, 0.5), (292, 0.12), (338, 0.12), (346, 0.5)):
+    s.render.motion_blur_shutter = _sh_v
+    s.render.keyframe_insert('motion_blur_shutter', frame=_f)
+bpy.ops.wm.save_as_mainfile(filepath=OUT)
 print('BUILT', OUT, len(bpy.data.objects), 'objects')

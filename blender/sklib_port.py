@@ -1200,3 +1200,64 @@ def wake(name, parent, stern_x, length=320.0, w0=14.0, w1=70.0, z=0.15, kelvin=T
     me.materials.append(wake_mat())
     o = obj(name, me, None, (stern_x, 0, 0), parent=parent)
     return o
+
+
+# ---------------------------------------------------------------- heavy wear (spreader, crane lattice)
+def _over(m, fac_socket, color):
+    """Mix `color` over the material's current Base Color by fac."""
+    nt = m.node_tree
+    p = principled(m)
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else tuple(p.inputs['Base Color'].default_value)[:3]
+    col = mixrgb(nt, fac_socket, src, color, loc=(-500, -2600))
+    nt.links.new(col, p.inputs['Base Color'])
+
+
+def _noise_band(m, scale, lo, hi, amount, stretch=(1.0, 1.0, 1.0), z0=None, z1=None, loc=(-1600, -2600)):
+    """Thresholded object-space noise (optionally stretched) as a 0..amount factor, faded out between z0 and z1."""
+    nt = m.node_tree
+    l = nt.links
+    tc = _node(nt, 'ShaderNodeTexCoord', loc)
+    mp = _node(nt, 'ShaderNodeMapping', (loc[0] + 200, loc[1]))
+    mp.inputs['Scale'].default_value = stretch
+    l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
+    n = _node(nt, 'ShaderNodeTexNoise', (loc[0] + 400, loc[1]))
+    n.inputs['Scale'].default_value = scale
+    n.inputs['Detail'].default_value = 8
+    l.new(mp.outputs[0], n.inputs['Vector'])
+    r = _node(nt, 'ShaderNodeMapRange', (loc[0] + 600, loc[1]))
+    r.inputs['From Min'].default_value = lo
+    r.inputs['From Max'].default_value = hi
+    r.inputs['To Max'].default_value = amount
+    l.new(_sock(n, 'Factor', out=True), r.inputs['Value'])
+    if z0 is None:
+        return r.outputs[0]
+    sep = _node(nt, 'ShaderNodeSeparateXYZ', (loc[0] + 400, loc[1] - 250))
+    l.new(_sock(tc, 'Object', out=True), sep.inputs[0])
+    zr = _node(nt, 'ShaderNodeMapRange', (loc[0] + 600, loc[1] - 250))
+    zr.inputs['From Min'].default_value = z0
+    zr.inputs['From Max'].default_value = z1
+    zr.inputs['To Min'].default_value = 1.0
+    zr.inputs['To Max'].default_value = 0.0
+    l.new(sep.outputs[2], zr.inputs['Value'])
+    mul = _node(nt, 'ShaderNodeMath', (loc[0] + 800, loc[1]))
+    mul.operation = 'MULTIPLY'
+    l.new(r.outputs[0], mul.inputs[0])
+    l.new(zr.outputs[0], mul.inputs[1])
+    return mul.outputs[0]
+
+
+def hard_wear(m, deck_z=1.5, top=1.2):  # same as sklib_sea.hard_wear on the boat lanes
+    """Paint on a working boat after a season: grey primer where the white is chipped, rust bleeding from the
+    stanchion feet and scuppers (strong at deck level, thin runs above), dirty water stains down the inner faces."""
+    if m.get('hard_worn'):
+        return m
+    _over(m, _noise_band(m, 14.0, 0.62, 0.7, 0.9, loc=(-2600, -2600)), (0.36, 0.37, 0.36))                    # primer chips
+    _over(m, _noise_band(m, 3.0, 0.5, 0.7, 0.85, stretch=(28.0, 28.0, 0.5), z0=deck_z, z1=deck_z + 0.6,
+                         loc=(-2600, -3000)), (0.26, 0.1, 0.035))                                             # rust at the feet
+    _over(m, _noise_band(m, 3.0, 0.6, 0.75, 0.75, stretch=(40.0, 40.0, 0.3), loc=(-2600, -3400)), (0.3, 0.13, 0.05))   # rust runs
+    _over(m, _noise_band(m, 2.0, 0.45, 0.8, 0.55, stretch=(6.0, 6.0, 0.4), z0=deck_z + 0.1, z1=deck_z + top,
+                         loc=(-2600, -3800)), (0.24, 0.23, 0.19))                                             # dirty-water stains
+    m['hard_worn'] = 1
+    return m
+
+
