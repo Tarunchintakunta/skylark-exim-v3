@@ -718,7 +718,7 @@ def ice_mat():
     return m
 
 
-def water_mat(name, deep, swell=0.0):
+def water_mat(name, deep, swell=0.0, body_emit=False):
     """Sea/harbour water: dark body, low roughness so the sky reflects, white foam from the Ocean modifier's
     foam attribute, fine bump for chop."""
     if name in bpy.data.materials:
@@ -771,6 +771,15 @@ def water_mat(name, deep, swell=0.0):
         b2.inputs['Distance'].default_value = 2.0
         l.new(_sock(n3, 'Factor', out=True), b2.inputs['Height'])
         l.new(b2.outputs[0], b.inputs['Normal'])
+    if body_emit:   # the water body's colour as emission, near-black diffuse: sun shadows only show on foam
+        mul2 = _node(nt, 'ShaderNodeMath', (-100, 500))
+        mul2.operation = 'SUBTRACT'
+        mul2.inputs[0].default_value = 1.0
+        l.new(mul.outputs[0], mul2.inputs[1])
+        p.inputs['Emission Color'].default_value = (*deep, 1)
+        l.new(mul2.outputs[0], p.inputs['Emission Strength'])
+        col2 = mixrgb(nt, mul.outputs[0], (0.0, 0.0, 0.0), (0.85, 0.9, 0.92), loc=(100, 450))
+        l.new(col2, p.inputs['Base Color'])
     return m
 
 
