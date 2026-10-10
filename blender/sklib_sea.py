@@ -558,3 +558,153 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         floats.append(obj(f'{name}_Float{i}', fl, None, (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t), (0, D(60), a),
                           parent=root))
     return root, net, core, fishes, floats
+
+
+# ---------------------------------------------------------------- working-boat wear, humid sky, hull/sea contact
+def _over(m, fac_socket, color):
+    """Mix `color` over the material's current Base Color by fac."""
+    nt = m.node_tree
+    p = principled(m)
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else tuple(p.inputs['Base Color'].default_value)[:3]
+    col = mixrgb(nt, fac_socket, src, color, loc=(-500, -2600))
+    nt.links.new(col, p.inputs['Base Color'])
+
+
+def _noise_band(m, scale, lo, hi, amount, stretch=(1.0, 1.0, 1.0), z0=None, z1=None, loc=(-1600, -2600)):
+    """Thresholded object-space noise (optionally stretched) as a 0..amount factor, faded out between z0 and z1."""
+    nt = m.node_tree
+    l = nt.links
+    tc = _node(nt, 'ShaderNodeTexCoord', loc)
+    mp = _node(nt, 'ShaderNodeMapping', (loc[0] + 200, loc[1]))
+    mp.inputs['Scale'].default_value = stretch
+    l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
+    n = _node(nt, 'ShaderNodeTexNoise', (loc[0] + 400, loc[1]))
+    n.inputs['Scale'].default_value = scale
+    n.inputs['Detail'].default_value = 8
+    l.new(mp.outputs[0], n.inputs['Vector'])
+    r = _node(nt, 'ShaderNodeMapRange', (loc[0] + 600, loc[1]))
+    r.inputs['From Min'].default_value = lo
+    r.inputs['From Max'].default_value = hi
+    r.inputs['To Max'].default_value = amount
+    l.new(_sock(n, 'Factor', out=True), r.inputs['Value'])
+    if z0 is None:
+        return r.outputs[0]
+    sep = _node(nt, 'ShaderNodeSeparateXYZ', (loc[0] + 400, loc[1] - 250))
+    l.new(_sock(tc, 'Object', out=True), sep.inputs[0])
+    zr = _node(nt, 'ShaderNodeMapRange', (loc[0] + 600, loc[1] - 250))
+    zr.inputs['From Min'].default_value = z0
+    zr.inputs['From Max'].default_value = z1
+    zr.inputs['To Min'].default_value = 1.0
+    zr.inputs['To Max'].default_value = 0.0
+    l.new(sep.outputs[2], zr.inputs['Value'])
+    mul = _node(nt, 'ShaderNodeMath', (loc[0] + 800, loc[1]))
+    mul.operation = 'MULTIPLY'
+    l.new(r.outputs[0], mul.inputs[0])
+    l.new(zr.outputs[0], mul.inputs[1])
+    return mul.outputs[0]
+
+
+def hard_wear(m, deck_z=1.5, top=1.2):
+    """Paint on a working boat after a season: grey primer where the white is chipped, rust bleeding from the
+    stanchion feet and scuppers (strong at deck level, thin runs above), dirty water stains down the inner faces."""
+    if m.get('hard_worn'):
+        return m
+    _over(m, _noise_band(m, 14.0, 0.62, 0.7, 0.9, loc=(-2600, -2600)), (0.36, 0.37, 0.36))                    # primer chips
+    _over(m, _noise_band(m, 3.0, 0.5, 0.7, 0.85, stretch=(28.0, 28.0, 0.5), z0=deck_z, z1=deck_z + 0.6,
+                         loc=(-2600, -3000)), (0.26, 0.1, 0.035))                                             # rust at the feet
+    _over(m, _noise_band(m, 3.0, 0.6, 0.75, 0.75, stretch=(40.0, 40.0, 0.3), loc=(-2600, -3400)), (0.3, 0.13, 0.05))   # rust runs
+    _over(m, _noise_band(m, 2.0, 0.45, 0.8, 0.55, stretch=(6.0, 6.0, 0.4), z0=deck_z + 0.1, z1=deck_z + top,
+                         loc=(-2600, -3800)), (0.24, 0.23, 0.19))                                             # dirty-water stains
+    m['hard_worn'] = 1
+    return m
+
+
+def gut_stains(m):
+    """Deck after a haul: diluted blood smears and stuck fish scales that glint."""
+    if m.get('gutted'):
+        return m
+    nt = m.node_tree
+    _over(m, _noise_band(m, 1.4, 0.6, 0.75, 0.7, stretch=(1.0, 3.0, 1.0), loc=(-2600, -4300)), (0.12, 0.015, 0.012))
+    sc = _noise_band(m, 90.0, 0.74, 0.76, 1.0, loc=(-2600, -4700))
+    _over(m, sc, (0.7, 0.72, 0.74))
+    p = principled(m)
+    rough_src = p.inputs['Roughness'].links[0].from_socket if p.inputs['Roughness'].links else None
+    inv = _node(nt, 'ShaderNodeMapRange', (-300, -4700))
+    inv.inputs['To Min'].default_value = 0.0
+    inv.inputs['To Max'].default_value = 1.0
+    nt.links.new(sc, inv.inputs['Value'])
+    mx = _node(nt, 'ShaderNodeMix', (-100, -4700))
+    mx.data_type = 'FLOAT'
+    nt.links.new(inv.outputs[0], mx.inputs['Factor'])
+    if rough_src is not None:
+        nt.links.new(rough_src, mx.inputs['A'])
+    else:
+        mx.inputs['A'].default_value = p.inputs['Roughness'].default_value
+    mx.inputs['B'].default_value = 0.12                       # scales are shiny
+    nt.links.new(mx.outputs['Result'], p.inputs['Roughness'])
+    m['gutted'] = 1
+    return m
+
+
+def haze_world(sat=0.5, haze=(0.66, 0.69, 0.68), amount=0.35, contrast=-0.15):
+    """Humid coastal sky from a clear HDRI: lower saturation and contrast, lifted toward a grey-green haze."""
+    w = bpy.context.scene.world
+    nt = w.node_tree
+    env = next(n for n in nt.nodes if n.type == 'TEX_ENVIRONMENT')
+    bg = next(n for n in nt.nodes if n.type == 'BACKGROUND')
+    hs = nt.nodes.new('ShaderNodeHueSaturation')
+    hs.inputs['Saturation'].default_value = sat
+    bc = nt.nodes.new('ShaderNodeBrightContrast')
+    bc.inputs['Contrast'].default_value = contrast
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type = 'RGBA'
+    mx.inputs['Factor'].default_value = amount
+    mx.inputs['B'].default_value = (*haze, 1)
+    nt.links.new(env.outputs['Color'], hs.inputs['Color'])
+    nt.links.new(hs.outputs['Color'], bc.inputs['Color'])
+    nt.links.new(bc.outputs['Color'], mx.inputs['A'])
+    nt.links.new(mx.outputs['Result'], bg.inputs['Color'])
+
+
+def sea_tone(m, deep=(0.012, 0.032, 0.03), foam_from=0.12):
+    """Green-grey coastal water instead of cobalt; more whitecaps from the ocean foam attribute."""
+    p = principled(m)
+    for n in m.node_tree.nodes:
+        if n.type == 'MIX' and n.data_type == 'RGBA' and not n.inputs['A'].links:
+            n.inputs['A'].default_value = (*deep, 1)
+        if n.type == 'MAP_RANGE' and abs(n.inputs['From Min'].default_value - 0.25) < 1e-6:
+            n.inputs['From Min'].default_value = foam_from
+    if not p.inputs['Base Color'].links:
+        p.inputs['Base Color'].default_value = (*deep, 1)
+
+
+def hull_contact(name, root, L=24.0, z=0.03, width=0.7, mats=None):
+    """Foam where the hull cuts the water: a broken ring hugging the waterline (hull_b), parented to the boat,
+    plus a bow cushion. Alpha from noise so it reads as churned water, not a white rim."""
+    m = bpy.data.materials.get('MAT_HullFoam')
+    if m is None:
+        m = pbr('MAT_HullFoam', (0.86, 0.9, 0.9), 0.5, var=0.2, bump=0.4, scale=6, alpha=0.75)
+        nt = m.node_tree
+        p = principled(m)
+        f = _noise_band(m, 4.0, 0.42, 0.62, 1.0, stretch=(1.0, 1.0, 1.0), loc=(-1600, 600))
+        nt.links.new(f, p.inputs['Alpha'])
+    bm = bmesh.new()
+    n = 80
+    inner, outer = [], []
+    xs = [(-L / 2 + 0.2) + (L - 0.6) * k / (n // 2) for k in range(n // 2 + 1)]
+    loop = [(x, 0.92 * hull_b(x, L)) for x in xs] + [(x, -0.92 * hull_b(x, L)) for x in reversed(xs)]   # waterline beam
+    for (x, y) in loop:
+        d = Vector((0, 1 if y >= 0 else -1, 0))
+        bow = max(0.0, (x - (L / 2 - 4.0)) / 4.0)              # wider cushion at the bow
+        w = width * (1.0 + 1.5 * bow)
+        inner.append(bm.verts.new((x, y - d.y * 0.05, z)))
+        outer.append(bm.verts.new((x + 0.4 * bow, y + d.y * w, z)))
+    for i in range(len(loop) - 1):
+        bm.faces.new((inner[i], inner[i + 1], outer[i + 1], outer[i]))
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(m)
+    o = obj(name, me, None)
+    o.parent = root
+    return o
