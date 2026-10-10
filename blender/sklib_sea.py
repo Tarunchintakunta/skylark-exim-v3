@@ -410,10 +410,12 @@ def net_sack_mat(name='MAT_NetSack', mesh=0.075, twine=0.16):
     nt = m.node_tree
     l = nt.links
     p = principled(m)
-    p.inputs['Base Color'].default_value = (0.05, 0.09, 0.07, 1)
-    p.inputs['Roughness'].default_value = 0.4
+    p.inputs['Base Color'].default_value = (0.03, 0.075, 0.045, 1)     # dark green nylon twine
+    p.inputs['Roughness'].default_value = 0.6
+    p.inputs['Metallic'].default_value = 0.0
     if 'Coat Weight' in p.inputs:
-        p.inputs['Coat Weight'].default_value = 0.5           # wet twine
+        p.inputs['Coat Weight'].default_value = 0.12          # only a slight wet sheen
+        p.inputs['Coat Roughness'].default_value = 0.3
     tc = _node(nt, 'ShaderNodeTexCoord', (-1600, 0))
     sep = _node(nt, 'ShaderNodeSeparateXYZ', (-1400, 0))
     l.new(_sock(tc, 'Object', out=True), sep.inputs[0])
@@ -469,7 +471,7 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
             lump = 1 + (0.05 + 0.1 * t) * noise.noise(p * 2.4 + Vector((seed, 0, 0))) \
                 + 0.05 * t * noise.noise(p * 8.0 + Vector((0, seed, 0)))
             # gathered folds near the neck, fading out as the sack fills
-            lump += 0.16 * max(0.0, 0.45 - t) * math.sin(14 * a + 3 * noise.noise(p * 2.0))
+            lump += 0.32 * max(0.0, 0.5 - t) * math.sin(10 * a + 3 * noise.noise(p * 2.0))   # slack folds at the ring
             # slack netting bellies out between the load points low down
             zz = z + 0.06 * t * noise.noise(p * 5.0 + Vector((seed, seed, 0)))
             ring.append(bm.verts.new((r * lump * math.cos(a) + sway, r * lump * math.sin(a), zz)))
@@ -490,22 +492,23 @@ def net_bag(name='NET', R=1.5, depth=2.6, mats=None, n_fish=160, n_tuna=5, seed=
         rad = math.hypot(v.co.x, v.co.y)
         v.co = Vector((rr * rad * math.cos(a) + 0.12 * t * t, rr * rad * math.sin(a), -depth * t))
     cm = bm_to_mesh(bmc, f'{name}_Core', smooth=True)
-    cm.materials.append(pbr('MAT_FishMass', (0.55, 0.58, 0.62), 0.2, 0.6, var=0.6, bump=0.9, scale=14, coat=0.6))
+    cm.materials.append(pbr('MAT_FishMass', (0.32, 0.36, 0.4), 0.45, 0.15, var=0.7, bump=0.9, scale=9, coat=0.2))   # matte wet bodies
     core = obj(f'{name}_Core', cm, None, parent=root)
     fishes = []
     for i in range(n_fish):
         a = rnd.uniform(0, 2 * math.pi)
         t = rnd.uniform(0.33, 0.93)
-        r = bag_radius(t, R) * rnd.uniform(0.9, 1.02)       # bodies pressing out through the meshes
+        r = bag_radius(t, R) * rnd.uniform(0.93, 1.0)       # bodies pressing out through the meshes
+        # lying along the sack wall (flank out), big enough to read as fish at preview size
         f = fish(f'{name}_fish{i}', 'mackerel', (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t),
-                 (rnd.uniform(0, 6.28), rnd.uniform(-0.5, 0.5), a + math.pi / 2 + rnd.uniform(-0.6, 0.6)),
-                 rnd.uniform(0.9, 1.15), parent=root)
+                 (math.pi / 2 + rnd.uniform(-0.3, 0.3), rnd.uniform(-0.4, 0.4), a + math.pi / 2 + rnd.uniform(-0.5, 0.5)),
+                 rnd.uniform(1.3, 1.6), parent=root)
         fishes.append(f)
     for i in range(n_tuna):
         a = rnd.uniform(0, 2 * math.pi)
-        t = rnd.uniform(0.45, 0.75)
-        r = bag_radius(t, R) * 0.8
-        f = fish(f'{name}_tuna{i}', 'tuna', (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t),
+        t = rnd.uniform(0.5, 0.92)
+        r = bag_radius(t, R) * 0.9
+        f = fish(f'{name}_tuna{i}', 'tuna_s', (r * math.cos(a) + 0.12 * t * t, r * math.sin(a), -depth * t),
                  (rnd.uniform(-0.4, 0.4), rnd.uniform(-0.3, 0.3), a + math.pi / 2), rnd.uniform(0.75, 0.95), parent=root)
         fishes.append(f)
     obj(f'{name}_Ring', torus_mesh(f'{name}_Ring', 0.3, 0.04, 24, 8), mats['steel'], (0, 0, -0.12), parent=root)
