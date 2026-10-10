@@ -464,6 +464,8 @@ def build(out):
     s.frame_start, s.frame_end = F0, F1
     s.frame_current = F0
     s.render.filepath = '//../render/p-harvest/'
+    if hasattr(H, 'auto_poles'):
+        print('POLES', H.auto_poles())          # elbows down and back on every pole-less arm IK
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print('OUT built p-harvest', out)
 
