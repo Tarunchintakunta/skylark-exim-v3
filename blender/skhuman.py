@@ -448,7 +448,7 @@ def _shell(body, piece, mask, M):
         front = nxt
     if loose_cloth:
         # cloth drapes over the anatomy: push out, then relax (removes muscle detail); hems hug the body
-        hem = 0.012 if piece not in ('labcoat', 'parka') else 0.022
+        hem = {'labcoat': 0.022, 'parka': 0.022, 'vest': 0.06}.get(piece, 0.012)   # vest sits over the shirt
         for v in bm.verts:
             v.co += v.normal * (hem if v.is_boundary else t * 1.6)
         inner = [v for v in bm.verts if not v.is_boundary]
