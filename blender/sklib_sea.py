@@ -8,7 +8,7 @@ from sklib import (M, pbr, weather, new_mat, principled, _node, _sock, mixrgb, e
                    tube, bm_to_mesh, crate, ice_mesh, fish, D, tex_pbr)
 
 
-def hull_material(name='MAT_HullWhiteBlue', white=(0.82, 0.83, 0.8), band=(0.03, 0.12, 0.4), bottom=(0.33, 0.05, 0.04),
+def hull_material(name='MAT_HullWhiteBlue', white=(0.72, 0.72, 0.68), band=(0.03, 0.12, 0.4), bottom=(0.33, 0.05, 0.04),
                   band_z=(2.25, 2.5), boot=0.15):
     """Hull paint by height (object Z): red antifouling, black boot-top, white topsides, blue trim at the rail,
     with rust/grime streaks running down."""
@@ -58,8 +58,9 @@ def hull_material(name='MAT_HullWhiteBlue', white=(0.82, 0.83, 0.8), band=(0.03,
     l.new(rr.outputs[0], p.inputs['Roughness'])
     p.inputs['Coat Weight'].default_value = 0.04
     # waterline scum and grime low on the topsides, salt-dulled above
-    return weather(m, streak=(0.28, 0.16, 0.08), amount=0.55, z0=-0.2, z1=1.4, dirt=(0.16, 0.17, 0.11),
-                   dirt_amount=0.7, scale=1.2)
+    # rust runs and salt streaks all the way up the topsides and the inside of the bulwarks, grime at the waterline
+    return weather(m, streak=(0.34, 0.17, 0.07), amount=0.95, z0=-0.2, z1=2.8, dirt=(0.18, 0.17, 0.12),
+                   dirt_amount=0.6, scale=1.8)
 
 
 def hull_b(x, L=24.0, B=3.2):
