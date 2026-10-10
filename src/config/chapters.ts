@@ -1,16 +1,16 @@
 import { film, type CaptionCopy } from './content'
 
 /**
- * Visual source of one segment. A chapter's scroll length is split evenly across its segments.
- * - video: public/media/<id>_{1280,720}.mp4 + <id>_{1280,720}.webp first-frame posters + <id>_end_1280.webp
- * - still: a stand-in image until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
+ * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
+ * - video: public/media/<id>_{960,1280,1920}.mp4 + <id>_{960,1280,1920}.webp first-frame posters + <id>_end_1920.webp
+ * - still: a clip's first frame (every clip tier), or a ph-* stand-in at 720 / 1280, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
  * - gradient: deep-blue stand-in
  * - dom: documentation interlude over a pre-blurred still
  * - globe: the R3F globe
  */
 export type Media =
   | { kind: 'video'; id: string; alt: string }
-  | { kind: 'still'; poster: string; alt: string }
+  | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
   | { kind: 'globe'; alt: string }
@@ -36,6 +36,8 @@ export interface ChapterDef {
   joinNext: Join
   /** copy colour scheme; the globe opens into daylight */
   theme?: 'light'
+  /** 'soft': a light, neutral bottom scrim instead of the deep-sea one, for daylight footage (the port) */
+  scrim?: 'soft'
 }
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
@@ -103,7 +105,11 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' }],
+    // the lab still holds "Tested before it moves." (0–20%), the cold store the freezing / packing / cold-storage captions
+    media: [
+      { kind: 'still', poster: 'ph-p-lab', span: 0.2, alt: 'A clean quality lab bench with a microscope and a test instrument.' },
+      { kind: 'still', poster: 'ph-p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' },
+    ],
     captions: caps('coldchain', [[0.02, 0.2], [0.2, 0.55], [0.55, 0.8], [0.8, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
   },
   {
@@ -112,7 +118,7 @@ const SHARED: ChapterDef[] = [
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
-    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame',
+    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame', scrim: 'soft',
     media: [{ kind: 'video', id: 'x-cranes', alt: 'A white refrigerated truck parks under a ship-to-shore crane, which lifts the white reefer container on its cables onto the container ship.' }],
     captions: caps('port', [[0.1, 0.92]]),
   },

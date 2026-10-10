@@ -20,7 +20,14 @@
 .species__item { padding: 14px 0; border-bottom: 1px solid var(--hairline-ink); font-size: clamp(1.05rem, 1.3vw, 1.3rem); }
 .products__note { margin-top: 20px; color: var(--ink-2); }
 .products__note .mono { display: block; margin-bottom: 6px; color: var(--brass-ink); }
-.products__cta { margin-top: 28px; border-color: var(--ink); }
+/* the call to action closes the species list as its last row, not a lone box under it (#148) */
+.products__cta {
+  display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 20px; padding: 14px 0;
+  border-bottom: 1px solid var(--ink); font-size: clamp(1.05rem, 1.3vw, 1.3rem); font-weight: 500; text-align: left;
+}
+.products__cta span { display: inline-block; color: var(--brass-ink); transition: transform 0.4s var(--ease-out); }
+.products__cta:hover span, .products__cta:focus-visible span { transform: translateX(6px); }
+.species + .products__cta { margin-top: 0; }
 .product-card {
   position: relative; display: grid; place-items: end start; min-height: 22rem; padding: 24px; margin: 0;
   background: radial-gradient(120% 90% at 70% 20%, #ffffff 0%, var(--light-2) 70%); border: 1px solid var(--hairline-ink); border-radius: var(--radius);

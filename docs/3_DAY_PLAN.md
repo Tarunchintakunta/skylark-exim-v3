@@ -6,8 +6,8 @@ Tarun and Claude work in parallel. Claude never waits for assets (placeholders, 
 ## Day 1
 **Tarun**
 1. Answer `confirm-list.md` (5 minutes; any unanswered item uses its fallback).
-2. Top up Higgsfield credits (last ledger balance 160; 5 clips need 612–648 for one take each, budget about 900–950 with re-rolls; HIGGSFIELD_PROMPTS.md "Credit plan").
-3. Clone github.com/Tarunchintakunta/skylark (anchors are in `assets/anchors`, `assets/stills`). Extract `a3_first_1080.png`: `ffmpeg -i assets/video/1080/a3.mp4 -frames:v 1 a3_first_1080.png` (HIGGSFIELD_PROMPTS.md §1).
+2. Top up Higgsfield credits (last ledger balance 160; 5 clips need 612–648 for one take each, budget about 900–950 with re-rolls; HIGGSFIELD.md "Credit plan").
+3. Clone github.com/Tarunchintakunta/skylark (anchors are in `assets/anchors`, `assets/stills`). Extract `a3_first_1080.png`: `ffmpeg -i assets/video/1080/a3.mp4 -frames:v 1 a3_first_1080.png` (HIGGSFIELD.md §1).
 4. Higgsfield 720p drafts for the must-have and the riskiest: **o-catch**, **p-proc**, **p-intake**. Approve or re-roll each against its "Accept if" list.
 5. Open **Blender** on the Mac with the MCP add-on connected (N panel → BlenderMCP → Connect) and leave it open. Claude builds all the 3D through it.
 6. Paste `CLAUDE_PROMPT.md` into Claude Code with this folder.

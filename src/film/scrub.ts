@@ -40,6 +40,7 @@ let shown: Slot | null = null
 let over = -1
 let hidden = false
 let isLight = false
+let isSoft = false
 let lastY = 0
 /** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
 const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
@@ -66,7 +67,9 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   over = -1
   stopTick?.()
   stopTick = onTick(tick, -5)
+  const stopReady = store.subscribe((st, was) => st.ready && !was.ready && cur >= 0 && loadPosters(cur))
   return () => {
+    stopReady()
     stopTick?.()
     stopTick = null
     for (const s of slots) release(s)
@@ -237,6 +240,11 @@ function tick() {
     isLight = light
     stage?.classList.toggle('is-light', light)
   }
+  const soft = seg.scrim === 'soft'
+  if (soft !== isSoft) {
+    isSoft = soft
+    stage?.classList.toggle('is-soft', soft)
+  }
   if (o >= 0 && posters[o]) {
     posters[o]!.classList.add('is-over')
     posters[o]!.style.opacity = String(a)
@@ -289,6 +297,15 @@ function clearLayers(keep: number) {
   over = -1
 }
 
+/** Posters load lazily: this segment and the next two, but only this one until the loader is done (first screen = LCP). */
+function loadPosters(i: number) {
+  const last = store.getState().ready ? i + 2 : i
+  for (let k = i; k <= last; k++) {
+    const p = posters[k]
+    if (p instanceof HTMLImageElement && !p.getAttribute('src') && p.dataset.src) p.src = p.dataset.src
+  }
+}
+
 function enter(i: number, prev: number) {
   const fromBelow = prev > i
   // coming back from the business sections (or the first frame): nothing to fade from, start clean
@@ -297,11 +314,7 @@ function enter(i: number, prev: number) {
     posters[prev]!.style.opacity = '0'
     posters[prev]!.classList.remove('is-over')
   }
-  // posters load lazily: this segment and the next two only
-  for (let k = i; k <= i + 2; k++) {
-    const p = posters[k]
-    if (p instanceof HTMLImageElement && !p.getAttribute('src') && p.dataset.src) p.src = p.dataset.src
-  }
+  loadPosters(i)
   const el = posters[i]
   if (el) {
     el.style.opacity = '1'

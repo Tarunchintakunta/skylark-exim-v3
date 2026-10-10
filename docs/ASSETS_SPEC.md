@@ -2,7 +2,7 @@
 
 **This pack contains no video, .blend or .glb files.** Sources live outside the repo:
 - Reused clips + chain anchors: github.com/Tarunchintakunta/skylark (`assets/video/1080/*.mp4`, `assets/anchors/`, `assets/stills/`). `scripts/fetch-sources.sh` copies them.
-- New/regenerated clips (5): Tarun makes them in Higgsfield (`HIGGSFIELD_PROMPTS.md`) and drops the 1080p masters into `assets-src/video/<id>.mp4`.
+- New/regenerated clips (5): Tarun makes them in Higgsfield (`HIGGSFIELD.md`) and drops the 1080p masters into `assets-src/video/<id>.mp4`.
 - Port and ship clips (`x-cranes`, `x-ship`): **Claude** builds, animates and renders them in Blender from `assets-src/blender/port.blend` (`BLENDER_GLB_SPEC.md` §3) and writes the 1080p masters to the same `assets-src/video/<id>.mp4`.
 - GLBs (7): **Claude** builds them in Blender through its connector (`BLENDER_GLB_SPEC.md`) and exports to `assets-src/models/<name>.glb`.
 Claude runs the scripts below on `assets-src/` and commits only the **optimised output** in `public/` (plus small review renders in `docs/renders/`).
