@@ -183,7 +183,7 @@ for v in bm.verts:
 me = L.bm_to_mesh(bm, 'COAST_Hills', smooth=True)
 me.materials.append(L.pbr('MAT_CoastHills', (0.16, 0.19, 0.11), 0.9, var=0.35, bump=0.2, scale=0.004))   # scrub green-brown
 L.obj('COAST_Hills', me)
-town = L.pbr('MAT_Town', (0.5, 0.45, 0.38), 0.85, var=0.5, scale=0.05, attr=None, grime=0.4)
+town = L.pbr('MAT_Town', (0.38, 0.34, 0.29), 0.85, var=0.6, scale=0.05, attr=None, grime=0.5)
 win = L.pbr('MAT_TownLights', (1.0, 0.75, 0.45), 0.5, estrength=4.0)
 tb = bmesh.new()
 for i in range(420):
@@ -214,8 +214,8 @@ for i, (x, y, rz) in enumerate(((-260, 900, 0.3), (180, 1400, 2.4), (520, 700, 1
     S.vessel(f'FARBOAT{i}', loc=(x, y, 0), rot_z=rz, mats=mats, detail=False)
 for i in range(6):
     g = S.gull(f'GULL{i}', (0, 0, 0))
-    cx, cy, cz = rnd.uniform(-12, 12), rnd.uniform(25, 60), rnd.uniform(6, 14)
-    path = [(cx + 9 * math.cos(k * 0.3 + i), cy + 5 * math.sin(k * 0.3 + i), cz + 0.6 * math.sin(k * 0.5)) for k in range(24)]
+    cx, cy, cz = rnd.uniform(-30, 30), rnd.uniform(60, 120), rnd.uniform(10, 22)   # farther off, gliding slowly (no blur streaks)
+    path = [(cx + 9 * math.cos(k * 0.12 + i), cy + 5 * math.sin(k * 0.12 + i), cz + 0.6 * math.sin(k * 0.5)) for k in range(24)]
     S.flap(g, 1, F_END, period=rnd.randint(9, 13), amp=32, path=path)
     L.key_vis(g, BREAK - 6)
 
