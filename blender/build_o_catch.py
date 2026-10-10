@@ -28,6 +28,7 @@ s.render.fps = 24
 mats = L.M()
 sun = L.hdri('kloofendal_48d_partly_cloudy_puresky_4k', strength=0.85, rot=0.0, sun_strength=3.0)
 bpy.data.objects['Sun'].data.angle = math.radians(6.0)   # soft-edged sea-haze shadows, no black holes on the deck
+bpy.context.scene.world.use_sun_shadow = False   # no second shadow from EEVEE's HDRI sun extraction (the Sun lamp keys)
 
 # ---------------------------------------------------------------- vessel
 V = S.vessel('BOAT', mats=mats)
