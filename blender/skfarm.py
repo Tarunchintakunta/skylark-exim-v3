@@ -514,7 +514,7 @@ def water_mat():
     sh.name = 'Shallow'
     sh.inputs['From Min'].default_value = 2.9          # shoreline sits ~2.9 m inside the quad edge
     sh.inputs['From Max'].default_value = 6.0
-    sh.inputs['To Min'].default_value = 0.6
+    sh.inputs['To Min'].default_value = 0.8
     sh.inputs['To Max'].default_value = 0.0
     L.new(dmin.outputs[0], sh.inputs['Value'])
     smx = nt.nodes.new('ShaderNodeMix')
@@ -522,7 +522,31 @@ def water_mat():
     smx.name = 'ShallowMix'
     L.new(sh.outputs[0], smx.inputs[0])
     L.new(ramp.outputs[0], smx.inputs[6])
-    smx.inputs[7].default_value = (0.14, 0.115, 0.075, 1)
+    # silt plumes over the slope: ochre mud and green-brown water broken up by a large noise
+    so = nt.nodes.new('ShaderNodeTexCoord')
+    sn = nt.nodes.new('ShaderNodeTexNoise')
+    sn.inputs['Scale'].default_value = 0.22
+    sn.inputs['Detail'].default_value = 5
+    L.new(so.outputs['Object'], sn.inputs['Vector'])
+    sr = nt.nodes.new('ShaderNodeValToRGB')
+    sr.color_ramp.elements[0].position = 0.38
+    sr.color_ramp.elements[0].color = (0.17, 0.125, 0.07, 1)     # stirred ochre mud
+    sr.color_ramp.elements[1].position = 0.62
+    sr.color_ramp.elements[1].color = (0.07, 0.085, 0.045, 1)    # green-brown silt water
+    L.new(sn.outputs['Fac'], sr.inputs[0])
+    L.new(sr.outputs[0], smx.inputs[7])
+    # depth: the open water darkens away from the slope
+    dp = nt.nodes.new('ShaderNodeMapRange')
+    dp.inputs['From Min'].default_value = 6.0
+    dp.inputs['From Max'].default_value = 16.0
+    dp.inputs['To Min'].default_value = 1.35
+    dp.inputs['To Max'].default_value = 0.8
+    L.new(dmin.outputs[0], dp.inputs['Value'])
+    dk = nt.nodes.new('ShaderNodeVectorMath')
+    dk.operation = 'SCALE'
+    L.new(ramp.outputs[0], dk.inputs[0])
+    L.new(dp.outputs[0], dk.inputs['Scale'])
+    L.new(dk.outputs[0], smx.inputs[6])
     L.new(smx.outputs[2], p.inputs['Base Color'])
     p.inputs['Roughness'].default_value = 0.075
     p.inputs['IOR'].default_value = 1.33
