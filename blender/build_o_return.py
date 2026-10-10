@@ -133,7 +133,7 @@ for ix in range(5):
                 fill=rnd.choice(['mixed', 'fish', 'tuna']), parent=boat, mats=mats, seed=k)
         k += 1
 # bow wave + wake while under way
-wake = P.wake('BOAT_Wake', boat, -11.5, length=70.0, w0=5.0, w1=22.0, z=0.12, kelvin=False)
+wake = P.wake('BOAT_Wake', boat, -11.5, length=90.0 if DEPART else 70.0, w0=5.0, w1=22.0, z=0.2, kelvin=DEPART)   # V arms on the way out
 for f, sc in (((1, 0.01), (44, 0.01), (90, 0.5), (140, 0.9), (240, 1.0)) if DEPART else
               ((1, 1.0), (100, 0.7), (130, 0.15), (142, 0.01))):
     wake.scale = (sc, 1, 1)
