@@ -2,8 +2,8 @@ import { film, type CaptionCopy } from './content'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
- * - video: public/media/<id>_{1280,720}.mp4 + <id>_{1280,720}.webp first-frame posters + <id>_end_1280.webp
- * - still: a stand-in image until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
+ * - video: public/media/<id>_{960,1280,1920}.mp4 + <id>_{960,1280,1920}.webp first-frame posters + <id>_end_1920.webp
+ * - still: a clip's first frame (every clip tier), or a ph-* stand-in at 720 / 1280, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
  * - gradient: deep-blue stand-in
  * - dom: documentation interlude over a pre-blurred still
  * - globe: the R3F globe

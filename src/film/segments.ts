@@ -32,18 +32,18 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
  */
 const dpr = Math.min(devicePixelRatio || 1, 1.5)
 export const W = env.mobile || env.saveData ? 960 : innerWidth * dpr > 1280 ? 1920 : 1280
-/** stand-in stills only exist at 1280 / 720 */
-const STILL_W = env.mobile || env.saveData ? 720 : 1280
-export const clipUrl = (id: string) => `/media/${id}_${W}.mp4`
-export const posterUrl = (id: string) => `/media/${id}_${W}.webp`
-const stillUrl = (id: string) => `/media/${id}_${STILL_W}.webp`
+/** stand-in stills (ph-*) only exist at 1280 / 720; a still that is a clip's first frame (a3, b2) exists at every clip tier */
+const stillW = (w: number) => (w === 960 ? 720 : 1280)
+export const clipUrl = (id: string, w = W) => `/media/${id}_${w}.mp4`
+export const posterUrl = (id: string, w = W) => `/media/${id}_${w}.webp`
+const stillUrl = (id: string, w: number) => (id.startsWith('ph-') ? `/media/${id}_${stillW(w)}.webp` : posterUrl(id, w))
 export const endPosterUrl = (id: string) => `/media/${id}_end_1920.webp`
 
-/** First-frame poster for a segment, or null for gradient/globe. */
-export function posterFor(m: Media): string | null {
-  if (m.kind === 'video') return posterUrl(m.id)
-  if (m.kind === 'still') return stillUrl(m.poster)
+/** First-frame poster for a segment, or null for gradient/globe. `w` is the media tier (tests pass each one). */
+export function posterFor(m: Media, w = W): string | null {
+  if (m.kind === 'video') return posterUrl(m.id, w)
+  if (m.kind === 'still') return stillUrl(m.poster, w)
   // documentation: a pre-blurred, darkened still (no live CSS blur over the stage)
-  if (m.kind === 'dom') return stillUrl(`${m.poster}-blur`)
+  if (m.kind === 'dom') return stillUrl(`${m.poster}-blur`, w)
   return null
 }
