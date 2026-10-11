@@ -43,8 +43,8 @@ export interface ChapterDef {
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
 const start: ChapterDef = {
-  id: 'start', path: 'shared', label: 'Start', vh: 120, joinNext: 'shared-frame',
-  media: [{ kind: 'video', id: 'opening', alt: 'Underwater light rising to the surface of the sea at dusk.' }],
+  id: 'start', path: 'shared', label: 'Start', vh: 120, joinNext: 'crossfade',
+  media: [{ kind: 'video', id: 'opening', alt: 'Dawn at sea off the Andhra coast: the camera glides at water level toward a fishing town under green hills.' }],
   captions: [],
 }
 
