@@ -21,7 +21,7 @@ Branch `feat/higgsfield-story` → `main`. Not merged; Tarun merges. Full per-ta
 | Full scroll | <= 25 MB desktop / <= 12 MB mobile | 24.29 MB / 9.77 MB |
 | Per-file caps (weight.spec) | all files | pass |
 | Scroll (desktop) | 60 fps | rAF 60 fps, 0 long tasks; scroll-perf spec passes |
-| `git grep -i bengal` | empty | empty |
+| banned sea-name grep (#173) | no matches | no matches |
 
 **video-smoothness (still failing, as on main).** rAF stays at 57-60 fps on every profile (no page jank); what falls short is the clip's presented frame rate in some chapters:
 - desktop (no throttling): o3 and p2 (100 vh chapters, under 1 s of scroll in the test) show the poster while the clip is still loading (stale 48-61 %, 11-25 fps); every other chapter 34-60 fps.
