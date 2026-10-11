@@ -1,4 +1,5 @@
 import { bridge, film, type CaptionCopy } from './content'
+import { MARKET_COUNT } from './markets'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
@@ -143,7 +144,7 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'world', path: 'shared', label: 'The world', vh: 220, joinNext: 'cut', theme: 'light',
-    media: [{ kind: 'globe', alt: 'A bright daytime globe with gold routes from Visakhapatnam to 16 markets.' }],
+    media: [{ kind: 'globe', alt: `A bright daytime globe with gold routes from Visakhapatnam to ${MARKET_COUNT} markets.` }],
     captions: caps('world', [[0.3, 1.01]]).map((c) => ({ ...c, body: undefined, extra: 'markets' as const })),
   },
 ]

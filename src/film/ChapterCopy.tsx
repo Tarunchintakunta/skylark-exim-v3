@@ -18,7 +18,7 @@ export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
         return (
           // keyed by content, not index: after a path switch the same chapter can gain or lose the bridge caption, and
           // SplitText.revert() in bindCaptions would write the old title back into a reused node (#210)
-          <article className={`caption${place}${chapter.theme === 'light' ? ' caption--light' : ''}`} key={`${i}:${c.title}`}>
+          <article className={`caption${place}${chapter.theme === 'light' ? ' caption--light' : ''}${c.extra === 'markets' ? ' caption--markets' : ''}`} key={`${i}:${c.title}`}>
             {c.eyebrow && <Eyebrow text={c.eyebrow} />}
             <Title className="caption__title display">{c.title}</Title>
             {c.body && <p className="caption__body" data-fade>{c.body}</p>}
