@@ -96,7 +96,7 @@ const SHARED: ChapterDef[] = [
   {
     id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck stands reversed into the plant loading bay, cab outside; the driver in a hi-vis vest walks toward the dock.' },
+      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
     ],
     captions: caps('intake', [[0.1, 0.92]]),
