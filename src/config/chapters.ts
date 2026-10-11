@@ -83,8 +83,11 @@ const POND_ONLY: ChapterDef[] = [
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
-    id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'b3', alt: 'Shrimp go into iced crates, onto a small refrigerated truck that reverses to the plant bay.' }],
+    id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: workers wade waist-deep drawing the drag net toward the bank.' },
+      { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in blue and white crates beside the refrigerated truck.' },
+    ],
     captions: caps('p3', [[0.1, 0.9]]),
   },
 ]
