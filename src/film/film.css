@@ -31,7 +31,22 @@
 .caption--light { color: var(--ink); }
 .caption--light .caption__eyebrow { color: var(--brass-ink); }
 .caption--light .caption__body { color: var(--ink-2); }
-.markets { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 1.4rem; max-width: 40rem; pointer-events: auto; }
-.markets__item { padding: 2px 0; border: 0; background: none; color: var(--ink); font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.2s; }
+/* markets: copy on the left, vertically centred below the header, so the globe can centre on it (Globe.tsx measures it) */
+.caption--markets { top: 68px; bottom: 0; height: fit-content; margin: auto 0; width: min(36rem, 44vw); }
+.markets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem 1.5rem; margin-top: 1.8rem; pointer-events: auto; }
+.markets__region { margin: 0 0 0.4rem; color: var(--brass-ink); font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; }
+.markets__list { margin: 0; padding: 0; list-style: none; }
+.markets__item { display: block; padding: 2px 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; white-space: nowrap; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.2s; }
 .markets__item:hover, .markets__item:focus-visible { text-decoration-color: currentColor; }
-.globe-label { display: block; padding: 3px 6px; white-space: nowrap; color: var(--ink); background: rgba(244, 239, 230, 0.82); border-radius: 2px; font-size: 10px; transform: translateY(-16px); transition: opacity 0.35s; }
+/* phones: the globe takes the top of the screen, the copy stacks under it */
+@media (max-width: 819px) {
+  .caption--markets { top: auto; margin: 0; width: calc(100vw - 2 * var(--gutter)); }
+  .caption--markets .caption__eyebrow { margin-bottom: 0.6rem; }
+  .caption--markets .caption__title { font-size: clamp(2.25rem, 10vw, 2.75rem); }
+  .markets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; margin-top: 1rem; font-size: 0.875rem; line-height: 1.3; }
+  .markets__region { margin-bottom: 0.2rem; }
+  .markets__item { padding: 1px 0; }
+}
+.globe-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.globe-label { position: absolute; top: 0; left: 0; padding: 2px 6px; white-space: nowrap; color: var(--ink); background: rgba(244, 239, 230, 0.86); border-radius: 2px; font-size: 10.5px; opacity: 0; transition: opacity 0.35s; will-change: transform; }
+.globe-label--origin { color: var(--brass-ink); }

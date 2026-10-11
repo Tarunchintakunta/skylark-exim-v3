@@ -16,7 +16,7 @@ export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
       {chapter.captions.map((c, i) => {
         const Title = i === 0 ? 'h2' : 'h3'
         return (
-          <article className={`caption${place}${chapter.theme === 'light' ? ' caption--light' : ''}`} key={i}>
+          <article className={`caption${place}${chapter.theme === 'light' ? ' caption--light' : ''}${c.extra === 'markets' ? ' caption--markets' : ''}`} key={i}>
             {c.eyebrow && <Eyebrow text={c.eyebrow} />}
             <Title className="caption__title display">{c.title}</Title>
             {c.body && <p className="caption__body" data-fade>{c.body}</p>}

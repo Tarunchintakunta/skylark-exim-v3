@@ -13,7 +13,8 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   useLayoutEffect(() => bindStage(ref.current!, segs), [segs])
 
   return (
-    <div className="stage" ref={ref} aria-hidden="true">
+    // not aria-hidden as a whole: the globe inside is a focusable, labelled control; the rest is decorative
+    <div className="stage" ref={ref}>
       {segs.map((s, i) => {
         const m = s.media
         if (m.kind === 'gradient') return <div key={i} data-seg={i} className="stage__layer stage__gradient" />
@@ -28,18 +29,18 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
             key={i}
             data-seg={i}
             className="stage__layer"
-            // only the opening poster loads up front; scrub.ts sets the rest from data-src (current + next 2)
-            src={i === 0 ? posterFor(m)! : undefined}
+            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them from data-src after the first scroll
+            src={undefined}
             data-src={posterFor(m)!}
             alt=""
             decoding="async"
-            fetchPriority={i === 0 ? 'high' : 'low'}
+            fetchPriority="low"
           />
         )
       })}
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
       <div className="stage__veil" />
       <div className="stage__scrim" />
     </div>
