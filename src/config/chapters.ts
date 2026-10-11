@@ -104,11 +104,13 @@ const SHARED: ChapterDef[] = [
     captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
   },
   {
-    id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'shared-frame',
+    id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'crossfade',
     // the lab still holds "Tested before it moves." (0–20%), the cold store the freezing / packing / cold-storage captions
     media: [
-      { kind: 'still', poster: 'ph-p-lab', span: 0.2, alt: 'A clean quality lab bench with a microscope and a test instrument.' },
-      { kind: 'still', poster: 'ph-p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' },
+      { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
+      { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
+      { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
+      { kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' },
     ],
     captions: caps('coldchain', [[0.02, 0.2], [0.2, 0.55], [0.55, 0.8], [0.8, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
   },
