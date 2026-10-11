@@ -757,7 +757,7 @@ def ice_mat():
     tl.inputs['Color'].default_value = (0.62, 0.78, 0.85, 1)
     l.new(nrm, tl.inputs['Normal'])
     body = _node(nt, 'ShaderNodeMixShader', (200, -50))
-    body.inputs[0].default_value = 0.32     # mostly see-through, a little light carried inside the shard
+    body.inputs[0].default_value = 0.22     # mostly see-through, a little light carried inside the shard
     l.new(tr.outputs[0], body.inputs[1])
     l.new(tl.outputs[0], body.inputs[2])
     lw = _node(nt, 'ShaderNodeLayerWeight', (0, 400))
