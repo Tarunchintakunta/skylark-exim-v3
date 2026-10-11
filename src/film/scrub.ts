@@ -323,8 +323,8 @@ function enter(i: number, prev: number) {
     if (el instanceof HTMLImageElement && m.kind === 'video' && !env.mobile) {
       const want = fromBelow ? endPosterUrl(m.id) : posterFor(m)!
       if (!el.src.endsWith(want)) el.src = want
-      // the end frame is only needed for scrolling back into this clip from below
-      else new Image().src = endPosterUrl(m.id)
+      // the end frame is only needed for scrolling back into this clip from below (not on the first screen)
+      else if (prev >= 0) new Image().src = endPosterUrl(m.id)
     }
   }
   // intentional cut (documentation → port): 250 ms fade through the page colour
