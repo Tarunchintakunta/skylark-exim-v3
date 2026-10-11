@@ -13,7 +13,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test tests/smoke.spec.ts
+      - run: npx playwright test tests/smoke.spec.ts tests/pages.spec.ts
       - name: weight + a11y (when present)
         run: |
           for t in weight a11y; do if [ -f tests/$t.spec.ts ]; then npx playwright test tests/$t.spec.ts; fi; done
