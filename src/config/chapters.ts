@@ -61,7 +61,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting yellowfin tuna and silver fish into iced crates.' }],
+    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced crates.' }],
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
