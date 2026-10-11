@@ -280,9 +280,9 @@ def proc_crew(C, rnd):
                      every=8 + n % 5, amp=5, seed=n, arms=False)
             if 4 <= n < 8:                                     # graders: low trays, lean in and step in until hands land
                 H.settle_reach(w, 470, 780, step=3, iters=6, max_shift=0.35, win=2)
-        else:
-            H.jitter(w, {'spine': (10, 0, 0), 'head': (14, 0, 0), 'upperarm': (8, -36, 0), 'forearm': (22, 0, 0)},
-                     1, 1060, every=8 + n % 5, amp=4, seed=n)     # nothing in reach to work on: arms relaxed
+        else:                                    # nothing in reach to work on: no idle extras (fewer, busier workers)
+            for o in [w] + list(w.children_recursive):
+                o.hide_render = o.hide_viewport = True
         n += 1
     sup = H.person('HUM_Supervisor', 'plant_coat', 'male', coll=C, seed=499, lod='lo')
     H.set_pose(sup, H.POSES['stand'], 1)
@@ -339,7 +339,7 @@ def freeze_crew(C, rnd, crate_fn):
     pt = bpy.data.objects.new('IN_ColdPalletJack', None)
     C.objects.link(pt)
     pt.parent = cs
-    pt.location = (0, 1.1, 0)
+    pt.location = (-0.22, 0.85, 0)                               # behind him, on his right: arm reaches back-down
     from sktruck import Part
     M = S.MATS()
     p = Part()
@@ -347,10 +347,10 @@ def freeze_crew(C, rnd, crate_fn):
         p.box((sx, 0.72, 0.055), (0.16, 1.15, 0.05))                    # forks under the pallet
     p.box((0, 0.05, 0.16), (0.56, 0.16, 0.12))                        # fork yoke
     p.cyl((0, 0.0, 0.2), (0, 0.0, 0.55), 0.06, 14)                   # pump cylinder
-    p.cyl((0, -0.02, 0.55), (0, -0.33, 0.93), 0.018, 8)              # handle shaft up to his hand
+    p.cyl((0, -0.02, 0.55), (0, -0.4, 0.78), 0.018, 8)               # handle shaft raked back to his hand
     for sx in (-0.07, 0.07):                                          # loop grip
-        p.cyl((sx, -0.33, 0.93), (sx, -0.41, 1.02), 0.014, 8)
-    p.cyl((-0.07, -0.41, 1.02), (0.07, -0.41, 1.02), 0.016, 8)
+        p.cyl((sx, -0.4, 0.78), (sx, -0.5, 0.84), 0.014, 8)
+    p.cyl((-0.07, -0.5, 0.84), (0.07, -0.5, 0.84), 0.016, 8)
     p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.006, coll=C)
     q = Part()
     for sx in (-0.12, 0.12):                                          # steer wheels + load rollers
@@ -364,7 +364,7 @@ def freeze_crew(C, rnd, crate_fn):
     th = bpy.data.objects.new('HUM_Cold_Tow', None)
     C.objects.link(th)
     th.parent = pt
-    th.location = (0, -0.41, 1.02)
+    th.location = (0, -0.5, 0.84)
     c = cs.pose.bones['forearm.R'].constraints.new('IK')
     c.target = th
     c.chain_count = 2
@@ -410,7 +410,9 @@ def freeze_crew(C, rnd, crate_fn):
 
 def build_interior_people(C, R):
     rnd = random.Random(99)
-    H.load(os.path.join(REPO, 'assets-src/blender/humans_lo.blend'), tag='lo')
+    for k, v in list(H._LOADED.items()):        # no low-res crowd: the level-0 set read as stick-legged mannequins;
+        if k.startswith('HUM_'):                 # every worker uses the full masters (triangles are affordable now)
+            H._LOADED['lo' + k] = v
     import plant_chain as PC
     crate_fn = lambda n, c, l, r, par, fill, sd: PC.crate(n, c, l, r, par, fill, sd)
     unload(C, R)

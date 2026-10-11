@@ -157,6 +157,12 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
     if 'm' not in _LM:
         _LM['m'] = L.M()
     o = L.crate(name, color, loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)   # library HDPE: bump + wear
+    if fill:                                    # packed full: product and crushed ice heaped to the rim, readable
+        for ch in o.children:                   # from a standing eye line (the library bed sits 10 cm down)
+            if ch.name.startswith(name + '_'):
+                ch.location.z += 0.075
+                if ch.name.endswith('_ice'):
+                    ch.scale.z *= 1.8
     return o
 
 
@@ -280,10 +286,12 @@ def build_truck_reverse(C_people):
     drv.keyframe_insert('rotation_euler', frame=222)
     drv.location = (7.45, -9.05, 0.0)
     drv.keyframe_insert('location', frame=222)
-    crouch = {'spine': (32, 0, 0), 'chest': (10, 0, 0), 'head': (-12, 0, 0), 'thigh': (75, 8, 0), 'shin': (-110, 0, 0),
-              'foot': (25, 0, 0), 'upperarm': (45, -6, 0), 'forearm': (30, 0, 0)}
+    crouch = {'spine': (24, 0, 0), 'chest': (8, 0, 0), 'head': (-8, 0, 0),     # down on one knee, not a wide squat
+              'thigh.R': (70, 2, 0), 'shin.R': (-140, 0, 0), 'foot.R': (55, 0, 0),    # right knee on the ground
+              'thigh.L': (85, 6, 0), 'shin.L': (-88, 0, 0), 'foot.L': (5, 0, 0),      # left foot planted, shin upright
+              'upperarm': (45, -6, 0), 'forearm': (30, 0, 0)}
     H.set_pose(drv, H.POSES['stand'], 222)
-    drv.location = (7.5, -9.0, -0.38)
+    drv.location = (7.5, -9.0, -0.46)
     drv.keyframe_insert('location', frame=232)
     H.set_pose(drv, crouch, 232)
     H.set_pose(drv, crouch, 240)
@@ -536,7 +544,12 @@ def build(scene, out):
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
     P.sky_haze()                                          # warm dusty haze low in the sky
     P.look_settings('exterior', exposure=0.0)
-    vs = s.view_settings          # step down the exposure as the camera goes from daylight into the lit hall
+    vs = s.view_settings
+    if scene != 'truck-reverse':
+        try:
+            vs.look = 'AgX - Medium High Contrast'    # interiors: separate the whites from the greys (no milky frames)
+        except TypeError:
+            pass          # step down the exposure as the camera goes from daylight into the lit hall
     for f, ev in ((236, 0.0), (264, -0.3), (330, -0.3), (420, -0.5), (780, -0.5), (800, -0.8), (905, -0.8),
                   (910, -0.5)):   # white hall: hold highlights; the bright lab eased down further
         vs.exposure = ev
@@ -551,6 +564,8 @@ def build(scene, out):
     s.frame_current = 1
     s.render.filepath = '//../render/%s/' % scene
     os.makedirs(os.path.dirname(out), exist_ok=True)
+    if hasattr(H, 'auto_poles'):
+        print('POLES', H.auto_poles())          # elbows down and back on every pole-less arm IK
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print('OUT built', scene, out)
 
