@@ -95,6 +95,8 @@ SO.progress('section: moored boats rafted side by side (no nam')
 # ---------------------------------------------------------------- moored boats rafted side by side (no names)
 hull_cols = [((0.08, 0.2, 0.5), (0.8, 0.8, 0.78)), ((0.45, 0.08, 0.06), (0.8, 0.8, 0.78)), ((0.1, 0.35, 0.18), (0.8, 0.8, 0.78)),
              ((0.8, 0.8, 0.78), (0.08, 0.2, 0.5)), ((0.06, 0.32, 0.45), (0.85, 0.6, 0.1))]
+ftyre = L.torus_mesh('MOORED_Tyre', 0.32, 0.11, 18, 8)
+ftyre.materials.append(mats['rubber'])
 k = 0
 for x0, n_along in ((40, 4), (-92, 3)):
     for a in range(n_along):
@@ -102,12 +104,21 @@ for x0, n_along in ((40, 4), (-92, 3)):
             hc = hull_cols[(k * 7) % len(hull_cols)]
             hm = S.hull_material(f'MAT_HullV{k}', white=hc[0], band=hc[1], bottom=(0.3, 0.06, 0.05), band_z=(2.25, 2.5))
             x = x0 + a * 27.5 + rnd.uniform(-0.8, 0.8)
-            y = 3.9 + row * 7.3
-            R = S.vessel(f'MOORED{k}', (x, y, 0), D(rnd.choice((0, 180)) + rnd.uniform(-2, 2)), mats=mats, hull=hm, detail=False)
+            y = 3.9 + row * 7.8          # 6.5 m beam + fenders: 1.3 m between rafted hulls (7.3 with 2 deg yaw overlapped at f60)
+            R = S.vessel(f'MOORED{k}', (x, y, 0), D(rnd.choice((0, 180)) + rnd.uniform(-0.5, 0.5)), mats=mats, hull=hm, detail=False)
+            S.hard_wear(R['hull'].active_material, 1.5, 1.0)     # primer chips, rust runs from the scuppers, salt-dirty water stains
+            for sy in (1, -1):                                   # old tyres hung over the side as fenders
+                for tx in (-7.0, -2.5, 2.0, 6.5):
+                    hb = S.hull_b(tx) * 1.01
+                    L.obj(f'MOORED{k}_Fender', ftyre, None, (tx, sy * (hb + 0.11), 1.05 + rnd.uniform(-0.1, 0.1)),
+                          (D(90 + rnd.uniform(-6, 6)), 0, 0), parent=R['root'])
+                    L.tube(f'MOORED{k}_FenderRope', [(tx, sy * (hb + 0.1), 1.45), (tx, sy * (hb + 0.03), 2.5)], 0.012,
+                           mats['rope'], 4, parent=R['root'])
             for f in range(1, 289, 24):
                 R['root'].rotation_euler.x = D(0.8 * math.sin(f / 19.0 + k))
                 R['root'].keyframe_insert('rotation_euler', frame=f)
             k += 1
+S.hard_wear(bpy.data.materials['MAT_BoatWhite'], 1.5, 1.2)   # bulwarks and wheelhouses: chips, rust, salt stains
 # mooring lines from the inner row to bollards
 for i in range(4):
     x = 40 + i * 26
@@ -279,6 +290,7 @@ bmat = L.weather(L.tex_pbr('MAT_Building', 'painted_plaster_wall', 0.3, attr='co
                  streak=(0.32, 0.28, 0.22), amount=0.6, z0=WZ, z1=WZ + 2.5, dirt=(0.3, 0.25, 0.18), dirt_amount=0.85, scale=0.8)
 shut = L.weather(P.paint_attr('MAT_Shutter', 0.6, 0.3, grime=0.5, corrugate=25.0), amount=0.5, z0=WZ, z1=WZ + 2.0)
 awn = L.pbr('MAT_Awning', (0.5, 0.5, 0.5), 0.8, var=0.3, grime=0.5, attr='col')
+facades = []
 shut_cols = [(0.35, 0.4, 0.42), (0.55, 0.32, 0.18), (0.2, 0.35, 0.45), (0.45, 0.45, 0.4)]
 awn_cols = [(0.1, 0.3, 0.55), (0.55, 0.12, 0.08), (0.12, 0.4, 0.2), (0.7, 0.55, 0.15)]
 for i in range(10):
@@ -289,17 +301,34 @@ for i in range(10):
         col = rnd.choice([(0.66, 0.62, 0.55), (0.58, 0.62, 0.62), (0.7, 0.64, 0.5), (0.55, 0.56, 0.5), (0.62, 0.5, 0.42)])
         blds.box((x, y, WZ + h / 2), (w, d, h), bmat, col)
         fx = x - side * w / 2 - side * 0.03
-        for fl in range(1, max(2, int(h / 3.0))):        # a row of windows per upper floor, sills and grilles
-            zf = WZ + fl * 3.0 + 1.0
-            if zf > WZ + h - 0.8:
-                break
-            for k2 in range(3):
-                yy = y - d / 3 + k2 * d / 3 + rnd.uniform(-0.2, 0.2)
-                blds.box((fx, yy, zf), (0.06, 1.2, 1.1), mats['glass'])
-                blds.box((fx - side * 0.02, yy, zf), (0.05, 1.5, 1.4), shut, rnd.choice(shut_cols))
-                blds.box((fx - side * 0.08, yy, zf - 0.62), (0.16, 1.5, 0.08), bmat, col)            # sill
-                if rnd.random() < 0.4:                                                          # AC unit / grille
+        facades.append((side, fx, y, d))
+        # upper floors: a row of framed windows per floor (always at least one row), sills, grilles, a rust/dirt run
+        # under every sill, the odd AC unit; ground floor: shutter, a small window, a blank colour-block sign board
+        rows = [WZ + fl * 3.0 + 0.9 for fl in range(1, 4) if WZ + fl * 3.0 + 1.6 < WZ + h] or [WZ + h * 0.66]
+        for zf in rows:
+            for k2 in range(4):
+                yy = y - d * 0.36 + k2 * d * 0.24 + rnd.uniform(-0.15, 0.15)
+                blds.box((fx - side * 0.02, yy, zf), (0.08, 1.3, 1.25), bmat, (0.22, 0.2, 0.18))            # frame
+                blds.box((fx - side * 0.05, yy, zf), (0.06, 1.1, 1.05), mats['glass'])
+                if rnd.random() < 0.6:
+                    blds.box((fx - side * 0.08, yy, zf), (0.04, 1.1, 1.05), shut, rnd.choice(shut_cols))     # half-open shutter
+                for g in range(4):                                                                        # window grille bars
+                    blds.box((fx - side * 0.1, yy - 0.42 + g * 0.28, zf), (0.03, 0.03, 1.05), mats['steel'])
+                blds.box((fx - side * 0.1, yy, zf - 0.66), (0.2, 1.5, 0.08), bmat, col)                      # sill
+                blds.box((fx - side * 0.005, yy + rnd.uniform(-0.3, 0.3), zf - 0.66 - 0.7), (0.012, rnd.uniform(0.12, 0.3), 1.3),
+                         bmat, (0.2, 0.15, 0.1))                                                          # dirt run below the sill
+                if rnd.random() < 0.35:
                     blds.box((fx - side * 0.25, yy + 0.9, zf - 0.3), (0.5, 0.7, 0.45), mats['steel'])
+        blds.box((fx - side * 0.02, y - d * 0.33, WZ + 1.6), (0.08, 1.0, 1.0), mats['glass'])               # shop window
+        blds.box((fx - side * 0.05, y - d * 0.33, WZ + 1.05), (0.12, 1.2, 0.08), bmat, col)
+        sc = rnd.choice([(0.75, 0.6, 0.1), (0.1, 0.3, 0.55), (0.55, 0.1, 0.08), (0.12, 0.42, 0.22), (0.85, 0.82, 0.75)])
+        blds.box((fx - side * 0.06, y, WZ + 3.15), (0.08, d * 0.62, 0.75), awn, sc)                         # sign board (no text)
+        for b2 in range(rnd.randint(2, 3)):                                                               # abstract colour blocks
+            blds.box((fx - side * 0.11, y - d * 0.22 + b2 * d * 0.18, WZ + 3.15 + rnd.uniform(-0.12, 0.12)),
+                     (0.02, d * 0.12, 0.28), awn, rnd.choice([(0.92, 0.9, 0.85), (0.08, 0.08, 0.08), (0.8, 0.15, 0.1)]))
+        for wz in (WZ + 3.75, WZ + 3.9):                                                                  # cables along the facade
+            blds.cyl((fx - side * 0.12, y - d / 2, wz), (fx - side * 0.12, y + d / 2, wz), 0.012, mats['rubber'], 5)
+        blds.box((fx - side * 0.1, y + d * 0.38, WZ + 2.0), (0.12, 0.35, 0.5), mats['steel'])               # meter box
         blds.box((x, y, WZ + h + 0.45), (w, d, 0.9), bmat, col)                                 # parapet band
         blds.box((x, y, WZ + h + 0.46), (w - 0.4, d - 0.4, 0.9), bmat, (0.3, 0.29, 0.27))       # roof (darker, stained)
         blds.cyl((fx - side * 0.06, y + d * 0.45, WZ), (fx - side * 0.06, y + d * 0.45, WZ + h), 0.05, mats['steel'], 6)   # drainpipe
@@ -309,11 +338,36 @@ for i in range(10):
         blds.box((fx - side * 1.78, y, WZ + 2.42), (0.04, d * 0.9, 0.36), awn, ac)
         for py in (y - d * 0.42, y + d * 0.42):
             blds.cyl((fx - side * 1.75, py, WZ), (fx - side * 1.75, py, WZ + 2.6), 0.035, mats['steel'], 6)
-        if h > 6:
-            blds.box((fx - side * 0.5, y, WZ + h * 0.5), (1.0, d * 0.6, 0.12), bmat, col)        # balcony slab
-            blds.box((fx - side * 0.98, y, WZ + h * 0.5 + 0.5), (0.05, d * 0.6, 0.9), mats['steel'])
+        if h > 5:                                                                               # balcony + railing
+            bz = rows[0] - 0.75
+            blds.box((fx - side * 0.6, y + d * 0.12, bz), (1.2, d * 0.5, 0.14), bmat, col)
+            blds.box((fx - side * 1.17, y + d * 0.12, bz + 0.95), (0.05, d * 0.5, 0.05), mats['steel'])
+            for bb in range(int(d * 0.5 / 0.25) + 1):
+                yb = y + d * 0.12 - d * 0.25 + bb * 0.25
+                blds.box((fx - side * 1.17, yb, bz + 0.5), (0.025, 0.025, 0.9), mats['steel'])
+            blds.box((fx - side * 1.0, y + d * 0.12, bz + 1.4), (0.02, d * 0.4, 0.6), awn, rnd.choice(awn_cols))   # washing on a line
         blds.box((x + w * 0.2, y, WZ + h + 1.3), (w * 0.2, d * 0.2, 0.8), mats['steel'])           # water tank on the roof
 blds.obj('HARBOUR_Buildings')
+wires = P.MB()                    # utility poles along the road, sagging cables between them and over to the facades
+POLES = []
+for i in range(12):
+    for side in (-1, 1):
+        px, py = TRK.x - 1.5 + (-7.0 if side < 0 else 3.9), -14 - i * 13
+        POLES.append((px, py))
+        wires.cyl((px, py, WZ), (px, py, WZ + 7.5), 0.11, mats['concrete'], 8, r2=0.08)
+        wires.box((px, py, WZ + 7.2), (1.4, 0.1, 0.1), mats['steel'])
+        for o3 in (-0.6, 0.0, 0.6):
+            a3, b3 = Vector((px + o3, py, WZ + 7.25)), Vector((px + o3, py - 13, WZ + 7.25))
+            mid = (a3 + b3) / 2 - Vector((0, 0, 0.45))
+            if i < 11:
+                wires.cyl(a3, mid, 0.012, mats['rubber'], 4)
+                wires.cyl(mid, b3, 0.012, mats['rubber'], 4)
+        sd, fx, fy, fd = min((f for f in facades if f[0] == side), key=lambda f: abs(f[2] - py))
+        tgt = Vector((fx - sd * 0.12, max(fy - fd / 2 + 0.3, min(fy + fd / 2 - 0.3, py)), WZ + 3.9))   # ends on the facade cable
+        mid = (Vector((px, py, WZ + 7.0)) + tgt) / 2 - Vector((0, 0, 0.3))
+        wires.cyl((px, py, WZ + 7.0), mid, 0.01, mats['rubber'], 4)
+        wires.cyl(mid, tgt, 0.01, mats['rubber'], 4)
+wires.obj('HARBOUR_Wires')
 shed = P.MB()
 shed.box((24, -14, WZ + 3.5), (16, 10, 0.3), L.pbr('MAT_ShedRoof', (0.55, 0.57, 0.58), 0.5, 0.6, grime=0.4, scale=0.3))
 for x in (17, 31):
@@ -388,6 +442,8 @@ while placed < 8 and tries < 400:      # a few distinct people, not a crowd of e
     tries += 1
     x, y = rnd.uniform(-60, 60), rnd.uniform(-24, -2.5)
     if -19 < x < -5 or (-6 < x < 8 and y > -6) or (16 < x < 32 and -19 < y < -9):
+        continue
+    if any((x - qx) ** 2 + (y - qy) ** 2 < 1.5 ** 2 for qx, qy in POLES):
         continue
     c = L.person(f'CROWD{placed}', rnd.choice(crowd_outfits), (x, y, WZ), D(rnd.uniform(0, 360)), seed=200 + placed, mats=mats)
     if placed % 3 == 0:
