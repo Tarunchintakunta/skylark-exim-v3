@@ -54,7 +54,7 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   const port = chapters.find((c) => c.id === 'port')!.top
   await page.evaluate((y) => window.scrollTo(0, y + 200), port)
   await page.waitForTimeout(1500)
-  const refetched = ['hf-ship', 'x-ship'].filter((id) => {
+  const refetched = ['hf-ship', 'hf-sail'].filter((id) => {
     const f = [...bytes.keys()].find((k) => k.includes(`/${id}_`))
     return f && (bytes.get(f) ?? 0) > (afterPass.get(f) ?? 0) * 1.1
   })
