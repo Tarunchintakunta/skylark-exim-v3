@@ -3,7 +3,6 @@ import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef, useState } from 'react'
 import { CATEGORIES, HERO, SHRIMP_FORMS, SPECIES_OFFERED, STATES, type Category } from '../config/products'
 import { env } from '../engine/env'
-import { goTo } from '../engine/path'
 import { store, useApp } from '../engine/store'
 import { clipUrl, posterUrl } from '../film/segments'
 import { ProductCard } from './ProductCard'
@@ -79,8 +78,7 @@ export function Products() {
   useEffect(() => bindReveals(body.current!), [tab])
 
   const enquire = (category: Category, species: string) => {
-    store.setState({ prefill: { category, species } })
-    goTo('quote')
+    location.assign(`/quote#${new URLSearchParams({ category, species })}`)
   }
   const cat = CATEGORIES[tab]
 

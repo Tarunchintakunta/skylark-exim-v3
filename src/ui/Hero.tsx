@@ -3,7 +3,7 @@ import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef } from 'react'
 import { exportsLine, start } from '../config/content'
 import { env } from '../engine/env'
-import { goTo, setPath } from '../engine/path'
+import { setPath } from '../engine/path'
 import { frame, useApp } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import './hero.css'
@@ -58,15 +58,7 @@ export function Hero() {
             ))}
           </ul>
         </div>
-        <a
-          className="hero__contact"
-          href="#quote"
-          data-fade
-          onClick={(e) => {
-            e.preventDefault()
-            goTo('quote')
-          }}
-        >
+        <a className="hero__contact" href="/quote" data-fade>
           Contact us
         </a>
         <a

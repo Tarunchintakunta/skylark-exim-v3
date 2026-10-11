@@ -57,9 +57,8 @@ test('the hero is moving before the first scroll, then scrubbing takes over', as
 
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
   await page.route('**/api/rfq', (r) => r.fulfill({ json: { ok: false, fallback: 'mailto' } }))
-  await page.goto('/')
+  await page.goto('/quote')
   await ready(page)
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
   const form = page.locator('form.rfq')
   await form.getByRole('button', { name: 'Send request' }).click()
   await expect(form.getByRole('alert').first()).toBeVisible()
@@ -83,15 +82,14 @@ test('every nav link lands on its section', async ({ page }) => {
   }
 })
 
-test('Enquire on a species lands on #quote with category and species pre-filled', async ({ page }) => {
+test('Enquire on a species opens /quote with category and species pre-filled', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   await page.evaluate(() => document.getElementById('products')!.scrollIntoView())
   await page.locator('#products').getByRole('button', { name: 'Shrimps', exact: true }).click()
   await page.getByRole('button', { name: 'Enquire about Black Tiger Shrimp' }).click()
-  await page.waitForTimeout(1800)
-  const top = await page.locator('#quote').evaluate((el) => el.getBoundingClientRect().top)
-  expect(Math.abs(top)).toBeLessThan(80)
+  await page.waitForURL(/\/quote#/)
+  await ready(page)
   const form = page.locator('form.rfq')
   await expect(form.getByLabel('Product category')).toHaveValue('shrimps')
   await expect(form.getByLabel('Black Tiger Shrimp', { exact: true })).toBeChecked()

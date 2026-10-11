@@ -121,3 +121,14 @@
   .contact-band__foot { flex-direction: column; }
 }
 .contact-band__credit a { color: inherit; text-underline-offset: 3px; }
+
+.close { display: grid; gap: 28px; }
+.close__line {
+  font-family: var(--f-display);
+  font-size: clamp(1.7rem, 4.4vw, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  max-width: 16ch;
+}
+.close__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; }
+.close__updates { color: var(--ink); text-underline-offset: 4px; }
