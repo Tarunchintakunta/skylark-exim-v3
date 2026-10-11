@@ -415,8 +415,9 @@ def _glove_detail(m, palette=None):
     src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else p.inputs['Base Color'].default_value[:3]
     c = _col(nt, src, (0.72, 0.72, 0.72), _op(nt, 'MULTIPLY', cr, _rng(nt, wr, 0.4, 0.7, 0.0, 0.8)), 'MULTIPLY')
     nt.links.new(c, p.inputs['Base Color'])
-    nt.links.new(_rng(nt, _noise(nt, rest, 40.0, 3.0), 0.3, 0.7, 0.34, 0.6), p.inputs['Roughness'])
-    p.inputs['Coat Weight'].default_value = 0.3
+    nt.links.new(_rng(nt, _noise(nt, rest, 40.0, 3.0), 0.3, 0.7, 0.34 if palette else 0.48, 0.6 if palette else 0.66),
+                 p.inputs['Roughness'])
+    p.inputs['Coat Weight'].default_value = 0.3 if palette else 0.0           # nitrile semi-matte, rubber wet
     p.inputs['Coat Roughness'].default_value = 0.18
     p.inputs['Specular IOR Level'].default_value = 0.45
     return m
@@ -484,8 +485,8 @@ def _hairnet(m):
     src = p.inputs['Base Color'].links[0].from_socket
     tc = nt.nodes.new('ShaderNodeTexCoord')
     nz = nt.nodes.new('ShaderNodeTexNoise')
-    nz.inputs['Scale'].default_value = 45.0
-    nz.inputs['Detail'].default_value = 10.0
+    nz.inputs['Scale'].default_value = 140.0
+    nz.inputs['Detail'].default_value = 4.0
     nz.inputs['Distortion'].default_value = 0.4
     L.new(tc.outputs['Object'], nz.inputs['Vector'])
     cm = nt.nodes.new('ShaderNodeMix')
@@ -493,10 +494,10 @@ def _hairnet(m):
     cm.blend_type = 'MULTIPLY'
     L.new(nz.outputs['Fac'], cm.inputs[0])
     L.new(src, cm.inputs[6])
-    cm.inputs[7].default_value = (0.8, 0.8, 0.82, 1)       # creases
+    cm.inputs[7].default_value = (0.93, 0.93, 0.94, 1)     # faint fibre mottle
     L.new(cm.outputs[2], p.inputs['Base Color'])
     bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.55
+    bp.inputs['Strength'].default_value = 0.12
     bp.inputs['Distance'].default_value = 0.002
     L.new(nz.outputs['Fac'], bp.inputs['Height'])
     L.new(bp.outputs[0], p.inputs['Normal'])
@@ -534,8 +535,8 @@ def mats():
                               ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
                                (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
         'boot': _boot_mat(),
-        'nitrile_blue': _mat('HUM_NitrileBlue', (0.10, 0.22, 0.48), 0.38, coat=0.25, rand=0.06),
-        'cap_white': _hairnet(_palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
+        'nitrile_blue': _mat('HUM_NitrileBlue', (0.10, 0.22, 0.48), 0.55, rand=0.06),
+        'cap_white': _hairnet(_palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.1, bump=0.05),
                                        ((0.74, 0.75, 0.77), (0.42, 0.58, 0.74), (0.74, 0.75, 0.77), (0.36, 0.56, 0.40),
                                         (0.74, 0.75, 0.77), (0.70, 0.45, 0.50)))),   # caps by role: white, blue, green, pink
         'mask_blue': _mat('HUM_MaskBlue', (0.55, 0.70, 0.80), 0.9, sheen=0.3, bump=0.15),
@@ -736,7 +737,7 @@ LOOSE = 1.05          # loose cloth stands off the body by THICK * LOOSE (was 1.
 RELAX_CURL = 0.22     # finger curl baked into the masters: relaxed hands
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.016, 'shoes': 0.008,
-         'gloves': 0.0009, 'gloves_rubber': 0.0015, 'haircap': 0.022, 'hair': 0.008, 'cap': 0.02, 'mask': 0.008,
+         'gloves': 0.0006, 'gloves_rubber': 0.0015, 'haircap': 0.015, 'hair': 0.008, 'cap': 0.02, 'mask': 0.008,
          'vest': 0.024, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
@@ -888,8 +889,8 @@ def _shell(body, piece, mask, M):
         if piece == 'haircap':
             # bouffant: fuller toward the crown and back, gathered pleats
             a = math.atan2(v.co.y, v.co.x)
-            extra = 0.010 * max(0.0, (z - 1.52) / 0.2) + 0.006 * max(0.0, v.co.y) / 0.1 \
-                + 0.004 * math.sin(a * 26) * max(0.0, (z - 1.56) / 0.12)
+            extra = 0.004 * max(0.0, (z - 1.52) / 0.2) + 0.003 * max(0.0, v.co.y) / 0.1 \
+                + 0.0012 * math.sin(a * 26) * max(0.0, (z - 1.56) / 0.12)      # flat non-woven cap, soft gathers
         if piece in CUFF and v in rd and piece != 'haircap':
             cuffw = 0.0028 if piece.startswith('gloves') else 0.006
             extra += cuffw * (1 - _sm1(rd[v], 0.004, 0.016))                # turned-back hem / cuff band
@@ -986,7 +987,7 @@ def _shell(body, piece, mask, M):
     dt.layers_vgroup_select_src = 'ALL'
     dt.layers_vgroup_select_dst = 'NAME'
     sol = o.modifiers.new('sol', 'SOLIDIFY')
-    sol.thickness = {'gloves': 0.0009, 'gloves_rubber': 0.0011}.get(piece, 0.0065 if piece not in ('mask', 'stache') else 0.0018)
+    sol.thickness = {'gloves': 0.0006, 'gloves_rubber': 0.0011}.get(piece, 0.0065 if piece not in ('mask', 'stache') else 0.0018)
     sol.offset = -1
     bpy.context.view_layer.objects.active = o
     for m in list(o.modifiers):
