@@ -357,17 +357,24 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     p = Part()
     p.box((ux, 0, BZ + BH - 0.62), (0.5, 1.95, 1.1))
     p.make(name + '_Unit', M['unit'], root, bevel=0.06, seg=3, coll=coll)
+    # condenser face (r8): recessed dark coil panel behind a full set of angled louvre slats, the two fan guards
+    # just visible through the gaps; no badges
     p = Part()
-    for k in range(9):
-        p.box((ux + 0.26, 0, BZ + BH - 0.95 + k * 0.045), (0.02, 1.6, 0.018))
-    for sy in (-0.45, 0.45):
-        p.cyl((ux + 0.24, sy, BZ + BH - 0.4), (ux + 0.27, sy, BZ + BH - 0.4), 0.28, 28)
+    p.box((ux + 0.24, 0, BZ + BH - 0.62), (0.03, 1.84, 0.98))
     p.make(name + '_UnitGrille', M['grille'], root, coll=coll)
+    p = Part()
+    for k in range(17):
+        p.box((ux + 0.285, 0, BZ + BH - 1.08 + 0.06 + k * 0.054), (0.07, 1.8, 0.012), Euler((0, -0.55, 0)))
+    for sy in (-0.93, 0.0, 0.93):
+        p.box((ux + 0.29, sy, BZ + BH - 0.62), (0.08, 0.04, 1.0))       # slat carriers
+    p.box((ux + 0.29, 0, BZ + BH - 0.1), (0.08, 1.9, 0.05))             # frame top / bottom
+    p.box((ux + 0.29, 0, BZ + BH - 1.14), (0.08, 1.9, 0.05))
+    p.make(name + '_UnitLouvres', M['unit'], root, bevel=0.003, coll=coll)
     p = Part()
     for sy in (-0.45, 0.45):
         for rr in (0.1, 0.18, 0.26):
             res = bmesh.ops.create_circle(p.bm, cap_ends=False, segments=28, radius=rr)
-            bmesh.ops.transform(p.bm, matrix=Matrix.Translation((ux + 0.28, sy, BZ + BH - 0.4)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'),
+            bmesh.ops.transform(p.bm, matrix=Matrix.Translation((ux + 0.26, sy, BZ + BH - 0.55)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'),
                                 verts=res['verts'])
     o = p.make(name + '_UnitRings', M['alu'], root, coll=coll)
     sk = o.modifiers.new('skin', 'WIREFRAME')
@@ -404,6 +411,17 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         p.box((cx1 - 0.55, sy * (W2 + 0.006), 2.33), (0.75, 0.02, 0.62))
         p.box((cx1 - 1.3, sy * (W2 + 0.006), 2.45), (0.35, 0.02, 0.35))
     p.make(name + '_CabGlass', M['glass'], root, bevel=0.01, coll=coll)
+    p = Part()                                  # black rubber seals round the screen and side glass (r8)
+    for sy in (-1, 1):
+        for z, l in ((1.80, 0.98), (2.76, 0.98)):
+            zz = a.z + (b.z - a.z) * (z - a.z) / (b.z - a.z)
+            xx = a.x + (b.x - a.x) * (z - a.z) / (b.z - a.z)
+            p.box((xx + 0.02, sy * 0.52, zz), (0.03, l, 0.035), Euler((0, ang, 0)))
+        p.box(mid + Vector((0.022, sy * 1.0, 0)), (0.03, 0.035, (b - a).length), Euler((0, ang, 0)))
+        p.box((cx1 - 0.55, sy * (W2 + 0.01), 2.65), (0.79, 0.02, 0.03))
+        p.box((cx1 - 0.55, sy * (W2 + 0.01), 2.01), (0.79, 0.02, 0.03))
+        p.box((cx1 - 0.94, sy * (W2 + 0.01), 2.33), (0.03, 0.02, 0.66))
+    p.make(name + '_CabSeals', M['dark'], root, bevel=0.005, coll=coll)
     p = Part()
     for sy in (-1, 1):
         p.box((cx1 - 0.08, sy * (W2 + 0.004), 1.85), (0.012, 0.012, 1.55))   # front door seam
