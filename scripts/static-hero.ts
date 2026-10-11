@@ -30,6 +30,20 @@ export function staticHero(): Plugin {
     '@media (max-height:560px){#hero-static{z-index:var(--z-copy)}.loader{align-content:center;padding-top:0}}'
   return {
     name: 'static-hero',
+    // the homepage's own stylesheet is ~4 kB: inline it so the first paint waits on no request (Story's CSS stays lazy)
+    generateBundle: {
+      order: 'post',
+      handler(_, bundle) {
+        const html = bundle['index.html']
+        if (html?.type !== 'asset') return
+        let src = String(html.source)
+        src = src.replace(/<link rel="stylesheet"[^>]*href="\/(assets\/main-[^"]+\.css)"[^>]*>/, (tag, file: string) => {
+          const css = bundle[file]
+          return css?.type === 'asset' ? `<style>${css.source}</style>` : tag
+        })
+        html.source = src
+      },
+    },
     // 'pre': before Vite's own HTML pass, which strips CSS comments (and with them the placeholder)
     transformIndexHtml: {
       order: 'pre',
