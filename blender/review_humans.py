@@ -44,7 +44,7 @@ if BUILD:
     keep = sk.OUTFITS
     sk.OUTFITS = {k: keep[k] for k in ('plant', 'driver')}
     stage('build base masters')
-    sk.build_masters(BASE, 1, genders=('male',))
+    sk.build_masters(BASE, 1, genders=('male', 'female'))
     if SO:
         stage('build ocean masters')
         sk.OUTFITS = {'fisher_nocap': [p for p in SO.OCEAN_OUTFITS['fisher'] if p != 'beanie'],
@@ -202,8 +202,8 @@ FISH = ('fisher_nocap', 'oc') if SO else ('plant', '')
 PORT = ('port_hivis', 'oc') if SO else ('driver', '')
 
 
-def human(name, outfit, lod='', loc=(0, 0, 0), rot=0.0, seed=0, pose=None):
-    ao = sk.person(name, outfit, 'male', loc, math.radians(rot), seed=seed, lod=lod)
+def human(name, outfit, lod='', loc=(0, 0, 0), rot=0.0, seed=0, pose=None, gender='male'):
+    ao = sk.person(name, outfit, gender, loc, math.radians(rot), seed=seed, lod=lod)
     if pose:
         sk.set_pose(ao, pose)
     return ao
@@ -211,19 +211,22 @@ def human(name, outfit, lod='', loc=(0, 0, 0), rot=0.0, seed=0, pose=None):
 
 # ---------------------------------------------------------------- portraits (x 0..9)
 heads = []
-for i, (nm, (of, lod), seed) in enumerate((('plant', ('plant', ''), 3), ('fisher', FISH, 5), ('port', PORT, 8),
-                                            ('driver', ('driver', ''), 11))):
-    ao = human('Por_' + nm, of, lod, (i * 2.5, 0, 0), 0, seed)
+for i, (nm, (of, lod), seed, g) in enumerate((('plant', ('plant', ''), 3, 'male'), ('fisher', FISH, 5, 'male'),
+                                               ('port', PORT, 8, 'male'), ('driver', ('driver', ''), 11, 'male'),
+                                               ('fplant', ('plant', ''), 12, 'female'),
+                                               ('fbun', ('driver', ''), 14, 'female'))):
+    ao = human('Por_' + nm, of, lod, (i * 2.5, 0, 0), 0, seed, gender=g)
     heads.append((nm, ao))
 
 # ---------------------------------------------------------------- mid-distance group (y = 12)
 grp = [('plant', '', (-1.6, 12.2, 0), -10, 21, None), ('driver', '', (-0.5, 12.6, 0), 15, 22, None),
        (FISH[0], FISH[1], (0.6, 11.8, 0), 25, 23, sk.POSES['crouch']), (PORT[0], PORT[1], (1.7, 12.3, 0), -20, 24,
                                                                         sk.POSES['kneel']),
-       (PORT[0], PORT[1], (2.8, 12.7, 0), 5, 25, None), (FISH[0], FISH[1], (3.9, 12.1, 0), -25, 26, None)]
+       (PORT[0], PORT[1], (2.8, 12.7, 0), 5, 25, None), (FISH[0], FISH[1], (3.9, 12.1, 0), -25, 26, None),
+       ('plant', '', (-2.6, 12.5, 0), 20, 27, None)]
 for i, (of, lod, loc, rot, seed, pz) in enumerate(grp):
-    human('Grp%d' % i, of, lod, loc, rot, seed, pz)
-box('GrpTub', (0.6, 0.4, 0.3), (0.6, 11.25, 0.15), plastic_b)
+    human('Grp%d' % i, of, lod, loc, rot, seed, pz, gender='female' if i == 6 else 'male')
+box('GrpTub', (0.6, 0.4, 0.3), (0.45, 10.95, 0.15), plastic_b)
 
 # ---------------------------------------------------------------- grips (x = 20..)
 grips = []
@@ -270,7 +273,8 @@ setup_grip('box', FISH[0], FISH[1], ox, [edge], [('R', edge, (0.12, 0.035, 0.15)
 # thin rod (rail)
 ox = 29.0
 rod = cyl('Rod', 0.005, 0.9, 'X', (ox, -0.40, 1.02), steel)
-setup_grip('rod', 'plant', '', ox, [rod], [('R', rod, (-0.10, 0.0, 0.024), (0, -1, 0), (0, 0, -1))], 34)
+setup_grip('rod', 'plant', '', ox, [rod], [('R', rod, (-0.10, 0.0, 0.024), (0, -1, 0), (0, 0, -1)),
+                                           ('L', rod, (0.12, 0.0, 0.024), (0, -1, 0), (0, 0, -1))], 34)
 
 # ---------------------------------------------------------------- render
 s.render.engine = 'BLENDER_EEVEE'
@@ -321,9 +325,10 @@ def eye(ao):
 
 for i, (nm, ao) in enumerate(heads):
     t = eye(ao)
-    az = math.radians((-28, 24, -18, 32)[i])
+    az = math.radians((-28, 24, -18, 32, -22, 125)[i])     # fbun: from behind-side to show the bun
     loc = t + Vector((math.sin(az) * 1.15, -math.cos(az) * 1.15, 0.04))
-    shot('t%d_%s' % (i + 1, nm), loc, t + Vector((0, 0, -0.07)), 75, fstop=2.8, focus=t)
+    shot(('t%d_%s' % (i + 1, nm)) if i < 4 else ('t9_' + nm if nm == 'fplant' else 't10_' + nm), loc,
+         t + Vector((0, 0, -0.07)), 75, fstop=2.8, focus=t)
 for key, ao, tg in grips:
     c = tg[0].matrix_world.translation
     off = {'crate': Vector((-0.42, -0.5, 0.22)), 'net': Vector((-0.45, -0.35, 0.3)),
@@ -331,5 +336,5 @@ for key, ao, tg in grips:
     size = (960, 540) if key in ('crate', 'net') else (480, 540)
     shot({'crate': 't5_crate', 'net': 't6_net', 'box': 't8a_box', 'rod': 't8b_rod'}[key], c + off, c, 55,
          *size, fstop=4.0)
-shot('t7_mid', (1.2, 5.4, 1.45), (1.2, 12.2, 0.85), 35)
+shot('t7_mid', (0.7, 5.0, 1.45), (0.7, 12.2, 0.85), 35)
 stage('DONE')
