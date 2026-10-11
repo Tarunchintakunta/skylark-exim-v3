@@ -359,7 +359,7 @@ def freeze_crew(C, rnd, crate_fn):
         q.cyl((sx - 0.04, 1.2, 0.04), (sx + 0.04, 1.2, 0.04), 0.035, 12)
     q.make('IN_ColdJackWheels', P.plain('IN_JackWheel', (0.05, 0.05, 0.06), 0.6), pt, coll=C)
     S.pallet('IN_ColdJackPallet', (0, 0.78, 0.09), M, C, 0.0, cartons=3).parent = pt
-    H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 77.5))], stride=0.55,
+    H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 74.0))], stride=0.5,   # stops ~4 m short of the store camera
                  base={'upperarm.L': (4, -24, 0), 'forearm.L': (16, 0, 0)}, arms=False, step=2)
     th = bpy.data.objects.new('HUM_Cold_Tow', None)
     C.objects.link(th)
@@ -400,9 +400,10 @@ def freeze_crew(C, rnd, crate_fn):
     H.jitter(st, {'spine': (14, 0, 0), 'neck': (6, 0, 0), 'head': (10, 0, 0)}, 880, 1070, every=14, amp=4, seed=61,
              arms=False)
     H.settle_reach(st, 932, 1032, step=2, iters=4, max_shift=0.4)
-    # checker further down the aisle, reading the rack labels
+    # checker in front of the store camera, walking slowly away down the left racks, reading the labels (r7 path ran
+    # through the camera: a full-frame blur tile)
     ck = H.person('HUM_ColdCheck', 'coldstore', 'male', coll=C, seed=532)
-    H.walk_cycle(ck, 880, 1070, [(880, (CX - 0.6, 80.5)), (1070, (CX - 0.7, 76.5))], stride=0.5,
+    H.walk_cycle(ck, 880, 1070, [(880, (CX - 1.15, 72.6)), (1070, (CX - 1.15, 70.9))], stride=0.4,
                  base={'head': (6, 0, -25)}, arms=True, step=2)
     _lift(ck)
     return out
