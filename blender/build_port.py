@@ -301,7 +301,10 @@ for k, C in enumerate(cranes):
 for _m in list(bpy.data.materials):   # every copy (pbr() makes .001 duplicates: the crane booms used one of those)
     for _pre, _z0, _top in (('MAT_SpreaderYellow', -1.4, 1.4), ('MAT_CraneWhite', 0.0, 60.0), ('MAT_CraneBlue', 0.0, 60.0)):
         if _m.name.startswith(_pre):
-            P.hard_wear(_m, _z0, _top)
+            if _pre != 'MAT_SpreaderYellow':   # hard_wear's long rust runs read as wood planks on the spreader boxes
+                P.hard_wear(_m, _z0, _top)
+            else:
+                P._over(_m, P._noise_band(_m, 14.0, 0.62, 0.7, 0.9, loc=(-2600, -2600)), (0.36, 0.37, 0.36))   # primer chips only
             # Metre-scale grime that reads at camera distance (hard_wear's detail-8 masks cover ~1%: specks only),
             # plus edge-driven wear: chips on convex box edges, rust from seams and panel tops streaking down.
             if _pre == 'MAT_SpreaderYellow':
@@ -309,7 +312,10 @@ for _m in list(bpy.data.materials):   # every copy (pbr() makes .001 duplicates:
                 P.edge_wear(_m, band=0.035, run_len=0.5)
             else:
                 P._over(_m, P._noise_band(_m, 0.25, 0.5, 0.65, 0.5, loc=(-3600, -2600), detail=2), (0.45, 0.44, 0.4))    # salt grime
-                P.edge_wear(_m, chip_col=(0.36, 0.33, 0.3), band=0.05, run_len=2.0)
+                # lattice: rust blooms at metre scale and darker grime patches that read from the f300 aerial
+                P._over(_m, P._noise_band(_m, 1.3, 0.52, 0.6, 0.75, loc=(-3600, -3000), detail=2), (0.3, 0.14, 0.055))
+                P._over(_m, P._noise_band(_m, 0.6, 0.55, 0.65, 0.5, loc=(-3600, -3400), detail=3), (0.22, 0.21, 0.19))
+                P.edge_wear(_m, chip_col=(0.3, 0.15, 0.06), band=0.06, run_len=2.0)
 _wear_mats = {m for m in bpy.data.materials if m.name.startswith(('MAT_SpreaderYellow', 'MAT_CraneWhite', 'MAT_CraneBlue'))}
 for _o in [o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.polygons) < 300000]:
     if any(sl.material in _wear_mats for sl in _o.material_slots):
@@ -386,9 +392,26 @@ for i, (x, y, rz) in enumerate(((-34.0, -33.5, 0.0), (44.0, -34.0, math.pi))):  
     po = pb.obj(f'PICKUP{i}', None, (x, y, QZ))
     po.rotation_euler = (0, 0, rz)
 
-for _i, (_x, _y, _p) in enumerate(((-6.7, -20.2, 'point'), (-8.4, -18.6, 'stand'))):   # banksman + yard hand, ~10 m from the f168 camera
+# banksman + yard hand, ~10 m from the f168 camera: loose working stances (weight on one leg, a knee bent, the
+# spine bent and twisted a little, arms asymmetric), never the same pose twice; the banksman signals the crane
+_RELAX = [
+    {'hips_z': 0.925, 'spine': (4, 5, -8), 'neck': (0, -4, 0), 'sh_L': (10, -22, 0), 'el_L': (0, -92, 0),      # radio at the chest
+     'sh_R': (-9, -4, 0), 'el_R': (0, -20, 0), 'hp_L': (2, -5, 0), 'kn_L': (0, 4, 0), 'hp_R': (-3, 9, 0), 'kn_R': (0, 15, 0),
+     'an_R': (0, 6, 0)},
+    {'hips_z': 0.92, 'spine': (-5, 3, 9), 'neck': (0, 7, 0), 'sh_L': (40, -10, 0), 'el_L': (0, -100, 0),       # hand on the hip
+     'sh_R': (-8, -7, 0), 'el_R': (0, -18, 0), 'hp_R': (0, -3, 0), 'kn_R': (0, 3, 0), 'hp_L': (4, -9, 0), 'kn_L': (0, 17, 0),
+     'an_L': (0, 6, 0)},
+]
+_SIGNAL = dict(_RELAX[0], **{'sh_R': (-34, -72, 0), 'el_R': (0, -38, 0), 'neck': (0, -10, 0), 'spine': (3, 2, -12)})
+for _i, (_x, _y) in enumerate(((-6.7, -20.2), (-8.4, -18.6))):
     _w = L.person(f'BANKSMAN{_i}', 'port', (_x, _y, QZ), D(-137 + _i * 20), seed=120 + _i, mats=mats)
-    L.anim_poses(_w, [(1, 'idle'), (150, _p), (200, _p), (240, 'idle')])
+    _r = random.Random(500 + _i)
+    for _f in range(1, 241, 16):
+        _base = _SIGNAL if (_i == 0 and 146 <= _f <= 210) else _RELAX[_i]
+        _sp = {k: (tuple(a + _r.uniform(-3, 3) for a in v) if isinstance(v, tuple) else v) for k, v in _base.items()}
+        if _base is _SIGNAL:                       # the signalling forearm beckons up and down
+            _sp['el_R'] = (0, -38 - 22 * (1 + math.sin(_f / 4.0)) / 2, 0)
+        SO.pose(_w, _sp, _f)
 SO.progress('section: x-ship: lines off, tugs pull, ship sails')
 # ---------------------------------------------------------------- x-ship: lines off, tugs pull, ship sails out
 shp = ship['root']
