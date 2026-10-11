@@ -237,7 +237,8 @@ def _bump(nt, h, strength, dist, prev=None):
 
 HAIR_RGB = (0.014, 0.011, 0.009)
 # South Indian skin, linear base albedo: deep brown .. wheatish; picked per person (Object Info random)
-SKIN_TONES = ((0.12, 0.072, 0.045), (0.16, 0.10, 0.062), (0.21, 0.135, 0.085), (0.27, 0.18, 0.115))
+SKIN_TONES = ((0.085, 0.05, 0.032), (0.13, 0.078, 0.048), (0.19, 0.118, 0.074), (0.26, 0.165, 0.105),
+              (0.33, 0.215, 0.14))   # dark brown .. medium brown
 
 
 def _skin_mat():
@@ -307,15 +308,15 @@ def _skin_mat():
     c = _col(nt, c, (0.02, 0.015, 0.012), _ss(nt, hl, 0.3, 0.75))
     nt.links.new(c, p.inputs['Base Color'])
     # roughness 0.3-0.6, oily T-zone and sweat; lips smoother
-    rough = _rng(nt, _noise(nt, rest, 55.0, 3.0), 0.3, 0.7, 0.66, 0.46)
+    rough = _rng(nt, _noise(nt, rest, 55.0, 3.0), 0.3, 0.7, 0.74, 0.55)
     sweat = _op(nt, 'ADD', 0.12, _op(nt, 'MULTIPLY', r2, 0.18))
     rough = _op(nt, 'SUBTRACT', rough, _op(nt, 'MULTIPLY', tz, _op(nt, 'ADD', sweat, 0.05)))
     rough = _op(nt, 'SUBTRACT', rough, _op(nt, 'MULTIPLY', lip, 0.12))
     nt.links.new(_op(nt, 'MAXIMUM', rough, 0.28), p.inputs['Roughness'])
-    nt.links.new(_op(nt, 'MULTIPLY', tz, sweat), p.inputs['Coat Weight'])
+    nt.links.new(_op(nt, 'MULTIPLY', tz, _op(nt, 'MULTIPLY', sweat, 1.4)), p.inputs['Coat Weight'])
     p.inputs['Coat Roughness'].default_value = 0.32
     p.inputs['Coat IOR'].default_value = 1.38
-    p.inputs['Specular IOR Level'].default_value = 0.4
+    p.inputs['Specular IOR Level'].default_value = 0.28
     # SSS: darker skin scatters less and shorter; radius per person
     p.inputs['Subsurface Weight'].default_value = 0.28
     p.inputs['Subsurface Radius'].default_value = (1.0, 0.40, 0.22)
@@ -383,19 +384,24 @@ def _hair_mat():
     s = _attr(nt, 'strand').outputs['Fac']
     c = _col(nt, (0.006, 0.005, 0.0045), (0.04, 0.03, 0.022), _rng(nt, s, 0.0, 1.0, 0.0, 0.7))
     nt.links.new(c, p.inputs['Base Color'])
-    nt.links.new(_rng(nt, s, 0.0, 1.0, 0.42, 0.62), p.inputs['Roughness'])
-    p.inputs['Coat Weight'].default_value = 0.12
-    p.inputs['Coat Roughness'].default_value = 0.3
+    nt.links.new(_rng(nt, s, 0.0, 1.0, 0.58, 0.78), p.inputs['Roughness'])
+    p.inputs['Coat Weight'].default_value = 0.0
+    p.inputs['Specular IOR Level'].default_value = 0.35
     p.inputs['Specular IOR Level'].default_value = 0.5
     return m
 
 
-def _glove_detail(m):
+RUBBER = ((0.62, 0.15, 0.02), (0.60, 0.44, 0.03), (0.025, 0.05, 0.14), (0.62, 0.15, 0.02), (0.03, 0.06, 0.16))
+
+
+def _glove_detail(m, palette=None):
     """Gloves read as rubber/nitrile, not a mannequin hand: knuckle creases (the 'crease' attribute copied from the
     hand), crinkle grain, roughness variation, a wet coat. Works on any glove material (the ocean lane swaps its own)."""
     if m is None or m.get('glove_detail'):
         return m
     m['glove_detail'] = 1
+    if palette:                                  # rubber gloves: orange / yellow / dark blue, not a bare dark hand
+        _palette(m, palette)
     nt = m.node_tree
     p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
     rest = _attr(nt, 'rest').outputs['Vector']
@@ -410,9 +416,9 @@ def _glove_detail(m):
     c = _col(nt, src, (0.72, 0.72, 0.72), _op(nt, 'MULTIPLY', cr, _rng(nt, wr, 0.4, 0.7, 0.0, 0.8)), 'MULTIPLY')
     nt.links.new(c, p.inputs['Base Color'])
     nt.links.new(_rng(nt, _noise(nt, rest, 40.0, 3.0), 0.3, 0.7, 0.34, 0.6), p.inputs['Roughness'])
-    p.inputs['Coat Weight'].default_value = 0.12
-    p.inputs['Coat Roughness'].default_value = 0.25
-    p.inputs['Specular IOR Level'].default_value = 0.4
+    p.inputs['Coat Weight'].default_value = 0.3
+    p.inputs['Coat Roughness'].default_value = 0.18
+    p.inputs['Specular IOR Level'].default_value = 0.45
     return m
 
 
@@ -498,16 +504,16 @@ def _hairnet(m):
 
 
 def _stache_mat():
-    """Moustache on about half the men (Object Info random > 0.45), hidden on the rest."""
+    """Moustache cards on about 60 % of the men (Object Info random > 0.4), hidden on the rest."""
     m = bpy.data.materials.get('HUM_Stache')
     if m:
         return m
-    m = _mat('HUM_Stache', (0.02, 0.016, 0.014), 0.6, bump=0.25)
+    m = _mat('HUM_Stache', HAIR_RGB, 0.65, bump=0.25)
     nt = m.node_tree
     oi = nt.nodes.new('ShaderNodeObjectInfo')
     gt = nt.nodes.new('ShaderNodeMath')
     gt.operation = 'GREATER_THAN'
-    gt.inputs[1].default_value = 0.45
+    gt.inputs[1].default_value = 0.4                      # ~60 % of men
     nt.links.new(oi.outputs['Random'], gt.inputs[0])
     nt.links.new(gt.outputs[0], nt.nodes['Principled BSDF'].inputs['Alpha'])
     m.surface_render_method = 'DITHERED'
@@ -730,7 +736,7 @@ LOOSE = 1.05          # loose cloth stands off the body by THICK * LOOSE (was 1.
 RELAX_CURL = 0.22     # finger curl baked into the masters: relaxed hands
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.016, 'shoes': 0.008,
-         'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.022, 'hair': 0.008, 'cap': 0.02, 'mask': 0.008,
+         'gloves': 0.0009, 'gloves_rubber': 0.0015, 'haircap': 0.022, 'hair': 0.008, 'cap': 0.02, 'mask': 0.008,
          'vest': 0.024, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
@@ -740,6 +746,14 @@ PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', '
 
 
 KH = 1.0
+# neckline plane per top: (height at the neck centre, front-to-back rise per metre of y)
+NECK = {'jacket': (1.452, 0.30), 'parka': (1.462, 0.30), 'shirt': (1.452, 0.30), 'shirt_farm': (1.452, 0.30),
+        'labcoat': (1.452, 0.30), 'vest': (1.425, 0.45)}
+
+
+def _sm1(x, lo, hi):
+    t = min(1.0, max(0.0, (x - lo) / (hi - lo)))
+    return t * t * (3 - 2 * t)
 
 
 def _shell(body, piece, mask, M):
@@ -757,8 +771,19 @@ def _shell(body, piece, mask, M):
     bm = bmesh.new()
     bm.from_mesh(me)
     bm.verts.ensure_lookup_table()
-    kill = [f for f in bm.faces if not all(mask[v.index] for v in f.verts)]
+    nk = NECK.get(piece)
+    if nk is not None:
+        # tops: keep a band above the stepped region cut, then slice one clean neckline plane through it
+        # (lower at the front, higher at the back): a smooth collar edge, no stair steps
+        band = [nk[0] * KH - 0.06 < v.co.z < nk[0] * KH + 0.06 and abs(v.co.x) < 0.13 * KH for v in bm.verts]
+        kill = [f for f in bm.faces if not all(mask[v.index] or band[v.index] for v in f.verts)]
+    else:
+        kill = [f for f in bm.faces if not all(mask[v.index] for v in f.verts)]
     bmesh.ops.delete(bm, geom=kill, context='FACES')
+    if nk is not None:
+        bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces), dist=1e-5,
+                               plane_co=(0, 0, nk[0] * KH), plane_no=Vector((0, -nk[1], 1)).normalized(),
+                               clear_outer=True)
     for _ in range(3):                      # drop one-face slivers and tags hanging off the border
         thin = [f for f in bm.faces if sum(1 for e in f.edges if e.is_boundary) >= 2]
         if not thin:
@@ -783,6 +808,31 @@ def _shell(body, piece, mask, M):
         hit, nrm, _i, _d = bvh.find_nearest(v.co)
         if hit is not None:
             v.co = hit
+    # relax the first rows inside the hem so the straightened border has even faces behind it
+    near = set()
+    front_ = set(bnd)
+    for _ in range(3):
+        front_ = {e.other_vert(v) for v in front_ for e in v.link_edges} - set(bnd) - near
+        near |= front_
+    if near:
+        for _ in range(8):
+            bmesh.ops.smooth_vert(bm, verts=list(near), factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+        for v in near:
+            hit, _n, _i, _d = bvh.find_nearest(v.co)
+            if hit is not None:
+                v.co = hit
+    # distance to the hem (continuous, so cuff bands are smooth, not stepped by the mesh rings)
+    from mathutils.kdtree import KDTree
+    rd = {}
+    if bnd:
+        kd = KDTree(len(bnd))
+        for i, v in enumerate(bnd):
+            kd.insert(v.co, i)
+        kd.balance()
+        for v in bm.verts:
+            _c, _i, dd = kd.find(v.co)
+            if dd < 0.02:
+                rd[v] = dd
     # rings from the border: 0 at the hem
     ring = {v: 0 for v in bnd}
     front = list(bnd)
@@ -840,10 +890,11 @@ def _shell(body, piece, mask, M):
             a = math.atan2(v.co.y, v.co.x)
             extra = 0.010 * max(0.0, (z - 1.52) / 0.2) + 0.006 * max(0.0, v.co.y) / 0.1 \
                 + 0.004 * math.sin(a * 26) * max(0.0, (z - 1.56) / 0.12)
-        if piece in CUFF and v in ring and piece != 'haircap':
-            extra += (0.006, 0.0065, 0.005, 0.002, 0.0)[ring[v]]          # turned-back hem / cuff band
-        if piece in ('haircap', 'cap') and v in ring:
-            extra += (0.004, 0.005, 0.003, 0.0, 0.0)[ring[v]]             # elastic edge
+        if piece in CUFF and v in rd and piece != 'haircap':
+            cuffw = 0.0028 if piece.startswith('gloves') else 0.006
+            extra += cuffw * (1 - _sm1(rd[v], 0.004, 0.016))                # turned-back hem / cuff band
+        if piece in ('haircap', 'cap') and v in rd:
+            extra += 0.005 * (1 - _sm1(rd[v], 0.002, 0.012))                # elastic edge
         if piece == 'mask':
             extra += 0.004 + (0.002 if v in ring and ring[v] < 2 else 0.0)  # stands off the face; bound edge
             zz = (z - 1.462 * KH) / (0.09 * KH)                                # 0 chin .. 1 nose bridge
@@ -875,34 +926,54 @@ def _shell(body, piece, mask, M):
     if piece == 'mask':                     # rebuilt as a smooth pleated panel over the face (no moulded nose/lips)
         bm.clear()
         nx, nz = 26, 14
-        x0, x1, z0, z1 = -0.08 * KH, 0.08 * KH, 1.458 * KH, 1.556 * KH
+        x0, x1, z0, z1 = -0.062 * KH, 0.062 * KH, 1.458 * KH, 1.556 * KH
         hits = {}
         for ix in range(nx + 1):
             for iz in range(nz + 1):
                 x = x0 + (x1 - x0) * ix / nx
-                z = z0 + (z1 - z0) * iz / nz
+                zb = z0 + 0.03 * KH * (x / x1) ** 2              # lower edge rises along the jaw to the sides
+                z = zb + (z1 - zb) * iz / nz
                 h = bvh.ray_cast(Vector((x, -1.0, z)), Vector((0, 1, 0)))
                 if h[0] is None:
                     h = bvh.find_nearest(Vector((x, -0.06 * KH, z)))
                 if h[0] is not None:
                     hits[ix, iz] = h[0].y
-        tip = min(hits.values())
-        tz = 1.535 * KH
+        # conforms to the face 5 mm off: depth field blurred so it bridges the nose and lips (no moulded features)
+        # but follows cheeks and chin; never closer than 3 mm; three horizontal pleats
+        fy = dict(hits)
+        for _ in range(6):
+            fy = {k: sum(fy.get((k[0] + a, k[1] + b), fy[k]) for a in (-1, 0, 1) for b in (-1, 0, 1)) / 9 for k in fy}
         grid = {}
-        for (ix, iz), fy in hits.items():
+        for (ix, iz), y0 in hits.items():
             x = x0 + (x1 - x0) * ix / nx
-            z = z0 + (z1 - z0) * iz / nz
-            tent = tip - 0.006 + (5.0 * x * x + 6.0 * max(0.0, tz - z) ** 2 + 20.0 * max(0.0, z - tz) ** 2) / KH
-            pleat = 0.0015 * math.sin((z - z0) / (z1 - z0) * math.pi * 6) * (1 - abs(x) / x1)
-            grid[ix, iz] = bm.verts.new((x, min(fy - 0.005, tent) - pleat, z))
+            zb = z0 + 0.03 * KH * (x / x1) ** 2
+            z = zb + (z1 - zb) * iz / nz
+            pleat = 0.0016 * math.sin((z - z0) / (z1 - z0) * math.pi * 6) * (1 - abs(x) / x1) ** 0.5
+            grid[ix, iz] = bm.verts.new((x, min(fy[ix, iz] - 0.009, y0 - 0.007, -0.035 * KH) - pleat, z))   # sides stand off, no flaps
         for ix in range(nx):
             for iz in range(nz):
                 q = [grid.get(k) for k in ((ix, iz), (ix + 1, iz), (ix + 1, iz + 1), (ix, iz + 1))]
                 if all(q):
                     bm.faces.new(q)
-        for _ in range(2):
-            bmesh.ops.smooth_vert(bm, verts=[v for v in bm.verts if not v.is_boundary], factor=0.5,
-                                  use_axis_x=False, use_axis_y=True, use_axis_z=False)
+        # thin elastic ear loops: corner -> over the ear root -> behind the ear -> lower corner
+        ears = [v.co for v in body.data.vertices if 1.53 * KH < v.co.z < 1.60 * KH and v.co.x > 0 and v.co.y > -0.06]
+        ear = max(ears, key=lambda c: c.x) if ears else Vector((0.075 * KH, 0.0, 1.565 * KH))
+        for sx, ix in ((-1, 0), (1, nx)):
+            a, b = grid.get((ix, nz)), grid.get((ix, 0))
+            if a is None or b is None:
+                continue
+            e = Vector((sx * ear.x, ear.y, ear.z))
+            path = [a.co.copy(), Vector((sx * (ear.x - 0.006), ear.y - 0.012, ear.z + 0.022)),
+                    Vector((sx * (ear.x - 0.009), ear.y + 0.012, ear.z + 0.026)),
+                    Vector((sx * (ear.x - 0.012), ear.y + 0.028, ear.z)),
+                    Vector((sx * (ear.x - 0.009), ear.y + 0.014, ear.z - 0.026)), b.co.copy()]
+            rows = []
+            for i, c in enumerate(path):
+                d = (path[min(i + 1, 5)] - path[max(i - 1, 0)]).normalized()
+                side = d.cross(Vector((sx, 0, 0))).normalized() * 0.0012
+                rows.append((bm.verts.new(c - side), bm.verts.new(c + side)))
+            for (p0, p1), (q0, q1) in zip(rows, rows[1:]):
+                bm.faces.new((p0, p1, q1, q0))
         bm.normal_update()
     bm.to_mesh(me)
     bm.free()
@@ -915,7 +986,7 @@ def _shell(body, piece, mask, M):
     dt.layers_vgroup_select_src = 'ALL'
     dt.layers_vgroup_select_dst = 'NAME'
     sol = o.modifiers.new('sol', 'SOLIDIFY')
-    sol.thickness = 0.0065 if piece not in ('gloves', 'mask', 'gloves_rubber', 'stache') else 0.0018
+    sol.thickness = {'gloves': 0.0009, 'gloves_rubber': 0.0011}.get(piece, 0.0065 if piece not in ('mask', 'stache') else 0.0018)
     sol.offset = -1
     bpy.context.view_layer.objects.active = o
     for m in list(o.modifiers):
@@ -952,20 +1023,15 @@ def _apron(body, k, M):
     for j in range(nz):
         for i in range(nx):
             bm.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
-    # neck strap (top corners up round the neck) and waist ties falling at the sides
+    # neck strap (top corners up round the neck); no loose waist ties (they floated beside the hands)
     for sx in (-1, 1):
         top = grid[-1][0 if sx < 0 else nx].co
         nk = Vector((sx * 0.055 * k, top.y + 0.05 * k, 1.46 * k))
         st = []
         for t in (0.0, 0.5, 1.0):
             c = top.lerp(nk, t)
-            st.append((bm.verts.new(c + Vector((-0.012 * k, 0, 0))), bm.verts.new(c + Vector((0.012 * k, 0, 0)))))
+            st.append((bm.verts.new(c + Vector((-0.006 * k, 0, 0))), bm.verts.new(c + Vector((0.006 * k, 0, 0)))))
         for (a0, a1), (b0, b1) in zip(st, st[1:]):
-            bm.faces.new((a0, a1, b1, b0))
-        wv = grid[int(nz * (0.98 - 0.52) / (1.34 - 0.52))][0 if sx < 0 else nx].co
-        tie = [wv + Vector((sx * 0.01 * k, 0.02 * k * t, -0.22 * k * t)) for t in (0.0, 0.5, 1.0)]
-        tv = [(bm.verts.new(c + Vector((0, -0.008 * k, 0))), bm.verts.new(c + Vector((0, 0.008 * k, 0)))) for c in tie]
-        for (a0, a1), (b0, b1) in zip(tv, tv[1:]):
             bm.faces.new((a0, a1, b1, b0))
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     me = bpy.data.meshes.new(body.name + '_apron')
@@ -1067,7 +1133,7 @@ def _landmarks(body, eyes):
     return E, Vector(nose), Vector(ear), co
 
 
-def _face_maps(body, eyes):
+def _face_maps(body, eyes, gender='male'):
     """Per-vertex masks for the skin shader (rest pose): skm = (T-zone, beard, brow, scalp hair),
     skm2 = (lips, periorbital, lash line, 0); 'rest' = rest position (stable texture space under the rig);
     eyes get 'eyec' (their own centre) for the iris."""
@@ -1101,6 +1167,12 @@ def _face_maps(body, eyes):
     orb = _sm(r, 0.011, 0.015) * (1 - _sm(r, 0.021, 0.034)) * np.where(z < Ez, 1.0, 0.55) * (y < Ey + 0.008)
     lash = _sm(r, 0.0108, 0.0122) * (1 - _sm(r, 0.0138, 0.0158)) * (y < Ey - 0.002)
     lash *= np.where(z > Ez - 0.002, 1.0, 0.35)
+    # moustache: upper lip between the nose base and the lip line
+    stache = (1 - _sm(ax, 0.024, 0.034)) * _sm(z, zm + 0.004, zm + 0.009) * (1 - _sm(z, nose.z - 0.016, nose.z - 0.008))
+    stache *= (y < nose.y + 0.035)
+    if gender != 'male':
+        beard = beard * 0
+        stache = stache * 0
     # scalp hair: hairline height by azimuth round the head (front .. nape), ears cut out, sideburns
     sl = (ax < 0.01) & (np.abs(z - Ez - 0.03) < 0.006)
     hcy = (y[sl].min() + y[sl].max()) / 2 if sl.any() else Ey + 0.08
@@ -1112,9 +1184,9 @@ def _face_maps(body, eyes):
     scalp *= 1 - earcut
     me = body.data
     hz = me.attributes.get('hairz') or me.attributes.new('hairz', 'FLOAT', 'POINT')
-    hz.data.foreach_set('value', ((z - H) / KH).astype(np.float32))
+    hz.data.foreach_set('value', np.where(earcut > 0.3, -1.0, (z - H) / KH).astype(np.float32))   # ears stay out of caps
     for nm, vals in (('skm', np.stack([tz, beard, brow, scalp], 1)),
-                     ('skm2', np.stack([lip, orb, lash, np.zeros_like(lip)], 1))):
+                     ('skm2', np.stack([lip, orb, lash, stache], 1))):
         a = me.attributes.get(nm) or me.attributes.new(nm, 'FLOAT_COLOR', 'POINT')
         a.data.foreach_set('color', np.clip(vals, 0, 1).astype(np.float32).ravel())
     for o in [body] + list(eyes):
@@ -1208,20 +1280,24 @@ def _hand_crease(body, ao):
 
 
 def _hair_cards(src, cover, gender, M, seed=1, n_scalp=7000):
-    """Short black hair as narrow cards combed over the scalp (side part, back and down), lying in a 2-6 mm layer
-    that follows the head; density from the 'skm' scalp mask (thins out at the hairline: no zigzag edge), none where
-    a garment covers the scalp (cover objects: cap, hard hat...), so caps sit on hair and hair shows under the rim.
-    Brows get short cards too. Rigid on 'head'."""
+    """Short black hair as narrow cards: side-parted, matte, slightly wavy, lying in a 2-7 mm layer that follows the
+    head; density from the 'skm' scalp mask (thins out at the hairline: no zigzag edge), none where a garment covers
+    the scalp (cap, hard hat, mask...), so caps sit on hair and hair shows under the rim. Brows get short cards;
+    men get moustache cards (separate object, HUM_Stache shows them on ~60 %); women get a low bun.
+    Returns a list of objects rigid on 'head'."""
     import numpy as np
     rng = np.random.default_rng(seed)
     me = src.data
     me.calc_loop_triangles()
-    att = me.attributes.get('skm')
+    att, att2 = me.attributes.get('skm'), me.attributes.get('skm2')
     if att is None or not len(me.loop_triangles):
-        return None
+        return []
     mk = np.empty(len(me.vertices) * 4, np.float32)
     att.data.foreach_get('color', mk)
-    mk = mk.reshape(-1, 4)
+    mk2 = np.zeros(len(me.vertices) * 4, np.float32)
+    if att2 is not None:
+        att2.data.foreach_get('color', mk2)
+    mk = np.concatenate([mk.reshape(-1, 4), mk2.reshape(-1, 4)], axis=1)       # 0-3 skm, 4-7 skm2
     co = np.array([v.co[:] for v in me.vertices])
     tris = np.array([t.vertices[:] for t in me.loop_triangles])
     a, b, c = co[tris[:, 0]], co[tris[:, 1]], co[tris[:, 2]]
@@ -1236,10 +1312,9 @@ def _hair_cards(src, cover, gender, M, seed=1, n_scalp=7000):
         cv += [o.matrix_world @ v.co for v in o.data.vertices]
         cp += [[base + i for i in p.vertices] for p in o.data.polygons]
     cover_bvh = BVHTree.FromPolygons(cv, cp) if cp else None
-    bm = bmesh.new()
-    sl = bm.verts.layers.float.new('strand')
 
-    def grow(chan, count, length_fn, dir_fn, lift, width):
+    def grow(bm, chan, count, length_fn, dir_fn, lift, width, wave=0.0):
+        sl = bm.verts.layers.float.get('strand') or bm.verts.layers.float.new('strand')
         tm = mk[tris, chan].mean(axis=1)
         w = area * np.clip(tm, 0, 1) ** 1.5
         if w.sum() <= 0:
@@ -1255,23 +1330,25 @@ def _hair_cards(src, cover, gender, M, seed=1, n_scalp=7000):
         for k in range(count):
             if rng.random() > mval[k] ** 1.3:           # sparse at the hairline
                 continue
-            p = Vector(P[k])
-            hit, nrm, _i, _d = body_bvh.find_nearest(p)
+            hit, nrm, _i, _d = body_bvh.find_nearest(Vector(P[k]))
             if hit is None:
                 continue
             if cover_bvh is not None and cover_bvh.ray_cast(hit + nrm * 0.001, nrm, 0.08)[0] is not None:
                 continue
             L = length_fn(hit) * (0.75 + 0.5 * rng.random())
-            steps = 5
+            steps = 6
             pts, nrms = [hit + nrm * 0.0004], [nrm]
             q = hit
-            jit = Vector(rng.normal(0, 0.25, 3))
-            for s in range(1, steps + 1):
-                t = s / steps
+            jit = Vector(rng.normal(0, 0.3, 3))
+            ph, amp = rng.random() * 6.28, wave * (0.5 + rng.random())
+            for st in range(1, steps + 1):
+                t = st / steps
                 dvec = dir_fn(q) + jit
                 tang = (dvec - nrm * dvec.dot(nrm))
                 if tang.length < 1e-6:
                     tang = nrm.orthogonal()
+                tang.normalize()
+                tang = tang + nrm.cross(tang) * amp * math.sin(ph + t * 7.0)          # slight wave
                 q2 = q + tang.normalized() * (L / steps)
                 h2, n2, _i, _d = body_bvh.find_nearest(q2)
                 if h2 is None:
@@ -1297,54 +1374,68 @@ def _hair_cards(src, cover, gender, M, seed=1, n_scalp=7000):
             n += 1
         return n
 
-    part = 0.025 if gender == 'male' else 0.0
+    part = 0.028 * KH
 
     def scalp_dir(q):
+        if gender != 'male':
+            return Vector((0.0, 1.0, -0.45))                       # combed back to the bun
         sx = 1.0 if q.x > part else -1.0
-        side = 0.55 * sx * max(0.0, 1 - abs(q.x - part) / 0.06) if gender == 'male' else 0.0
-        return Vector((side + 0.25 * sx, 1.0, -0.55 if q.z < 1.62 * KH else -0.15))
+        top = max(0.0, min(1.0, (q.z - 1.60 * KH) / (0.06 * KH)))
+        # swept sideways away from the part over the top, down and a little back on the sides and nape
+        return Vector((sx * (0.4 + 0.8 * top), 0.25 - 0.2 * top, -0.6 + 0.3 * top))
 
     def scalp_len(q):
-        lo, hi = (0.007, 0.032) if gender == 'male' else (0.03, 0.07)
+        lo, hi = (0.006, 0.02) if gender == 'male' else (0.03, 0.07)
         t = max(0.0, min(1.0, (q.z - 1.58 * KH) / (0.08 * KH)))
         return lo + (hi - lo) * t * t * (3 - 2 * t)
 
-    ns = grow(3, n_scalp, scalp_len, scalp_dir, (0.0015, 0.0055 if gender == 'male' else 0.007), 0.0011)
-    nb = grow(2, 900, lambda q: 0.0065, lambda q: Vector((0.9 if q.x > 0 else -0.9, 0.0, 0.35)),
-              (0.0003, 0.0012), 0.0004)
-    if gender == 'female':
+    bm = bmesh.new()
+    ns = grow(bm, 3, n_scalp, scalp_len, scalp_dir, (0.002, 0.007 if gender == 'male' else 0.008), 0.0011, 0.35)
+    nb = grow(bm, 2, 900 if gender == 'male' else 600, lambda q: 0.0065,
+              lambda q: Vector((0.9 if q.x > 0 else -0.9, 0.0, 0.35)), (0.0003, 0.0012), 0.0004)
+    if gender != 'male':
         # low bun at the nape (hidden when a cap covers it)
+        sl = bm.verts.layers.float.get('strand') or bm.verts.layers.float.new('strand')
         bk = max((v.co for v in me.vertices if abs(v.co.x) < 0.02 and 1.50 * KH < v.co.z < 1.60 * KH),
                  key=lambda v: v.y, default=None)
         if bk is not None:
-            ctr = bk + Vector((0, 0.025 * KH, -0.01 * KH))
+            ctr = bk + Vector((0, 0.028 * KH, -0.012 * KH))
             if cover_bvh is None or cover_bvh.find_nearest(ctr, 0.05)[0] is None:
-                r = bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=1.0,
-                                              matrix=Matrix.Translation(ctr) @ Matrix.Diagonal((0.042, 0.03, 0.034, 1)))
+                r = bmesh.ops.create_uvsphere(bm, u_segments=20, v_segments=12, radius=1.0,
+                                              matrix=Matrix.Translation(ctr) @ Matrix.Diagonal((0.042, 0.032, 0.034, 1)))
                 for vv in r['verts']:
                     vv[sl] = rng.random()
-    print('hair cards', src.name, ns, 'scalp', nb, 'brow', flush=True)
-    if not bm.faces:
-        bm.free()
-        return None
-    hm = bpy.data.meshes.new(src.name + '_haircards')
-    bm.to_mesh(hm)
-    bm.free()
-    o = bpy.data.objects.new(hm.name, hm)
-    bpy.context.scene.collection.objects.link(o)
-    o.vertex_groups.new(name='head').add(range(len(hm.vertices)), 1.0, 'REPLACE')
-    hm.materials.append(M['hair'])
-    for p in hm.polygons:
-        p.use_smooth = True
-    return o
+                    vv.co += (vv.co - ctr) * 0.08 * math.sin(math.atan2(vv.co.z - ctr.z, vv.co.x - ctr.x) * 9)   # coils
+    out = []
+    bm2 = bmesh.new()
+    nm_ = 0
+    if gender == 'male':
+        nm_ = grow(bm2, 7, 1400, lambda q: 0.009, lambda q: Vector((0.7 if q.x > 0 else -0.7, -0.25, -1.0)),
+                   (0.0005, 0.0022), 0.0006)
+    print('hair cards', src.name, ns, 'scalp', nb, 'brow', nm_, 'stache', flush=True)
+    for b_, key, nm in ((bm, 'hair', '_haircards'), (bm2, 'stache', '_stachecards')):
+        if not b_.faces:
+            b_.free()
+            continue
+        hm = bpy.data.meshes.new(src.name + nm)
+        b_.to_mesh(hm)
+        b_.free()
+        o = bpy.data.objects.new(hm.name, hm)
+        bpy.context.scene.collection.objects.link(o)
+        o.vertex_groups.new(name='head').add(range(len(hm.vertices)), 1.0, 'REPLACE')
+        hm.materials.append(M[key])
+        for p in hm.polygons:
+            p.use_smooth = True
+        out.append(o)
+    return out
 
 
 def build_masters(out_path, level=1, genders=('male', 'female')):
     """Run headless once: writes humans.blend with HUM_Rig_<g> armatures and HUM_<g>_<outfit> meshes."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     M = mats()
-    for key in ('nitrile_blue', 'rubber_glove'):
-        _glove_detail(M.get(key))
+    _glove_detail(M.get('nitrile_blue'))
+    _glove_detail(M.get('rubber_glove'), RUBBER)
     for gender in genders:
         body, eyes = _append_body(gender)
         _apply_multires(body, level)
@@ -1357,7 +1448,7 @@ def build_masters(out_path, level=1, genders=('male', 'female')):
         _skin(body, eyes, ao, bpy.data.objects.get('HUMB_male') if gender == 'female' else None)
         _slim_hands(body, ao)
         _close_mouth(body)
-        E, nose, ear = _face_maps(body, eyes)
+        E, nose, ear = _face_maps(body, eyes, gender)
         _face_rig(body, ao, E, nose, ear)
         _hand_crease(body, ao)
         for sd in ('L', 'R'):                       # relaxed hands: fingers a little curled, never board-flat
@@ -1390,7 +1481,9 @@ def build_masters(out_path, level=1, genders=('male', 'female')):
                 bpy.context.scene.collection.objects.link(c)
                 cps.append(c)
             # hide the skin under opaque clothes (no poke-through when posed); the border ring stays
-            cov = [any(regions[p][i] for p in plist if p in regions and p not in ('mask', 'hair')) for i in range(len(body.data.vertices))]
+            cov = [body.data.vertices[i].co.z < 1.44 * KH and   # head skin is never hidden (caps stand off it)
+                   any(regions[p][i] for p in plist if p in regions and p not in ('mask', 'hair'))
+                   for i in range(len(body.data.vertices))]
             bm = bmesh.new()
             bm.from_mesh(cps[0].data)
             bm.verts.ensure_lookup_table()
@@ -1400,10 +1493,8 @@ def build_masters(out_path, level=1, genders=('male', 'female')):
             bm.to_mesh(cps[0].data)
             bm.free()
             if 'hair' in plist:
-                cover = [c for c, p in zip(cps[1 + len(eyes):], plist) if p not in ('hair', 'mask', 'stache')]
-                hc = _hair_cards(cps[0], cover, gender, M, seed=len(oname) * 31 + len(plist))
-                if hc is not None:
-                    cps.append(hc)
+                cover = [c for c, p in zip(cps[1 + len(eyes):], plist) if p not in ('hair', 'stache')]
+                cps += _hair_cards(cps[0], cover, gender, M, seed=len(oname) * 31 + len(plist))
             bpy.ops.object.select_all(action='DESELECT')
             for c in cps:
                 c.select_set(True)
