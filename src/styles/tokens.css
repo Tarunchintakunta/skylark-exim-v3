@@ -21,7 +21,7 @@
   --light: #f4efe6;
   --light-2: #e9e1d3;
   --ink-2: #4a5a5e;      /* secondary text on sand, 6.6:1 */
-  --brass-ink: #b4532a;  /* rust accent for text on sand, 5.0:1 */
+  --brass-ink: #a84c24;  /* rust accent for text on sand, 4.9:1 on --light */
   --hairline: rgba(246, 242, 234, 0.16);
   --hairline-ink: rgba(11, 42, 51, 0.14);
 

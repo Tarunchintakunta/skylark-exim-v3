@@ -49,12 +49,12 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await page.waitForTimeout(1500)
   const afterPass = new Map(bytes)
   // past the film into Products, then back up to the port chapter
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
+  await page.evaluate(() => document.getElementById('contact')!.scrollIntoView())
   await page.waitForTimeout(1200)
   const port = chapters.find((c) => c.id === 'port')!.top
   await page.evaluate((y) => window.scrollTo(0, y + 200), port)
   await page.waitForTimeout(1500)
-  const refetched = ['hf-ship', 'x-ship'].filter((id) => {
+  const refetched = ['hf-ship', 'hf-sail'].filter((id) => {
     const f = [...bytes.keys()].find((k) => k.includes(`/${id}_`))
     return f && (bytes.get(f) ?? 0) > (afterPass.get(f) ?? 0) * 1.1
   })
@@ -79,16 +79,12 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await ctx.close()
 })
 
-test('the opening clip plays on the first screen (no neighbour behind it)', async ({ browser }) => {
+test('the first screen loads the hero loop first, then only the start beat behind it (#197)', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
-  await page.mouse.move(700, 450)
-  for (let n = 0; n < 5; n++) {
-    await page.mouse.wheel(0, 100)
-    await page.waitForTimeout(100)
-  }
-  await page.waitForTimeout(800)
-  const shown = await page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => v.style.opacity === '1').map((v) => v.currentSrc))
-  expect(shown.length).toBe(1)
-  expect(shown[0]).toContain('/opening_')
+  await page.waitForTimeout(1500)
+  const clips = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.endsWith('.mp4')))
+  // the hero loop first; behind it only the start beat it dissolves into
+  expect(clips[0]).toContain('/hero-loop_')
+  expect(clips.slice(1).every((c) => c.includes('/opening_')), clips.join(', ')).toBe(true)
   await ctx.close()
 })

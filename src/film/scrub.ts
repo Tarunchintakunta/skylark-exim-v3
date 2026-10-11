@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
+import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
 import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
@@ -48,12 +49,7 @@ const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
-/**
- * Opening (redesign §3): once the loader is done the first clip plays at 1× for INTRO_S so the hero is already moving,
- * then holds. The first scroll hands over to scrubbing from wherever it got to (introT0 → end of clip).
- */
-const INTRO_S = 2
-let introT0: number | null = null
+/** The hero's looping video (#197) covers the start chapter: its clip loads after the loader, its posters after the first scroll. */
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -198,18 +194,21 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  if (want) {
+  // the start clip loads once the loader is done (behind the hero loop) so the hand-off has frames ready; a deep link
+  // that is about to jump past the hero doesn't fetch it at all
+  if (want && !(landing.pending && i === 0) && (scrolled || i > 0 || store.getState().ready)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
-      const t0 = i === 0 ? intro(active) : 0
-      if (t0 !== null) {
-        seek(active, p, vel, t0)
-        probe.target = t0 + p * Math.max(0, (active.v.duration || 0) - FRAME - t0)
-      }
+      seek(active, p, vel)
+      probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
     }
   }
-  if (!scrolled && frame.scroll > 2) scrolled = true
+  // a deep link (#ocean / #pond) lands mid-film: measure the first scroll from there, so it doesn't prefetch on arrival
+  if (!scrolled && !landing.pending && Math.abs(frame.scroll - Math.max(0, landing.y)) > 2) {
+    scrolled = true
+    loadPosters(i)
+  }
   if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
     // the one after that once the next can play through too (short chapters pass in < 1 s); phones only ever prefetch the next
@@ -225,7 +224,7 @@ function tick() {
   const m = seg.media
   if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
-  // cross-fade join: next segment's poster fades in over the last 3% of scroll (x-ship → globe: 15%)
+  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%)
   const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
   const a = fadeLen ? Math.max(0, (p - (1 - fadeLen)) / fadeLen) : 0
   const o = a > 0 ? i + 1 : -1
@@ -249,20 +248,6 @@ function tick() {
     posters[o]!.classList.add('is-over')
     posters[o]!.style.opacity = String(a)
   }
-}
-
-/** Intro playback for the opening clip. Returns the scrub start time once handed over, or null while it still plays. */
-function intro(s: Slot): number | null {
-  if (introT0 !== null) return introT0
-  const v = s.v
-  const scrolled = frame.scroll > 2
-  if (env.reduced || scrolled || (v.readyState >= 2 && v.currentTime >= INTRO_S)) {
-    v.pause()
-    introT0 = env.reduced ? 0 : Math.min(v.currentTime, INTRO_S)
-    return introT0
-  }
-  if (store.getState().ready && v.readyState >= 2 && v.paused) v.play().catch(() => (introT0 = v.currentTime))
-  return null
 }
 
 function seek(s: Slot, p: number, vel: number, t0 = 0) {
@@ -299,6 +284,7 @@ function clearLayers(keep: number) {
 
 /** Posters load lazily: this segment and the next two, but only this one until the loader is done (first screen = LCP). */
 function loadPosters(i: number) {
+  if (!scrolled) return
   const last = store.getState().ready ? i + 2 : i
   for (let k = i; k <= last; k++) {
     const p = posters[k]

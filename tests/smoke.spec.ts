@@ -39,27 +39,35 @@ test('inside the film the toggle lands on the other path\'s first chapter', asyn
   expect(Math.abs(top)).toBeLessThan(4)
 })
 
-test('the hero is moving before the first scroll, then scrubbing takes over', async ({ page }) => {
+test('the hero loop plays, loops, and hands over to the scrubbed story on scroll (#197)', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  const video = page.locator('video[src*="/opening_"]')
-  const t1 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  const loop = page.locator('video.hero__video')
+  await expect(loop).toHaveAttribute('loop', '')
+  const t1 = await loop.evaluate((v: HTMLVideoElement) => v.currentTime)
   await page.waitForTimeout(700)
-  const t2 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  const t2 = await loop.evaluate((v: HTMLVideoElement) => v.currentTime)
   expect(t2).toBeGreaterThan(t1)
   // the logo reveal unlocks scrolling when it finishes
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.mouse.move(700, 450)
-  await page.mouse.wheel(0, 300)
-  await page.waitForTimeout(600)
-  expect(await video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  const start = await page.locator('[data-chapter="start"]').evaluate((el) => (el as HTMLElement).offsetHeight)
+  for (let y = 0; y < start * 0.45; y += 100) {
+    await page.mouse.wheel(0, 100)
+    await page.waitForTimeout(60)
+  }
+  await page.waitForTimeout(800)
+  // past the hand-off: the loop has faded out and paused, the opening shot scrubs underneath
+  expect(await page.locator('.hero__media').evaluate((el) => (el as HTMLElement).style.opacity)).toBe('0')
+  expect(await loop.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.currentSrc))
+  expect(shown.join()).toContain('/opening_')
 })
 
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
   await page.route('**/api/rfq', (r) => r.fulfill({ json: { ok: false, fallback: 'mailto' } }))
-  await page.goto('/')
+  await page.goto('/quote')
   await ready(page)
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
   const form = page.locator('form.rfq')
   await form.getByRole('button', { name: 'Send request' }).click()
   await expect(form.getByRole('alert').first()).toBeVisible()
@@ -76,22 +84,21 @@ test('every nav link lands on its section', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   for (const id of ['products', 'about', 'contact']) {
-    await page.locator(`.nav a[href="#${id}"]`).click()
+    await page.locator(`.nav a[href="/#${id}"]`).click()
     await page.waitForTimeout(1800)
     const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)
     expect(Math.abs(top)).toBeLessThan(80)
   }
 })
 
-test('Enquire on a species lands on #quote with category and species pre-filled', async ({ page }) => {
+test('Enquire on a species opens /quote with category and species pre-filled', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   await page.evaluate(() => document.getElementById('products')!.scrollIntoView())
   await page.locator('#products').getByRole('button', { name: 'Shrimps', exact: true }).click()
   await page.getByRole('button', { name: 'Enquire about Black Tiger Shrimp' }).click()
-  await page.waitForTimeout(1800)
-  const top = await page.locator('#quote').evaluate((el) => el.getBoundingClientRect().top)
-  expect(Math.abs(top)).toBeLessThan(80)
+  await page.waitForURL(/\/quote#/)
+  await ready(page)
   const form = page.locator('form.rfq')
   await expect(form.getByLabel('Product category')).toHaveValue('shrimps')
   await expect(form.getByLabel('Black Tiger Shrimp', { exact: true })).toBeChecked()

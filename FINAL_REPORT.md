@@ -75,3 +75,24 @@ Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364,
 - **Opening poster on phones** is a soft 6 KB frame, shown only until the clip paints (it sat on the LCP critical path at 36 KB).
 - **Vercel preview:** https://skylark-exim-v3-git-hf-final-assembly-tarun-44555f1b.vercel.app/ serves commit **6be75f2**, the assembly *before* the hero fix. On it, the hero, "What we export" and Contact us were checked in a browser, and the "Visakhapatnam" clip at ~507 px was found there. Every later commit (70f76d7 hero fix, b91f3fb, 8846fd6) hit Vercel's free-tier daily deploy limit ("Deployment rate limited — retry in 24 hours"), so the hero fix has only been verified locally on port 5792. Redeploy once the limit resets. No production deploy.
 - `docs` chapter stays a still (#162). PR #176 (storyboard) is still open.
+
+## Follow-up (2026-10-11 evening): #196 and #197
+- **#196 (PR on `hf/196-docs-audit`):**
+  - Docs chapter: a readable export-office desk photo (gpt_image_2_5) with a light blur and the stage's left and bottom scrims. On phones the photo is dimmed so the copy keeps AA. Contrast was measured against the brightest 5 % of background pixels under each text run:
+
+    | Width | Eyebrow | Title | Body | List |
+    |---|---|---|---|---|
+    | 1440 px | 6.6 | 8.3 | 14.8 | 15.0+ |
+    | 390 px | 4.7 | 8.8 | 10.1 | 15.0+ |
+
+  - Docs image size: 1280 = 37 KB, 720 = 15 KB.
+  - Audit at 1440 and 390 px found one more leftover: the Blender x-ship clip at the end of the sea chapter. It is replaced by HS21 (photoreal, continues from HS20's last frame).
+  - Results: Playwright 28/35 on the full run. `scroll-perf` desktop pond failed under load and passed 4/4 when run alone. `video-smoothness` still fails (6), as on main.
+  - Weight: initial 1.41 / 0.76 MB, full scroll 24.02 / 9.55 MB.
+  - Lighthouse mobile: Perf 96, A11y 100, LCP 2.50 s.
+- **#197 (PR #205):**
+  - A seamless 6 s coastal hero loop (HS01, cross-dissolved seam) that dissolves into the scrubbed story on scroll.
+  - Headline sized by the column, with a glyph-extent test from 320 to 2560 px.
+  - Weight: initial 1.75 / 0.79 MB, full scroll 24.86 / 10.01 MB.
+  - **LCP 2.50 s, not below 2.3 s.** Render delay is about 2.0 s of main-JS execution (135 KB gz, 4x CPU). Removing the loader's hold on the hero text did not change it. Options are in PR #205.
+- Credits: 37 for these (12 hero loop, 15 docs image, 10 HS21). See HIGGSFIELD_LOG.md for the shared-account spend.

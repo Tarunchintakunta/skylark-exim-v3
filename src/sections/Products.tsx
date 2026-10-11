@@ -1,11 +1,9 @@
 import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef, useState } from 'react'
-import { CATEGORIES, HERO, SHRIMP_FORMS, SPECIES_OFFERED, STATES, type Category } from '../config/products'
+import { CATEGORIES, SHRIMP_FORMS, SPECIES_OFFERED, STATES, type Category } from '../config/products'
 import { env } from '../engine/env'
-import { goTo } from '../engine/path'
 import { store, useApp } from '../engine/store'
-import { clipUrl, posterUrl } from '../film/segments'
 import { ProductCard } from './ProductCard'
 import { bindReveals } from './reveal'
 import './sections.css'
@@ -28,40 +26,6 @@ function bindLines(root: HTMLElement) {
   return () => splits.forEach((s) => s.revert())
 }
 
-/** Photoreal turntable clip, playing (muted, looped) only while on screen; reduced motion keeps the poster. */
-function Turntable({ id, name }: { id: string; name: string }) {
-  const ref = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    const v = ref.current!
-    if (env.reduced) return
-    const io = new IntersectionObserver(([e]) => (e.isIntersecting ? v.play().catch(() => {}) : v.pause()))
-    io.observe(v)
-    return () => io.disconnect()
-  }, [])
-  return (
-    <figure className="pr-hero__media">
-      <video ref={ref} src={env.reduced ? undefined : clipUrl(id)} poster={posterUrl(id)} muted loop playsInline preload="none" aria-label={name} />
-      <figcaption className="display">{name}</figcaption>
-    </figure>
-  )
-}
-
-/** Hero slot: turntables once the clips exist (HERO[].available), else a typographic composition of the same names. */
-function ProductHero() {
-  const live = HERO.filter((h) => h.available)
-  if (live.length) return <div className="pr-hero pr-hero--media">{live.map((h) => <Turntable key={h.id} {...h} />)}</div>
-  return (
-    <div className="pr-hero" aria-hidden="true">
-      {HERO.map((h, i) => (
-        <p key={h.id} className={`pr-hero__word pr-hero__word--${i}`}>
-          <span className="pr-hero__label">{CATEGORIES[h.category].label}</span>
-          <span className="display" data-lines>{i ? <em>{h.name}</em> : h.name}</span>
-        </p>
-      ))}
-    </div>
-  )
-}
-
 /** Products (STORY §12): category follows the chosen path; every product card enquires straight into the RFQ. */
 export function Products() {
   const path = useApp((s) => s.path)
@@ -79,8 +43,7 @@ export function Products() {
   useEffect(() => bindReveals(body.current!), [tab])
 
   const enquire = (category: Category, species: string) => {
-    store.setState({ prefill: { category, species } })
-    goTo('quote')
+    location.assign(`/quote#${new URLSearchParams({ category, species })}`)
   }
   const cat = CATEGORIES[tab]
 
@@ -98,7 +61,6 @@ export function Products() {
             ))}
           </ul>
         </div>
-        <ProductHero />
       </header>
 
       <div className="pr-switch" role="group" aria-label="Product category">

@@ -16,7 +16,7 @@ export function staticHero(): Plugin {
 <h1 class="hero__title">${esc(lead)} <em>world</em>.</h1>
 <p class="hero__body">${esc(start.body)}</p>
 <div class="hero__exports"><h2 class="hero__exports-title mono">${esc(exportsLine.title)}</h2><ul>${exportsLine.items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
-<a class="hero__contact" href="#quote">Contact us</a><a class="hero__path" href="#pond">Or follow the ${esc(start.pond.sub.toLowerCase())} →</a>
+<a class="hero__contact" href="/quote">Contact us</a><a class="hero__path" href="#pond">Or follow the ${esc(start.pond.sub.toLowerCase())} →</a>
 </div></div>`
   // tokens (vars + @font-face), the base rules the hero inherits from global.css, and hero.css itself
   const base =

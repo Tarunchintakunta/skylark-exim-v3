@@ -3,9 +3,9 @@ import type { ChapterDef } from './config/chapters'
 import { storyMounted } from './engine/boot'
 import { Film } from './film/Film'
 import { About } from './sections/About'
+import { Close } from './sections/Close'
 import { Contact } from './sections/Contact'
 import { Products } from './sections/Products'
-import { Quote } from './sections/Quote'
 import { Trust } from './sections/Trust'
 import { bindRise } from './sections/rise'
 
@@ -20,7 +20,7 @@ export default function Story({ chapters }: { chapters: ChapterDef[] }) {
       <Products />
       <Trust />
       <About />
-      <Quote />
+      <Close />
       <Contact />
     </>
   )

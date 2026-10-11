@@ -1,4 +1,5 @@
 import { bridge, film, type CaptionCopy } from './content'
+import { MARKET_COUNT } from './markets'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
@@ -122,7 +123,7 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'docs', path: 'shared', label: 'Documentation', vh: 100, joinNext: 'cut',
-    media: [{ kind: 'dom', poster: 'ph-p-freeze', alt: 'Three cards: export documents, compliance, shipment tracking.' }],
+    media: [{ kind: 'dom', poster: 'ph-docs', alt: 'An export office desk in daylight: shipment folders, a binder of certificates and a laptop with a tracking map. Three cards: export documents, compliance, shipment tracking.' }],
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
@@ -137,13 +138,13 @@ const SHARED: ChapterDef[] = [
     id: 'sea', path: 'shared', label: 'At sea', vh: 120, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the loaded container ship pulls away from the quay behind a tug, its wake spreading.' },
-      { kind: 'video', id: 'x-ship', alt: 'Seen from straight above, the loaded container ship sails out across deep blue water, trailing a white wake.' },
+      { kind: 'video', id: 'hf-sail', alt: 'Seen from high above, the loaded container ship sails out across deep blue water with a tug alongside, trailing a white wake.' },
     ],
     captions: caps('sea', [[0.1, 0.85]]),
   },
   {
     id: 'world', path: 'shared', label: 'The world', vh: 220, joinNext: 'cut', theme: 'light',
-    media: [{ kind: 'globe', alt: 'A bright daytime globe with gold routes from Visakhapatnam to 16 markets.' }],
+    media: [{ kind: 'globe', alt: `A bright daytime globe with gold routes from Visakhapatnam to ${MARKET_COUNT} markets.` }],
     captions: caps('world', [[0.3, 1.01]]).map((c) => ({ ...c, body: undefined, extra: 'markets' as const })),
   },
 ]
