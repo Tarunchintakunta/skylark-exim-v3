@@ -68,8 +68,8 @@ const OCEAN_ONLY: ChapterDef[] = [
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
-    id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'a4', alt: 'Crates go into a refrigerated truck, which drives the coast road and reverses to the lit intake door.' }],
+    id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-return', alt: 'Porters push trolleys of iced crates along the wharf as the fishing boat comes alongside.' }],
     captions: caps('o4', [[0.1, 0.9]]),
   },
 ]
