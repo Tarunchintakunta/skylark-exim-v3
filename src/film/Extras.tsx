@@ -29,7 +29,7 @@ export function DocCards() {
   )
 }
 
-/** World caption: the 16 markets as real text; hover/focus highlights that route on the globe (PRD F8). */
+/** World caption: every market as real text; hover/focus highlights that route on the globe (PRD F8). */
 export function MarketList() {
   const set = (i: number) => () => void (globeUi.highlight = i)
   return (
