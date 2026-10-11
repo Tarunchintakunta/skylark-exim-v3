@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
+import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
 import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
@@ -198,7 +199,8 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  if (want) {
+  // a deep link is about to jump past the hero: don't fetch the opening clip it would never show
+  if (want && !(landing.pending && i === 0)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
@@ -209,7 +211,8 @@ function tick() {
       }
     }
   }
-  if (!scrolled && frame.scroll > 2) scrolled = true
+  // a deep link (#ocean / #pond) lands mid-film: measure the first scroll from there, so it doesn't prefetch on arrival
+  if (!scrolled && !landing.pending && Math.abs(frame.scroll - Math.max(0, landing.y)) > 2) scrolled = true
   if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
     // the one after that once the next can play through too (short chapters pass in < 1 s); phones only ever prefetch the next
