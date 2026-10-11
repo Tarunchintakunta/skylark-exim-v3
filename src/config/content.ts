@@ -31,6 +31,16 @@ export const start = {
   cta: 'Request export quote',
 }
 
+/** Hand-off between the two origins when the story runs on into the other one (CONTENT.md work flow, step 1). */
+export const bridge: CaptionCopy = {
+  eyebrow: 'Wild catch · Farmed',
+  title: 'From fishing vessels and from farms.',
+  body: 'Shrimp are sourced directly from farms or fishing vessels. Initial quality checks (size, freshness, health) are done before acceptance.',
+}
+
+/** Hero "What we export" line (CONTENT.md products and states). */
+export const exportsLine = { title: 'What we export', items: ['Vannamei and Black Tiger shrimp', 'Marine fish', 'Raw fresh, chilled and frozen'] }
+
 export const film: Record<string, CaptionCopy[]> = {
   o1: [{ eyebrow: 'The Ocean · 01', title: 'Before the harbour wakes.', body: 'Based in Visakhapatnam, Andhra Pradesh. Raw material is sourced directly from farms or fishing vessels.' }],
   o2: [{ eyebrow: 'The Ocean · 02', title: 'Out of the water.', body: 'Initial quality checks (size, freshness, health) are done before acceptance.' }],

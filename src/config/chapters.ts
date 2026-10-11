@@ -1,4 +1,4 @@
-import { film, type CaptionCopy } from './content'
+import { bridge, film, type CaptionCopy } from './content'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
@@ -148,6 +148,13 @@ const SHARED: ChapterDef[] = [
   },
 ]
 
-export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...SHARED]
-export const POND: ChapterDef[] = [start, ...POND_ONLY, ...SHARED]
+/** The other origin's first chapter opens with the bridge caption; its own captions start after it. */
+const bridged = ([first, ...rest]: ChapterDef[]): ChapterDef[] => [
+  { ...first, captions: [{ ...bridge, at: [0.02, 0.3] }, ...first.captions.map((c) => ({ ...c, at: [Math.max(c.at[0], 0.34), c.at[1]] as [number, number] }))] },
+  ...rest,
+]
+
+/** One story with both origins: the chosen path first, then the other one, then the plant, port and world. */
+export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...bridged(POND_ONLY), ...SHARED]
+export const POND: ChapterDef[] = [start, ...POND_ONLY, ...bridged(OCEAN_ONLY), ...SHARED]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)
