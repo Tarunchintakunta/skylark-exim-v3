@@ -27,7 +27,7 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           <img
             key={i}
             data-seg={i}
-            className="stage__layer"
+            className={m.kind === 'dom' ? 'stage__layer stage__dom' : 'stage__layer'}
             // only the opening poster loads up front; scrub.ts sets the rest from data-src (current + next 2)
             src={i === 0 ? posterFor(m)! : undefined}
             data-src={posterFor(m)!}

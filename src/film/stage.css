@@ -22,3 +22,6 @@
 /* daylight chapters (the port): neutral, bottom-only shade under the caption, no deep-sea tint over the footage */
 .stage.is-soft .stage__scrim { background: linear-gradient(to top, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.3) 26%, rgba(0, 0, 0, 0) 48%); }
 .globe-canvas { position: absolute !important; inset: 0; }
+
+/* documentation desk (#196): a real, lightly blurred photo; on narrow screens the copy spans the whole width, so the photo dims to keep AA */
+@media (max-width: 819px) { .stage__dom { filter: brightness(0.45); } }
