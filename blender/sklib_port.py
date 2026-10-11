@@ -149,7 +149,7 @@ CL, CW, CH = 12.19, 2.44, 2.59
 
 
 def add_container(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
-    """One 40 ft box (or 20 ft if not long) centred at c (bottom at c.z), with corner posts, door end and, for reefers,
+    """One long box (or a short one if not long) centred at c (bottom at c.z), with corner posts, door end and, for reefers,
     the machinery front."""
     L = CL if long else 6.06
     R = Matrix.Rotation(rot_z, 3, 'Z')
@@ -191,7 +191,7 @@ def add_container(mb, c, m, color, reefer=False, rot_z=0.0, long=True):
 
 def container_block(name, origin, nx, ny, heights, mat, rnd, reefer_rows=(), axis_x=True, gap=(0.35, 0.35), skip=None,
                     colors=None, parent=None):
-    """A yard/ship block: nx along X (40 ft bays) x ny across (rows), heights[ix][iy] tiers. One mesh, per-box colour."""
+    """A yard/ship block: nx along X (long-box bays) x ny across (rows), heights[ix][iy] tiers. One mesh, per-box colour."""
     mb = MB()
     ox, oy, oz = origin
     for ix in range(nx):
@@ -373,8 +373,8 @@ def sts_crane(name, loc=(0, 0, 0), mats=None, gauge=30.0, legx=9.0, girder_z=48.
         for sy in (-0.7, 0.7):
             hb.cyl((sx, sy, -0.05), (sx, sy, 0.12), 0.11, steel, 10)                  # quick-release lock pins
     hb.obj(f'{name}_HeadblockBody', head)
-    # telescopic spreader at 40 ft: chassis, outer beams, narrower inner beams run out to the end beams, guide flippers
-    # and a twistlock housing + cone at each corner casting (bottom of the cones = z -1.35 below the headblock)
+    # telescopic spreader at long-box length: central chassis, two telescopic main beams the full box length, end beams with
+    # a twistlock cone at each corner casting (bottom of the twistlocks = z -1.35 below the headblock)
     sp = MB()
     sp.box((0, 0, -0.45), (3.6, 2.3, 0.75), yel, bevel=0.04)                           # chassis
     sp.box((0, 0, -0.06), (2.4, 1.6, 0.04), dark)
@@ -647,7 +647,7 @@ def container_ship(name, loc=(0, 0, 0), L=230.0, B=32.0, deck=11.0, mats=None, r
                 col = tuple(min(1, c * rnd.uniform(0.82, 1.1)) for c in col)
                 add_container(mb, (bx, y, deck + 0.8 + t * CH), cmat, col, reef, rot_z=math.pi / 2 if False else 0.0)
     stacks = mb.obj(f'{name}_Stacks', root)
-    # stacks run along X (40 ft along the ship)
+    # stacks run along X (long boxes along the ship)
     # accommodation block + bridge wings + funnel (aft)
     ax = -L / 2 + 22
     white = pbr('MAT_ShipWhite', (0.85, 0.86, 0.85), 0.4, grime=0.3, scale=0.2)
@@ -876,7 +876,7 @@ def skeletal_trailer(name, parent, mats=None, length=12.5):
 
 
 def reefer_box(name, parent, loc=(0, 0, 0), mats=None):
-    """The hero white 40 ft reefer as its own object (so the crane can carry it). Origin at the bottom centre."""
+    """The hero white long reefer as its own object (so the crane can carry it). Origin at the bottom centre."""
     mb = MB()
     # own opaque matte paint: no metal, no coat, rough enough that the stacks around it never mirror in its sides
     m = paint_attr('MAT_ReeferPaint', rough=0.62, metal=0.0, grime=0.5, corrugate=60.0)
