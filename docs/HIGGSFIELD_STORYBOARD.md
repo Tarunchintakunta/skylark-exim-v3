@@ -1,6 +1,6 @@
 # HIGGSFIELD_STORYBOARD.md: the story, shot by shot
 
-Extends `docs/HIGGSFIELD.md` (global rules, review gate, log format). Issue #175. Every shot is **image-to-video**: a fresh Blender still of the matching scene is the start frame, so composition, set and vehicles stay Blender's; Higgsfield adds real people, skin, fabric, water, ice and motion. Port, cranes, ship and globe stay Blender-led.
+Extends `docs/HIGGSFIELD.md` (global rules, review gate, log format). Issue #175. Every shot is **image-to-video** from a fresh Blender still of the matching scene (directly for shots without people; through a Higgsfield image pass for people shots, see below), so composition, set and vehicles stay Blender's; Higgsfield adds real people, skin, fabric, water, ice and motion. Port, cranes, ship and globe stay Blender-led.
 
 ## Corrections to HIGGSFIELD.md (facts rules win)
 - Shot C5 said "blast freezer". "blast freezing" is on the `docs/CONTENT.md` "Never write" list: prompts say **plate freezer / freezer room / IQF tunnel** only.
@@ -15,6 +15,14 @@ Extends `docs/HIGGSFIELD.md` (global rules, review gate, log format). Issue #175
 - Prompt = subject + action + environment + light + camera move + lens + "photorealistic documentary, natural skin texture, real fabric, wet surfaces, shallow depth of field" + the global block (with the corrections above).
 - People, everywhere: South Indian, mixed ages (20s to 50s), mixed builds, natural dark-brown skin with real pores and sweat sheen, natural relaxed postures, eyes on the task, nobody looks into the lens, no posing. Faces stay mid-distance or turned; hands are the close-up subject.
 - Plant PPE (every plant shot): light coloured coveralls or white coats, hairnet under a cap, surgical face mask, waterproof apron, nitrile gloves, white wellington boots. Fishers and pond farmers: no PPE beyond rubber gloves and boots.
+
+## People shots: two-step workflow (Tarun, #121/#175)
+For every shot with people in frame or close to camera (HS02–HS05, HS07–HS18):
+1. The Blender still is a **composition reference only** (layout, camera, set, props).
+2. The start frame is generated with a Higgsfield **image** model from that reference at max resolution (candidates preflighted: `nano_banana_pro` 4k 4 cr, `gpt_image_2_5` max 4k 15 cr, `nano_banana_2_1` 4k 3 cr, `seedream_v4_5` high 1 cr; the pick is made on the first people shot by contact sheet and logged). Content: real South Indian coastal workers, varied ages, builds and skin tones, real fabric, thin semi-matte nitrile gloves, non-woven bouffant caps (plant), natural working poses, nobody looking at camera, plus the global rules (no text, logos or real brands).
+3. The generated frame is contact-sheeted and graded against real reference photos of Indian harbours / seafood plants (viewed in the browser only, nothing downloaded, uploaded or committed; comparison described in words on the sheet notes). PASS before animating.
+4. Image-to-video from that start frame with the shot prompt.
+Shots without people (HS01 sea, HS06 ponds aerial, HS19 port, HS20 ship) keep the Blender still as the start frame. Credits are logged per shot, image and video separately.
 
 ## Priorities
 HIGGSFIELD.md marks A = must, B = nice but labels shots A/B/C/D. Applied here: the human-heavy shots (A1–A4, C1–C6) are **A**; pond, cold store, stuffing and the Blender-led port/ship are **B**.
