@@ -645,93 +645,77 @@ def lab(C, M, rnd, shrimp_fn):
 
 
 def _iqf_prawn():
-    """The farm prawn without its stick legs and 30 cm antennae: curled body + tail fan, two short arched antennae
-    (frozen prawns: legs tucked under the glaze)."""
+    """IQF prawn from the photoreal scan (CC BY 4.0, docs/LICENSES.md): antennae (their own materials) removed,
+    decimated to 25% like every plant prawn, bent into the frozen C-curl, lying on its side (lateral axis up) so the
+    curl reads from above, under a clear glaze coat with a little frost. Falls back to the farm mesh."""
     me = bpy.data.meshes.get('IN_IQFPrawn')
     if me:
         return me
-    import skfarm as F
-    src = F.shrimp_mesh()
+    import skscan
+    src = skscan.mesh('SCAN_Shrimp')
+    if src is None:
+        import skfarm as F
+        return F.shrimp_mesh()
+    tmp_me = src.copy()
     bm = bmesh.new()
-    bm.from_mesh(src)
-    nb = sum(1 for p in src.polygons if p.use_smooth)
-    fan = [p.index for p in src.polygons if p.material_index == 1]
-    keep = nb + len(fan)
-    bm.faces.ensure_lookup_table()
-    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index >= keep], context='FACES')
+    bm.from_mesh(tmp_me)
+    hige = {i for i, m in enumerate(tmp_me.materials) if m and 'Hige' in m.name}
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index in hige], context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
-    # plump the body: the farm mesh is ~2 cm thick, a 12 cm whiteleg is ~2.6 cm (read as worms on the belt).
-    # Its centre line is an arc of radius R about (0, 0, R): push every body vertex out from the arc
-    R = 0.12 / (math.pi * 0.62)
-    for v in bm.verts:
-        d = Vector((v.co.x, 0.0, v.co.z - R))
-        if d.length < 1e-6:
-            continue
-        p = Vector((0, 0, R)) + d.normalized() * R
-        off = v.co - p
-        if off.length < 0.02:
-            v.co = p + off * 1.55
-    # head ring sits at the origin, the body curls toward +X/+Z: antennae point forward (-X), short, arching up
-    for sy in (-1, 1):
-        prev = Vector((0.0, sy * 0.004, 0.006))
-        for k in range(4):
-            a = 0.45 * (k + 1)
-            nxt = Vector((-0.012 * (k + 1) * (1 - 0.12 * k), sy * (0.006 + 0.004 * k), 0.006 + 0.01 * (1 - math.cos(a))))
-            s = Vector((0, 0.0007, 0))
-            bm.faces.new([bm.verts.new(v) for v in (prev - s, nxt - s, nxt + s, prev + s)])
-            prev = nxt
-    me = bpy.data.meshes.new('IN_IQFPrawn')
-    bm.to_mesh(me)
+    bm.to_mesh(tmp_me)
     bm.free()
-    for m in src.materials:
-        me.materials.append(m)
+    t = bpy.data.objects.new('_iqf_tmp', tmp_me)
+    bpy.context.scene.collection.objects.link(t)
+    t.modifiers.new('dec', 'DECIMATE').ratio = 0.25
+    b = t.modifiers.new('curl', 'SIMPLE_DEFORM')
+    b.deform_method = 'BEND'
+    b.deform_axis = 'Z'
+    b.angle = 2.0                                     # ~115 deg: the C of a frozen prawn
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(t.evaluated_get(dg))
+    me.name = 'IN_IQFPrawn'
+    bpy.data.objects.remove(t)
+    bpy.data.meshes.remove(tmp_me)
+    me.materials.clear()
+    me.materials.append(_glaze_scan(src.materials[0]))
     for p in me.polygons:
-        p.use_smooth = True
+        p.material_index = 0
     return me
 
 
-def _glaze_mat():
-    """Frozen, glazed prawn: pale grey-pink flesh under a frosted ice glaze (clear coat, frost speckle, a little SSS)."""
-    m = bpy.data.materials.get('IN_GlazedPrawn')
+def _glaze_scan(m0):
+    """The scan's own shell texture under an ice glaze: clear coat, a cool frost veil, dull where frosted."""
+    m = bpy.data.materials.get('IN_IQFGlazeScan')
     if m:
         return m
-    m = bpy.data.materials.new('IN_GlazedPrawn')
-    m.use_nodes = True
+    m = m0.copy()
+    m.name = 'IN_IQFGlazeScan'
     nt = m.node_tree
-    L = nt.links
-    pb = nt.nodes['Principled BSDF']
-    tc = nt.nodes.new('ShaderNodeTexCoord')
-    nz = nt.nodes.new('ShaderNodeTexNoise')
-    nz.inputs['Scale'].default_value = 140.0
-    nz.inputs['Detail'].default_value = 4
-    L.new(tc.outputs['Object'], nz.inputs['Vector'])
-    seg = nt.nodes.new('ShaderNodeTexWave')                      # shell segments along the body
-    seg.inputs['Scale'].default_value = 9.0
-    L.new(tc.outputs['Object'], seg.inputs['Vector'])
-    cr = nt.nodes.new('ShaderNodeValToRGB')
-    cr.color_ramp.elements[0].color = (0.56, 0.46, 0.43, 1)   # shell bands read through the glaze
-    cr.color_ramp.elements[1].color = (0.84, 0.76, 0.72, 1)
-    L.new(seg.outputs['Fac'], cr.inputs[0])
-    fr = nt.nodes.new('ShaderNodeMix')
-    fr.data_type = 'RGBA'
-    fm = nt.nodes.new('ShaderNodeMapRange')
-    fm.inputs['From Min'].default_value = 0.55
-    fm.inputs['From Max'].default_value = 0.75
-    fm.inputs['To Max'].default_value = 0.35     # frost speckle, not a furry white coat
-    L.new(nz.outputs['Fac'], fm.inputs['Value'])
-    L.new(fm.outputs[0], fr.inputs[0])
-    L.new(cr.outputs[0], fr.inputs[6])
-    fr.inputs[7].default_value = (0.9, 0.93, 0.95, 1)            # frost
-    L.new(fr.outputs[2], pb.inputs['Base Color'])
-    L.new(fm.outputs[0], pb.inputs['Roughness'])
-    pb.inputs['Coat Weight'].default_value = 1.0                 # the ice glaze
-    pb.inputs['Coat Roughness'].default_value = 0.06
-    pb.inputs['Subsurface Weight'].default_value = 0.15
-    pb.inputs['Transmission Weight'].default_value = 0.25    # translucent ice glaze
-    bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.1
-    L.new(nz.outputs['Fac'], bp.inputs['Height'])
-    L.new(bp.outputs[0], pb.inputs['Normal'])
+    pb = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    pb.inputs['Coat Weight'].default_value = 1.0
+    pb.inputs['Coat Roughness'].default_value = 0.04
+    pb.inputs['Coat Tint'].default_value = (0.92, 0.96, 1.0, 1)
+    pb.inputs['Roughness'].default_value = 0.45
+    col = pb.inputs['Base Color']
+    if col.links:
+        src = col.links[0].from_socket
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        nz = nt.nodes.new('ShaderNodeTexNoise')
+        nz.inputs['Scale'].default_value = 160.0
+        nz.inputs['Detail'].default_value = 4
+        nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
+        mr = nt.nodes.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = 0.5
+        mr.inputs['From Max'].default_value = 0.75
+        mr.inputs['To Min'].default_value = 0.12
+        mr.inputs['To Max'].default_value = 0.45
+        nt.links.new(nz.outputs['Fac'], mr.inputs['Value'])
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA'
+        nt.links.new(mr.outputs[0], mx.inputs[0])
+        nt.links.new(src, mx.inputs[6])
+        mx.inputs[7].default_value = (0.82, 0.86, 0.9, 1)          # frost veil
+        nt.links.new(mx.outputs[2], col)
     return m
 
 
@@ -886,7 +870,6 @@ def freezing(C, M, rnd, shrimp_fn):
     # glazing mist: soft vapour sheets under the nozzles (no thin spray lines)
     # (r8: the four vertical mist sheets read as glass panes over the belt; the tunnel-mouth vapour carries the cold)
     # glazed, frosted prawns packed on the belt after the hood (IQF: single layer, close together)
-    glazed = _glaze_mat()
     k = 0
     for row in range(16):
         yy = hy + 0.7 + row * 0.19
@@ -897,13 +880,10 @@ def freezing(C, M, rnd, shrimp_fn):
             C.objects.link(o)
             if rnd.random() < 0.12:                   # gaps: hand-spread, not a printed grid
                 continue
-            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.025, 0.025), yy + rnd.uniform(-0.03, 0.03),
+            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.015, 0.015), yy + rnd.uniform(-0.02, 0.02),
                           DZ + 0.99)
-            o.rotation_euler = (1.5708 * rnd.choice((1, -1)), 0, rnd.choice((1.5708, -1.5708)) + rnd.uniform(-0.5, 0.5))
-            o.scale = (1.0, 1.0, 1.0) if rnd.random() < 0.5 else (0.9, 0.9, 0.9)
-            for sl in o.material_slots:
-                sl.link = 'OBJECT'
-                sl.material = glazed
+            o.rotation_euler = (0, 0, (1.5708 if (row + col) % 2 else -1.5708) + rnd.uniform(-0.3, 0.3))
+            o.scale = (1.0, 1.0, 1.0) if rnd.random() < 0.5 else (0.92, 0.92, 0.92)
             k += 1
     # trolleys of trays (tray racks)
     for k, (xx, yy) in enumerate(((CX - 1.2, 52.8), (CX - 2.0, 56.8), (XL + 1.3, 55.8))):
