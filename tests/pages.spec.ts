@@ -66,7 +66,7 @@ test('news page is an honest empty state', async ({ page }) => {
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://skylarkexim.com/news')
   await expect(page.getByRole('heading', { level: 1, name: 'News & updates' })).toBeVisible()
   await expect(page.getByText('Updates coming soon')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Request export quote' })).toHaveAttribute('href', '/quote')
+  await expect(page.getByRole('link', { name: 'Request export quote', exact: true })).toHaveAttribute('href', '/quote')
   const labels = await page.getByRole('navigation', { name: 'Sections' }).locator('.nav__link').allTextContents()
   expect(labels.slice(0, 5).map((label) => label.trim())).toEqual(['Story', 'Products', 'About', 'News', 'Contact'])
   await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'News' })).toHaveAttribute('aria-current', 'page')
