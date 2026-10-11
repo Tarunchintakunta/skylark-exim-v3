@@ -50,11 +50,8 @@ const start: ChapterDef = {
 
 const OCEAN_ONLY: ChapterDef[] = [
   {
-    id: 'o1', path: 'ocean', label: 'Setting out', vh: 200, joinNext: 'shared-frame',
-    media: [
-      { kind: 'video', id: 'a1', alt: 'A harbour at sunrise; crew load ice onto a fishing boat.' },
-      { kind: 'video', id: 'a2', alt: 'The fishing boat steams out to open sea.' },
-    ],
+    id: 'o1', path: 'ocean', label: 'Setting out', vh: 200, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-depart', alt: 'A weathered white and blue fishing boat eases away from the stone quay at sunrise while the crew coil a rope and bring in a fender.' }],
     captions: caps('o1', [[0.08, 0.92]]),
   },
   {
