@@ -29,6 +29,12 @@
 .nav__link:hover { opacity: 1; color: var(--brass); }
 .topbar.is-light .nav__link:hover { color: var(--brass-ink); }
 .menu-btn { display: none; }
+/* 900-1199: the centred toggle collides with the nav once the quote CTA shows, so it joins the flex row instead,
+   centred in the space between the brand and the nav (#203) */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .path-toggle { position: static; transform: none; margin: 0 auto; }
+  .nav { margin-left: 0; }
+}
 
 @media (max-width: 899px) {
   .brand__word { display: none; }
