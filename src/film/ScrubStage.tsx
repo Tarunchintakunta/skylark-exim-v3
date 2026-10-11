@@ -28,12 +28,12 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
             key={i}
             data-seg={i}
             className="stage__layer"
-            // only the opening poster loads up front; scrub.ts sets the rest from data-src (current + next 2)
-            src={i === 0 ? posterFor(m)! : undefined}
+            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them from data-src after the first scroll
+            src={undefined}
             data-src={posterFor(m)!}
             alt=""
             decoding="async"
-            fetchPriority={i === 0 ? 'high' : 'low'}
+            fetchPriority="low"
           />
         )
       })}

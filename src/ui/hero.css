@@ -1,5 +1,9 @@
 .hero { position: fixed; inset: 0; z-index: var(--z-copy); pointer-events: none; visibility: hidden; opacity: 0; }
-.hero__copy { position: absolute; left: var(--gutter); right: var(--gutter); bottom: clamp(56px, 11vh, 128px); pointer-events: auto; }
+.hero__media { position: absolute; inset: 0; }
+.hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+/* same left + bottom scrims as the stage, so the copy keeps its contrast over the loop */
+.hero__media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--scrim), linear-gradient(90deg, rgba(7, 31, 38, 0.72) 0%, rgba(7, 31, 38, 0.35) 38%, rgba(7, 31, 38, 0) 62%); }
+.hero__copy { z-index: 1; position: absolute; left: var(--gutter); right: var(--gutter); bottom: clamp(56px, 11vh, 128px); pointer-events: auto; }
 /* sized so the longest word ("Visakhapatnam", ~6em in Instrument Serif) always fits the copy width, 320px to 2560px */
 /* "Visakhapatnam" is about 5.2em wide in Instrument Serif: the min() keeps it inside the column (gutters both sides) at any width */
 .hero__title { font-size: min(var(--fs-hero), calc((100vw - 2 * var(--gutter)) / 5.6)); line-height: 0.92; letter-spacing: -0.01em; max-width: 100%; text-wrap: balance; hyphens: manual; overflow-wrap: normal; }
