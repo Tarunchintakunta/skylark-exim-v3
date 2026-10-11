@@ -302,17 +302,18 @@ for _m in list(bpy.data.materials):   # every copy (pbr() makes .001 duplicates:
     for _pre, _z0, _top in (('MAT_SpreaderYellow', -1.4, 1.4), ('MAT_CraneWhite', 0.0, 60.0), ('MAT_CraneBlue', 0.0, 60.0)):
         if _m.name.startswith(_pre):
             P.hard_wear(_m, _z0, _top)
-            # Metre-scale wear that reads at camera distance. hard_wear's detail-8 masks cover ~1% (emission debug
-            # at f180/f300 showed only specks), so these use low-detail noise with thresholds near the median.
+            # Metre-scale grime that reads at camera distance (hard_wear's detail-8 masks cover ~1%: specks only),
+            # plus edge-driven wear: chips on convex box edges, rust from seams and panel tops streaking down.
             if _pre == 'MAT_SpreaderYellow':
-                P._over(_m, P._noise_band(_m, 0.9, 0.42, 0.58, 0.65, loc=(-3600, -2600), detail=2), (0.28, 0.24, 0.14))   # dirt and grease
-                P._over(_m, P._noise_band(_m, 1.2, 0.52, 0.6, 0.7, stretch=(1.0, 1.0, 0.15), loc=(-3600, -3000), detail=3),
-                        (0.3, 0.15, 0.06))                                                                          # rust runs
-                P._over(_m, P._noise_band(_m, 5.0, 0.55, 0.62, 0.9, loc=(-3600, -3400), detail=3), (0.32, 0.17, 0.07))   # chips to rust
+                P._over(_m, P._noise_band(_m, 0.9, 0.5, 0.62, 0.55, loc=(-3600, -2600), detail=2), (0.28, 0.24, 0.14))   # dirt and grease
+                P.edge_wear(_m, band=0.035, run_len=0.5)
             else:
-                P._over(_m, P._noise_band(_m, 0.25, 0.42, 0.6, 0.6, loc=(-3600, -2600), detail=2), (0.45, 0.44, 0.4))    # salt grime
-                P._over(_m, P._noise_band(_m, 0.8, 0.5, 0.6, 0.75, stretch=(1.0, 1.0, 0.12), loc=(-3600, -3000), detail=3),
-                        (0.32, 0.15, 0.06))                                                                         # rust runs
+                P._over(_m, P._noise_band(_m, 0.25, 0.5, 0.65, 0.5, loc=(-3600, -2600), detail=2), (0.45, 0.44, 0.4))    # salt grime
+                P.edge_wear(_m, chip_col=(0.36, 0.33, 0.3), band=0.05, run_len=2.0)
+_wear_mats = {m for m in bpy.data.materials if m.name.startswith(('MAT_SpreaderYellow', 'MAT_CraneWhite', 'MAT_CraneBlue'))}
+for _o in [o for o in bpy.data.objects if o.type == 'MESH' and len(o.data.polygons) < 300000]:
+    if any(sl.material in _wear_mats for sl in _o.material_slots):
+        P.edge_attrs(_o)
 # quay apron: oil blotches, tyre marks along the lanes, drainage grates (not a pale flat slab)
 P._over(conc, P._noise_band(conc, 0.06, 0.55, 0.7, 0.55, loc=(-2600, -5200)), (0.09, 0.085, 0.08))            # big oil/water blotches
 P._over(conc, P._noise_band(conc, 0.8, 0.5, 0.62, 0.45, stretch=(0.03, 1.0, 1.0), loc=(-2600, -5600)), (0.12, 0.115, 0.11))   # tyre tracks along X

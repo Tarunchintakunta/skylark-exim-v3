@@ -1270,3 +1270,101 @@ def hard_wear(m, deck_z=1.5, top=1.2):  # same as sklib_sea.hard_wear on the boa
     return m
 
 
+
+
+# ---------------------------------------------------------------- edge-driven wear (EEVEE has no pointiness/bevel)
+def edge_attrs(o):
+    """Per-corner face-local geometry for wear masks: 'edge_uv' = corner position along the quad's two edge
+    directions (metres), 'edge_sz' = the quad's edge lengths, 'from_top' = metres below the top edge of a
+    vertical face (99 on horizontal faces). Interpolated across the quad they give the exact distance to every edge.
+    Box parts only: every box edge is convex, so near-edge = convex edge."""
+    import numpy as np
+    me = o.data
+    n = len(me.loops)
+    uv = np.zeros((n, 2), np.float32)
+    sz = np.zeros((n, 2), np.float32)
+    top = np.full(n, 99.0, np.float32)
+    co = np.empty(len(me.vertices) * 3, np.float32)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    lv = np.empty(n, np.int32)
+    me.loops.foreach_get('vertex_index', lv)
+    for p in me.polygons:
+        if p.loop_total != 4:
+            continue
+        s0 = p.loop_start
+        q = co[lv[s0:s0 + 4]]
+        a, b = q[1] - q[0], q[3] - q[0]
+        la, lb = float(np.linalg.norm(a)), float(np.linalg.norm(b))
+        if la < 1e-5 or lb < 1e-5:
+            continue
+        d = q - q[0]
+        uv[s0:s0 + 4, 0] = d @ a / la
+        uv[s0:s0 + 4, 1] = d @ b / lb
+        sz[s0:s0 + 4] = (la, lb)
+        if abs(p.normal.z) < 0.5:
+            top[s0:s0 + 4] = q[:, 2].max() - q[:, 2]
+    for nm, data, typ in (('edge_uv', uv, 'FLOAT2'), ('edge_sz', sz, 'FLOAT2'), ('from_top', top, 'FLOAT')):
+        at = me.attributes.get(nm) or me.attributes.new(nm, typ, 'CORNER')
+        at.data.foreach_set('vector' if typ == 'FLOAT2' else 'value', data.ravel())
+
+
+def edge_wear(m, chip_col=(0.32, 0.17, 0.07), run_col=(0.3, 0.14, 0.05), band=0.05, run_len=1.4, loc=(-4600, -2600)):
+    """Chips on convex edges (within ~band m of a box edge, broken by noise), and rust that starts at seams (AO
+    crevices) and at the top edge of every vertical panel, then streaks down under gravity for up to run_len m.
+    Needs edge_attrs() on the mesh; meshes without the attributes get no edge wear."""
+    if m.get('edge_worn'):
+        return m
+    nt = m.node_tree
+    l = nt.links
+    x0, y0 = loc
+    tc = _node(nt, 'ShaderNodeTexCoord', (x0, y0))
+    attr = {}
+    for i, nm in enumerate(('edge_uv', 'edge_sz', 'from_top')):
+        a = _node(nt, 'ShaderNodeAttribute', (x0, y0 - 200 - 200 * i))
+        a.attribute_name = nm
+        attr[nm] = a
+    s_uv = _node(nt, 'ShaderNodeSeparateXYZ', (x0 + 200, y0 - 200))
+    l.new(attr['edge_uv'].outputs['Vector'], s_uv.inputs[0])
+    s_sz = _node(nt, 'ShaderNodeSeparateXYZ', (x0 + 200, y0 - 400))
+    l.new(attr['edge_sz'].outputs['Vector'], s_sz.inputs[0])
+
+    def op(o, a, b=None, c=None):
+        n = _node(nt, 'ShaderNodeMath', (x0 + 600, y0 - 300))
+        n.operation = o
+        for i, v in enumerate((a, b, c)):
+            if v is None:
+                continue
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = v
+            else:
+                l.new(v, n.inputs[i])
+        return n.outputs[0]
+    # distance to the nearest quad edge (metres); 'has' is 0 where the mesh has no edge attributes
+    d = op('MINIMUM', op('MINIMUM', s_uv.outputs[0], op('SUBTRACT', s_sz.outputs[0], s_uv.outputs[0])),
+           op('MINIMUM', s_uv.outputs[1], op('SUBTRACT', s_sz.outputs[1], s_uv.outputs[1])))
+    has = op('GREATER_THAN', s_sz.outputs[0], 0.0001)
+    nz = _node(nt, 'ShaderNodeTexNoise', (x0 + 400, y0 + 200))
+    nz.inputs['Scale'].default_value = 9.0
+    nz.inputs['Detail'].default_value = 3
+    l.new(_sock(tc, 'Object', out=True), nz.inputs['Vector'])
+    lim = op('MULTIPLY', op('MULTIPLY_ADD', _sock(nz, 'Factor', out=True), 3.0, -1.5), band)   # broken: chips on ~40% of the edge length, up to ~1.5 band
+    chip = op('MULTIPLY', op('LESS_THAN', d, lim), has)
+    ao = _node(nt, 'ShaderNodeAmbientOcclusion', (x0 + 400, y0 - 800))
+    ao.inputs['Distance'].default_value = 0.25
+    crev = op('SUBTRACT', 1.0, ao.outputs['AO'])
+    mp = _node(nt, 'ShaderNodeMapping', (x0 + 200, y0 + 400))
+    mp.inputs['Scale'].default_value = (6.0, 6.0, 0.35)                          # long vertical streaks
+    l.new(_sock(tc, 'Object', out=True), mp.inputs['Vector'])
+    vn = _node(nt, 'ShaderNodeTexNoise', (x0 + 400, y0 + 400))
+    vn.inputs['Scale'].default_value = 3.0
+    vn.inputs['Detail'].default_value = 2
+    l.new(mp.outputs[0], vn.inputs['Vector'])
+    streak = op('MULTIPLY', op('MAXIMUM', op('SUBTRACT', _sock(vn, 'Factor', out=True), 0.58), 0.0), 5.0)   # sparse streaks
+    fall = op('MAXIMUM', op('SUBTRACT', 1.0, op('DIVIDE', attr['from_top'].outputs['Fac'], run_len)), 0.0)
+    src = op('MAXIMUM', op('MULTIPLY', fall, has), op('MULTIPLY', crev, 2.0))
+    run = op('MINIMUM', op('MULTIPLY', src, streak), 0.85)
+    _over(m, run, run_col)
+    _over(m, op('MINIMUM', chip, 0.9), chip_col)
+    m['edge_worn'] = 1
+    return m
