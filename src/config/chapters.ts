@@ -81,8 +81,8 @@ const POND_ONLY: ChapterDef[] = [
     captions: caps('p1', [[0.1, 0.92]]),
   },
   {
-    id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'b2', alt: 'A gloved hand takes a pond water sample; the meter reading goes into a logbook.' }],
+    id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician kneels on a plank walkway at the pond edge and fills a sample bottle with pond water.' }],
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
