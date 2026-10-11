@@ -139,3 +139,15 @@ Cross-fade joins (separate shots): 01>02 0.42, 02>03 0.22, 03>04 0.16, 04>05 0.1
 | after Tarun's retakes (3 images, 4 videos) | 1066.75 | 844 |
 
 Credit guard (1,624) not reached: 844 spent, 44 % of the start balance.
+
+## 2026-10-11 (evening): docs chapter, chapter audit, hero loop (#196, #197)
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| HERO | video, minimax_h3 6 s, start = end = HS01 frame | c54da13b | 12 | PASS (with cross-dissolve) | last vs first frame SSIM 0.936 is a visible step; the last 0.5 s is cross-dissolved into the start, so the seam is 0.964, inside the clip's own frame-to-frame range (0.959-0.998). Gulls stay put across the seam. A faint wing double-exposure shows for about 0.2 s. PR #205 |
+| DOCS | image, gpt_image_2_5 max 4k | 7dcd96d3 | 15 | PASS | export-office desk; depth of field makes every page and screen unreadable (zoom-checked); left third dark for the copy |
+| HS21 | video, minimax_h3 5 s, start = HS20 frame 71 | 03c256e6 | 10 | PASS (trimmed 44-123) | the camera rises over the ship as it sails into deep blue water; the crane boom bends as it leaves the frame before frame 44, so those frames are cut. Replaces the Blender x-ship clip |
+
+Audit (1440 and 390 px, both paths, every chapter at 30 % and 75 % of its scroll): two leftovers found. The docs chapter was a blurred, darkened smudge, and the second half of the sea chapter was the Blender x-ship clip (CG crane, toy ship). Both are fixed in #196. Every other chapter is Higgsfield footage.
+
+Balance (from `balance` calls): 1066.75 before. Then 804.75 after these three jobs, a drop of 262, of which 37 is mine. The other 225 is 15 GPT Image 2.5 generations at 15:24 and 15:44 UTC by a parallel website session on the same account, per the transactions API and the coordinator. Spend since the 1910.75 start: 1106 (all sessions). Credit guard (1,624) not reached.

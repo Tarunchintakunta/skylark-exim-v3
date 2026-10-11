@@ -224,7 +224,7 @@ function tick() {
   const m = seg.media
   if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
-  // cross-fade join: next segment's poster fades in over the last 3% of scroll (x-ship → globe: 15%)
+  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%)
   const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
   const a = fadeLen ? Math.max(0, (p - (1 - fadeLen)) / fadeLen) : 0
   const o = a > 0 ? i + 1 : -1
