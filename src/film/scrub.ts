@@ -48,7 +48,7 @@ const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
-/** The hero's looping video (#197) covers the start chapter until the first scroll; its clip and posters load only then. */
+/** The hero's looping video (#197) covers the start chapter: its clip loads after the loader, its posters after the first scroll. */
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -193,7 +193,8 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  if (want && (scrolled || i > 0)) {
+  // the start clip loads once the loader is done (behind the hero loop) so the hand-off has frames ready
+  if (want && (scrolled || i > 0 || store.getState().ready)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock

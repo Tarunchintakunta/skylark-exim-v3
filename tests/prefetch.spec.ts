@@ -79,11 +79,12 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await ctx.close()
 })
 
-test('the first screen plays only the hero loop: no story clip loads before the first scroll (#197)', async ({ browser }) => {
+test('the first screen loads the hero loop first, then only the start beat behind it (#197)', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
   await page.waitForTimeout(1500)
   const clips = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.endsWith('.mp4')))
-  expect(clips.length).toBe(1)
+  // the hero loop first; behind it only the start beat it dissolves into
   expect(clips[0]).toContain('/hero-loop_')
+  expect(clips.slice(1).every((c) => c.includes('/opening_')), clips.join(', ')).toBe(true)
   await ctx.close()
 })
