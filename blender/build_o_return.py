@@ -86,6 +86,7 @@ for x0, n_along in ((40, 4), (-92, 3)):
             y = 3.9 + row * 7.8          # 6.5 m beam + fenders: 1.3 m between rafted hulls (7.3 with 2 deg yaw overlapped at f60)
             R = S.vessel(f'MOORED{k}', (x, y, 0), D(rnd.choice((0, 180)) + rnd.uniform(-0.5, 0.5)), mats=mats, hull=hm, detail=False)
             S.hard_wear(R['hull'].active_material, 1.5, 1.0)     # primer chips, rust runs from the scuppers, salt-dirty water stains
+            S.salt_wear(R['hull'].active_material, -0.3, 1.2)
             for sy in (1, -1):                                   # old tyres hung over the side as fenders
                 for tx in (-7.0, -2.5, 2.0, 6.5):
                     hb = S.hull_b(tx) * 1.01
@@ -98,6 +99,7 @@ for x0, n_along in ((40, 4), (-92, 3)):
                 R['root'].keyframe_insert('rotation_euler', frame=f)
             k += 1
 S.hard_wear(bpy.data.materials['MAT_BoatWhite'], 1.5, 1.2)   # bulwarks and wheelhouses: chips, rust, salt stains
+S.salt_wear(bpy.data.materials['MAT_BoatWhite'], 1.4, 2.4)
 # mooring lines from the inner row to bollards
 for i in range(4):
     x = 40 + i * 26
@@ -141,6 +143,7 @@ for _mn, _top in (('MAT_BoatWhite', 1.2), ('MAT_IceBox', 0.9)):
     if _mn in bpy.data.materials:
         S.hard_wear(bpy.data.materials[_mn], DZ, _top)
 S.hard_wear(V['hull'].active_material, DZ, 1.0)
+S.salt_wear(V['hull'].active_material, -0.3, 1.2)   # rust streaks, chipped paint and salt that read from the far cameras
 S.hull_contact('BOAT_WaterFoam', boat, width=0.4)
 crew = []
 for i, (x, y, rz, o) in enumerate(((hc, 1.0, 90, 'fisherman_o'), (hc + 0.8, -1.2, 60, 'fisherman_y'), (-2.0, 1.8, 100, 'fisherman_b'),
