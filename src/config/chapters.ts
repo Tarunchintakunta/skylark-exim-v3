@@ -77,7 +77,7 @@ const OCEAN_ONLY: ChapterDef[] = [
 const POND_ONLY: ChapterDef[] = [
   {
     id: 'p1', path: 'pond', label: 'The ponds', vh: 120, joinNext: 'crossfade',
-    media: [{ kind: 'still', poster: 'b2', alt: 'Aerial view of a grid of shrimp ponds with aerators at dusk.' }],
+    media: [{ kind: 'video', id: 'hf-ponds', alt: 'Aerial view over a grid of shrimp ponds on a bright morning, aerators throwing white water, a white refrigerated truck on a bund road.' }],
     captions: caps('p1', [[0.1, 0.92]]),
   },
   {
