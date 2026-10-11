@@ -118,8 +118,11 @@ const SHARED: ChapterDef[] = [
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
-    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame', scrim: 'soft',
-    media: [{ kind: 'video', id: 'x-cranes', alt: 'A white refrigerated truck parks under a ship-to-shore crane, which lifts the white reefer container on its cables onto the container ship.' }],
+    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'crossfade', scrim: 'soft',
+    media: [
+      { kind: 'video', id: 'hf-stuff', alt: 'At the plant loading bays, a forklift carries a pallet of plain cartons toward a white refrigerated trailer.' },
+      { kind: 'video', id: 'hf-cranes', alt: 'On the container quay, a white reefer container on its trailer waits under a ship-to-shore crane beside the loaded ship.' },
+    ],
     captions: caps('port', [[0.1, 0.92]]),
   },
   {
