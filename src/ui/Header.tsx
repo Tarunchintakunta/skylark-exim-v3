@@ -74,8 +74,8 @@ export function Header() {
               aria-current={path === p ? 'true' : undefined}
               onClick={(e) => {
                 e.preventDefault()
-                // inside the film: land on the other path's first chapter; on the hero: just switch
-                setPath(p, frame.index > 0 && !frame.past)
+                // from anywhere on the page: land on that path's first chapter (#ocean → o1, #pond → p1)
+                setPath(p, true)
               }}
             >
               {start[p].sub}

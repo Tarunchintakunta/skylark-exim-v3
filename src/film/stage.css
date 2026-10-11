@@ -6,7 +6,7 @@
 .stage__video { z-index: 1; }
 .stage__layer.is-over { z-index: 2; }
 .stage__gradient {
-  /* x-ship placeholder: deep open-sea blue with a faint horizon */
+  /* sea placeholder: deep open-sea blue with a faint horizon */
   background:
     linear-gradient(180deg, rgba(244, 239, 230, 0.08) 0%, rgba(244, 239, 230, 0) 34%),
     radial-gradient(120% 90% at 62% 28%, var(--bay) 0%, var(--deep) 46%, var(--deep-2) 100%);
@@ -34,3 +34,6 @@
 @media (max-width: 819px) { .globe-hint { left: 50%; bottom: auto; top: calc(68px + 12px); } }
 /* the world chapter's scroll spacer lets pointers through to the globe under it (its copy re-enables its own) */
 .chapter[data-chapter="world"] { pointer-events: none; }
+
+/* documentation desk (#196): a real, lightly blurred photo; on narrow screens the copy spans the whole width, so the photo dims to keep AA */
+@media (max-width: 819px) { .stage__dom { filter: brightness(0.45); } }

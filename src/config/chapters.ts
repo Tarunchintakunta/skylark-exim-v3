@@ -123,7 +123,7 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'docs', path: 'shared', label: 'Documentation', vh: 100, joinNext: 'cut',
-    media: [{ kind: 'dom', poster: 'ph-p-freeze', alt: 'Three cards: export documents, compliance, shipment tracking.' }],
+    media: [{ kind: 'dom', poster: 'ph-docs', alt: 'An export office desk in daylight: shipment folders, a binder of certificates and a laptop with a tracking map. Three cards: export documents, compliance, shipment tracking.' }],
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
@@ -138,7 +138,7 @@ const SHARED: ChapterDef[] = [
     id: 'sea', path: 'shared', label: 'At sea', vh: 120, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the loaded container ship pulls away from the quay behind a tug, its wake spreading.' },
-      { kind: 'video', id: 'x-ship', alt: 'Seen from straight above, the loaded container ship sails out across deep blue water, trailing a white wake.' },
+      { kind: 'video', id: 'hf-sail', alt: 'Seen from high above, the loaded container ship sails out across deep blue water with a tug alongside, trailing a white wake.' },
     ],
     captions: caps('sea', [[0.1, 0.85]]),
   },

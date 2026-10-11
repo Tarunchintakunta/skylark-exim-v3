@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
+import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
 import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
@@ -193,8 +194,9 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  // the start clip loads once the loader is done (behind the hero loop) so the hand-off has frames ready
-  if (want && (scrolled || i > 0 || store.getState().ready)) {
+  // the start clip loads once the loader is done (behind the hero loop) so the hand-off has frames ready; a deep link
+  // that is about to jump past the hero doesn't fetch it at all
+  if (want && !(landing.pending && i === 0) && (scrolled || i > 0 || store.getState().ready)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
@@ -202,7 +204,8 @@ function tick() {
       probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
     }
   }
-  if (!scrolled && frame.scroll > 2) {
+  // a deep link (#ocean / #pond) lands mid-film: measure the first scroll from there, so it doesn't prefetch on arrival
+  if (!scrolled && !landing.pending && Math.abs(frame.scroll - Math.max(0, landing.y)) > 2) {
     scrolled = true
     loadPosters(i)
   }
@@ -221,7 +224,7 @@ function tick() {
   const m = seg.media
   if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
-  // cross-fade join: next segment's poster fades in over the last 3% of scroll (x-ship → globe: 15%)
+  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%)
   const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
   const a = fadeLen ? Math.max(0, (p - (1 - fadeLen)) / fadeLen) : 0
   const o = a > 0 ? i + 1 : -1

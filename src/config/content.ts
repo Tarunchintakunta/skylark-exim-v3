@@ -7,7 +7,7 @@ export interface CaptionCopy {
   title: string
   body?: string
   chips?: string[]
-  /** small mono line instead of a body (x-ship) */
+  /** small mono line instead of a body (the last sea shot) */
   note?: string
 }
 

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { chaptersFor } from './config/chapters'
+import { bindPathHash } from './engine/path'
 import { useApp } from './engine/store'
 import { scrollToY } from './engine/ticker'
 import { Film } from './film/Film'
@@ -37,6 +38,8 @@ export default function App() {
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
   }, [ready])
+  // #ocean / #pond: the path anchors (#210); other section anchors (/#products from /quote) are handled above
+  useEffect(bindPathHash, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
