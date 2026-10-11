@@ -706,17 +706,124 @@ def corrugate(m, pitch=0.3, strength=0.5):
     return m
 
 
+def wet_normal(nt, scale=40.0, strength=0.35, cells=0.0):
+    """Wet-ice normal: fine melt ripples (noise) plus, with cells > 0, Voronoi facet edges (packed shard faces)."""
+    l = nt.links
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1200, -500))
+    n = _node(nt, 'ShaderNodeTexNoise', (-900, -500))
+    n.inputs['Scale'].default_value = scale
+    n.inputs['Detail'].default_value = 6
+    l.new(_sock(tc, 'Object', out=True), n.inputs['Vector'])
+    h = _sock(n, 'Factor', out=True)
+    if cells:
+        v = _node(nt, 'ShaderNodeTexVoronoi', (-900, -750))
+        v.feature = 'DISTANCE_TO_EDGE'
+        v.inputs['Scale'].default_value = cells
+        l.new(_sock(tc, 'Object', out=True), v.inputs['Vector'])
+        a = _node(nt, 'ShaderNodeMath', (-650, -600))
+        a.operation = 'MULTIPLY_ADD'
+        a.inputs[1].default_value = 0.3
+        l.new(h, a.inputs[0])
+        l.new(_sock(v, 'Distance', out=True), a.inputs[2])
+        h = a.outputs[0]
+    b = _node(nt, 'ShaderNodeBump', (-400, -500))
+    b.inputs['Strength'].default_value = strength
+    b.inputs['Distance'].default_value = 0.01
+    l.new(h, b.inputs['Height'])
+    return b.outputs[0]
+
+
 def ice_mat():
+    """Crushed-ice shards. EEVEE's refraction only shows the grey bed behind a shard, so the clear look is faked:
+    a Fresnel mix of a sharp glossy (wet highlights at grazing angles) over a mostly transparent body with a light
+    cyan transmission tint, so the dark meltwater and fish read through the shard faces. Wet normal on top."""
     if 'MAT_Ice' in bpy.data.materials:
         return bpy.data.materials['MAT_Ice']
-    # crushed ice: clear but frosted, faint blue, light scatters inside (reads translucent, not white plastic)
-    m = pbr('MAT_Ice', (0.8, 0.88, 0.95), 0.04, var=0.04, bump=0.5, scale=30, sss=0.0, transmission=1.0, ior=1.31,
-            rough_var=0.06)
+    m = new_mat('MAT_Ice')
+    nt = m.node_tree
+    l = nt.links
+    for n in list(nt.nodes):
+        if n.type != 'OUTPUT_MATERIAL':
+            nt.nodes.remove(n)
+    out = [n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL'][0]
+    nrm = wet_normal(nt, 55.0, 0.25)
+    gl = _node(nt, 'ShaderNodeBsdfGlossy', (0, 200))
+    gl.inputs['Color'].default_value = (1, 1, 1, 1)
+    gl.inputs['Roughness'].default_value = 0.025
+    l.new(nrm, gl.inputs['Normal'])
+    tr = _node(nt, 'ShaderNodeBsdfTransparent', (0, 0))
+    tr.inputs['Color'].default_value = (0.86, 0.94, 0.97, 1)
+    tl = _node(nt, 'ShaderNodeBsdfTranslucent', (0, -150))
+    tl.inputs['Color'].default_value = (0.62, 0.78, 0.85, 1)
+    l.new(nrm, tl.inputs['Normal'])
+    body = _node(nt, 'ShaderNodeMixShader', (200, -50))
+    body.inputs[0].default_value = 0.32     # mostly see-through, a little light carried inside the shard
+    l.new(tr.outputs[0], body.inputs[1])
+    l.new(tl.outputs[0], body.inputs[2])
+    lw = _node(nt, 'ShaderNodeLayerWeight', (0, 400))
+    lw.inputs['Blend'].default_value = 0.22
+    l.new(nrm, lw.inputs['Normal'])
+    fr = _node(nt, 'ShaderNodeMapRange', (200, 400))
+    fr.inputs['To Min'].default_value = 0.12
+    fr.inputs['To Max'].default_value = 0.95
+    l.new(_sock(lw, 'Fresnel', out=True), fr.inputs['Value'])
+    mx = _node(nt, 'ShaderNodeMixShader', (400, 100))
+    l.new(fr.outputs[0], mx.inputs[0])
+    l.new(body.outputs[0], mx.inputs[1])
+    l.new(gl.outputs[0], mx.inputs[2])
+    l.new(mx.outputs[0], out.inputs['Surface'])
+    if hasattr(m, 'surface_render_method'):
+        m.surface_render_method = 'DITHERED'
+    if hasattr(m, 'use_transparency_overlap'):
+        m.use_transparency_overlap = True
+    return m
+
+
+def ice_bed_mat():
+    """Packed crushed ice under the shards: dark wet meltwater-soaked base, glossy coat, shard facets in the normal
+    (Voronoi edges), pale icy tint only on the facet ridges. Not a white SSS mass (that read as grey gravel)."""
+    if 'MAT_IcePacked' in bpy.data.materials:
+        return bpy.data.materials['MAT_IcePacked']
+    m = new_mat('MAT_IcePacked')
+    nt = m.node_tree
+    l = nt.links
     p = principled(m)
-    p.inputs['Coat Weight'].default_value = 0.6
-    p.inputs['Coat Roughness'].default_value = 0.02
-    if hasattr(m, 'use_raytrace_refraction'):
-        m.use_raytrace_refraction = True
+    p.location = (400, 0)
+    tc = _node(nt, 'ShaderNodeTexCoord', (-1200, 200))
+    n = _node(nt, 'ShaderNodeTexNoise', (-900, 200))
+    n.inputs['Scale'].default_value = 22.0
+    n.inputs['Detail'].default_value = 5
+    l.new(_sock(tc, 'Object', out=True), n.inputs['Vector'])
+    r = _node(nt, 'ShaderNodeMapRange', (-650, 200))
+    r.inputs['From Min'].default_value = 0.35
+    r.inputs['From Max'].default_value = 0.7
+    l.new(_sock(n, 'Factor', out=True), r.inputs['Value'])
+    col = mixrgb(nt, r.outputs[0], (0.07, 0.1, 0.11), (0.3, 0.4, 0.45), loc=(-300, 200))   # dark wet, paler packed patches
+    l.new(col, p.inputs['Base Color'])
+    p.inputs['Roughness'].default_value = 0.06
+    p.inputs['IOR'].default_value = 1.31
+    p.inputs['Coat Weight'].default_value = 1.0
+    p.inputs['Coat Roughness'].default_value = 0.015
+    p.inputs['Subsurface Weight'].default_value = 0.0
+    nrm = wet_normal(nt, 35.0, 0.3, cells=45.0)
+    l.new(nrm, p.inputs['Normal'])
+    l.new(nrm, p.inputs['Coat Normal'])
+    return m
+
+
+def meltwater_mat():
+    """Meltwater pooled in the crate: near-black wet film that mirrors the sky (dark, never a hole)."""
+    if 'MAT_Meltwater' in bpy.data.materials:
+        return bpy.data.materials['MAT_Meltwater']
+    m = new_mat('MAT_Meltwater')
+    nt = m.node_tree
+    p = principled(m)
+    p.inputs['Base Color'].default_value = (0.025, 0.035, 0.04, 1)
+    p.inputs['Roughness'].default_value = 0.02
+    p.inputs['IOR'].default_value = 1.33
+    p.inputs['Coat Weight'].default_value = 1.0
+    p.inputs['Coat Roughness'].default_value = 0.0
+    nt.links.new(wet_normal(nt, 18.0, 0.15), p.inputs['Normal'])
     return m
 
 
@@ -1775,7 +1882,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
     if 'mesh' not in _CRATE:
         _CRATE['mesh'] = crate_mesh()
         _CRATE['ice'] = ice_mesh('LIB_CrateIce', 0.54, 0.34, 0.05, 12, 3)
-        _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 420, 4, 0.0, 0.013)
+        _CRATE['chunks'] = ice_chunks('LIB_CrateIceChunks', 0.5, 0.3, 900, 4, 0.0, 0.013)   # dense: shards hide the bed
     c = obj(name, _CRATE['mesh'], None, loc, (0, 0, rot_z), parent=parent)
     if len(c.material_slots) == 0:
         c.data.materials.append(mats['crate_' + color])
@@ -1801,8 +1908,7 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
                 shrimp_proxy(f'{name}_s{i}', parent=c, loc=(rnd.uniform(-0.22, 0.22), rnd.uniform(-0.13, 0.13),
                                                             level + rnd.uniform(0, 0.04)),
                              rot=(rnd.uniform(0, 6.28), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.28)))
-        bed = bpy.data.materials.get('MAT_IcePacked') or pbr('MAT_IcePacked', (0.95, 0.97, 1.0), 0.15, var=0.08, bump=0.9,
-                                                                scale=60, sss=0.5)   # bulk crushed ice scatters white
+        bed = ice_bed_mat()
         ice = obj(f'{name}_ice', _CRATE['ice'], bed, (0, 0, level + (0.05 if fill != 'ice' else 0.02)), parent=c)
         if fill != 'ice':
             ice.scale = (1, 1, 0.55)       # fish sink 30-50% into the packed bed (backs and heads stay out)
@@ -1815,9 +1921,8 @@ def crate(name, color='blue', loc=(0, 0, 0), rot_z=0.0, fill=None, parent=None, 
             if 'heap' not in _CRATE:
                 _CRATE['heap'] = [ice_heap('LIB_CrateIceHeap%d' % k, 0.52, 0.32, 150, 11 + k, 0.03, 0.04) for k in range(3)]
                 _CRATE['melt'] = box_mesh('LIB_CrateMelt', (0.54, 0.34, 0.004), 0.0, 1)
-                mw = pbr('MAT_Meltwater', (0.11, 0.13, 0.13), 0.08, var=0.15, coat=0.8)   # wet grey pooling (darker read as holes)
-                _CRATE['melt'].materials.append(mw)
-            obj(f'{name}_melt', _CRATE['melt'], None, (0, 0, level + 0.004), parent=c)
+                _CRATE['melt'].materials.append(meltwater_mat())
+            obj(f'{name}_melt', _CRATE['melt'], None, (0, 0, level + 0.018), parent=c)   # pools in the low corners of the bed
             heap = obj(f'{name}_iceheap', rnd.choice(_CRATE['heap']), mats['ice'], (0, 0, level + 0.06), parent=c)
             heap.rotation_euler.z = rnd.choice((0.0, math.pi))
             for j in range(rnd.randint(3, 5)):   # whole fish laid on top, tails and bellies tucked under the ice
