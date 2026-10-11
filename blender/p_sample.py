@@ -119,12 +119,8 @@ def add(ctx):
     H.set_pose(w, dict(kneel, spine=(60, 0, 0), chest=(25, 0, 0), neck=(-10, 0, 0)), 50)
     H.set_pose(w, dict(kneel, spine=(20, 0, 0), head=(18, 0, 0)), 76)
     H.set_pose(w, dict(kneel, spine=(16, 0, 0), head=(22, 0, 0)), N)
-    skr = H.grip(w, 'R')
-    for f, v in ((1, 1.0), (57, 1.0), (61, 0.55), (192, 0.55)):     # tight fist on the pole, open round the bottle
-        skr.value = v
-        skr.keyframe_insert('value', frame=f)
-    skl = H.grip(w, 'L', curl=0.85)
-    skl.value = 1.0
+    H._grip_axis(w, 'R')                             # wrap_hand aims the knuckle axis; the contact grips come last
+    H._grip_axis(w, 'L')
 
     # the bottle and the meter move freely; each hand's IK target rides on the object it grips
     bottle = _bottle(Cp)
@@ -172,6 +168,20 @@ def add(ctx):
             ('R', bottle, (0.0, -0.048, -0.03), (1, 0, 0), (0, 1, 0), ((1, 0.0), (57, 0.0), (61, 1.0))),
             ('L', meter, (0.0, 0.024, -0.045), (1, 0, 0), (0, -1, 0), ((1, 1.0),))):
         H.wrap_hand(w, side, ob, palm, fing, nrm, inf, Cp)
+    # contact grips (library r8): fingers close on the pole, then the bottle, and on the meter body
+    def _ms(o):
+        return [o] if o.type == 'MESH' else [c for c in o.children_recursive if c.type == 'MESH']
+    keys = []
+    for side, ob, fr, seq in (('R', pole, 40, ((1, 1.0), (59, 1.0), (61, 0.0))),
+                              ('R', bottle, 100, ((1, 0.0), (59, 0.0), (61, 1.0))),
+                              ('L', meter, 130, ((1, 1.0),))):
+        s.frame_set(fr)
+        sk = H.grip(w, side, target=_ms(ob), name='hold_%s_%s' % (side, ob.name))
+        keys.append((sk, seq))
+    for sk, seq in keys:
+        for f, v in seq:
+            sk.value = v
+            sk.keyframe_insert('value', frame=f)
     reading.data.body = '7.8'
     # small drips off the bottle as it leaves the water
     import p_harvest as PH
