@@ -24,7 +24,7 @@ def world_fade():
     for n in w.node_tree.nodes:
         if n.type == 'BACKGROUND':
             s0 = n.inputs['Strength'].default_value
-            for f, k in ((236, 1.0), (264, 0.18)):
+            for f, k in ((236, 1.0), (264, 0.3)):
                 n.inputs['Strength'].default_value = s0 * k
                 n.inputs['Strength'].keyframe_insert('default_value', frame=f)
 
@@ -35,7 +35,7 @@ def _lights():
             continue
         if o.name.startswith('IN_Area_'):
             o.data.size, o.data.size_y = 2.4, 1.0      # fixture-sized: pools under each row, falloff between
-            o.data.energy = 300
+            o.data.energy = 420
         elif o.name.startswith('IN_ColdArea'):
             o.data.size, o.data.size_y = 1.2, 1.2
             o.data.energy = 230
@@ -56,7 +56,7 @@ def _stainless():
         mul.data_type = 'RGBA'
         mul.blend_type = 'MULTIPLY'
         mul.inputs[0].default_value = 1.0
-        mul.inputs[7].default_value = (0.62, 0.63, 0.65, 1)
+        mul.inputs[7].default_value = (0.8, 0.81, 0.83, 1)
         L.new(src, mul.inputs[6])
         L.new(mul.outputs[2], col)
     tc = nt.nodes.new('ShaderNodeTexCoord')
@@ -241,12 +241,22 @@ def _cold():
         ln.make('IN_R8PalletLabelPrint', bpy.data.materials['IN_LabelLine'], None, coll=C)
 
 
+def _puddles():
+    """Standing water reads as water (thin, reflective, tinted by the floor) rather than black holes."""
+    m = bpy.data.materials.get('IN_Puddle')
+    if m:
+        pb = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+        pb.inputs['Base Color'].default_value = (0.16, 0.19, 0.18, 1)
+        pb.inputs['Roughness'].default_value = 0.02
+
+
 def apply(scene, crate_fn):
     C = bpy.data.collections['SET_Interior']
     _lights()
     _stainless()
     _curtains()
     _cap()
+    _puddles()
     blk = _blockers(C)
     if 'SET_People' in bpy.data.collections:
         blk += _blockers(bpy.data.collections['SET_People'])

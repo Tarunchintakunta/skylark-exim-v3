@@ -60,6 +60,42 @@ def _ik(w, side, target, seq, pole=None):
     return c
 
 
+HOLDS = []
+
+
+def grip_on(w, side, target, frame, curl=0.85):
+    """Queue a contact grip (library r8): at `frame` the IK hand is on `target`, the fingers close on its surface.
+    Run by apply_holds() once every action exists; a missing target falls back to the knuckle curl."""
+    HOLDS.append((w, side, target, frame, curl))
+
+
+def _meshes(o):
+    out = [o] if o.type == 'MESH' else []
+    for c in o.children:
+        if c.type == 'MESH' and not c.name.endswith(('_ice', '_icech')):
+            out.append(c)
+        out += [g for g in c.children if g.type == 'MESH' and c.type == 'EMPTY']
+    return out
+
+
+def apply_holds():
+    s = bpy.context.scene
+    f0 = s.frame_current
+    for w, side, target, frame, curl in HOLDS:
+        ms = _meshes(target) if target is not None else []
+        if not ms:
+            H.grip(w, side, curl=curl)
+            continue
+        s.frame_set(frame)
+        try:
+            H.grip(w, side, target=ms, curl=1.0)
+        except Exception as e:                       # never lose a build to one hand
+            print('HOLD fallback', w.name, side, target.name, e)
+            H.grip(w, side, curl=curl)
+    s.frame_set(f0)
+    HOLDS.clear()
+
+
 def _handles(name, crate, C):
     hs = []
     for s in (-1, 1):
@@ -150,9 +186,11 @@ def unload(C, R):
             seq = [(t0 + 11, 0.0), (t0 + 14, 1.0), (t0 + 35, 1.0), (t0 + 38, 0.0)]
             _ik(w, 'L', hs[0], seq)
             _ik(w, 'R', hs[1], seq)
+            if n == 0:
+                first = (c, t0 + 26)
         H.jitter(w, H.POSES['look'], start + 124, 1060, every=24, amp=4, seed=len(nm))
-        H.grip(w, 'L', curl=0.75)
-        H.grip(w, 'R', curl=0.75)
+        grip_on(w, 'L', first[0], first[1], 0.75)            # fingers close on the first crate's rim
+        grip_on(w, 'R', first[0], first[1], 0.75)
         H.settle_reach(w, start, start + 122, step=2, iters=3, max_shift=0.35)
 
 
@@ -226,8 +264,8 @@ def tank_crew(C, rnd, crate_fn):
             hs.append(h)
         _ik(w, 'L', hs[1 if k else 0], [(1, 1.0)])
         _ik(w, 'R', hs[0 if k else 1], [(1, 1.0)])
-        H.grip(w, 'L', curl=0.8)
-        H.grip(w, 'R', curl=0.8)
+        grip_on(w, 'L', c, 320, 0.8)
+        grip_on(w, 'R', c, 320, 0.8)
         H.jitter(w, {'spine': (14, 0, 0), 'upperarm': (55, -8, 0)}, 1, 1060, every=20, amp=4, seed=k)
         out.append(w)
     for k, (x, y, rz) in enumerate(((CX - 4.4, 14.6, 180), (CX + 4.5, 16.6, 0), (CX - 2.4, 16.7, 0), (CX + 2.8, 14.5, 180))):
@@ -369,7 +407,7 @@ def freeze_crew(C, rnd, crate_fn):
     c.target = th
     c.chain_count = 2
     c.use_tail = True
-    H.grip(cs, 'R', curl=0.85)
+    grip_on(cs, 'R', bpy.data.objects['IN_ColdJackBody'], 960, 0.85)     # closes on the jack's loop grip
     _lift(cs)
     cs.rotation_euler = (0, 0, D(180))
     # stacker: lifts a carton from the staged pallet onto the next one (both hands on the carton)
@@ -396,7 +434,7 @@ def freeze_crew(C, rnd, crate_fn):
         for f, v in ((880, 0.0), (926, 0.0), (932, 1.0), (1032, 1.0), (1040, 0.0)):
             c.influence = v
             c.keyframe_insert('influence', frame=f)
-        H.grip(st, sd, curl=0.7)
+        grip_on(st, sd, cb, 980, 0.7)
     H.jitter(st, {'spine': (14, 0, 0), 'neck': (6, 0, 0), 'head': (10, 0, 0)}, 880, 1070, every=14, amp=4, seed=61,
              arms=False)
     H.settle_reach(st, 932, 1032, step=2, iters=4, max_shift=0.4)

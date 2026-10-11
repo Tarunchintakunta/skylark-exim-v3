@@ -173,7 +173,8 @@ def build(C, crate):
             h.location = (hx, -0.42, 1.0)
             c = w.pose.bones['forearm.' + sdd].constraints.new('IK')
             c.target, c.chain_count, c.use_tail = h, 2, True
-            H.grip(w, sdd, curl=0.75)
+            import plant_chain_b as B
+            B.grip_on(w, sdd, bpy.data.objects[nm + '_Crate'], path[0][0] + 60, 0.75)
 
     # -- hand pallet jack: a worker pushes a pallet of iced crates along the apron toward our bay
     pj = H.person('HUM_JackPusher', 'plant', 'male', coll=C, seed=34)

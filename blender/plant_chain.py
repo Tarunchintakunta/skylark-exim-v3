@@ -286,19 +286,11 @@ def build_truck_reverse(C_people):
     drv.keyframe_insert('rotation_euler', frame=222)
     drv.location = (7.45, -9.05, 0.0)
     drv.keyframe_insert('location', frame=222)
-    crouch = {'spine': (24, 0, 0), 'chest': (8, 0, 0), 'head': (-8, 0, 0),     # down on one knee, not a wide squat
-              'thigh.R': (70, 2, 0), 'shin.R': (-140, 0, 0), 'foot.R': (55, 0, 0),    # right knee on the ground
-              'thigh.L': (85, 6, 0), 'shin.L': (-88, 0, 0), 'foot.L': (5, 0, 0),      # left foot planted, shin upright
-              'upperarm': (45, -6, 0), 'forearm': (30, 0, 0)}
-    H.set_pose(drv, H.POSES['stand'], 222)
-    drv.location = (7.5, -9.0, -0.46)
-    drv.keyframe_insert('location', frame=232)
+    crouch = dict(H.POSES['crouch'], upperarm=(45, -6, 0), forearm=(30, 0, 0))   # library crouch: pelvis down
+    H.set_pose(drv, dict(H.POSES['stand'], root_dz=0.0), 222)                     # (root_dz), knees together
     H.set_pose(drv, crouch, 232)
     H.set_pose(drv, crouch, 240)
-    drv.keyframe_insert('location', frame=240)
-    drv.location = (7.45, -9.05, 0.0)
-    drv.keyframe_insert('location', frame=250)
-    H.set_pose(drv, H.POSES['stand'], 250)
+    H.set_pose(drv, dict(H.POSES['stand'], root_dz=0.0), 250)
     drv.rotation_euler = (0, 0, D(-120))
     drv.keyframe_insert('rotation_euler', frame=262)
     H.set_pose(drv, {'upperarm': (6, -22, 0), 'forearm': (20, 0, 0), 'head': (4, 0, 8)}, 300)
@@ -314,7 +306,8 @@ def build_truck_reverse(C_people):
     for f, v in ((1, 0.0), (220, 0.0), (223, 1.0), (237, 1.0), (242, 0.0)):
         ik.influence = v
         ik.keyframe_insert('influence', frame=f)
-    H.grip(drv, 'R', curl=0.8)
+    import plant_chain_b as B
+    B.grip_on(drv, 'R', ch, 230, 0.8)
 
     # dock workers: two open the rear doors from inside (hands on the door handles via IK), one pushes a trolley
     # across, two wait with empty trolleys, one at the strip curtain
@@ -392,7 +385,7 @@ def build_truck_reverse(C_people):
         c.target = h
         c.chain_count = 2
         c.use_tail = True
-        H.grip(w3, sd, curl=0.8)
+        B.grip_on(w3, sd, tr, 350, 0.8)
     w4 = H.person('HUM_DockW4', 'plant_coat', 'female', coll=C_people, seed=24)
     w4.location = (11.6, 10.2, S.DZ)
     w4.rotation_euler = (0, 0, D(200))
@@ -541,6 +534,7 @@ def build(scene, out):
     import plant_grade
     if scene != 'p-docs':                             # round-8 contrast + wear pass (identical in every hall scene)
         plant_grade.apply(scene, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd))
+    B.apply_holds()                                   # contact grips, now every hand's action exists
     B.shadow_policy()
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
