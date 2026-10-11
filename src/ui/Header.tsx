@@ -9,6 +9,7 @@ import { Mark } from './Mark'
 import './chrome.css'
 
 const PATHS: Path[] = ['ocean', 'pond']
+const STORY = NAV.find((item) => item.id === 'story')!
 
 /**
  * Top bar (redesign §3): mark + wordmark left; the Wild catch · Farmed shrimp text toggle; four links right.
@@ -24,6 +25,7 @@ export function Header() {
     let light = false
     let cta = false
     let bar = false
+    let section = ''
     return onTick(() => {
       const id = film.chapters[frame.index]?.id
       const l = frame.past || id === 'world'
@@ -32,18 +34,32 @@ export function Header() {
       const plant = frame.past || film.chapters.findIndex((c) => c.id === 'intake') <= frame.index
       if (plant !== cta) root.current!.classList.toggle('has-cta', (cta = plant))
       if (frame.past !== bar) root.current!.classList.toggle('has-bar', (bar = frame.past))
+      let next = 'story'
+      for (const name of ['products', 'about', 'contact']) {
+        const el = document.getElementById(name)
+        if (el && el.getBoundingClientRect().top <= 96) next = name
+      }
+      if (next !== section && root.current) {
+        section = next
+        root.current.querySelectorAll<HTMLAnchorElement>('[data-nav]').forEach((link) => {
+          if (link.dataset.nav === next) link.setAttribute('aria-current', 'true')
+          else link.removeAttribute('aria-current')
+        })
+      }
     })
   }, [])
 
-  const go = (id: string) => (e: React.MouseEvent) => {
-    e.preventDefault()
+  const go = (item: (typeof NAV)[number]) => (e: React.MouseEvent) => {
     setOpen(false)
-    goTo(id)
+    if (!item.href.startsWith('/#')) return
+    e.preventDefault()
+    history.replaceState(null, '', item.href)
+    goTo(item.id)
   }
 
   return (
     <header className="topbar" ref={root}>
-      <a className="brand" href="#story" onClick={go('story')} aria-label="Skylark Exim, back to the start">
+      <a className="brand" href="/#story" onClick={go(STORY)} aria-label="Skylark Exim, back to the start">
         <span className="brand__mark" data-brand-mark>
           <Mark />
         </span>
@@ -74,14 +90,14 @@ export function Header() {
         <ul>
           {NAV.map((n) => (
             <li key={n.id}>
-              <a className="nav__link" href={`#${n.id}`} onClick={go(n.id)}>
+              <a className="nav__link" data-nav={n.id} href={n.href} onClick={go(n)}>
                 {n.label}
               </a>
             </li>
           ))}
         </ul>
       </nav>
-      <a className="quote-cta" href="#quote" onClick={go('quote')}>
+      <a className="quote-cta" href="/quote">
         {start.cta} →
       </a>
     </header>

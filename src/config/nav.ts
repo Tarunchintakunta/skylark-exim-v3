@@ -1,6 +1,7 @@
 export const NAV = [
-  { id: 'story', label: 'Story' },
-  { id: 'products', label: 'Products' },
-  { id: 'about', label: 'About' },
-  { id: 'contact', label: 'Contact' },
+  { id: 'story', label: 'Story', href: '/#story' },
+  { id: 'products', label: 'Products', href: '/#products' },
+  { id: 'about', label: 'About', href: '/#about' },
+  { id: 'news', label: 'News', href: '/news' },
+  { id: 'contact', label: 'Contact', href: '/#contact' },
 ]

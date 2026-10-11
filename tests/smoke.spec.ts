@@ -76,7 +76,7 @@ test('every nav link lands on its section', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   for (const id of ['products', 'about', 'contact']) {
-    await page.locator(`.nav a[href="#${id}"]`).click()
+    await page.locator(`.nav a[href="/#${id}"]`).click()
     await page.waitForTimeout(1800)
     const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)
     expect(Math.abs(top)).toBeLessThan(80)
