@@ -55,8 +55,8 @@ const OCEAN_ONLY: ChapterDef[] = [
     captions: caps('o1', [[0.08, 0.92]]),
   },
   {
-    id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'a3', alt: 'Yellowfin tuna on crushed ice in the boat’s hold.' }],
+    id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-catch', alt: 'Fishermen in oilskins haul a dripping net in over the rail, silver fish caught in the mesh.' }],
     captions: caps('o2', [[0.55, 1]]),
   },
   {
