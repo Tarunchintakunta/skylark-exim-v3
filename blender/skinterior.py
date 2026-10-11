@@ -402,23 +402,22 @@ def _mesh_belt():
     pb = nt.nodes['Principled BSDF']
     tc = nt.nodes.new('ShaderNodeTexCoord')
     bk = nt.nodes.new('ShaderNodeTexBrick')
-    bk.inputs['Scale'].default_value = 35.0     # mesh readable at the IQF close-up
-    bk.inputs['Mortar Size'].default_value = 0.25
-    bk.inputs['Color1'].default_value = (0.02, 0.022, 0.025, 1)
-    bk.inputs['Color2'].default_value = (0.03, 0.032, 0.035, 1)
-    bk.inputs['Mortar'].default_value = (0.2, 0.21, 0.22, 1)     # wires: dull steel
+    bk.inputs['Scale'].default_value = 12.0     # ~2 cm open cells, wires ~3 mm: reads as mesh at mid distance
+    bk.inputs['Mortar Size'].default_value = 0.04
+    bk.inputs['Brick Width'].default_value = 0.25
+    bk.inputs['Row Height'].default_value = 0.25
+    bk.offset = 0.0
+    bk.inputs['Color1'].default_value = (0, 0, 0, 1)
+    bk.inputs['Color2'].default_value = (0, 0, 0, 1)
+    bk.inputs['Mortar'].default_value = (1, 1, 1, 1)             # wire mask
     L.new(tc.outputs['Object'], bk.inputs['Vector'])
-    L.new(bk.outputs['Color'], pb.inputs['Base Color'])
-    mr = nt.nodes.new('ShaderNodeMapRange')
-    mr.inputs['To Min'].default_value = 0.0
-    mr.inputs['To Max'].default_value = 1.0
-    L.new(bk.outputs['Fac'], mr.inputs['Value'])
-    L.new(mr.outputs[0], pb.inputs['Metallic'])
-    pb.inputs['Roughness'].default_value = 0.5   # glints, not a mirror sheet at grazing angles
-    bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.6
-    L.new(bk.outputs['Fac'], bp.inputs['Height'])
-    L.new(bp.outputs[0], pb.inputs['Normal'])
+    sep = nt.nodes.new('ShaderNodeSeparateColor')
+    L.new(bk.outputs['Color'], sep.inputs[0])
+    L.new(sep.outputs[0], pb.inputs['Alpha'])                    # open mesh: the return run and the floor show through
+    pb.inputs['Base Color'].default_value = (0.09, 0.095, 0.1, 1)   # dark stainless wire
+    pb.inputs['Metallic'].default_value = 1.0
+    pb.inputs['Roughness'].default_value = 0.35
+    m.surface_render_method = 'DITHERED'
     return m
 
 
@@ -645,6 +644,52 @@ def lab(C, M, rnd, shrimp_fn):
     p.make('IN_Clipboard', M['label'], None, coll=C)
 
 
+def _iqf_prawn():
+    """The farm prawn without its stick legs and 30 cm antennae: curled body + tail fan, two short arched antennae
+    (frozen prawns: legs tucked under the glaze)."""
+    me = bpy.data.meshes.get('IN_IQFPrawn')
+    if me:
+        return me
+    import skfarm as F
+    src = F.shrimp_mesh()
+    bm = bmesh.new()
+    bm.from_mesh(src)
+    nb = sum(1 for p in src.polygons if p.use_smooth)
+    fan = [p.index for p in src.polygons if p.material_index == 1]
+    keep = nb + len(fan)
+    bm.faces.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index >= keep], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    # plump the body: the farm mesh is ~2 cm thick, a 12 cm whiteleg is ~2.6 cm (read as worms on the belt).
+    # Its centre line is an arc of radius R about (0, 0, R): push every body vertex out from the arc
+    R = 0.12 / (math.pi * 0.62)
+    for v in bm.verts:
+        d = Vector((v.co.x, 0.0, v.co.z - R))
+        if d.length < 1e-6:
+            continue
+        p = Vector((0, 0, R)) + d.normalized() * R
+        off = v.co - p
+        if off.length < 0.02:
+            v.co = p + off * 1.55
+    # head ring sits at the origin, the body curls toward +X/+Z: antennae point forward (-X), short, arching up
+    for sy in (-1, 1):
+        prev = Vector((0.0, sy * 0.004, 0.006))
+        for k in range(4):
+            a = 0.45 * (k + 1)
+            nxt = Vector((-0.012 * (k + 1) * (1 - 0.12 * k), sy * (0.006 + 0.004 * k), 0.006 + 0.01 * (1 - math.cos(a))))
+            s = Vector((0, 0.0007, 0))
+            bm.faces.new([bm.verts.new(v) for v in (prev - s, nxt - s, nxt + s, prev + s)])
+            prev = nxt
+    me = bpy.data.meshes.new('IN_IQFPrawn')
+    bm.to_mesh(me)
+    bm.free()
+    for m in src.materials:
+        me.materials.append(m)
+    for p in me.polygons:
+        p.use_smooth = True
+    return me
+
+
 def _glaze_mat():
     """Frozen, glazed prawn: pale grey-pink flesh under a frosted ice glaze (clear coat, frost speckle, a little SSS)."""
     m = bpy.data.materials.get('IN_GlazedPrawn')
@@ -839,11 +884,7 @@ def freezing(C, M, rnd, shrimp_fn):
     p.box((tx, hy - 0.6, DZ + 1.35), (1.3, 0.012, 0.03))
     p.make('IN_GlazeFrost', M['frost'], None, bevel=0.004, coll=C)
     # glazing mist: soft vapour sheets under the nozzles (no thin spray lines)
-    vap = bpy.data.materials.get('IN_ColdVapour')
-    for k in range(4):
-        p = Part()
-        p.box((tx + (k - 1.5) * 0.04, hy + (k - 1.5) * 0.09, DZ + 1.1), (1.15, 0.02, 0.36))
-        p.make('IN_GlazeMist%d' % k, vap, None, coll=C)
+    # (r8: the four vertical mist sheets read as glass panes over the belt; the tunnel-mouth vapour carries the cold)
     # glazed, frosted prawns packed on the belt after the hood (IQF: single layer, close together)
     glazed = _glaze_mat()
     k = 0
@@ -852,11 +893,14 @@ def freezing(C, M, rnd, shrimp_fn):
         if yy > 59.5:
             break
         for col in range(8):
-            import skfarm as F                        # curled whole prawn (segments, tail fan, legs, antennae), lying
-            o = bpy.data.objects.new('IN_IQF%03d' % k, F.shrimp_mesh())   # on its side: the straight scan read as fish
+            o = bpy.data.objects.new('IN_IQF%03d' % k, _iqf_prawn())    # curled glazed prawn lying on its side
             C.objects.link(o)
-            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.008, 0.008), yy, DZ + 0.987)
-            o.rotation_euler = (1.5708, 0, (1.5708 if row % 2 else -1.5708) + rnd.uniform(-0.12, 0.12))
+            if rnd.random() < 0.12:                   # gaps: hand-spread, not a printed grid
+                continue
+            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.025, 0.025), yy + rnd.uniform(-0.03, 0.03),
+                          DZ + 0.99)
+            o.rotation_euler = (1.5708 * rnd.choice((1, -1)), 0, rnd.choice((1.5708, -1.5708)) + rnd.uniform(-0.5, 0.5))
+            o.scale = (1.0, 1.0, 1.0) if rnd.random() < 0.5 else (0.9, 0.9, 0.9)
             for sl in o.material_slots:
                 sl.link = 'OBJECT'
                 sl.material = glazed
@@ -1026,10 +1070,29 @@ def _wet_floor():
     L.new(rr.outputs[0], pb.inputs['Roughness'])
     cm = nt.nodes.new('ShaderNodeMix')
     cm.data_type = 'RGBA'
-    cm.inputs[6].default_value = (0.3, 0.35, 0.33, 1)
-    cm.inputs[7].default_value = (0.2, 0.24, 0.23, 1)
+    cm.inputs[6].default_value = (0.2, 0.235, 0.225, 1)      # dry: mid grey-green epoxy (r8: was near white on screen)
+    cm.inputs[7].default_value = (0.1, 0.12, 0.115, 1)       # wet: dark
     L.new(wet.outputs[0], cm.inputs[0])
-    L.new(cm.outputs[2], pb.inputs['Base Color'])
+    sc = nt.nodes.new('ShaderNodeTexNoise')                   # trolley scuffs: long dark streaks along the hall
+    sc.inputs['Scale'].default_value = 6.0
+    sc.inputs['Detail'].default_value = 6
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (6.0, 0.4, 1.0)
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    L.new(mp.outputs[0], sc.inputs['Vector'])
+    scm = nt.nodes.new('ShaderNodeMapRange')
+    scm.inputs['From Min'].default_value = 0.62
+    scm.inputs['From Max'].default_value = 0.72
+    scm.inputs['To Min'].default_value = 1.0
+    scm.inputs['To Max'].default_value = 0.6
+    L.new(sc.outputs['Fac'], scm.inputs['Value'])
+    dk = nt.nodes.new('ShaderNodeMix')
+    dk.data_type = 'RGBA'
+    dk.blend_type = 'MULTIPLY'
+    dk.inputs[0].default_value = 1.0
+    L.new(cm.outputs[2], dk.inputs[6])
+    L.new(scm.outputs[0], dk.inputs[7])
+    L.new(dk.outputs[2], pb.inputs['Base Color'])
     m['wet'] = True
 
 
