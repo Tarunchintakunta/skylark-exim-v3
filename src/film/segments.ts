@@ -12,14 +12,17 @@ export interface Segment {
   scrim?: ChapterDef['scrim']
 }
 
-/** A chapter's scroll length is split evenly across its media (o1 = a1 then a2), unless a still sets its `span`. */
+/**
+ * A chapter's scroll length is split evenly across its media, unless a still sets its `span`.
+ * Segments inside a chapter cross-fade (separate Higgsfield shots never share a boundary frame); the last one uses the chapter's join.
+ */
 export function toSegments(chapters: ChapterDef[]): Segment[] {
   return chapters.flatMap((ch, chapter) => {
     let from = 0
     return ch.media.map((media, j, all) => {
       const last = j === all.length - 1
       const to = last ? 1 : from + ((media.kind === 'still' && media.span) || 1 / all.length)
-      const seg = { media, chapter, from, to, join: last ? ch.joinNext : undefined, scrim: ch.scrim }
+      const seg = { media, chapter, from, to, join: last ? ch.joinNext : ('crossfade' as const), scrim: ch.scrim }
       from = to
       return seg
     })
