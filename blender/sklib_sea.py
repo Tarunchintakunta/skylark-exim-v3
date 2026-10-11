@@ -596,9 +596,9 @@ def salt_wear(m, z0=0.0, z1=4.0):
     fittings, big chipped-paint patches down to dark primer, whitish salt crust in bands, dirt low down."""
     if m.get('salt_worn'):
         return m
-    _over(m, _noise_band(m, 1.6, 0.5, 0.57, 0.85, stretch=(9.0, 9.0, 0.35), loc=(-3400, -2600)), (0.28, 0.12, 0.045))   # rust streaks
-    _over(m, _noise_band(m, 2.4, 0.54, 0.6, 0.9, loc=(-3400, -3000)), (0.2, 0.2, 0.19))                                  # chipped to primer
-    _over(m, _noise_band(m, 0.9, 0.48, 0.62, 0.45, stretch=(1.0, 1.0, 3.0), loc=(-3400, -3400)), (0.82, 0.8, 0.74))       # salt crust
+    _over(m, _noise_band(m, 1.6, 0.53, 0.6, 0.55, stretch=(9.0, 9.0, 0.35), loc=(-3400, -2600)), (0.28, 0.12, 0.045))   # rust streaks
+    _over(m, _noise_band(m, 2.4, 0.56, 0.62, 0.8, loc=(-3400, -3000)), (0.2, 0.2, 0.19))                                  # chipped to primer
+    _over(m, _noise_band(m, 0.9, 0.5, 0.64, 0.25, stretch=(1.0, 1.0, 3.0), loc=(-3400, -3400)), (0.82, 0.8, 0.74))       # salt crust
     _over(m, _noise_band(m, 1.2, 0.4, 0.7, 0.7, z0=z0, z1=z1, loc=(-3400, -3800)), (0.16, 0.14, 0.1))                     # dirt low down
     m['salt_worn'] = 1
     return m
