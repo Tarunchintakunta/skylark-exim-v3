@@ -313,7 +313,6 @@ def build(out):
                          ((F0, 0.0), (50, 0.0), (56, 1.0), (92, 1.0), (98, 0.0))):
                 ik.influence = v
                 ik.keyframe_insert('influence', frame=f)
-            H.grip(w, hs, curl=0.85)
         ox, oy = offs[k2]
         path = [(f, (loc[0] + ox, loc[1] + oy)) for f, loc, _ in pts if f <= 128]
         path = [(F0, (path[0][1][0], path[0][1][1] - 0.2))] + path[1:]
@@ -395,6 +394,20 @@ def build(out):
         ao = bpy.data.objects[n_]
         H.settle_reach(ao, a_, b_, step=1, iters=10, max_shift=0.5, win=1 if 'Carrier' in n_ else 3,
                        z_fn=z_at if 'Carrier' not in n_ else None)
+    # contact grips (library r8): with every body settled, each hand's fingers close on the rope, bag or crate rim
+    def _ms(o):
+        return [o] if o.type == 'MESH' else [c for c in o.children_recursive if c.type == 'MESH'][:6]
+    net_ms = [o for o in (bpy.data.objects.get('HV_Net'), bpy.data.objects.get('HV_NetFloats')) if o]
+    holds = [('HUM_Wader0', s_, net_ms, 40) for s_ in 'LR'] + [('HUM_Wader1', s_, net_ms, 40) for s_ in 'LR']
+    holds += [('HUM_Lifter0', s_, _ms(bag), 90) for s_ in 'LR'] + [('HUM_Lifter1', s_, _ms(bag), 74) for s_ in 'LR']
+    holds += [('HUM_Carrier%d' % k2, s_, _ms(crates[k2]), fs_ + 20) for k2, fs_ in ((0, 150), (1, 162)) for s_ in 'LR']
+    for n_, sd_, ms_, f_ in holds:
+        bpy.context.scene.frame_set(f_)
+        try:
+            H.grip(bpy.data.objects[n_], sd_, target=ms_) if ms_ else H.grip(bpy.data.objects[n_], sd_, curl=0.85)
+        except Exception as e:
+            print('HOLD fallback', n_, sd_, e)
+            H.grip(bpy.data.objects[n_], sd_, curl=0.85)
     # driver waiting by the cab, then gets in
     drv = worker('HUM_Driver', 'driver', 'male', 99)
     drv.location = (tx0 + 5.2, -0.4, TOP)
