@@ -18,7 +18,7 @@ The lead halted the pass on Tarun's order: Higgsfield is paused until the Blende
 - **Seams (coordinator):** neighbouring shots at the same location were regenerated with `end_image` = the next shot's start frame (10 takes, 100 credits). Only HS13 → HS15 passed (the camera glides from the peeling table through the glass door into the lab). The other nine morphed, dissolved, cut mid-clip or never reached the end frame, so those joins keep the 3 % poster cross-fade.
 - **Retakes requested by Tarun (2026-10-11):** HS20 (the ship must visibly leave; crane cables must not cross the boom), HS08 (no cropped head on the bottom edge), HS10 (the truck must reverse to the dock). The start frames were fixed first with a gpt_image_2_5 edit pass, then animated.
 - **Upscaling not used:** the masters are 2560x1440 and the largest tier is 1920, so `upscale_video` would add nothing.
-- **Weight budget held (Tarun):** every clip is trimmed to the 84 frames (3.5 s) its scroll segment needs, at the same bitrate as the full clip, so per-clip quality is unchanged and the files are about 32 % smaller. The window keeps the most motion; seam frames are kept (HS13 ends on HS15's start, so HS13 keeps its tail and HS15 its head). Desktop takes the 1920 tier only above 1600 device px; phones scrub the 720 tier and prefetch only the next clip.
+- **Weight budget held (Tarun):** every clip is trimmed to the 72 frames (3.0 s) its scroll segment needs, at the same bitrate as the full clip, so per-clip quality is unchanged and the files are about 42 % smaller. The window keeps the most motion; seam frames are kept (HS13 ends on HS15's start, so HS13 keeps its tail and HS15 its head). Desktop takes the 1920 tier only above 1600 device px; phones scrub the 720 tier and prefetch only the next clip.
 
 ### Takes (job id = first 8 characters)
 Credits: gpt_image_2_5 max 4k = 15, nano_banana_pro = 4, minimax_h3 2K 5 s = 10, seedance_2_5 1080p = 60.
@@ -53,14 +53,14 @@ Credits: gpt_image_2_5 max 4k = 15, nano_banana_pro = 4, minimax_h3 2K 5 s = 10,
 | HS08 | image | 844b486b | 15 | PASS then replaced | cropped head on the bottom edge (Tarun) |
 | HS08 | video t1 | df528e38 | 10 | replaced | |
 | HS08 | image fix | 2ddcca3f | 15 | PASS | cropped man removed, everyone whole |
-| HS08 | video t2 | 1e9ce243 | 10 | PASS (trimmed 0-83) | the wading worker's legs reach the bottom edge from about frame 96, so the clip keeps frames 0-83 |
+| HS08 | video t2 | 1e9ce243 | 10 | PASS (trimmed 0-71) | the wading worker's legs reach the bottom edge from about frame 96, so the clip keeps frames 0-71 |
 | HS09 | image | bd271d65 | 15 | PASS | |
 | HS09 | video t1 | f8b7c73b | 10 | PASS | hf-sample |
 | HS10 | image | 277ba842 | 15 | PASS then replaced | truck parked (Tarun) |
 | HS10 | video t1 | 4481211f | 10 | replaced | truck does not move |
 | HS10 | seam take | 9bd29e2c | 10 | FAIL | dissolve |
 | HS10 | image fix | 624b85e0 | 15 | PASS | truck 8 m off the dock, reversing lights, worker guiding |
-| HS10 | video t2 | b0dee22b | 10 | PASS (trimmed 40-123) | truck reverses about 11 % of the frame width toward the dock; it starts moving at about 1.3 s, so the trim keeps the moving part |
+| HS10 | video t2 | b0dee22b | 10 | PASS (trimmed 52-123) | truck reverses about 11 % of the frame width toward the dock; it starts moving at about 1.3 s, so the trim keeps the moving part |
 | HS11 | image | 43a75ab5 | 15 | PASS | |
 | HS11 | video t1 | 943249cf | 10 | PASS | woman walks out of frame (not a dissolve) |
 | HS11 | seam take | f5ee849f | 10 | FAIL | whip pan through blur |
@@ -96,33 +96,33 @@ Credits: gpt_image_2_5 max 4k = 15, nano_banana_pro = 4, minimax_h3 2K 5 s = 10,
 
 Image credits 364 (24 gpt_image_2_5 + 1 nano). Video credits 480 (42 minimax_h3 + 1 seedance). Total 844.
 
-### Final clips (trimmed to 84 frames, 3.5 s at 24 fps; before: 124 frames, 5.17 s)
+### Final clips (trimmed to 72 frames, 3.0 s at 24 fps; before: 124 frames, 5.17 s)
 SSIM = 1920 tier vs the trimmed master. Sizes in KB, tiers 1920/1280/960/720 (caps 2,250/2,300/1,400/1,230 in tests/weight.spec.ts). H.264 High, two-pass, GOP 6, no B-frames, faststart, no audio.
 
 | Chapter | Shot | Clip | Frames kept | SSIM | KB |
 |---|---|---|---|---|---|
-| start | HS01 take2 | opening | 0-83 | 0.967 | 1541/966/572/369 |
-| o1 | HS02 take1 | hf-depart | 0-83 | 0.916 | 1640/1008/587/370 |
-| o2 | HS03 take3 | hf-catch | 0-83 | 0.844 | 1715/1054/612/378 |
-| o3 | HS04 take2 | hf-ice | 0-83 | 0.849 | 1638/1011/599/375 |
-| o4 | HS05 take1 | hf-return | 0-83 | 0.891 | 1681/1024/595/373 |
-| p1 | HS06 take2 | hf-ponds | 0-83 | 0.904 | 1600/986/581/371 |
-| p2 | HS09 take1 | hf-sample | 40-123 | 0.930 | 1543/962/576/370 |
-| p3 | HS07 take2 | hf-harvest | 0-83 | 0.881 | 1680/1029/600/376 |
-| p3 | HS08 take2 | hf-sort | 0-83 | 0.857 | 1599/997/600/380 |
-| intake | HS10 take2 | hf-arrive | 40-123 | 0.931 | 1516/946/573/367 |
-| intake | HS11 take1 | hf-intake | 40-123 | 0.959 | 1503/943/567/366 |
-| process | HS12 take1 | hf-wash | 0-83 | 0.934 | 1523/955/573/369 |
-| process | HS13 takeS1 | hf-peel | 40-123 | 0.980 | 1520/953/569/365 |
-| coldchain | HS15 take1 | hf-lab | 0-83 | 0.984 | 1479/926/560/363 |
-| coldchain | HS14 take1 | hf-iqf | 0-83 | 0.937 | 1497/940/570/368 |
-| coldchain | HS16 take1 | hf-pack | 0-83 | 0.983 | 1474/925/558/361 |
-| coldchain | HS17 take1 | hf-store | 0-83 | 0.960 | 1524/955/572/368 |
-| port | HS18 take1 | hf-stuff | 32-115 | 0.944 | 1516/956/573/367 |
-| port | HS19 take2 | hf-cranes | 0-83 | 0.936 | 1506/956/577/370 |
-| sea | HS20 take4 | hf-ship | 0-83 | 0.828 | 2042/1257/720/449 |
+| start | HS01 take2 | opening | 0-71 | 0.967 | 1343/839/496/318 |
+| o1 | HS02 take1 | hf-depart | 0-71 | 0.918 | 1426/879/512/320 |
+| o2 | HS03 take3 | hf-catch | 0-71 | 0.846 | 1467/912/534/330 |
+| o3 | HS04 take2 | hf-ice | 0-71 | 0.849 | 1399/868/517/326 |
+| o4 | HS05 take1 | hf-return | 0-71 | 0.891 | 1452/893/518/323 |
+| p1 | HS06 take2 | hf-ponds | 0-71 | 0.905 | 1376/847/502/321 |
+| p2 | HS09 take1 | hf-sample | 50-121 | 0.931 | 1336/835/499/320 |
+| p3 | HS07 take2 | hf-harvest | 0-71 | 0.882 | 1444/891/523/327 |
+| p3 | HS08 take2 | hf-sort | 0-71 | 0.858 | 1365/853/517/330 |
+| intake | HS10 take2 | hf-arrive | 52-123 | 0.931 | 1315/820/496/318 |
+| intake | HS11 take1 | hf-intake | 52-123 | 0.960 | 1309/818/489/315 |
+| process | HS12 take1 | hf-wash | 0-71 | 0.934 | 1306/825/495/319 |
+| process | HS13 takeS1 | hf-peel | 52-123 | 0.982 | 1306/819/487/313 |
+| coldchain | HS15 take1 | hf-lab | 0-71 | 0.985 | 1274/794/479/311 |
+| coldchain | HS14 take1 | hf-iqf | 0-71 | 0.938 | 1289/809/491/317 |
+| coldchain | HS16 take1 | hf-pack | 52-123 | 0.983 | 1293/809/487/313 |
+| coldchain | HS17 take1 | hf-store | 52-123 | 0.961 | 1327/828/495/316 |
+| port | HS18 take1 | hf-stuff | 33-104 | 0.945 | 1309/824/495/317 |
+| port | HS19 take2 | hf-cranes | 0-71 | 0.937 | 1297/826/499/320 |
+| sea | HS20 take4 | hf-ship | 0-71 | 0.826 | 1766/1083/625/388 |
 
-HS20 is encoded at a 20 % higher bitrate than the others (busy water); at the standard rate its SSIM was 0.815.
+HS20 is encoded at a 20 % higher bitrate than the others (busy water); at the standard rate its SSIM was 0.815; now 0.826.
 
 ### Seams (boundary SSIM between neighbouring clips, 1920 tier, measured before trimming; trimmed heads and tails change the cross-fade values, not the shared frame)
 Cross-fade joins (separate shots): 01>02 0.42, 02>03 0.22, 03>04 0.16, 04>05 0.19, 05>10 0.32, 06>09 0.25, 09>07 0.23, 07>08 0.18, 08>10 0.22, 10>11 0.38, 11>12 0.29, 12>13 0.34, 15>14 0.35, 14>16 0.39, 16>17 0.53, 18>19 0.28, 19>20 0.18. Shared frame: 13>15 0.96.
