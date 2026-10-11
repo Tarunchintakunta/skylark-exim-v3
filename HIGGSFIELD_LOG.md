@@ -15,28 +15,127 @@ The lead halted the pass on Tarun's order: Higgsfield is paused until the Blende
 - **Content rule (coordinator, 2026-10-11):** a closed ring of floats on the sea implies a gear on the never-write list. Sea shots must show the net hauled over the side, a straight float line from the hull or a heaped net; every sea prompt carries "no circular float ring, no encircling net"; no gear is named in prompts. HS03 take 1 PASS revoked for this.
 - Reference grading: real photos are viewed in the browser only (nothing downloaded, uploaded or committed). Bing image results for Visakhapatnam crews hauling nets: crews mostly in T-shirts, lungis or shorts, often barefoot, many hands on deck; PVC oilskins mostly appear in non-Indian trawler photos. Our catch frames keep the oilskins from the scene reference; harbour/pond frames use lungis, vests, saris, sandals, which matches the real photos.
 
-### Takes
-| Shot | Take | Job id | Credits | Verdict | Notes |
-|---|---|---|---|---|---|
-| HS03 | img nano | 81513494 | 4 | reject | CG poses copied, hands off the rope |
-| HS03 | img gpt | eab48ca9 | 15 | PASS (image) then revoked | real people; closed float ring on the sea (content rule) |
-| HS03 | 1 seedance (cmp) | f74114a3 | 60 | FAIL | heavy defocus drift, soft faces/hands |
-| HS03 | 1 minimax | 2aebb75e | 10 | FAIL (revoked) | real people, steady; closed float ring |
-| HS04 | img gpt | 9df94576 | 15 | PASS (image) | six crew sorting/icing, ice in crates, tuna + mackerel only |
-| HS04 | 1 | be52f262 | 10 | FAIL | camera rolls and swings, wake appears and jumps (SSIM f2f min 0.78) |
-| HS01 | 1 (Blender still) | ed45a279 | 10 | FAIL | town reads as CG blocks |
-| HS06 | 1 (Blender still) | 0103c86c | 10 | FAIL | toy ponds/aerators |
-| HS19 | 1 (Blender still) | 0ebd8083 | 10 | FAIL | CG crane/quay; panel with marks at the end |
-| HS20 | 1 (Blender still) | 00c684d5 | 10 | FAIL | CG boom and ship |
-| HS02 | img gpt | 7929cecc | 15 | PASS (image) | weathered boat, two crew in lungis, mooring buoys only |
-| HS05 | img gpt | 4b36f2c3 | 15 | PASS (image) | porters, trolleys, woman in sari; no text |
-| HS07 | img gpt | 2375756a | 15 | PASS (image) | drag net at sunrise, plain truck |
-| HS08 | img gpt | 844b486b | 15 | PASS (image) | crates of shrimp on ice, nitrile gloves |
+- **Seams (coordinator):** neighbouring shots at the same location were regenerated with `end_image` = the next shot's start frame (10 takes, 100 credits). Only HS13 → HS15 passed (the camera glides from the peeling table through the glass door into the lab). The other nine morphed, dissolved, cut mid-clip or never reached the end frame, so those joins keep the 3 % poster cross-fade.
+- **Retakes requested by Tarun (2026-10-11):** HS20 (the ship must visibly leave; crane cables must not cross the boom), HS08 (no cropped head on the bottom edge), HS10 (the truck must reverse to the dock). The start frames were fixed first with a gpt_image_2_5 edit pass, then animated.
+- **Upscaling not used:** the masters are 2560x1440 and the largest tier is 1920, so `upscale_video` would add nothing.
+- **Weight budget held (Tarun):** every clip is trimmed to the 84 frames (3.5 s) its scroll segment needs, at the same bitrate as the full clip, so per-clip quality is unchanged and the files are about 32 % smaller. The window keeps the most motion; seam frames are kept (HS13 ends on HS15's start, so HS13 keeps its tail and HS15 its head). Desktop takes the 1920 tier only above 1600 device px; phones scrub the 720 tier and prefetch only the next clip.
 
-### Balance
+### Takes (job id = first 8 characters)
+Credits: gpt_image_2_5 max 4k = 15, nano_banana_pro = 4, minimax_h3 2K 5 s = 10, seedance_2_5 1080p = 60.
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| HS01 | video t1 (Blender still) | ed45a279 | 10 | FAIL | town reads as CG blocks |
+| HS01 | image realism pass | 96ffde8d | 15 | PASS | keeps the Blender composition |
+| HS01 | video t2 | e0d7f2a4 | 10 | PASS | opening |
+| HS02 | image | 7929cecc | 15 | PASS | weathered boat, two crew, mooring buoys only |
+| HS02 | video t1 | 71b398b9 | 10 | PASS | hf-depart |
+| HS03 | image nano (cmp) | 81513494 | 4 | reject | CG poses copied |
+| HS03 | image gpt | eab48ca9 | 15 | revoked | closed float ring (content rule) |
+| HS03 | video t1 minimax | 2aebb75e | 10 | FAIL (revoked) | closed float ring |
+| HS03 | video seedance (cmp) | f74114a3 | 60 | FAIL | defocus drift |
+| HS03 | image re-do | fdf882db | 15 | PASS | net over the rail, straight float line |
+| HS03 | video t2 | 2077ab75 | 10 | FAIL | camera swing |
+| HS03 | video t3 | 55686b2f | 10 | PASS | hf-catch |
+| HS03 | seam take | 109453f1 | 10 | FAIL | cut mid-clip (boundary SSIM 0.16 to 0.62) |
+| HS04 | image | 9df94576 | 15 | PASS | crew icing tuna and mackerel |
+| HS04 | video t1 | be52f262 | 10 | FAIL | camera rolls, wake jumps |
+| HS04 | video t2 | 616b8b36 | 10 | PASS | hf-ice |
+| HS05 | image | 4b36f2c3 | 15 | PASS | porters, trolleys, no text |
+| HS05 | video t1 | 760751ab | 10 | PASS | hf-return |
+| HS06 | video t1 (Blender still) | 0103c86c | 10 | FAIL | toy ponds |
+| HS06 | image realism pass | 5dad1f4a | 15 | PASS | |
+| HS06 | video t2 | 3d2c5d97 | 10 | PASS | hf-ponds |
+| HS07 | image | 2375756a | 15 | PASS | drag net at sunrise |
+| HS07 | video t1 | 302d2155 | 10 | FAIL | people merge into the net |
+| HS07 | video t2 | 4c2efbba | 10 | PASS | hf-harvest |
+| HS07 | seam take | a03288d3 | 10 | FAIL | dissolve |
+| HS08 | image | 844b486b | 15 | PASS then replaced | cropped head on the bottom edge (Tarun) |
+| HS08 | video t1 | df528e38 | 10 | replaced | |
+| HS08 | image fix | 2ddcca3f | 15 | PASS | cropped man removed, everyone whole |
+| HS08 | video t2 | 1e9ce243 | 10 | PASS (trimmed 0-83) | the wading worker's legs reach the bottom edge from about frame 96, so the clip keeps frames 0-83 |
+| HS09 | image | bd271d65 | 15 | PASS | |
+| HS09 | video t1 | f8b7c73b | 10 | PASS | hf-sample |
+| HS10 | image | 277ba842 | 15 | PASS then replaced | truck parked (Tarun) |
+| HS10 | video t1 | 4481211f | 10 | replaced | truck does not move |
+| HS10 | seam take | 9bd29e2c | 10 | FAIL | dissolve |
+| HS10 | image fix | 624b85e0 | 15 | PASS | truck 8 m off the dock, reversing lights, worker guiding |
+| HS10 | video t2 | b0dee22b | 10 | PASS (trimmed 40-123) | truck reverses about 11 % of the frame width toward the dock; it starts moving at about 1.3 s, so the trim keeps the moving part |
+| HS11 | image | 43a75ab5 | 15 | PASS | |
+| HS11 | video t1 | 943249cf | 10 | PASS | woman walks out of frame (not a dissolve) |
+| HS11 | seam take | f5ee849f | 10 | FAIL | whip pan through blur |
+| HS12 | image | c5a25001 | 15 | PASS | |
+| HS12 | video t1 | e725f621 | 10 | PASS | hf-wash |
+| HS12 | seam take | 7148d291 | 10 | FAIL | cut |
+| HS13 | image | e82143fa | 15 | PASS | |
+| HS13 | video t1 | 74b8226a | 10 | replaced by the seam take | |
+| HS13 | seam take S1 | 8f2f7aff | 10 | PASS | ends on HS15's start, boundary SSIM 0.49 to 0.96 |
+| HS14 | image | 8cdeec59 | 15 | PASS | |
+| HS14 | video t1 | 66253817 | 10 | PASS | hf-iqf |
+| HS14 | seam take | 1a1994a9 | 10 | FAIL | through a white wall |
+| HS15 | image | 97cc07c8 | 15 | PASS | |
+| HS15 | video t1 | db51b6b8 | 10 | PASS | hf-lab |
+| HS15 | seam take | 19d03c55 | 10 | FAIL | lab morphs into the belt |
+| HS16 | image | a66e20e2 | 15 | PASS | |
+| HS16 | video t1 | c9e3b2e7 | 10 | PASS | hf-pack |
+| HS16 | seam take | de1307f5 | 10 | FAIL | double exposure |
+| HS17 | image | c146f268 | 15 | PASS | |
+| HS17 | video t1 | bf325b72 | 10 | PASS | hf-store |
+| HS18 | image | c7066775 | 15 | PASS | |
+| HS18 | video t1 | 86a6faf8 | 10 | PASS | hf-stuff |
+| HS19 | video t1 (Blender still) | 0ebd8083 | 10 | FAIL | CG crane |
+| HS19 | image realism pass | 6e416935 | 15 | PASS | |
+| HS19 | video t2 | 210cec73 | 10 | PASS | hf-cranes |
+| HS19 | seam take | 3ff6dcdc | 10 | FAIL | end frame not reached (0.18 to 0.44) |
+| HS20 | video t1 (Blender still) | 00c684d5 | 10 | FAIL | CG boom and ship |
+| HS20 | image realism pass | 2213e141 | 15 | PASS then replaced | cables cross the boom (Tarun) |
+| HS20 | video t2 | 0f837d48 | 10 | replaced (Tarun) | ship's motion did not read |
+| HS20 | image fix | f141bdc4 | 15 | PASS | cables along the boom on sheaves, quay edge added |
+| HS20 | video t3 | b7f46a15 | 10 | FAIL | ship moves about 4.5 % of the frame, camera drifts |
+| HS20 | video t4 | 7ceaa4fd | 10 | PASS | ship travels about a third of the frame, boom and quay fixed; small illegible pseudo-lettering on the stern (not readable) |
+
+Image credits 364 (24 gpt_image_2_5 + 1 nano). Video credits 480 (42 minimax_h3 + 1 seedance). Total 844.
+
+### Final clips (trimmed to 84 frames, 3.5 s at 24 fps; before: 124 frames, 5.17 s)
+SSIM = 1920 tier vs the trimmed master. Sizes in KB, tiers 1920/1280/960/720 (caps 2,250/2,300/1,400/1,230 in tests/weight.spec.ts). H.264 High, two-pass, GOP 6, no B-frames, faststart, no audio.
+
+| Chapter | Shot | Clip | Frames kept | SSIM | KB |
+|---|---|---|---|---|---|
+| start | HS01 take2 | opening | 0-83 | 0.967 | 1541/966/572/369 |
+| o1 | HS02 take1 | hf-depart | 0-83 | 0.916 | 1640/1008/587/370 |
+| o2 | HS03 take3 | hf-catch | 0-83 | 0.844 | 1715/1054/612/378 |
+| o3 | HS04 take2 | hf-ice | 0-83 | 0.849 | 1638/1011/599/375 |
+| o4 | HS05 take1 | hf-return | 0-83 | 0.891 | 1681/1024/595/373 |
+| p1 | HS06 take2 | hf-ponds | 0-83 | 0.904 | 1600/986/581/371 |
+| p2 | HS09 take1 | hf-sample | 40-123 | 0.930 | 1543/962/576/370 |
+| p3 | HS07 take2 | hf-harvest | 0-83 | 0.881 | 1680/1029/600/376 |
+| p3 | HS08 take2 | hf-sort | 0-83 | 0.857 | 1599/997/600/380 |
+| intake | HS10 take2 | hf-arrive | 40-123 | 0.931 | 1516/946/573/367 |
+| intake | HS11 take1 | hf-intake | 40-123 | 0.959 | 1503/943/567/366 |
+| process | HS12 take1 | hf-wash | 0-83 | 0.934 | 1523/955/573/369 |
+| process | HS13 takeS1 | hf-peel | 40-123 | 0.980 | 1520/953/569/365 |
+| coldchain | HS15 take1 | hf-lab | 0-83 | 0.984 | 1479/926/560/363 |
+| coldchain | HS14 take1 | hf-iqf | 0-83 | 0.937 | 1497/940/570/368 |
+| coldchain | HS16 take1 | hf-pack | 0-83 | 0.983 | 1474/925/558/361 |
+| coldchain | HS17 take1 | hf-store | 0-83 | 0.960 | 1524/955/572/368 |
+| port | HS18 take1 | hf-stuff | 32-115 | 0.944 | 1516/956/573/367 |
+| port | HS19 take2 | hf-cranes | 0-83 | 0.936 | 1506/956/577/370 |
+| sea | HS20 take4 | hf-ship | 0-83 | 0.828 | 2042/1257/720/449 |
+
+HS20 is encoded at a 20 % higher bitrate than the others (busy water); at the standard rate its SSIM was 0.815.
+
+### Seams (boundary SSIM between neighbouring clips, 1920 tier, measured before trimming; trimmed heads and tails change the cross-fade values, not the shared frame)
+Cross-fade joins (separate shots): 01>02 0.42, 02>03 0.22, 03>04 0.16, 04>05 0.19, 05>10 0.32, 06>09 0.25, 09>07 0.23, 07>08 0.18, 08>10 0.22, 10>11 0.38, 11>12 0.29, 12>13 0.34, 15>14 0.35, 14>16 0.39, 16>17 0.53, 18>19 0.28, 19>20 0.18. Shared frame: 13>15 0.96.
+
+### Balance (from `balance` calls only)
 | When | Balance | Spent |
 |---|---|---|
 | start | 1910.75 | 0 |
 | after HS03 images | 1891.75 | 19 |
 | after first 3 batches | 1656.75 | 254 |
 | after realism-pass images submitted | 1571.75 | 339 |
+| after plant and remaining shots | 1251.75 | 659 |
+| after seam takes | 1151.75 | 759 |
+| after Tarun's retakes (3 images, 4 videos) | 1066.75 | 844 |
+
+Credit guard (1,624) not reached: 844 spent, 44 % of the start balance.
