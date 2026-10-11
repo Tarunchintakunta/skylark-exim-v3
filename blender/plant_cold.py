@@ -116,7 +116,7 @@ def lab_action(C):
     hl = _empty('HUM_QC_HandL', (CX + 2.75, 47.12, DZ + 0.955), None, C)    # palm flat on the bench top
     _ik(qc, 'R', hr, ((1, 1.0), (856, 1.0), (866, 0.0)))    # checks tray 2 (hand on its rim), then lifts it
     _ik(qc, 'L', hl, ((1, 1.0), (1100, 1.0)))                # steadies herself on the bench edge throughout
-    B.hold(qc, 'R', tray, 840, 0.45)                        # fingers on the tray rim
+    B.grip_on(qc, 'R', tray, 840, 0.45)                        # fingers on the tray rim
     H.grip(qc, 'L', curl=0.25)
     H.set_pose(qc, {'spine': (14, 0, 0), 'neck': (10, 0, 0), 'head': (16, 0, 0), 'upperarm.R': (12, -20, 0),
                     'forearm.R': (30, 0, 0)}, 870)
@@ -171,7 +171,7 @@ def pack_action(C):
     for sd, dx in (('L', -0.14), ('R', 0.14)):           # palms on the two short ends, fingers under the edge
         e = _empty('HUM_Packer_Hand' + sd, (dx, 0.0, -0.005), b, C)
         _ik(w, sd, e, ((1, 1.0), (1020, 1.0), (1028, 0.0)))
-        B.hold(w, sd, b, 1000, 0.3)
+        B.grip_on(w, sd, b, 1000, 0.3)
     H.settle_reach(w, 930, 1020, step=2, iters=4, max_shift=0.3)
     base = {'spine': (18, 0, 0), 'chest': (6, 0, 0), 'neck': (10, 0, 0), 'head': (18, 0, 0)}
     H.jitter(w, base, 1, 1100, every=16, amp=3, seed=41, arms=False)

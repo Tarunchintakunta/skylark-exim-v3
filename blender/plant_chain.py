@@ -307,7 +307,7 @@ def build_truck_reverse(C_people):
         ik.influence = v
         ik.keyframe_insert('influence', frame=f)
     import plant_chain_b as B
-    B.hold(drv, 'R', ch, 230, 0.8)
+    B.grip_on(drv, 'R', ch, 230, 0.8)
 
     # dock workers: two open the rear doors from inside (hands on the door handles via IK), one pushes a trolley
     # across, two wait with empty trolleys, one at the strip curtain
@@ -385,7 +385,7 @@ def build_truck_reverse(C_people):
         c.target = h
         c.chain_count = 2
         c.use_tail = True
-        B.hold(w3, sd, tr, 350, 0.8)
+        B.grip_on(w3, sd, tr, 350, 0.8)
     w4 = H.person('HUM_DockW4', 'plant_coat', 'female', coll=C_people, seed=24)
     w4.location = (11.6, 10.2, S.DZ)
     w4.rotation_euler = (0, 0, D(200))
