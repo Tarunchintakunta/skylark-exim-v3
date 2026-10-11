@@ -1,5 +1,6 @@
 // Every line here comes from docs/CONTENT.md ("Use on site" column) or docs/STORY.md.
 // Headlines are editorial and make no factual claim. Do not add facts here that are not in CONTENT.md.
+import { MARKET_COORDS, MARKET_COUNT } from './markets'
 
 export interface CaptionCopy {
   eyebrow?: string
@@ -15,10 +16,7 @@ export const SHRIMPS = ['Vannamei', 'Black Tiger Shrimp', 'Sea White Shrimp', 'P
 export const SHRIMP_CHIPS = ['Vannamei', 'Black Tiger', 'Sea White', 'Pink / Brown', 'Sea Tiger']
 export const STATES = ['Raw fresh', 'Chilled', 'Frozen']
 
-export const MARKETS = [
-  'China', 'Europe', 'Vietnam', 'UAE (Sharjah)', 'Turkey', 'Thailand', 'Taiwan', 'Sri Lanka',
-  'Malaysia', 'Kuwait', 'Japan', 'Egypt', 'Bangkok', 'Algeria', 'Russia', 'Hong Kong',
-]
+export const MARKETS = MARKET_COORDS.map((m) => m.name)
 
 export const start = {
   eyebrow: 'Visakhapatnam · Andhra Pradesh',
@@ -64,7 +62,7 @@ export const film: Record<string, CaptionCopy[]> = {
   docs: [{ eyebrow: 'Export · Documentation', title: 'Paperwork, done properly.', body: 'Our documentation staff professionally prepare all necessary documents and handle logistical tracking of shipments. Compliance with export certificates (HACCP, EU, FDA, etc.).' }],
   port: [{ eyebrow: 'Export · The port', title: 'Loaded under the cranes.', body: 'Shipped in reefer containers to maintain the cold chain until the destination.' }],
   sea: [{ eyebrow: 'Export · At sea', title: 'From Visakhapatnam to the world’s table.', note: 'Cold chain · outbound' }],
-  world: [{ eyebrow: 'Export · Markets', title: 'Trusted in 16 markets.', body: MARKETS.join(' · ') }],
+  world: [{ eyebrow: 'Export · Markets', title: `Trusted in ${MARKET_COUNT} markets.`, body: MARKETS.join(' · ') }],
 }
 
 /** Label card in the packing caption: field names only, never values (STORY §7). */
@@ -86,7 +84,7 @@ export const TRUST = {
   compliance: 'Compliance with export certificates (HACCP, EU, FDA, etc.)',
   facts: [
     { value: '700', label: 'pallet warehouse' },
-    { value: '16', label: 'markets' },
+    { value: String(MARKET_COUNT), label: 'markets' },
     { value: 'Raw fresh, chilled and frozen', label: 'seafood' },
   ],
 }

@@ -1,9 +1,9 @@
-import { Html, Line, useTexture } from '@react-three/drei'
+import { Line, useTexture } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useRef } from 'react'
-import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, SRGBColorSpace, Vector3, type Mesh } from 'three'
+import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
+import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, MathUtils, SRGBColorSpace, Vector3, type Mesh } from 'three'
 import type { Line2 } from 'three-stdlib'
-import { MARKET_COORDS, ORIGIN } from '../config/markets'
+import { MARKET_COORDS, MARKETS_BY_REGION, ORIGIN } from '../config/markets'
 import { env } from '../engine/env'
 import { frame } from '../engine/store'
 import { onTick } from '../engine/ticker'
@@ -12,30 +12,62 @@ import { faceRotation, latLon, routePoints } from './geo'
 import { globeUi } from './globeState'
 
 const BRASS = new Color('#e08a5f')
+const MARIGOLD = new Color('#eaa221')
 const N = 64 // points per route
+const FOV = 35
+const TAN = Math.tan(MathUtils.degToRad(FOV / 2))
 const ease = (t: number) => t * t * (3 - 2 * t)
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-/** market labels: lift above the dot (.globe-label translateY), gap between labels, margin to the viewport edge (px) */
-const LIFT = 16
-const GAP = 4
-const EDGE = 8
-/** the fixed header (.topbar height): labels stay below it */
+/** the fixed header (.topbar height); label lift above a dot, gap between labels, margin to the viewport edge (px) */
 const HEADER = 68
+const LIFT = 8
+const GAP = 6
+const EDGE = 8
+/** at most this many labels on screen, the origin's included */
+const MAX_LABELS = 4
+/** a pointer within this many px of a dot reveals its label */
+const HIT = 22
+/** route widths in px (resting, highlighted) and opacities (resting, highlighted, dimmed) */
+const LINE_W = env.mobile ? 1 : 1.25
+const LINE_HL = 2
+const OP = 0.5
+const OP_HL = 0.95
+const OP_DIM = 0.2
+/** routes draw one by one between these scroll progresses of the world chapter */
+const DRAW = [0.2, 0.8]
+
+/** Settled view: centred between Algeria and Japan so every market faces the camera; the idle tour sways ±SWAY° around it. */
+const C_LON = 70
+const C_LAT = 24
+const SWAY = 18
+/** idle tour: one region at a time (≤3 markets, the origin label is the 4th), the globe easing toward it */
+const SPOTS = MARKETS_BY_REGION.flatMap(({ markets }) => {
+  const out: number[][] = []
+  for (let i = 0; i < markets.length; i += MAX_LABELS - 1) out.push(markets.slice(i, i + MAX_LABELS - 1))
+  return out
+})
+const toSway = (lon: number) => Math.min(SWAY, Math.max(-SWAY, lon - C_LON))
+const SPOT_SWAY = SPOTS.map((ids) => toSway(ids.reduce((s, i) => s + MARKET_COORDS[i].lon, 0) / ids.length))
+const DWELL = 3.2
 
 const atmosphere = {
   uniforms: { color: { value: new Color('#9fd3ff') } },
   vertexShader: 'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = pow(0.72 - dot(vN, vec3(0.0, 0.0, 1.0)), 2.4); gl_FragColor = vec4(color, clamp(i, 0.0, 1.0)); }',
+  // a thin, faint rim. Seen from inside (BackSide), view-space n.z runs 0 at the shell's silhouette to about -0.22 at the
+  // globe's edge (scale 1.025): fade alpha from 0 at the shell edge, so there is no hard, aliased step there
+  fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = smoothstep(0.0, 0.22, -vN.z) * 0.35; gl_FragColor = vec4(color, i); }',
 }
 const haze = {
   uniforms: { color: { value: new Color('#cfe9ff') } },
   vertexShader: 'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = pow(1.0 - max(dot(vN, vec3(0.0, 0.0, 1.0)), 0.0), 3.0); gl_FragColor = vec4(color * i * 0.75, 1.0); }',
+  fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = pow(1.0 - max(dot(vN, vec3(0.0, 0.0, 1.0)), 0.0), 3.0); gl_FragColor = vec4(color * i * 0.35, 1.0); }',
 }
 
+export type GlobeLabels = { markets: (HTMLSpanElement | null)[]; origin: HTMLSpanElement | null }
+
 /** Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11). */
-function Earth({ worldIndex }: { worldIndex: number }) {
+function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<GlobeLabels> }) {
   // 2048×1024 everywhere (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
   const tex = useTexture('/textures/earth_day_2048.webp')
   tex.colorSpace = SRGBColorSpace
@@ -44,7 +76,6 @@ function Earth({ worldIndex }: { worldIndex: number }) {
   const group = useRef<Group>(null)
   const lines = useRef<(Line2 | null)[]>([])
   const dots = useRef<(Mesh | null)[]>([])
-  const labels = useRef<(HTMLSpanElement | null)[]>([])
   const originDot = useRef<Mesh>(null)
   const { camera, invalidate, gl, scene, get } = useThree()
 
@@ -60,103 +91,201 @@ function Earth({ worldIndex }: { worldIndex: number }) {
 
   const origin = useMemo(() => latLon(ORIGIN.lat, ORIGIN.lon, 1.002), [])
   const routes = useMemo(
-    () => MARKET_COORDS.map((m) => {
+    () => MARKET_COORDS.map((m, j) => {
       const to = latLon(m.lat, m.lon, 1.002)
-      return { to, points: routePoints(origin, to, N) }
+      // varied heights (a golden-ratio spread per market) so the routes don't bundle into one fan
+      return { to, points: routePoints(origin, to, N, 0.12 + 0.26 * ((j * 0.618) % 1)) }
     }),
     [origin],
   )
 
   useEffect(() => {
+    const L = labels.current!
     const tmp = new Vector3()
     const camDir = new Vector3()
-    /** labels that have landed and face the camera this frame; label sizes (measured once) and current nudges */
-    const want: number[] = []
-    const sizes: [number, number][] = []
-    const nudges: string[] = []
-    let t0 = -1
-    let lastHl = -2
-    return onTick((time) => {
+    const sizes = new Map<HTMLElement, [number, number]>()
+    const shown = new Map<HTMLElement, string>()
+
+    // pause when the world chapter is off-screen or the tab is hidden (frameloop="demand": no invalidate, no render)
+    let onScreen = true
+    const section = document.querySelector('[data-chapter="world"]')
+    const io = new IntersectionObserver(([e]) => void (onScreen = e.isIntersecting), { rootMargin: '50% 0px' })
+    if (section) io.observe(section)
+
+    // hover / tap on a dot: the stage takes no pointer events, so read the pointer on the window
+    let px = -1e4
+    let py = -1e4
+    const onPointer = (e: PointerEvent) => {
+      px = e.clientX
+      py = e.clientY
+    }
+    const onLeave = () => (px = py = -1e4)
+    addEventListener('pointermove', onPointer, { passive: true })
+    addEventListener('pointerdown', onPointer, { passive: true })
+    document.documentElement.addEventListener('pointerleave', onLeave)
+
+    // layout in px (globe radius and centre), from the market caption's box: on resize and once a second
+    let dirty = true
+    let sinceMeasure = 0
+    const onResize = () => (dirty = true)
+    addEventListener('resize', onResize)
+    const lay = { r: 0, cx: 0, cy: 0 }
+    const measure = (vw: number, vh: number) => {
+      const cap = section?.querySelector('.caption--markets')?.getBoundingClientRect()
+      if (!cap?.height) return
+      if (env.mobile) {
+        // phones: the globe sits above the market list
+        lay.r = Math.max(60, Math.min(vw * 0.4, (cap.top - HEADER) / 2 - 10))
+        lay.cx = vw / 2
+        lay.cy = (HEADER + cap.top) / 2
+      } else {
+        // right of the copy, its vertical centre on the headline block's
+        const room = vw - cap.right
+        lay.r = Math.min(room * 0.4, (vh - HEADER) * 0.36)
+        lay.cx = cap.right + room / 2
+        lay.cy = Math.min(Math.max(cap.top + cap.height / 2, HEADER + lay.r + 12), vh - lay.r - 12)
+      }
+    }
+
+    /** places a label centred over (x, y): above it, else below it, else not at all (overlap) */
+    const place = (label: HTMLElement, x: number, y: number, boxes: number[][], vw: number, vh: number) => {
+      let s = sizes.get(label)
+      if (!s) sizes.set(label, (s = [label.offsetWidth, label.offsetHeight]))
+      const [w, h] = s
+      const l = Math.min(Math.max(x - w / 2, EDGE), vw - EDGE - w)
+      const free = (t: number) => !boxes.some(([bl, bt, br, bb]) => l < br + GAP && l + w > bl - GAP && t < bb + GAP && t + h > bt - GAP)
+      const t = [y - LIFT - h, y + LIFT].map((t) => Math.min(Math.max(t, HEADER + EDGE), vh - EDGE - h)).find(free)
+      if (t === undefined) return false
+      boxes.push([l, t, l + w, t + h])
+      const tf = `translate(${Math.round(l)}px, ${Math.round(t)}px)`
+      if (shown.get(label) !== tf) {
+        label.style.transform = tf
+        shown.set(label, tf)
+      }
+      return true
+    }
+    const setOpacity = (label: HTMLElement | null, on: boolean) => {
+      const o = on ? '1' : '0'
+      if (label && label.style.opacity !== o) label.style.opacity = o
+    }
+
+    let last = -1
+    let clock = 0
+    let sway = 0
+    let lastFocus = -2
+    const screen: [number, number, boolean][] = routes.map(() => [0, 0, false])
+    const placed = new Set<HTMLElement>()
+
+    const off = onTick((time) => {
+      const dt = last < 0 ? 0 : Math.min(0.05, time - last)
+      last = time
       const i = frame.index
       const nearWorld = i === worldIndex || (i === worldIndex - 1 && frame.local > 0.8)
-      if (!nearWorld || frame.past || !group.current) {
-        t0 = -1
-        return
-      }
+      if (!nearWorld || frame.past || !onScreen || document.hidden || !group.current) return
+      const g = group.current
       const p = i === worldIndex ? frame.local : 0
-      // camera: close over the sea off Visakhapatnam → full globe
+      const { width: vw, height: vh } = get().size
+      if (dirty || (sinceMeasure += dt) > 1) {
+        measure(vw, vh)
+        dirty = false
+        sinceMeasure = 0
+      }
+      if (!lay.r) {
+        lay.r = Math.min(vw, vh) * 0.3
+        lay.cx = vw / 2
+        lay.cy = vh / 2
+      }
+
+      // camera: close over the sea off Visakhapatnam → the full globe at its laid-out size and place
       const k = ease(clamp01(p / 0.5))
-      const d = lerp(1.45, env.mobile ? 4.6 : 4.1, k)
+      const dEnd = Math.sqrt(1 + (vh / (2 * TAN * lay.r)) ** 2)
+      const d = lerp(1.45, dEnd, k)
       camera.position.set(0, 0, d)
       camera.lookAt(0, 0, 0)
-      // desktop: the globe slides right to leave the copy its space; the origin dot keeps a constant screen size
-      group.current.position.x = env.mobile ? 0 : lerp(0, 0.78, k)
-      group.current.position.y = env.mobile ? lerp(0, 0.55, k) : 0
-      originDot.current?.scale.setScalar(d / 3.2)
-      // rotate from Visakhapatnam toward Europe, then East Asia, as routes draw
-      let lon = p < 0.45 ? lerp(88, 62, ease(p / 0.45)) : lerp(62, 104, ease(clamp01((p - 0.45) / 0.45)))
-      const lat = lerp(15, 26, k)
-      // ends with a slow auto-rotation while in view
-      if (p > 0.92) {
-        if (t0 < 0) t0 = time
-        lon += (time - t0) * 3
-      } else t0 = -1
-      const [rx, ry] = faceRotation(lat, lon)
-      group.current.rotation.set(rx, ry, 0, 'XYZ')
-      group.current.updateMatrixWorld()
+      const unit = (2 * d * TAN) / vh // world units per px at the globe's depth
+      g.position.x = lerp(0, (lay.cx - vw / 2) * unit, k)
+      g.position.y = lerp(0, (vh / 2 - lay.cy) * unit, k)
+      const s = d / 4
+      originDot.current?.scale.setScalar(s)
 
-      // routes draw one by one between 20% and 85%
-      const hl = globeUi.highlight
+      // focus: a hovered list item, else a hovered/tapped dot (found below, from last frame's screen positions)
+      let focus = globeUi.highlight
+      if (focus < 0 && px > -1e3) {
+        let best = HIT * HIT
+        screen.forEach(([x, y, vis], j) => {
+          const dd = (x - px) ** 2 + (y - py) ** 2
+          if (vis && dd < best) {
+            best = dd
+            focus = j
+          }
+        })
+      }
+
+      // rotation: Visakhapatnam → the settled view, then (motion allowed) the idle tour eases toward each region
+      const settled = p > DRAW[1]
+      if (settled) clock += dt
+      const spot = SPOTS[Math.floor(clock / DWELL) % SPOTS.length]
+      if (!env.reduced) {
+        const target = focus >= 0 ? toSway(MARKET_COORDS[focus].lon) : settled ? SPOT_SWAY[SPOTS.indexOf(spot)] : 0
+        sway += (target - sway) * (1 - Math.exp(-dt * 0.9))
+      }
+      const lon = lerp(ORIGIN.lon + 4, C_LON, ease(clamp01(p / 0.6))) + sway
+      const lat = lerp(15, C_LAT, k)
+      const [rx, ry] = faceRotation(lat, lon)
+      g.rotation.set(rx, ry, 0, 'XYZ')
+      g.updateMatrixWorld()
+      camera.updateMatrixWorld()
       camDir.copy(camera.position).normalize()
+
+      // routes draw one by one; dots appear as each lands
+      const w = (DRAW[1] - DRAW[0]) / routes.length
       routes.forEach((r, j) => {
-        const w = 0.65 / routes.length
-        const a = clamp01((p - 0.2 - j * w) / (w * 1.6))
+        const a = clamp01((p - DRAW[0] - j * w) / (w * 1.6))
         const line = lines.current[j]
         if (line) {
           line.geometry.instanceCount = Math.round(a * (N - 1))
-          if (hl !== lastHl) {
-            line.material.opacity = hl < 0 || hl === j ? 1 : 0.3
-            line.material.linewidth = hl === j ? (env.mobile ? 2 : 4) : env.mobile ? 1 : 2
+          if (focus !== lastFocus) {
+            line.material.opacity = focus < 0 ? OP : focus === j ? OP_HL : OP_DIM
+            line.material.linewidth = focus === j ? LINE_HL : LINE_W
           }
         }
         const landed = a >= 1
-        const dot = dots.current[j]
-        if (dot) dot.scale.setScalar(landed ? 1 : 0)
-        tmp.copy(r.to).applyMatrix4(group.current!.matrixWorld).sub(group.current!.position)
-        if (landed && labels.current[j] && tmp.dot(camDir) > 0.25) want.push(j)
+        dots.current[j]?.scale.setScalar(landed ? s : 0)
+        tmp.copy(r.to).applyMatrix4(g.matrixWorld).sub(g.position)
+        const facing = tmp.dot(camDir) > 0.2
+        tmp.copy(r.to).applyMatrix4(g.matrixWorld).project(camera)
+        const sc = screen[j]
+        sc[0] = ((tmp.x + 1) / 2) * vw
+        sc[1] = ((1 - tmp.y) / 2) * vh
+        sc[2] = landed && facing
       })
+      lastFocus = focus
 
-      // labels in screen space, the highlighted one first, then list order: a label that would overlap one already
-      // placed stays hidden (Thailand / Bangkok, Taiwan / Hong Kong on phones), and placed ones are nudged inside the view
-      const { width: vw, height: vh } = get().size
-      camera.updateMatrixWorld()
+      // labels in screen space: the origin, then the focus (or the tour's region), ≤ MAX_LABELS, never overlapping
       const boxes: number[][] = []
-      const placed = new Set<number>()
-      for (const j of want.includes(hl) ? [hl, ...want.filter((k) => k !== hl)] : want) {
-        const label = labels.current[j]!
-        const [w, h] = (sizes[j] ??= [label.offsetWidth, label.offsetHeight])
-        tmp.copy(routes[j].to).applyMatrix4(group.current!.matrixWorld).project(camera)
-        const x = ((tmp.x + 1) / 2) * vw - w / 2
-        const y = ((1 - tmp.y) / 2) * vh - LIFT - h / 2
-        const l = Math.min(Math.max(x, EDGE), vw - EDGE - w)
-        // above the dot, else below it, else hidden
-        const free = (t: number) => !boxes.some(([bl, bt, br, bb]) => l < br + GAP && l + w > bl - GAP && t < bb + GAP && t + h > bt - GAP)
-        const t = [y, y + 2 * LIFT].map((t) => Math.min(Math.max(t, HEADER + EDGE), vh - EDGE - h)).find(free)
-        if (t === undefined) continue
-        boxes.push([l, t, l + w, t + h])
-        placed.add(j)
-        const nudge = `${Math.round(l - x)}px ${Math.round(t - y)}px`
-        if (nudges[j] !== nudge) label.style.translate = nudges[j] = nudge
+      placed.clear()
+      tmp.copy(origin).applyMatrix4(g.matrixWorld).project(camera)
+      if (k > 0.6 && L.origin && place(L.origin, ((tmp.x + 1) / 2) * vw, ((1 - tmp.y) / 2) * vh, boxes, vw, vh)) placed.add(L.origin)
+      const want = focus >= 0 ? [focus] : settled ? spot : []
+      for (const j of want) {
+        const label = L.markets[j]
+        if (placed.size >= MAX_LABELS || !label || !screen[j][2]) continue
+        if (place(label, screen[j][0], screen[j][1], boxes, vw, vh)) placed.add(label)
       }
-      want.length = 0
-      labels.current.forEach((label, j) => {
-        const o = placed.has(j) ? (hl < 0 || hl === j ? '1' : '0.4') : '0'
-        if (label && label.style.opacity !== o) label.style.opacity = o
-      })
-      lastHl = hl
+      setOpacity(L.origin, placed.has(L.origin!))
+      L.markets.forEach((label) => setOpacity(label, placed.has(label!)))
       invalidate()
     })
-  }, [camera, get, invalidate, routes, worldIndex])
+
+    return () => {
+      off()
+      io.disconnect()
+      removeEventListener('pointermove', onPointer)
+      removeEventListener('pointerdown', onPointer)
+      document.documentElement.removeEventListener('pointerleave', onLeave)
+      removeEventListener('resize', onResize)
+    }
+  }, [camera, get, invalidate, labels, origin, routes, worldIndex])
 
   return (
     <group ref={group}>
@@ -169,13 +298,14 @@ function Earth({ worldIndex }: { worldIndex: number }) {
         <sphereGeometry args={[1, seg, seg / 2]} />
         <shaderMaterial args={[haze]} blending={AdditiveBlending} transparent depthWrite={false} />
       </mesh>
-      <mesh scale={1.06}>
+      <mesh scale={1.025}>
         <sphereGeometry args={[1, 64, 32]} />
         <shaderMaterial args={[atmosphere]} side={BackSide} transparent depthWrite={false} />
       </mesh>
+      {/* origin pin: marigold, a touch larger than the market dots */}
       <mesh position={origin} ref={originDot}>
-        <sphereGeometry args={[0.012, 12, 8]} />
-        <meshBasicMaterial color={BRASS} />
+        <sphereGeometry args={[0.016, 12, 8]} />
+        <meshBasicMaterial color={MARIGOLD} />
       </mesh>
       {routes.map((r, j) => (
         <group key={MARKET_COORDS[j].name}>
@@ -186,18 +316,15 @@ function Earth({ worldIndex }: { worldIndex: number }) {
             }}
             points={r.points}
             color={BRASS}
-            lineWidth={env.mobile ? 1 : 2}
+            lineWidth={LINE_W}
+            opacity={OP}
             transparent
+            depthWrite={false}
           />
           <mesh position={r.to} scale={0} ref={(m) => void (dots.current[j] = m)}>
-            <sphereGeometry args={[0.011, 10, 8]} />
+            <sphereGeometry args={[0.009, 10, 8]} />
             <meshBasicMaterial color={BRASS} />
           </mesh>
-          <Html position={r.to} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
-            <span className="globe-label mono" ref={(s) => void (labels.current[j] = s)} style={{ opacity: 0 }}>
-              {MARKET_COORDS[j].name}
-            </span>
-          </Html>
         </group>
       ))}
     </group>
@@ -206,24 +333,39 @@ function Earth({ worldIndex }: { worldIndex: number }) {
 
 export default function GlobeCanvas() {
   const worldIndex = film.chapters.findIndex((c) => c.id === 'world')
+  const labels = useRef<GlobeLabels>({ markets: [], origin: null })
   return (
-    <Canvas
-      className="globe-canvas"
-      dpr={env.mobile ? 1 : [1, 1.5]}
-      frameloop="demand"
-      gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
-      camera={{ fov: 35, near: 0.01, far: 20, position: [0, 0, 3.2] }}
-      onCreated={({ gl }) => {
-        gl.toneMapping = ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.1
-      }}
-    >
-      <ambientLight intensity={0.9} />
-      <hemisphereLight args={['#ffffff', '#cfe3ea', 0.8]} />
-      <directionalLight position={[-3, 2, 3]} intensity={2.5} />
-      <Suspense fallback={null}>
-        <Earth worldIndex={worldIndex} />
-      </Suspense>
-    </Canvas>
+    <>
+      <Canvas
+        className="globe-canvas"
+        // phones up to 2× so the globe's silhouette isn't a jagged, upscaled edge
+        dpr={env.mobile ? [1, 2] : [1, 1.5]}
+        frameloop="demand"
+        gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
+        camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
+        onCreated={({ gl }) => {
+          gl.toneMapping = ACESFilmicToneMapping
+          gl.toneMappingExposure = 1.1
+        }}
+      >
+        <ambientLight intensity={0.9} />
+        <hemisphereLight args={['#ffffff', '#cfe3ea', 0.8]} />
+        <directionalLight position={[-3, 2, 3]} intensity={2.5} />
+        <Suspense fallback={null}>
+          <Earth worldIndex={worldIndex} labels={labels} />
+        </Suspense>
+      </Canvas>
+      {/* positioned per frame by Earth; decorative (the stage is aria-hidden), the market list is the real text */}
+      <div className="globe-labels">
+        <span className="globe-label globe-label--origin mono" ref={(s) => void (labels.current.origin = s)}>
+          {ORIGIN.name}
+        </span>
+        {MARKET_COORDS.map((m, j) => (
+          <span key={m.name} className="globe-label mono" ref={(s) => void (labels.current.markets[j] = s)}>
+            {m.name}
+          </span>
+        ))}
+      </div>
+    </>
   )
 }
