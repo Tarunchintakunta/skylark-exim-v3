@@ -212,8 +212,8 @@ function tick() {
   if (!scrolled && frame.scroll > 2) scrolled = true
   if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
-    // the one after that once the next can play through too (short chapters pass in < 1 s)
-    const ahead2 = videoNearId(ahead, frame.dir < 0 ? -1 : 1)
+    // the one after that once the next can play through too (short chapters pass in < 1 s); phones only ever prefetch the next
+    const ahead2 = env.mobile ? null : videoNearId(ahead, frame.dir < 0 ? -1 : 1)
     if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
   }
   setShown(active && active.painted && !active.dead ? active : null)
