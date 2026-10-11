@@ -384,7 +384,7 @@ for i in range(10):
 blds.obj('HARBOUR_Buildings')
 wires = P.MB()                    # utility poles along the road, sagging cables between them and over to the facades
 POLES = []
-for i in range(12):
+for i in range(1 if DEPART else 0, 12):   # o-depart: no pole in front of the rising f40-f80 camera
     for side in (-1, 1):
         px, py = TRK.x - 1.5 + (-7.0 if side < 0 else 3.9), -14 - i * 13
         POLES.append((px, py))
