@@ -39,20 +39,29 @@ test('inside the film the toggle lands on the other path\'s first chapter', asyn
   expect(Math.abs(top)).toBeLessThan(4)
 })
 
-test('the hero is moving before the first scroll, then scrubbing takes over', async ({ page }) => {
+test('the hero loop plays, loops, and hands over to the scrubbed story on scroll (#197)', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  const video = page.locator('video[src*="/opening_"]')
-  const t1 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  const loop = page.locator('video.hero__video')
+  await expect(loop).toHaveAttribute('loop', '')
+  const t1 = await loop.evaluate((v: HTMLVideoElement) => v.currentTime)
   await page.waitForTimeout(700)
-  const t2 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  const t2 = await loop.evaluate((v: HTMLVideoElement) => v.currentTime)
   expect(t2).toBeGreaterThan(t1)
   // the logo reveal unlocks scrolling when it finishes
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.mouse.move(700, 450)
-  await page.mouse.wheel(0, 300)
-  await page.waitForTimeout(600)
-  expect(await video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  const start = await page.locator('[data-chapter="start"]').evaluate((el) => (el as HTMLElement).offsetHeight)
+  for (let y = 0; y < start * 0.45; y += 100) {
+    await page.mouse.wheel(0, 100)
+    await page.waitForTimeout(60)
+  }
+  await page.waitForTimeout(800)
+  // past the hand-off: the loop has faded out and paused, the opening shot scrubs underneath
+  expect(await page.locator('.hero__media').evaluate((el) => (el as HTMLElement).style.opacity)).toBe('0')
+  expect(await loop.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.currentSrc))
+  expect(shown.join()).toContain('/opening_')
 })
 
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
