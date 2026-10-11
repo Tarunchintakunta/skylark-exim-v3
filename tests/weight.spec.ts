@@ -15,6 +15,9 @@ const CAPS: [RegExp, number][] = [
   [/_1280\.mp4$/, 2300],
   [/_960\.mp4$/, 1400],
   [/_720\.mp4$/, 1230],
+  // product stills (#195): phones get 480/640 only, so those stay under 70 KB; 960 is desktop, under 150 KB
+  [/\/prod-[^/]+_(480|640)\.(avif|webp)$/, 70],
+  [/\/prod-[^/]+_960\.(avif|webp)$/, 150],
   [/_720\.webp$/, 40],
   [/\.webp$/, 120],
   [/\.glb$/, 1536],
