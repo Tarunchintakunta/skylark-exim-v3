@@ -139,9 +139,11 @@ def iqf_action(C):
             kp.interpolation = 'LINEAR'
     tx = CX + 3.6                                     # (tunnel mouth frost + vapour are built with the tunnel)
     # low and close over the belt: the glazed prawns read as prawns, the hood and tunnel steel behind them
-    return _cam('CAM_IQF', [(910, (tx - 0.75, 58.9, DZ + 1.16), (tx + 0.05, 57.3, DZ + 0.98)),
-                            (1053, (tx - 0.6, 58.15, DZ + 1.14), (tx + 0.05, 56.5, DZ + 1.05)),
-                            (1070, (tx - 0.59, 58.1, DZ + 1.14), (tx + 0.05, 56.45, DZ + 1.05))], lens=45, fstop=4.0)
+    # mid-high over the belt end, looking down ~25 deg: the C-curl of each glazed prawn reads on the dark open mesh,
+    # the glazing hood and tunnel steel behind
+    return _cam('CAM_IQF', [(910, (tx - 0.55, 59.35, DZ + 1.75), (tx + 0.02, 57.7, DZ + 0.98)),
+                            (1053, (tx - 0.45, 58.95, DZ + 1.68), (tx + 0.02, 57.15, DZ + 1.0)),
+                            (1070, (tx - 0.44, 58.92, DZ + 1.68), (tx + 0.02, 57.1, DZ + 1.0))], lens=40, fstop=5.6)
 
 
 def pack_action(C):

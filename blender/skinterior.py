@@ -402,23 +402,22 @@ def _mesh_belt():
     pb = nt.nodes['Principled BSDF']
     tc = nt.nodes.new('ShaderNodeTexCoord')
     bk = nt.nodes.new('ShaderNodeTexBrick')
-    bk.inputs['Scale'].default_value = 35.0     # mesh readable at the IQF close-up
-    bk.inputs['Mortar Size'].default_value = 0.25
-    bk.inputs['Color1'].default_value = (0.02, 0.022, 0.025, 1)
-    bk.inputs['Color2'].default_value = (0.03, 0.032, 0.035, 1)
-    bk.inputs['Mortar'].default_value = (0.2, 0.21, 0.22, 1)     # wires: dull steel
+    bk.inputs['Scale'].default_value = 12.0     # ~2 cm open cells, wires ~3 mm: reads as mesh at mid distance
+    bk.inputs['Mortar Size'].default_value = 0.04
+    bk.inputs['Brick Width'].default_value = 0.25
+    bk.inputs['Row Height'].default_value = 0.25
+    bk.offset = 0.0
+    bk.inputs['Color1'].default_value = (0, 0, 0, 1)
+    bk.inputs['Color2'].default_value = (0, 0, 0, 1)
+    bk.inputs['Mortar'].default_value = (1, 1, 1, 1)             # wire mask
     L.new(tc.outputs['Object'], bk.inputs['Vector'])
-    L.new(bk.outputs['Color'], pb.inputs['Base Color'])
-    mr = nt.nodes.new('ShaderNodeMapRange')
-    mr.inputs['To Min'].default_value = 0.0
-    mr.inputs['To Max'].default_value = 1.0
-    L.new(bk.outputs['Fac'], mr.inputs['Value'])
-    L.new(mr.outputs[0], pb.inputs['Metallic'])
-    pb.inputs['Roughness'].default_value = 0.5   # glints, not a mirror sheet at grazing angles
-    bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.6
-    L.new(bk.outputs['Fac'], bp.inputs['Height'])
-    L.new(bp.outputs[0], pb.inputs['Normal'])
+    sep = nt.nodes.new('ShaderNodeSeparateColor')
+    L.new(bk.outputs['Color'], sep.inputs[0])
+    L.new(sep.outputs[0], pb.inputs['Alpha'])                    # open mesh: the return run and the floor show through
+    pb.inputs['Base Color'].default_value = (0.09, 0.095, 0.1, 1)   # dark stainless wire
+    pb.inputs['Metallic'].default_value = 1.0
+    pb.inputs['Roughness'].default_value = 0.35
+    m.surface_render_method = 'DITHERED'
     return m
 
 
@@ -645,48 +644,78 @@ def lab(C, M, rnd, shrimp_fn):
     p.make('IN_Clipboard', M['label'], None, coll=C)
 
 
-def _glaze_mat():
-    """Frozen, glazed prawn: pale grey-pink flesh under a frosted ice glaze (clear coat, frost speckle, a little SSS)."""
-    m = bpy.data.materials.get('IN_GlazedPrawn')
+def _iqf_prawn():
+    """IQF prawn from the photoreal scan (CC BY 4.0, docs/LICENSES.md): antennae (their own materials) removed,
+    decimated to 25% like every plant prawn, bent into the frozen C-curl, lying on its side (lateral axis up) so the
+    curl reads from above, under a clear glaze coat with a little frost. Falls back to the farm mesh."""
+    me = bpy.data.meshes.get('IN_IQFPrawn')
+    if me:
+        return me
+    import skscan
+    src = skscan.mesh('SCAN_Shrimp')
+    if src is None:
+        import skfarm as F
+        return F.shrimp_mesh()
+    tmp_me = src.copy()
+    bm = bmesh.new()
+    bm.from_mesh(tmp_me)
+    hige = {i for i, m in enumerate(tmp_me.materials) if m and 'Hige' in m.name}
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index in hige], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(tmp_me)
+    bm.free()
+    t = bpy.data.objects.new('_iqf_tmp', tmp_me)
+    bpy.context.scene.collection.objects.link(t)
+    t.modifiers.new('dec', 'DECIMATE').ratio = 0.25
+    b = t.modifiers.new('curl', 'SIMPLE_DEFORM')
+    b.deform_method = 'BEND'
+    b.deform_axis = 'Z'
+    b.angle = 2.0                                     # ~115 deg: the C of a frozen prawn
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(t.evaluated_get(dg))
+    me.name = 'IN_IQFPrawn'
+    bpy.data.objects.remove(t)
+    bpy.data.meshes.remove(tmp_me)
+    me.materials.clear()
+    me.materials.append(_glaze_scan(src.materials[0]))
+    for p in me.polygons:
+        p.material_index = 0
+    return me
+
+
+def _glaze_scan(m0):
+    """The scan's own shell texture under an ice glaze: clear coat, a cool frost veil, dull where frosted."""
+    m = bpy.data.materials.get('IN_IQFGlazeScan')
     if m:
         return m
-    m = bpy.data.materials.new('IN_GlazedPrawn')
-    m.use_nodes = True
+    m = m0.copy()
+    m.name = 'IN_IQFGlazeScan'
     nt = m.node_tree
-    L = nt.links
-    pb = nt.nodes['Principled BSDF']
-    tc = nt.nodes.new('ShaderNodeTexCoord')
-    nz = nt.nodes.new('ShaderNodeTexNoise')
-    nz.inputs['Scale'].default_value = 140.0
-    nz.inputs['Detail'].default_value = 4
-    L.new(tc.outputs['Object'], nz.inputs['Vector'])
-    seg = nt.nodes.new('ShaderNodeTexWave')                      # shell segments along the body
-    seg.inputs['Scale'].default_value = 9.0
-    L.new(tc.outputs['Object'], seg.inputs['Vector'])
-    cr = nt.nodes.new('ShaderNodeValToRGB')
-    cr.color_ramp.elements[0].color = (0.56, 0.46, 0.43, 1)   # shell bands read through the glaze
-    cr.color_ramp.elements[1].color = (0.84, 0.76, 0.72, 1)
-    L.new(seg.outputs['Fac'], cr.inputs[0])
-    fr = nt.nodes.new('ShaderNodeMix')
-    fr.data_type = 'RGBA'
-    fm = nt.nodes.new('ShaderNodeMapRange')
-    fm.inputs['From Min'].default_value = 0.55
-    fm.inputs['From Max'].default_value = 0.75
-    fm.inputs['To Max'].default_value = 0.35     # frost speckle, not a furry white coat
-    L.new(nz.outputs['Fac'], fm.inputs['Value'])
-    L.new(fm.outputs[0], fr.inputs[0])
-    L.new(cr.outputs[0], fr.inputs[6])
-    fr.inputs[7].default_value = (0.9, 0.93, 0.95, 1)            # frost
-    L.new(fr.outputs[2], pb.inputs['Base Color'])
-    L.new(fm.outputs[0], pb.inputs['Roughness'])
-    pb.inputs['Coat Weight'].default_value = 1.0                 # the ice glaze
-    pb.inputs['Coat Roughness'].default_value = 0.06
-    pb.inputs['Subsurface Weight'].default_value = 0.15
-    pb.inputs['Transmission Weight'].default_value = 0.25    # translucent ice glaze
-    bp = nt.nodes.new('ShaderNodeBump')
-    bp.inputs['Strength'].default_value = 0.1
-    L.new(nz.outputs['Fac'], bp.inputs['Height'])
-    L.new(bp.outputs[0], pb.inputs['Normal'])
+    pb = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    pb.inputs['Coat Weight'].default_value = 1.0
+    pb.inputs['Coat Roughness'].default_value = 0.04
+    pb.inputs['Coat Tint'].default_value = (0.92, 0.96, 1.0, 1)
+    pb.inputs['Roughness'].default_value = 0.45
+    col = pb.inputs['Base Color']
+    if col.links:
+        src = col.links[0].from_socket
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        nz = nt.nodes.new('ShaderNodeTexNoise')
+        nz.inputs['Scale'].default_value = 160.0
+        nz.inputs['Detail'].default_value = 4
+        nt.links.new(tc.outputs['Object'], nz.inputs['Vector'])
+        mr = nt.nodes.new('ShaderNodeMapRange')
+        mr.inputs['From Min'].default_value = 0.5
+        mr.inputs['From Max'].default_value = 0.75
+        mr.inputs['To Min'].default_value = 0.12
+        mr.inputs['To Max'].default_value = 0.45
+        nt.links.new(nz.outputs['Fac'], mr.inputs['Value'])
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA'
+        nt.links.new(mr.outputs[0], mx.inputs[0])
+        nt.links.new(src, mx.inputs[6])
+        mx.inputs[7].default_value = (0.82, 0.86, 0.9, 1)          # frost veil
+        nt.links.new(mx.outputs[2], col)
     return m
 
 
@@ -839,27 +868,22 @@ def freezing(C, M, rnd, shrimp_fn):
     p.box((tx, hy - 0.6, DZ + 1.35), (1.3, 0.012, 0.03))
     p.make('IN_GlazeFrost', M['frost'], None, bevel=0.004, coll=C)
     # glazing mist: soft vapour sheets under the nozzles (no thin spray lines)
-    vap = bpy.data.materials.get('IN_ColdVapour')
-    for k in range(4):
-        p = Part()
-        p.box((tx + (k - 1.5) * 0.04, hy + (k - 1.5) * 0.09, DZ + 1.1), (1.15, 0.02, 0.36))
-        p.make('IN_GlazeMist%d' % k, vap, None, coll=C)
+    # (r8: the four vertical mist sheets read as glass panes over the belt; the tunnel-mouth vapour carries the cold)
     # glazed, frosted prawns packed on the belt after the hood (IQF: single layer, close together)
-    glazed = _glaze_mat()
     k = 0
     for row in range(16):
         yy = hy + 0.7 + row * 0.19
         if yy > 59.5:
             break
         for col in range(8):
-            import skfarm as F                        # curled whole prawn (segments, tail fan, legs, antennae), lying
-            o = bpy.data.objects.new('IN_IQF%03d' % k, F.shrimp_mesh())   # on its side: the straight scan read as fish
+            o = bpy.data.objects.new('IN_IQF%03d' % k, _iqf_prawn())    # curled glazed prawn lying on its side
             C.objects.link(o)
-            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.008, 0.008), yy, DZ + 0.987)
-            o.rotation_euler = (1.5708, 0, (1.5708 if row % 2 else -1.5708) + rnd.uniform(-0.12, 0.12))
-            for sl in o.material_slots:
-                sl.link = 'OBJECT'
-                sl.material = glazed
+            if rnd.random() < 0.12:                   # gaps: hand-spread, not a printed grid
+                continue
+            o.location = (tx - 0.38 + col * 0.108 + rnd.uniform(-0.015, 0.015), yy + rnd.uniform(-0.02, 0.02),
+                          DZ + 0.99)
+            o.rotation_euler = (0, 0, (1.5708 if (row + col) % 2 else -1.5708) + rnd.uniform(-0.3, 0.3))
+            o.scale = (1.0, 1.0, 1.0) if rnd.random() < 0.5 else (0.92, 0.92, 0.92)
             k += 1
     # trolleys of trays (tray racks)
     for k, (xx, yy) in enumerate(((CX - 1.2, 52.8), (CX - 2.0, 56.8), (XL + 1.3, 55.8))):
@@ -1026,10 +1050,29 @@ def _wet_floor():
     L.new(rr.outputs[0], pb.inputs['Roughness'])
     cm = nt.nodes.new('ShaderNodeMix')
     cm.data_type = 'RGBA'
-    cm.inputs[6].default_value = (0.3, 0.35, 0.33, 1)
-    cm.inputs[7].default_value = (0.2, 0.24, 0.23, 1)
+    cm.inputs[6].default_value = (0.2, 0.235, 0.225, 1)      # dry: mid grey-green epoxy (r8: was near white on screen)
+    cm.inputs[7].default_value = (0.1, 0.12, 0.115, 1)       # wet: dark
     L.new(wet.outputs[0], cm.inputs[0])
-    L.new(cm.outputs[2], pb.inputs['Base Color'])
+    sc = nt.nodes.new('ShaderNodeTexNoise')                   # trolley scuffs: long dark streaks along the hall
+    sc.inputs['Scale'].default_value = 6.0
+    sc.inputs['Detail'].default_value = 6
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.inputs['Scale'].default_value = (6.0, 0.4, 1.0)
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    L.new(mp.outputs[0], sc.inputs['Vector'])
+    scm = nt.nodes.new('ShaderNodeMapRange')
+    scm.inputs['From Min'].default_value = 0.62
+    scm.inputs['From Max'].default_value = 0.72
+    scm.inputs['To Min'].default_value = 1.0
+    scm.inputs['To Max'].default_value = 0.6
+    L.new(sc.outputs['Fac'], scm.inputs['Value'])
+    dk = nt.nodes.new('ShaderNodeMix')
+    dk.data_type = 'RGBA'
+    dk.blend_type = 'MULTIPLY'
+    dk.inputs[0].default_value = 1.0
+    L.new(cm.outputs[2], dk.inputs[6])
+    L.new(scm.outputs[0], dk.inputs[7])
+    L.new(dk.outputs[2], pb.inputs['Base Color'])
     m['wet'] = True
 
 
