@@ -1,4 +1,4 @@
-import { film, type CaptionCopy } from './content'
+import { bridge, film, type CaptionCopy } from './content'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
@@ -96,7 +96,7 @@ const SHARED: ChapterDef[] = [
   {
     id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck stands reversed into the plant loading bay, cab outside; the driver in a hi-vis vest walks toward the dock.' },
+      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
     ],
     captions: caps('intake', [[0.1, 0.92]]),
@@ -136,7 +136,7 @@ const SHARED: ChapterDef[] = [
   {
     id: 'sea', path: 'shared', label: 'At sea', vh: 120, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-ship', alt: 'From high above the crane boom, the loaded container ship moves off the berth with a tug alongside.' },
+      { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the loaded container ship pulls away from the quay behind a tug, its wake spreading.' },
       { kind: 'video', id: 'x-ship', alt: 'Seen from straight above, the loaded container ship sails out across deep blue water, trailing a white wake.' },
     ],
     captions: caps('sea', [[0.1, 0.85]]),
@@ -148,6 +148,13 @@ const SHARED: ChapterDef[] = [
   },
 ]
 
-export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...SHARED]
-export const POND: ChapterDef[] = [start, ...POND_ONLY, ...SHARED]
+/** The other origin's first chapter opens with the bridge caption; its own captions start after it. */
+const bridged = ([first, ...rest]: ChapterDef[]): ChapterDef[] => [
+  { ...first, captions: [{ ...bridge, at: [0.02, 0.3] }, ...first.captions.map((c) => ({ ...c, at: [Math.max(c.at[0], 0.34), c.at[1]] as [number, number] }))] },
+  ...rest,
+]
+
+/** One story with both origins: the chosen path first, then the other one, then the plant, port and world. */
+export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...bridged(POND_ONLY), ...SHARED]
+export const POND: ChapterDef[] = [start, ...POND_ONLY, ...bridged(OCEAN_ONLY), ...SHARED]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)

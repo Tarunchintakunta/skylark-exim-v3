@@ -1,9 +1,9 @@
 import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef } from 'react'
-import { start } from '../config/content'
+import { exportsLine, start } from '../config/content'
 import { env } from '../engine/env'
-import { setPath } from '../engine/path'
+import { goTo, setPath } from '../engine/path'
 import { frame, useApp } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import './hero.css'
@@ -49,6 +49,25 @@ export function Hero() {
           {lead} <em>{last}</em>.
         </h1>
         <p className="hero__body" data-fade>{start.body}</p>
+        <div className="hero__exports" data-fade>
+          <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
+          <ul>
+            {exportsLine.items.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+        <a
+          className="hero__contact"
+          href="#quote"
+          data-fade
+          onClick={(e) => {
+            e.preventDefault()
+            goTo('quote')
+          }}
+        >
+          Contact us
+        </a>
         <a
           className="hero__path"
           href={`#${other}`}

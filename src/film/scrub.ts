@@ -2,7 +2,7 @@ import gsap from 'gsap'
 import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
 import { onTick } from '../engine/ticker'
-import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
+import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
@@ -111,7 +111,7 @@ function load(s: Slot, id: string) {
   s.pending = null
   s.dead = false
   s.ready = false
-  s.v.src = clipUrl(id)
+  s.v.src = clipUrl(id, FILM_W)
   s.v.load()
   // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives
   setTimeout(() => {
@@ -212,8 +212,8 @@ function tick() {
   if (!scrolled && frame.scroll > 2) scrolled = true
   if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
-    // the one after that once the next can play through too (short chapters pass in < 1 s)
-    const ahead2 = videoNearId(ahead, frame.dir < 0 ? -1 : 1)
+    // the one after that once the next can play through too (short chapters pass in < 1 s); phones only ever prefetch the next
+    const ahead2 = env.mobile ? null : videoNearId(ahead, frame.dir < 0 ? -1 : 1)
     if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
   }
   setShown(active && active.painted && !active.dead ? active : null)
@@ -323,8 +323,8 @@ function enter(i: number, prev: number) {
     if (el instanceof HTMLImageElement && m.kind === 'video' && !env.mobile) {
       const want = fromBelow ? endPosterUrl(m.id) : posterFor(m)!
       if (!el.src.endsWith(want)) el.src = want
-      // the end frame is only needed for scrolling back into this clip from below
-      else new Image().src = endPosterUrl(m.id)
+      // the end frame is only needed for scrolling back into this clip from below (not on the first screen)
+      else if (prev >= 0) new Image().src = endPosterUrl(m.id)
     }
   }
   // intentional cut (documentation → port): 250 ms fade through the page colour
