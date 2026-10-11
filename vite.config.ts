@@ -1,8 +1,9 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { staticHero } from './scripts/static-hero'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), staticHero()],
   // three/R3F/drei load as a lazy chunk via React.lazy (src/film/GlobeLayer.tsx); no manualChunks needed
   build: {
     target: 'es2022',
