@@ -132,13 +132,13 @@ HUD = the fixed cold-chain readout on the right edge. It shows the **workflow st
 - Headline: **From Visakhapatnam to the world's table.**
 - Body: none (let the shot breathe); a small mono line: `Cold chain · outbound`.
 - Visual: camera rises to a straight-down aerial as the loaded container ship (colourful stacks with rows of white reefers) sails out, cutting a white wake across deep blue water (Mont-Fort style), then keeps rising so the ship becomes small in a field of bright deep blue. The last frame matches the globe's starting blue.
-- Scroll: 120 vh. Last 15% cross-fades (opacity only) into the globe, whose camera starts close over the Bay of Bengal in the same blue.
+- Scroll: 120 vh. Last 15% cross-fades (opacity only) into the globe, whose camera starts close over the sea off Visakhapatnam in the same blue.
 - HUD: `09 EXPORT` · `AT SEA · COLD CHAIN`.
 
 ### 11. The world. Source: GLB / R3F globe (bright daytime, NOT dark)
 - Headline: **Trusted in 16 markets.**
 - Body: "China · Europe · Vietnam · UAE (Sharjah) · Turkey · Thailand · Taiwan · Sri Lanka · Malaysia · Kuwait · Japan · Egypt · Bangkok · Algeria · Russia · Hong Kong"
-- Visual: bright Earth (daylight albedo, soft blue atmosphere, light page background `#eef5f6` → sky), camera pulls back from the Bay of Bengal to the full globe; gold arcs draw from Visakhapatnam to each market one by one as you scroll (drawn in code), each market label fades in when its arc lands. Hover/focus a market name in the list highlights its arc.
+- Visual: bright Earth (daylight albedo, soft blue atmosphere, light page background `#eef5f6` → sky), camera pulls back from the sea off Visakhapatnam to the full globe; gold arcs draw from Visakhapatnam to each market one by one as you scroll (drawn in code), each market label fades in when its arc lands. Hover/focus a market name in the list highlights its arc.
 - Scroll: 220 vh pinned. Ends with the globe slowly auto-rotating (only while in view).
 - HUD: `09 EXPORT` · `16 MARKETS`. HUD fades out at the end of this chapter.
 

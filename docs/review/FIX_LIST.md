@@ -271,7 +271,7 @@ Copy is mostly clean: all body lines trace to CONTENT.md, and no banned claims w
 - 🟠 **C1.** HUD step order 02 → **04 → 03** in Process (`config/chapters.ts:115-117`) contradicts the website workflow (3 Processing, 4 Grading). It also shows 09/09 on four chapters. (This goes away with the HUD.)
 - 🟡 **C2.** `o2` caption "Initial quality checks (size, freshness, health) are done before acceptance" sits on a boat/catch scene, but on the real site that's an acceptance step at the plant. Move it to Intake.
 - 🟡 **C3.** Alt/sr-only text says "**yellowfin** tuna" (`config/chapters.ts:64,70`). The site only says "Tuna", so drop "yellowfin".
-- 🟡 **C4.** Code comments still say "Bay of Bengal" (`stage.css:9`, `Globe.tsx:31,77,86`). It isn't visible, but keep it out of any visible copy.
+- 🟡 **C4.** Code comments still named the sea (`stage.css:9`, `Globe.tsx`). Fixed in #173; keep sea names out of any copy.
 - 🟡 **C5.** Headline style: "Home under a chilled seal.", "Made to order." and "Out of the water." are editorial and allowed, but weak. Have Tarun approve the headline set in one PR (list in the prompt).
 
 ## 8. Repo / CI

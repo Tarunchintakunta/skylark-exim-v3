@@ -7,8 +7,11 @@ import { open } from './helpers'
  * one pass down downloads no clip twice, and coming back from the business sections to the port
  * re-uses the two clips still held by the decoders (no re-download).
  */
-/** first chapter each Ocean clip plays in (a2 plays in the second half of o1, so o1's start is a strict bound) */
-const clipChapter: Record<string, string> = { a1: 'o1', a2: 'o1', a3: 'o3', a4: 'o4', 'x-cranes': 'port', 'x-ship': 'sea' }
+import { OCEAN } from '../src/config/chapters'
+
+/** the clip each chapter opens with on the Ocean path (later clips in a chapter are prefetched during the one before, so the chapter's start is no bound for them) */
+const clipChapter: Record<string, string> = {}
+for (const ch of OCEAN) if (ch.media[0]?.kind === 'video') clipChapter[ch.media[0].id] ??= ch.id
 
 test('clips prefetch ahead of their chapter, one download per pass, no re-download on the way back', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
@@ -51,7 +54,7 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   const port = chapters.find((c) => c.id === 'port')!.top
   await page.evaluate((y) => window.scrollTo(0, y + 200), port)
   await page.waitForTimeout(1500)
-  const refetched = ['x-cranes', 'x-ship'].filter((id) => {
+  const refetched = ['hf-ship', 'x-ship'].filter((id) => {
     const f = [...bytes.keys()].find((k) => k.includes(`/${id}_`))
     return f && (bytes.get(f) ?? 0) > (afterPass.get(f) ?? 0) * 1.1
   })

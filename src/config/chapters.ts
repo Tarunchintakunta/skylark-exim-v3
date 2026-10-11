@@ -1,4 +1,4 @@
-import { film, type CaptionCopy } from './content'
+import { bridge, film, type CaptionCopy } from './content'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
@@ -43,33 +43,30 @@ export interface ChapterDef {
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
 const start: ChapterDef = {
-  id: 'start', path: 'shared', label: 'Start', vh: 120, joinNext: 'shared-frame',
-  media: [{ kind: 'video', id: 'opening', alt: 'Underwater light rising to the surface of the sea at dusk.' }],
+  id: 'start', path: 'shared', label: 'Start', vh: 120, joinNext: 'crossfade',
+  media: [{ kind: 'video', id: 'opening', alt: 'Dawn at sea off the Andhra coast: the camera glides at water level toward a fishing town under green hills.' }],
   captions: [],
 }
 
 const OCEAN_ONLY: ChapterDef[] = [
   {
-    id: 'o1', path: 'ocean', label: 'Setting out', vh: 200, joinNext: 'shared-frame',
-    media: [
-      { kind: 'video', id: 'a1', alt: 'A harbour at sunrise; crew load ice onto a fishing boat.' },
-      { kind: 'video', id: 'a2', alt: 'The fishing boat steams out to open sea.' },
-    ],
+    id: 'o1', path: 'ocean', label: 'Setting out', vh: 200, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-depart', alt: 'A weathered white and blue fishing boat eases away from the stone quay at sunrise while the crew coil a rope and bring in a fender.' }],
     captions: caps('o1', [[0.08, 0.92]]),
   },
   {
-    id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'a3', alt: 'Yellowfin tuna on crushed ice in the boat’s hold.' }],
+    id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-catch', alt: 'Fishermen in oilskins haul a dripping net in over the rail, silver fish caught in the mesh.' }],
     captions: caps('o2', [[0.55, 1]]),
   },
   {
-    id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'a3', alt: 'Looking down into the ice hold: yellowfin tuna on crushed ice.' }],
+    id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced crates.' }],
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
-    id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'a4', alt: 'Crates go into a refrigerated truck, which drives the coast road and reverses to the lit intake door.' }],
+    id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-return', alt: 'Porters push trolleys of iced crates along the wharf as the fishing boat comes alongside.' }],
     captions: caps('o4', [[0.1, 0.9]]),
   },
 ]
@@ -77,40 +74,51 @@ const OCEAN_ONLY: ChapterDef[] = [
 const POND_ONLY: ChapterDef[] = [
   {
     id: 'p1', path: 'pond', label: 'The ponds', vh: 120, joinNext: 'crossfade',
-    media: [{ kind: 'still', poster: 'b2', alt: 'Aerial view of a grid of shrimp ponds with aerators at dusk.' }],
+    media: [{ kind: 'video', id: 'hf-ponds', alt: 'Aerial view over a grid of shrimp ponds on a bright morning, aerators throwing white water, a white refrigerated truck on a bund road.' }],
     captions: caps('p1', [[0.1, 0.92]]),
   },
   {
-    id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'b2', alt: 'A gloved hand takes a pond water sample; the meter reading goes into a logbook.' }],
+    id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician kneels on a plank walkway at the pond edge and fills a sample bottle with pond water.' }],
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
-    id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'shared-frame',
-    media: [{ kind: 'video', id: 'b3', alt: 'Shrimp go into iced crates, onto a small refrigerated truck that reverses to the plant bay.' }],
+    id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: workers wade waist-deep drawing the drag net toward the bank.' },
+      { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in blue and white crates beside the refrigerated truck.' },
+    ],
     captions: caps('p3', [[0.1, 0.9]]),
   },
 ]
 
 const SHARED: ChapterDef[] = [
   {
-    id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-intake', alt: 'A refrigerated truck backed up to the lit intake door of the plant at night.' }],
+    id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
+      { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
+    ],
     captions: caps('intake', [[0.1, 0.92]]),
   },
   {
     id: 'process', path: 'shared', label: 'Process', vh: 200, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-proc', alt: 'A clean quality lab bench with a microscope and a test instrument.' }],
+    media: [
+      { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp washed under spray bars and graded along a conveyor by workers in caps, masks and gloves.' },
+      { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table, then the camera glides through the glass door toward the quality lab.' },
+    ],
     captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
   },
   {
-    id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'shared-frame',
-    // the lab still holds "Tested before it moves." (0–20%), the cold store the freezing / packing / cold-storage captions
+    id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'crossfade',
+    // one shot per caption: lab, IQF, packing, cold store (each a quarter of the scroll)
     media: [
-      { kind: 'still', poster: 'ph-p-lab', span: 0.2, alt: 'A clean quality lab bench with a microscope and a test instrument.' },
-      { kind: 'still', poster: 'ph-p-freeze', alt: 'A cold-store aisle with racks of white cartons on pallets.' },
+      { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
+      { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
+      { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
+      { kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' },
     ],
-    captions: caps('coldchain', [[0.02, 0.2], [0.2, 0.55], [0.55, 0.8], [0.8, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
+    captions: caps('coldchain', [[0.02, 0.25], [0.25, 0.5], [0.5, 0.75], [0.75, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
   },
   {
     id: 'docs', path: 'shared', label: 'Documentation', vh: 100, joinNext: 'cut',
@@ -118,13 +126,19 @@ const SHARED: ChapterDef[] = [
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
-    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'shared-frame', scrim: 'soft',
-    media: [{ kind: 'video', id: 'x-cranes', alt: 'A white refrigerated truck parks under a ship-to-shore crane, which lifts the white reefer container on its cables onto the container ship.' }],
+    id: 'port', path: 'shared', label: 'The port', vh: 140, joinNext: 'crossfade', scrim: 'soft',
+    media: [
+      { kind: 'video', id: 'hf-stuff', alt: 'At the plant loading bays, a forklift carries a pallet of plain cartons toward a white refrigerated trailer.' },
+      { kind: 'video', id: 'hf-cranes', alt: 'On the container quay, a white reefer container on its trailer waits under a ship-to-shore crane beside the loaded ship.' },
+    ],
     captions: caps('port', [[0.1, 0.92]]),
   },
   {
     id: 'sea', path: 'shared', label: 'At sea', vh: 120, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'x-ship', alt: 'Seen from straight above, the loaded container ship sails out across deep blue water, trailing a white wake.' }],
+    media: [
+      { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the loaded container ship pulls away from the quay behind a tug, its wake spreading.' },
+      { kind: 'video', id: 'x-ship', alt: 'Seen from straight above, the loaded container ship sails out across deep blue water, trailing a white wake.' },
+    ],
     captions: caps('sea', [[0.1, 0.85]]),
   },
   {
@@ -134,6 +148,13 @@ const SHARED: ChapterDef[] = [
   },
 ]
 
-export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...SHARED]
-export const POND: ChapterDef[] = [start, ...POND_ONLY, ...SHARED]
+/** The other origin's first chapter opens with the bridge caption; its own captions start after it. */
+const bridged = ([first, ...rest]: ChapterDef[]): ChapterDef[] => [
+  { ...first, captions: [{ ...bridge, at: [0.02, 0.3] }, ...first.captions.map((c) => ({ ...c, at: [Math.max(c.at[0], 0.34), c.at[1]] as [number, number] }))] },
+  ...rest,
+]
+
+/** One story with both origins: the chosen path first, then the other one, then the plant, port and world. */
+export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...bridged(POND_ONLY), ...SHARED]
+export const POND: ChapterDef[] = [start, ...POND_ONLY, ...bridged(OCEAN_ONLY), ...SHARED]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)
