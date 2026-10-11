@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import { CONTACT } from '../config/content'
-import { goTo } from '../engine/path'
 import { bindReveals } from './reveal'
 
 /** Final call to action (redesign §6, #132): deep-sea band with the email set large, phones, both addresses, the profile PDF. */
@@ -36,14 +35,7 @@ export function Contact() {
           <p>{CONTACT.unit}</p>
         </div>
         <div className="contact-band__actions" data-reveal>
-          <a
-            className="contact-band__cta"
-            href="#quote"
-            onClick={(e) => {
-              e.preventDefault()
-              goTo('quote')
-            }}
-          >
+          <a className="contact-band__cta" href="/quote">
             Request export quote →
           </a>
           <a className="contact-band__pdf" href="/docs/skylark-exim-company-profile.pdf" download>

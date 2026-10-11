@@ -49,7 +49,7 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await page.waitForTimeout(1500)
   const afterPass = new Map(bytes)
   // past the film into Products, then back up to the port chapter
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
+  await page.evaluate(() => document.getElementById('contact')!.scrollIntoView())
   await page.waitForTimeout(1200)
   const port = chapters.find((c) => c.id === 'port')!.top
   await page.evaluate((y) => window.scrollTo(0, y + 200), port)

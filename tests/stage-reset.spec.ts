@@ -7,7 +7,7 @@ const visibleLayers = () =>
 
 test('exactly one stage layer per chapter after coming back from the business sections', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
+  await page.evaluate(() => document.getElementById('contact')!.scrollIntoView())
   await page.waitForTimeout(1500)
   const mids = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('[data-chapter]')].map((el) => el.offsetTop + el.offsetHeight * 0.4),
@@ -17,7 +17,7 @@ test('exactly one stage layer per chapter after coming back from the business se
   await page.waitForTimeout(700)
   expect(await page.evaluate(visibleLayers), 'landing chapter').toBe(1)
   // nav "Story" (smooth scroll back up), then walk every chapter
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
+  await page.evaluate(() => document.getElementById('contact')!.scrollIntoView())
   await page.waitForTimeout(1500)
   await page.getByRole('link', { name: 'Story' }).first().click()
   await page.waitForTimeout(2500)
