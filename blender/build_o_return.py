@@ -539,6 +539,6 @@ os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'o-return', '1', '288', 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
-s.render.motion_blur_shutter = 0.25   # the aerial move and the pans smeared whole tiles at 0.5
+s.render.motion_blur_shutter = 0.1   # the aerial move smeared whole tiles at 0.5 and 0.25 (test render at f60 without blur is sharp)
 bpy.ops.wm.save_mainfile()
 print('BUILT', OUT, len(bpy.data.objects), 'objects')
