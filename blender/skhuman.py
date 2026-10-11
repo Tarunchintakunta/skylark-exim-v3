@@ -958,40 +958,29 @@ def walk_cycle(ao, f0, f1, path, stride=0.72, base=None, arms=True, bob=0.025, p
 
 
 def _finger_curl(me, ao, side, curl, knuckle=0.085):
-    """{vertex index: curled position} for the fingers of one hand. The palm normal comes from the flat back-of-hand
-    plate (the spread fingers picked a sideways axis: long hooks), and each finger wraps on an arc through all three
-    joints instead of bending rigidly at the knuckle (lifted from the ocean lane's skhuman_ocean.grip)."""
+    """({vertex index: curled position}, knuckle axis) for the fingers of one hand: rotation about the knuckle axis,
+    more toward the tips. (The ocean lane's arc wrap flattened gloved fingers into ribbons around handles on these
+    meshes, so the pond lane keeps this version; the palm side was checked visually: +1 curls toward the palm.)"""
     import numpy as np
     hb = ao.data.bones['hand.' + side]
     h0, d = hb.head_local, (hb.tail_local - hb.head_local).normalized()
     co = np.array([v.co[:] for v in me.vertices])
     rel = co - np.array(h0[:])
     along = rel @ np.array(d[:])
-    perp = rel - np.outer(along, np.array(d[:]))
-    dist = np.linalg.norm(perp, axis=1)
-    pm = (along > 0.01) & (along < 0.075) & (dist < 0.06)
-    plate = perp[pm] - perp[pm].mean(axis=0)
-    _w, ev = np.linalg.eigh(plate.T @ plate)
+    dist = np.linalg.norm(rel - np.outer(along, np.array(d[:])), axis=1)
+    hand = (along > -0.01) & (along < 0.25) & (dist < 0.08)
+    fin = hand & (along > 0.09)
+    pts = co[fin] - co[fin].mean(axis=0)
+    _w, ev = np.linalg.eigh(pts.T @ pts)
     nrm = Vector(ev[:, 0])
-    nrm = (nrm - d * nrm.dot(d)).normalized()
-    tips = perp[(along > 0.15) & (along < 0.24) & (dist < 0.075)]
-    if len(tips) and float(tips.mean(axis=0) @ np.array(nrm[:])) - float(perp[pm].mean(axis=0) @ np.array(nrm[:])) < 0:
-        nrm = -nrm                                    # palm side = where the relaxed fingertips already lean
+    if nrm.x * h0.x > 0:              # palm normal points toward the body's midline (the rest palm faces the thigh)
+        nrm = -nrm
     axis = d.cross(nrm).normalized()
     piv = h0 + d * knuckle
-    fing = (along > knuckle) & (along < 0.27) & (dist < 0.11)    # spread fingertips sit far off the bone axis
     out = {}
-    lf = max(0.06, float(along[fing].max() - knuckle)) if fing.any() else 0.09
-    theta = curl * math.radians(250)
-    if abs(theta) < 1e-3:
-        return out, axis
-    R = lf / abs(theta)
-    pal = nrm * math.copysign(1.0, theta)
-    for i in np.nonzero(fing)[0]:
-        q = Vector(co[i]) - piv
-        a_, n_, w_ = q.dot(d), q.dot(pal), q.dot(axis)
-        ph = a_ / R
-        out[int(i)] = piv + axis * w_ + pal * R + (R - n_) * (d * math.sin(ph) - pal * math.cos(ph))
+    for i in np.nonzero(hand & (along > knuckle))[0]:
+        ang = curl * min(1.0, (along[i] - knuckle) / 0.07) * math.radians(105)
+        out[int(i)] = piv + Matrix.Rotation(ang, 3, axis) @ (Vector(co[i]) - piv)
     return out, axis
 
 
