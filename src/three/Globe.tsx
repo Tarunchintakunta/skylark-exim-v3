@@ -341,7 +341,7 @@ export default function GlobeCanvas() {
         // phones up to 2× so the globe's silhouette isn't a jagged, upscaled edge
         dpr={env.mobile ? [1, 2] : [1, 1.5]}
         frameloop="demand"
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
         onCreated={({ gl }) => {
           gl.toneMapping = ACESFilmicToneMapping
