@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 import { defineConfig, type Connect, type Plugin } from 'vite'
+import { staticHero } from './scripts/static-hero'
 
 /** /quote and /news are their own HTML entries so they never boot the film. */
 function documentRoutes(): Plugin {
@@ -34,7 +35,7 @@ const documents = process.env.BUILD_ENTRIES === 'documents'
 const page = (name: string) => resolve(import.meta.dirname, name)
 
 export default defineConfig({
-  plugins: [documentRoutes(), react()],
+  plugins: [documentRoutes(), react(), staticHero()],
   build: {
     target: 'es2022',
     // The second build adds quote.html and news.html. It must not wipe the homepage.

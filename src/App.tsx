@@ -1,25 +1,19 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { chaptersFor } from './config/chapters'
 import { bindPathHash } from './engine/path'
 import { useApp } from './engine/store'
 import { scrollToY } from './engine/ticker'
-import { Film } from './film/Film'
-import { About } from './sections/About'
-import { Close } from './sections/Close'
-import { Products } from './sections/Products'
-import { Trust } from './sections/Trust'
-import { bindRise } from './sections/rise'
-import { Contact } from './sections/Contact'
 import { ScrubStage } from './film/ScrubStage'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
 import { Hero } from './ui/Hero'
 
+const Story = lazy(() => import('./Story'))
+
 export default function App() {
   const path = useApp((s) => s.path)
   const ready = useApp((s) => s.ready)
   const chapters = chaptersFor(path)
-  useEffect(() => bindRise(document.getElementById('products')!), [])
   useEffect(() => {
     if (!ready) return
     const id = location.hash.slice(1)
@@ -48,12 +42,9 @@ export default function App() {
       <Header />
       <main id="main" tabIndex={-1}>
         <Hero />
-        <Film chapters={chapters} />
-        <Products />
-        <Trust />
-        <About />
-        <Close />
-        <Contact />
+        <Suspense fallback={null}>
+          <Story chapters={chapters} />
+        </Suspense>
       </main>
       <Loader />
     </>

@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { useEffect } from 'react'
 import { env } from '../engine/env'
+import { storyReady } from '../engine/boot'
 import { preloadCritical } from '../engine/preload'
 import { store } from '../engine/store'
 import { lockScroll, unlockScroll } from '../engine/ticker'
@@ -29,7 +30,7 @@ export function Loader() {
       root.setAttribute('aria-valuenow', String(Math.round(f * 100)))
     }
     let cancelled = false
-    preloadCritical(set).then(async () => {
+    Promise.all([preloadCritical(set), storyReady]).then(async () => {
       await new Promise((r) => setTimeout(r, Math.max(0, MIN_MS - (performance.now() - t0))))
       if (cancelled) return
       set(1)
@@ -38,6 +39,8 @@ export function Loader() {
       const done = () => {
         unlockScroll()
         root.remove()
+        // React's hero is identical and already visible underneath (#207)
+        document.getElementById('hero-static')?.remove()
       }
       if (env.reduced) {
         gsap.to(root, { autoAlpha: 0, duration: 0.2, onComplete: done })
