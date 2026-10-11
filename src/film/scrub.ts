@@ -48,12 +48,7 @@ const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
-/**
- * Opening (redesign §3): once the loader is done the first clip plays at 1× for INTRO_S so the hero is already moving,
- * then holds. The first scroll hands over to scrubbing from wherever it got to (introT0 → end of clip).
- */
-const INTRO_S = 2
-let introT0: number | null = null
+/** The hero's looping video (#197) covers the start chapter: its clip loads after the loader, its posters after the first scroll. */
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -198,18 +193,19 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  if (want) {
+  // the start clip loads once the loader is done (behind the hero loop) so the hand-off has frames ready
+  if (want && (scrolled || i > 0 || store.getState().ready)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
-      const t0 = i === 0 ? intro(active) : 0
-      if (t0 !== null) {
-        seek(active, p, vel, t0)
-        probe.target = t0 + p * Math.max(0, (active.v.duration || 0) - FRAME - t0)
-      }
+      seek(active, p, vel)
+      probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
     }
   }
-  if (!scrolled && frame.scroll > 2) scrolled = true
+  if (!scrolled && frame.scroll > 2) {
+    scrolled = true
+    loadPosters(i)
+  }
   if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
     // the one after that once the next can play through too (short chapters pass in < 1 s); phones only ever prefetch the next
@@ -251,20 +247,6 @@ function tick() {
   }
 }
 
-/** Intro playback for the opening clip. Returns the scrub start time once handed over, or null while it still plays. */
-function intro(s: Slot): number | null {
-  if (introT0 !== null) return introT0
-  const v = s.v
-  const scrolled = frame.scroll > 2
-  if (env.reduced || scrolled || (v.readyState >= 2 && v.currentTime >= INTRO_S)) {
-    v.pause()
-    introT0 = env.reduced ? 0 : Math.min(v.currentTime, INTRO_S)
-    return introT0
-  }
-  if (store.getState().ready && v.readyState >= 2 && v.paused) v.play().catch(() => (introT0 = v.currentTime))
-  return null
-}
-
 function seek(s: Slot, p: number, vel: number, t0 = 0) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
@@ -299,6 +281,7 @@ function clearLayers(keep: number) {
 
 /** Posters load lazily: this segment and the next two, but only this one until the loader is done (first screen = LCP). */
 function loadPosters(i: number) {
+  if (!scrolled) return
   const last = store.getState().ready ? i + 2 : i
   for (let k = i; k <= last; k++) {
     const p = posters[k]

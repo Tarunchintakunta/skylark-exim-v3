@@ -1,7 +1,7 @@
 import { statSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 
-/** Loader and first load (#86): the opening clip once, each font once, 3 posters at most, no RFQ chunk. */
+/** Loader and first load (#86, #197): the hero loop once, each font once, 3 posters at most, no RFQ chunk. */
 test('boot downloads each file once and only what the first screens need', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const page = await ctx.newPage()
@@ -26,7 +26,7 @@ test('boot downloads each file once and only what the first screens need', async
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForTimeout(2000)
 
-  const opening = [...bytes].filter(([f]) => f.includes('/opening_') && f.endsWith('.mp4'))
+  const opening = [...bytes].filter(([f]) => f.includes('/hero-loop_') && f.endsWith('.mp4'))
   for (const [f, b] of opening) expect(b, `${f} downloaded more than once`).toBeLessThanOrEqual(statSync(`dist${f}`).size * 1.1)
   const fonts = reqs.filter((f) => f.endsWith('.woff2'))
   expect(fonts.length, `fonts: ${fonts.join(', ')}`).toBe(new Set(fonts).size)
