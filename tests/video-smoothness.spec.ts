@@ -214,7 +214,9 @@ for (const [name, prof] of Object.entries(PROFILES)) {
       const seekLimit = prof.mobile ? LIMITS.seekP95Mobile : LIMITS.seekP95Desktop
       // §3: every chapter shows motion; stills are reported, not skipped
       // the documentation interlude stays a still by decision (#162)
-      expect.soft(rows.filter((r) => r.motion === 'STILL' && r.chapter !== 'world' && r.chapter !== 'docs').map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
+      // start: /#ocean and /#pond land on the path's first chapter (#210), and the start chapter's motion is the hero
+      // loop (#197), not a stage clip; smoke.spec.ts checks the loop on / (#212)
+      expect.soft(rows.filter((r) => r.motion === 'STILL' && !['world', 'docs', 'start'].includes(r.chapter)).map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
       for (const r of rows) {
         if (r.motion !== 'video') continue
         expect.soft(r.presentedFps, `${r.chapter} presented fps`).toBeGreaterThanOrEqual(LIMITS.fps)
