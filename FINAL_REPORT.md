@@ -58,11 +58,20 @@ Totals: 1920 tier 28.1 MB, 1280 17.5 MB, 960 10.4 MB, 720 6.6 MB (20 clips).
 ## Credits
 Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364, video 480), 44 % of the start balance. The credit guard (1,624) was never reached.
 
+## Coordinator re-verification (build 70f76d7, after the hero fix)
+- **Hero fix:** cherry-picked 4dceb8f from #169 (fluid `--fs-hero`, `max-width: 100%`). Before it, "Visakhapatnam" was clipped at about 507 px wide on the preview. After it, nothing clips at 320, 375, 412, 507, 768, 1440 or 1920 px (checked in the browser at 375 and 507).
+- **Playwright** (weight, boot, smoke): 13/13 pass.
+  - Weight at the final build: desktop initial 1.41 MB and full scroll 24.29 MB; mobile initial 0.74–0.76 MB and full scroll 9.77 MB.
+  - The full suite on 6be75f2 had 29/35 pass: the 5 `video-smoothness` failures plus `scroll-perf desktop ocean`, which is flaky when the whole suite runs. Run alone it passes 4/4 at 60 fps, p95 16.7 ms, 0 long tasks.
+- **lhci on 70f76d7:** assertions pass. LCP 2,519 / 2,500 / 2,499 ms (median 2,500 ms, exactly on the limit). Perf 0.96, A11y 1.0.
+- **GitHub Actions** still can't start jobs (account billing limit), so the red `ci` checks are not test results.
+
 ## Not done / open (Tarun's call)
+- **LCP sits on the 2,500 ms limit** (median 2,500 ms; main 2,498–2,499 ms). Any heavier first screen will tip it over.
 - **HS20 (hf-ship), text artefact: FAIL point.** The stern superstructure carries a small yellow placard with illegible pseudo-lettering, visible at 1920 from about 1.3 s to the end of the trimmed clip (the hull lettering of the full take is cut by the trim). A tracked blur over it left a visible smeared box, so it was not used. Fix options: one more take with "no lettering, no signs" (10 credits; the shot has used its 2 retakes), or accept it.
 - **Seams:** only HS13 → HS15 is a shared-frame join. The nine other end-frame regenerations failed (cuts, dissolves, morphs), so those joins keep the 3 % poster cross-fade.
 - **video-smoothness** stays red (see Scores); coldchain on mid Android needs a design change (fewer clips or a longer chapter), not an encode change.
 - **Desktop tier:** a 1440-wide window now scrubs the 1280 tier (1.125x upscale); 1920 starts above 1600 device px.
 - **Opening poster on phones** is a soft 6 KB frame, shown only until the clip paints (it sat on the LCP critical path at 36 KB).
-- Vercel preview: run by the coordinator, not by me (the brief says no deploys). No production deploy.
+- **Vercel preview:** https://skylark-exim-v3-git-hf-final-assembly-tarun-44555f1b.vercel.app/ built by the Vercel Git integration for PR #192 (status: success, HTTP 200). The hero, "What we export" and Contact us were checked there in a browser. No production deploy.
 - `docs` chapter stays a still (#162). PR #176 (storyboard) is still open.
