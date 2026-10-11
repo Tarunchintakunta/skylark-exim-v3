@@ -226,7 +226,7 @@ grp = [('plant', '', (-1.6, 12.2, 0), -10, 21, None), ('driver', '', (-0.5, 12.6
        ('plant', '', (-2.6, 12.5, 0), 20, 27, None)]
 for i, (of, lod, loc, rot, seed, pz) in enumerate(grp):
     human('Grp%d' % i, of, lod, loc, rot, seed, pz, gender='female' if i == 6 else 'male')
-box('GrpTub', (0.6, 0.4, 0.3), (0.6, 11.25, 0.15), plastic_b)
+box('GrpTub', (0.6, 0.4, 0.3), (0.45, 10.95, 0.15), plastic_b)
 
 # ---------------------------------------------------------------- grips (x = 20..)
 grips = []
