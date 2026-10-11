@@ -3,6 +3,11 @@
 .hero__title { font-size: min(var(--fs-hero, clamp(3.5rem, 9vw, 9.5rem)), 12.5vw); line-height: 0.92; letter-spacing: -0.01em; max-width: 11ch; text-wrap: balance; }
 .hero__title em { font-style: italic; }
 .hero__body { margin-top: 1.4rem; max-width: 36ch; font-size: clamp(1.125rem, 1.35vw, 1.5rem); line-height: 1.45; color: rgba(246, 242, 234, 0.88); }
+.hero__exports { margin-top: 1.2rem; }
+.hero__exports-title { font-size: 0.8125rem; font-weight: 400; letter-spacing: 0.04em; color: rgba(246, 242, 234, 0.8); }
+.hero__exports ul { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin: 0.4rem 0 0; padding: 0; list-style: none; font-size: clamp(0.9375rem, 1.05vw, 1.125rem); color: rgba(246, 242, 234, 0.92); }
+.hero__contact { display: inline-block; margin: 1.6rem 1.5rem 0 0; padding: 0.7rem 1.4rem; border-radius: 999px; background: var(--brass); color: #10161a; font-weight: 600; text-decoration: none; }
+.hero__contact:hover, .hero__contact:focus-visible { background: var(--ice); }
 .hero__path { display: inline-block; margin-top: 1.6rem; color: var(--ice); text-underline-offset: 5px; }
 .hero__path:hover { color: var(--brass); }
 .hero__cue { position: absolute; right: var(--gutter); bottom: clamp(56px, 11vh, 128px); font-size: 0.8125rem; letter-spacing: 0.04em; color: rgba(246, 242, 234, 0.8); }
