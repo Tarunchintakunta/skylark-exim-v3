@@ -4,7 +4,7 @@ Extends `docs/HIGGSFIELD.md` (global rules, review gate, log format). Issue #175
 
 ## Corrections to HIGGSFIELD.md (facts rules win)
 - Shot C5 said "blast freezer". "blast freezing" is on the `docs/CONTENT.md` "Never write" list: prompts say **plate freezer / freezer room / IQF tunnel** only.
-- `BANNED_CLAIMS.md` does not exist. The banned list is the `docs/CONTENT.md` "Never write" section plus "Bay of Bengal" and "purse seine". None of those words go into a prompt.
+- `BANNED_CLAIMS.md` does not exist. The banned list is the `docs/CONTENT.md` "Never write" section plus the name of the sea off the coast (see #173) and "purse seine". None of those words go into a prompt.
 - The global block's "subtle handheld" is dropped: clips are scrubbed by scroll, so the camera must be locked to one slow, eased move (handheld shake reads as jitter when scrubbed).
 - No celebrities, no identifiable real people, no real brand logos, no readable names, numbers or signs (the p-sample meter shows "7.8": that frame is not used).
 
