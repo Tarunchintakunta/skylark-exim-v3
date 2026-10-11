@@ -39,6 +39,8 @@ export function Loader() {
       const done = () => {
         unlockScroll()
         root.remove()
+        // React's hero is identical and already visible underneath (#207)
+        document.getElementById('hero-static')?.remove()
       }
       if (env.reduced) {
         gsap.to(root, { autoAlpha: 0, duration: 0.2, onComplete: done })

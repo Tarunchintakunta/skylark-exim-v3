@@ -1,14 +1,10 @@
 import gsap from 'gsap'
-import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef } from 'react'
 import { exportsLine, start } from '../config/content'
-import { env } from '../engine/env'
 import { goTo, setPath } from '../engine/path'
 import { frame, useApp } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import './hero.css'
-
-gsap.registerPlugin(SplitText)
 
 /**
  * Hero frame (redesign §3): full-bleed moving footage behind (the stage), one editorial headline, one line of body,
@@ -22,16 +18,8 @@ export function Hero() {
   useEffect(() => {
     if (!ready) return
     const el = root.current!
-    // take over from the pre-JS copy in index.html (#207): same position, still under the loader, so no shift
-    document.getElementById('hero-static')?.remove()
+    // no intro animation: the same copy is already on screen from index.html (#207), above the loader
     gsap.set(el, { autoAlpha: 1 })
-    if (!env.reduced) {
-      SplitText.create(el.querySelector('h1'), {
-        type: 'lines', mask: 'lines', autoSplit: true,
-        onSplit: (s) => gsap.from(s.lines, { yPercent: 100, duration: 0.9, stagger: 0.08, delay: 0.35, ease: 'power3.out' }),
-      })
-      gsap.from(el.querySelectorAll('[data-fade]'), { y: 20, autoAlpha: 0, duration: 0.8, delay: 0.75, stagger: 0.08, ease: 'power3.out' })
-    }
     let op = -1
     return onTick(() => {
       const o = frame.index <= 0 ? 1 - Math.min(1, Math.max(0, (frame.local - 0.85) / 0.15)) : 0
@@ -52,7 +40,7 @@ export function Hero() {
         </h1>
         {/* no fade: this paragraph is the LCP element on phones */}
         <p className="hero__body">{start.body}</p>
-        <div className="hero__exports" data-fade>
+        <div className="hero__exports">
           <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
           <ul>
             {exportsLine.items.map((t) => (
@@ -63,7 +51,6 @@ export function Hero() {
         <a
           className="hero__contact"
           href="#quote"
-          data-fade
           onClick={(e) => {
             e.preventDefault()
             goTo('quote')
@@ -74,7 +61,6 @@ export function Hero() {
         <a
           className="hero__path"
           href={`#${other}`}
-          data-fade
           onClick={(e) => {
             e.preventDefault()
             setPath(other, true)
@@ -83,7 +69,7 @@ export function Hero() {
           Or follow the {start[other].sub.toLowerCase()} →
         </a>
       </div>
-      <span className="hero__cue" data-fade aria-hidden="true">
+      <span className="hero__cue" aria-hidden="true">
         Scroll
       </span>
     </div>
