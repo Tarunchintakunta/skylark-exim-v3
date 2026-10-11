@@ -29,7 +29,9 @@ export function Header() {
       const l = frame.past || id === 'world'
       if (l !== light) root.current!.classList.toggle('is-light', (light = l))
       // the plant onward: intake is the first shared chapter after the fork
-      const plant = frame.past || film.chapters.findIndex((c) => c.id === 'intake') <= frame.index
+      // (no chapters yet while the story chunk loads: findIndex is -1, which must not open the CTA and shift the nav)
+      const intake = film.chapters.findIndex((c) => c.id === 'intake')
+      const plant = frame.past || (intake >= 0 && intake <= frame.index)
       if (plant !== cta) root.current!.classList.toggle('has-cta', (cta = plant))
       if (frame.past !== bar) root.current!.classList.toggle('has-bar', (bar = frame.past))
     })
