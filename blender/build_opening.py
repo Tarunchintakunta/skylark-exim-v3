@@ -77,17 +77,17 @@ vsx = vn.nodes.new('ShaderNodeSeparateXYZ')
 vn.links.new(vtc.outputs['Object'], vsx.inputs[0])
 vdp = vn.nodes.new('ShaderNodeMapRange')
 vdp.inputs['From Min'].default_value = 20.0
-vdp.inputs['From Max'].default_value = -12.0
+vdp.inputs['From Max'].default_value = 8.0      # full dark 12 m down
 vn.links.new(vsx.outputs[2], vdp.inputs['Value'])
 vpw = vn.nodes.new('ShaderNodeMath')
 vpw.operation = 'POWER'
-vpw.inputs[1].default_value = 0.7
+vpw.inputs[1].default_value = 0.6
 vn.links.new(vdp.outputs[0], vpw.inputs[0])
-vcol = L.mixrgb(vn, vpw.outputs[0], (0.11, 0.46, 0.48), (0.004, 0.03, 0.05))
+vcol = L.mixrgb(vn, vpw.outputs[0], (0.1, 0.42, 0.45), (0.002, 0.014, 0.028))
 vn.links.new(vcol, pv.inputs['Color'])
 vden = vn.nodes.new('ShaderNodeMapRange')
 vden.inputs['To Min'].default_value = 0.05
-vden.inputs['To Max'].default_value = 0.13
+vden.inputs['To Max'].default_value = 0.16
 vn.links.new(vpw.outputs[0], vden.inputs['Value'])
 vn.links.new(vden.outputs[0], pv.inputs['Density'])
 L.box('WaterColumn', (6000, 6000, 40), (0, 40, -20.12), vm, 0.0)   # edge far past the horizon: its side face showed as a cyan band
@@ -178,7 +178,7 @@ mm.materials.append(mote)
 for i in range(1400):              # suspended matter near and far, from just under the surface to 14 m down
     yy = rnd.uniform(0.3, 30) ** 1.0
     p = (rnd.uniform(-1, 1) * (0.8 + 0.7 * yy), yy, rnd.uniform(-14, -0.4))
-    r = rnd.uniform(0.003, 0.012) * (1.6 if yy < 3 else 1.0)
+    r = rnd.uniform(0.003, 0.012) * (0.6 if yy < 2 else 1.0)   # no big soft blobs on the lens
     o = L.obj(f'MOTE_{i}', mm, None, p, scale=(r, r, r))
     o.visible_shadow = False
     o.keyframe_insert('location', frame=1)
@@ -228,7 +228,7 @@ for v in bm.verts:
 me = L.bm_to_mesh(bm, 'COAST_Hills', smooth=True)
 me.materials.append(S.hill_material('MAT_CoastHills', haze=0.25))   # tree cover, scrub, dry grass, bare earth
 L.obj('COAST_Hills', me)
-town = L.tex_pbr('MAT_Town', 'painted_concrete', 0.05, tint=(0.3, 0.27, 0.23), tint_amount=0.55, grime=0.7)   # stained concrete and plaster
+town = L.pbr('MAT_Town', (0.72, 0.68, 0.6), 0.85, var=0.35, bump=0.1, scale=0.02, grime=0.5)   # pale plaster and concrete, stained
 win = L.pbr('MAT_TownLights', (1.0, 0.75, 0.45), 0.5, estrength=4.0)
 tb = bmesh.new()
 for i in range(420):
@@ -268,7 +268,7 @@ for i in range(7):      # 3 near (12-25 m, wings and black tips read), 4 farther
     rad = 5 if near else 12
     path = [(cx + rad * math.cos(k * 0.08 + i * 1.7), cy + rad * 0.5 * math.sin(k * 0.08 + i * 1.7), cz + 0.4 * math.sin(k * 0.4))
             for k in range(24)]
-    S.flap(g, 1, F_END, period=rnd.randint(16, 22), amp=24, path=path)   # slow strokes, glide speed: no blur streaks
+    S.flap(g, 1, F_END, period=rnd.randint(12, 16) if near else 20, amp=34 if near else 24, path=path)   # near birds beat their wings
     L.key_vis(g, BREAK - 6)
 
 # ---------------------------------------------------------------- surface break: a splash crown and droplets round the lens
@@ -299,13 +299,28 @@ keys = [
     (96, (0.1, 1.0, -1.6), (0.0, 30.0, 1.5), 24),
     (BREAK, (0.0, 1.4, 0.05), (0.0, 400.0, 6.0), 26),
     (132, (0.0, 1.8, 1.3), (0.0, 1200.0, 30.0), 30),
-    (F_END, (0.0, 2.4, 1.9), (40.0, 1250.0, 45.0), 38),
+    (F_END, (0.0, 2.4, 1.9), (40.0, 1250.0, 40.0), 55),   # long lens: the coast fills the upper third
 ]
 L.cam_path(cam, keys, focus=[(1, 8.0), (60, 9.0), (100, 6.0), (BREAK, 30.0), (140, 600.0), (F_END, 1250.0)])
 for f, cs in ((1, 0.05), (BREAK, 0.05), (BREAK + 12, 0.3)):
     cam.data.clip_start = cs
     cam.data.keyframe_insert('clip_start', frame=f)
 s.camera = cam
+# the near tuna is keyed in camera space so it really crosses the frame ~3 m from the lens (right to left, a little low)
+tuna = bpy.data.objects['TUNA_0']
+tuna.animation_data_clear()
+tuna.hide_render = tuna.hide_viewport = False
+for f in range(28, 108, 4):
+    s.frame_set(f)
+    u = (f - 28) / 80
+    M = cam.matrix_world
+    tuna.location = M @ Vector((2.9 - 5.8 * u, -0.45 + 0.12 * math.sin(f / 7), -3.0))
+    d = M.to_3x3() @ Vector((-1, 0, 0))
+    tuna.rotation_euler = (0, 0, math.atan2(d.y, d.x) + 0.08 * math.sin(f / 5))
+    tuna.keyframe_insert('location', frame=f)
+    tuna.keyframe_insert('rotation_euler', frame=f)
+L.key_vis(tuna, 28, 108)
+s.frame_set(1)
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
