@@ -342,21 +342,64 @@ def _dress(name, root, mats, deck_z, L, R, wx1):
             parent=root)
 
 
+def _gull_wing(name, sy, grey, tip):
+    """Long, narrow gull wing (span ~0.7 m a side): arm angled up, hand swept back and down, black tips."""
+    bm = bmesh.new()
+    st = [0.0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.74, 0.84, 0.92, 1.0]
+    rows = []
+    for s in st:
+        y = sy * 0.72 * s
+        le = 0.07 - 0.2 * s ** 2                       # leading edge sweeps back toward the tip
+        ch = 0.2 * (1.0 - 0.55 * s) + 0.02             # chord tapers to a pointed hand
+        z = 0.16 * s if s < 0.42 else 0.067 - 0.12 * (s - 0.42)   # gull "M": arm up, hand down
+        rows.append([bm.verts.new((le, y, z)), bm.verts.new((le - ch * 0.45, y, z + 0.012)), bm.verts.new((le - ch, y, z))])
+    for i in range(len(st) - 1):
+        for j in range(2):
+            q = (rows[i][j], rows[i + 1][j], rows[i + 1][j + 1], rows[i][j + 1])
+            f = bm.faces.new(q if sy > 0 else q[::-1])
+            f.material_index = 1 if st[i] >= 0.74 else 0
+            f.smooth = True
+    me = bm_to_mesh(bm, name)
+    me.materials.append(grey)
+    me.materials.append(tip)
+    return me
+
+
 def gull(name, loc=(0, 0, 0)):
-    """Simple gull: body + two wings on hinges (flap by rotating <name>_wL / <name>_wR)."""
+    """Gull: tapered white body with head, yellow bill and wedge tail; grey wings with black tips on hinges
+    (flap by rotating <name>_wL / <name>_wR). Wingspan ~1.45 m, body ~0.5 m."""
     w = pbr('MAT_Gull', (0.92, 0.92, 0.9), 0.6, var=0.05)
     g = pbr('MAT_GullGrey', (0.55, 0.57, 0.6), 0.6, var=0.05)
+    k = pbr('MAT_GullTip', (0.02, 0.02, 0.025), 0.6, var=0.05)
+    y = pbr('MAT_GullBill', (0.85, 0.65, 0.08), 0.4, var=0.05)
     root = empty(name, loc, size=0.3)
-    sphere(f'{name}_body', 0.12, (0, 0, 0), w, scale=(2.2, 0.8, 0.8), parent=root)
+    me = bpy.data.meshes.get('GULL_body_m')
+    if me is None:
+        bm = bmesh.new()
+        prof = [(-0.26, 0.004), (-0.2, 0.03), (-0.1, 0.055), (0.0, 0.062), (0.1, 0.055), (0.17, 0.042), (0.2, 0.038),
+                (0.24, 0.036), (0.27, 0.025), (0.29, 0.004)]       # tail tip .. chest .. neck .. head .. crown
+        rings = []
+        for x, r in prof:
+            rings.append([bm.verts.new((x, r * math.cos(a), r * 0.95 * math.sin(a) + (0.03 if x > 0.19 else 0.0)))
+                          for a in [2 * math.pi * i / 10 for i in range(10)]])
+        for i in range(len(rings) - 1):
+            for j in range(10):
+                bm.faces.new((rings[i][j], rings[i][(j + 1) % 10], rings[i + 1][(j + 1) % 10], rings[i + 1][j]))
+        bm.faces.new(rings[0][::-1])
+        bm.faces.new(rings[-1])
+        me = bm_to_mesh(bm, 'GULL_body_m', smooth=True)
+        me.materials.append(w)
+    obj(f'{name}_body', me, None, (0, 0, 0), parent=root)
+    cyl(f'{name}_bill', 0.012, 0.06, (0.31, 0, 0.03), y, 6, r2=0.003, rot=(0, math.radians(95), 0), parent=root)
+    tm = bmesh.new()
+    tv = [tm.verts.new(p) for p in ((-0.2, 0.03, 0.0), (-0.33, 0.06, 0.0), (-0.34, 0.0, 0.0), (-0.33, -0.06, 0.0), (-0.2, -0.03, 0.0))]
+    tm.faces.new(tv)
+    tme = bm_to_mesh(tm, f'{name}_tail')
+    tme.materials.append(w)
+    obj(f'{name}_tail', tme, None, (0, 0, 0), parent=root)
     for side, sy in (('L', 1), ('R', -1)):
-        hinge = empty(f'{name}_w{side}', (0, sy * 0.06, 0.03), root, size=0.1)
-        bmw = bmesh.new()
-        vs = [bmw.verts.new(p) for p in ((0.1, 0, 0), (0.08, sy * 0.45, 0.02), (-0.05, sy * 0.75, 0.0),
-                                          (-0.12, sy * 0.4, 0), (-0.1, 0, 0))]
-        bmw.faces.new(vs if sy > 0 else vs[::-1])
-        me = bm_to_mesh(bmw, f'{name}_wing{side}')
-        me.materials.append(g)
-        obj(f'{name}_wing{side}', me, None, (0, 0, 0), parent=hinge)
+        hinge = empty(f'{name}_w{side}', (0.02, sy * 0.045, 0.03), root, size=0.1)
+        obj(f'{name}_wing{side}', _gull_wing(f'{name}_wing{side}', sy, g, k), None, (0, 0, 0), parent=hinge)
     return root
 
 
