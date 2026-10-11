@@ -22,6 +22,8 @@ export function Hero() {
   useEffect(() => {
     if (!ready) return
     const el = root.current!
+    // take over from the pre-JS copy in index.html (#207): same position, still under the loader, so no shift
+    document.getElementById('hero-static')?.remove()
     gsap.set(el, { autoAlpha: 1 })
     if (!env.reduced) {
       SplitText.create(el.querySelector('h1'), {
