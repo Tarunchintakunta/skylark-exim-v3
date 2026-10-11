@@ -48,7 +48,8 @@ export function Hero() {
         <h1 className="hero__title">
           {lead} <em>{last}</em>.
         </h1>
-        <p className="hero__body" data-fade>{start.body}</p>
+        {/* no fade: this paragraph is the LCP element on phones */}
+        <p className="hero__body">{start.body}</p>
         <div className="hero__exports" data-fade>
           <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
           <ul>
