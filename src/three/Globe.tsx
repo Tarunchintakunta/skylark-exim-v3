@@ -54,8 +54,9 @@ const DWELL = 3.2
 const atmosphere = {
   uniforms: { color: { value: new Color('#9fd3ff') } },
   vertexShader: 'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  // a thin, faint rim: only the outer sliver of the shell
-  fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = pow(clamp(0.62 - dot(vN, vec3(0.0, 0.0, 1.0)), 0.0, 1.0), 3.0) * 0.7; gl_FragColor = vec4(color, i); }',
+  // a thin, faint rim. Seen from inside (BackSide), view-space n.z runs 0 at the shell's silhouette to about -0.22 at the
+  // globe's edge (scale 1.025): fade alpha from 0 at the shell edge, so there is no hard, aliased step there
+  fragmentShader: 'uniform vec3 color; varying vec3 vN; void main(){ float i = smoothstep(0.0, 0.22, -vN.z) * 0.35; gl_FragColor = vec4(color, i); }',
 }
 const haze = {
   uniforms: { color: { value: new Color('#cfe9ff') } },
@@ -337,9 +338,10 @@ export default function GlobeCanvas() {
     <>
       <Canvas
         className="globe-canvas"
-        dpr={env.mobile ? 1 : [1, 1.5]}
+        // phones up to 2× so the globe's silhouette isn't a jagged, upscaled edge
+        dpr={env.mobile ? [1, 2] : [1, 1.5]}
         frameloop="demand"
-        gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
         onCreated={({ gl }) => {
           gl.toneMapping = ACESFilmicToneMapping
