@@ -7,10 +7,11 @@ from PIL import Image, ImageDraw
 TILES = [('t1_plant', 'Plant worker: cap + mask'), ('t2_fisher', 'Fisherman: oilskin, no cap'),
          ('t3_port', 'Port: hi-vis + hard hat'), ('t4_driver', 'Driver'),
          ('t5_crate', 'Nitrile glove: crate handles (contact grip)'), ('t6_net', 'Rubber glove: net-bag rim'),
-         ('t8', 'Box edge | thin rod'), ('t7_mid', 'Mid distance: stand / crouch / kneel')]
+         ('t8', 'Box edge | thin rod'), ('t7_mid', 'Mid distance: stand / crouch / kneel'),
+         ('t9_fplant', 'Plant worker (woman): cap + mask'), ('t10_fbun', 'Woman, no cap: low bun')]
 src, out = sys.argv[1], sys.argv[2]
 W, H = 960, 540
-sheet = Image.new('RGB', (W * 2, H * 4), (20, 20, 20))
+sheet = Image.new('RGB', (W * 2, H * ((len(TILES) + 1) // 2)), (20, 20, 20))
 for i, (name, label) in enumerate(TILES):
     if name == 't8':
         im = Image.new('RGB', (W, H))
