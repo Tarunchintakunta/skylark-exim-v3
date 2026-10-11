@@ -469,7 +469,7 @@ def shift_all(delta):
     """Shift every keyframe of every action by delta frames (scene frame = global frame + delta)."""
     acts = set()
     for idb in list(bpy.data.objects) + list(bpy.data.materials) + list(bpy.data.lights) + list(bpy.data.cameras) + \
-            list(bpy.data.scenes) + list(bpy.data.shape_keys):
+            list(bpy.data.scenes) + list(bpy.data.shape_keys) + list(bpy.data.worlds):
         ad = getattr(idb, 'animation_data', None)
         if ad and ad.action:
             acts.add(ad.action)
@@ -538,11 +538,16 @@ def build(scene, out):
         import plant_docs
         s.camera = plant_docs.build(C_people)
         bpy.data.collections['SET_Interior'].hide_render = True
+    import plant_grade
+    if scene != 'p-docs':                             # round-8 contrast + wear pass (identical in every hall scene)
+        plant_grade.apply(scene, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd))
     B.shadow_policy()
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
     # P.haze(): EEVEE world volume dims the sun; aerial perspective comes from the HDRI horizon instead
     P.sky_haze()                                          # warm dusty haze low in the sky
+    if scene != 'p-docs':
+        plant_grade.world_fade()
     P.look_settings('exterior', exposure=0.0)
     vs = s.view_settings
     if scene != 'truck-reverse':
