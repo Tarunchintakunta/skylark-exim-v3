@@ -9,9 +9,9 @@ import { open } from './helpers'
  */
 import { OCEAN } from '../src/config/chapters'
 
-/** first chapter each clip plays in on the Ocean path (a second clip in a chapter plays later, so the chapter's start is a strict bound) */
+/** the clip each chapter opens with on the Ocean path (later clips in a chapter are prefetched during the one before, so the chapter's start is no bound for them) */
 const clipChapter: Record<string, string> = {}
-for (const ch of OCEAN) for (const m of ch.media) if (m.kind === 'video') clipChapter[m.id] ??= ch.id
+for (const ch of OCEAN) if (ch.media[0]?.kind === 'video') clipChapter[ch.media[0].id] ??= ch.id
 
 test('clips prefetch ahead of their chapter, one download per pass, no re-download on the way back', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
