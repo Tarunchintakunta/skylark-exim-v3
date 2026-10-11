@@ -73,5 +73,5 @@ Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364,
 - **video-smoothness** stays red (see Scores); coldchain on mid Android needs a design change (fewer clips or a longer chapter), not an encode change.
 - **Desktop tier:** a 1440-wide window now scrubs the 1280 tier (1.125x upscale); 1920 starts above 1600 device px.
 - **Opening poster on phones** is a soft 6 KB frame, shown only until the clip paints (it sat on the LCP critical path at 36 KB).
-- **Vercel preview:** https://skylark-exim-v3-git-hf-final-assembly-tarun-44555f1b.vercel.app/ built by the Vercel Git integration for PR #192 (status: success, HTTP 200). The hero, "What we export" and Contact us were checked there in a browser. No production deploy.
+- **Vercel preview:** https://skylark-exim-v3-git-hf-final-assembly-tarun-44555f1b.vercel.app/ serves commit **6be75f2**, the assembly *before* the hero fix. On it, the hero, "What we export" and Contact us were checked in a browser, and the "Visakhapatnam" clip at ~507 px was found there. Every later commit (70f76d7 hero fix, b91f3fb, 8846fd6) hit Vercel's free-tier daily deploy limit ("Deployment rate limited — retry in 24 hours"), so the hero fix has only been verified locally on port 5792. Redeploy once the limit resets. No production deploy.
 - `docs` chapter stays a still (#162). PR #176 (storyboard) is still open.
