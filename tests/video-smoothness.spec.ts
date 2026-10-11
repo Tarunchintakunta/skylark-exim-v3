@@ -213,7 +213,8 @@ for (const [name, prof] of Object.entries(PROFILES)) {
       // acceptance §7.4 (soft: every number is reported even when one fails)
       const seekLimit = prof.mobile ? LIMITS.seekP95Mobile : LIMITS.seekP95Desktop
       // §3: every chapter shows motion; stills are reported, not skipped
-      expect.soft(rows.filter((r) => r.motion === 'STILL' && r.chapter !== 'world').map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
+      // the documentation interlude stays a still by decision (#162)
+      expect.soft(rows.filter((r) => r.motion === 'STILL' && r.chapter !== 'world' && r.chapter !== 'docs').map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
       for (const r of rows) {
         if (r.motion !== 'video') continue
         expect.soft(r.presentedFps, `${r.chapter} presented fps`).toBeGreaterThanOrEqual(LIMITS.fps)

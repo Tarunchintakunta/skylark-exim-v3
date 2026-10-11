@@ -15,7 +15,7 @@ Every clip must look like real documentary footage from a working Indian seafood
 - NO text, logos, watermarks, subtitles, signage letters, or brand names anywhere in frame.
 - NO cartoon, toy, plastic, CGI, mannequin, or video-game look.
 - Steady motion, one continuous action, no cuts inside the clip. Camera moves slowly (dolly/push-in/pan) so it scrubs smoothly on scroll.
-- Do not use the phrases "Bay of Bengal" or "purse seine" in prompts or copy. Nothing from BANNED_CLAIMS.md.
+- Do not name the sea (no regional sea name) or use "purse seine" in prompts or copy. Nothing from BANNED_CLAIMS.md.
 
 ## 2. Settings
 - Use the highest-quality video model available in the Higgsfield connector; 1080p or higher; 16:9 (also make a 9:16 crop/variant only if a shot is mobile-hero).
