@@ -590,6 +590,19 @@ def hard_wear(m, deck_z=1.5, top=1.2):
     return m
 
 
+def salt_wear(m, z0=0.0, z1=4.0):
+    """Wear that still reads from 20-40 m away (hard_wear's chips vanish at that distance): long rust streaks from
+    fittings, big chipped-paint patches down to dark primer, whitish salt crust in bands, dirt low down."""
+    if m.get('salt_worn'):
+        return m
+    _over(m, _noise_band(m, 1.6, 0.58, 0.68, 0.85, stretch=(9.0, 9.0, 0.35), loc=(-3400, -2600)), (0.28, 0.12, 0.045))   # rust streaks
+    _over(m, _noise_band(m, 2.4, 0.66, 0.72, 0.9, loc=(-3400, -3000)), (0.2, 0.2, 0.19))                                  # chipped to primer
+    _over(m, _noise_band(m, 0.9, 0.55, 0.75, 0.45, stretch=(1.0, 1.0, 3.0), loc=(-3400, -3400)), (0.82, 0.8, 0.74))       # salt crust
+    _over(m, _noise_band(m, 1.2, 0.4, 0.7, 0.7, z0=z0, z1=z1, loc=(-3400, -3800)), (0.16, 0.14, 0.1))                     # dirt low down
+    m['salt_worn'] = 1
+    return m
+
+
 def gut_stains(m):
     """Deck after a haul: diluted blood smears and stuck fish scales that glint."""
     if m.get('gutted'):

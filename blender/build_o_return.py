@@ -64,6 +64,37 @@ tyre.materials.append(mats['rubber'])
 for x in range(-120, 121, 8):
     L.obj('WHARF_Bollard', bol, None, (x, -0.6, WZ), scale=(0.7, 0.7, 0.7))
     L.obj('WHARF_Tyre', tyre, None, (x + 4, 0.18, 1.0), (D(90), 0, 0))
+# the wharf slab is not one plain grey: cast panels with joints, patched repairs in other concrete, oil and rust
+# stains, puddles, rope coils by the idle bollards, a pallet and drums
+wf = P.MB()
+wpatch = P.paint_attr('MAT_WharfPatch', 0.9, 0.0, grime=0.7, scale=0.6)
+for gx in range(-60, 61, 6):
+    wf.box((gx, -15, WZ + 0.002), (0.05, 30, 0.004), mats['rubber'])
+for gy in range(-30, 1, 5):
+    wf.box((0, gy - 0.5, WZ + 0.002), (120, 0.05, 0.004), mats['rubber'])
+for i in range(70):
+    pw, pd = rnd.uniform(1.0, 5.5), rnd.uniform(0.8, 4.0)
+    tone = rnd.choice([(0.3, 0.29, 0.27), (0.5, 0.49, 0.46), (0.36, 0.33, 0.29), (0.56, 0.55, 0.5), (0.24, 0.2, 0.17)])
+    wf.box((rnd.uniform(-60, 60), rnd.uniform(-29, -1.2), WZ + 0.003 + i * 0.00005), (pw, pd, 0.006), wpatch, tone)
+puddle = L.pbr('MAT_Puddle', (0.04, 0.045, 0.045), 0.03, var=0.1, bump=0.05, coat=1.0)
+for i in range(26):
+    c = Vector((rnd.uniform(-50, 50), rnd.uniform(-26, -1.5), WZ + 0.008))
+    wf.cyl(c, c + Vector((0, 0, 0.002)), rnd.uniform(0.4, 1.6), puddle if i % 3 else wpatch, 14,
+           color=None if i % 3 else (0.12, 0.1, 0.08))       # puddles; every third a dark oil stain
+wf.obj('WHARF_Surface')
+coil = L.torus_mesh('WHARF_Coil', 0.32, 0.06, 20, 6)
+coil.materials.append(mats['rope'])
+for x in (-24, -16, 16, 24, 32):
+    for j in range(3):
+        L.obj('WHARF_Coil', coil, None, (x + 0.9, -1.5, WZ + 0.06 + j * 0.1), (0, 0, D(rnd.uniform(0, 360))),
+              scale=(1 - j * 0.15, 1 - j * 0.15, 1))
+drum = P.MB()
+for i in range(5):
+    dx, dy = -31 + (i % 3) * 0.7, -5.5 - (i // 3) * 0.7
+    drum.cyl((dx, dy, WZ), (dx, dy, WZ + 0.88), 0.29, L.pbr('MAT_Drum', (0.5, 0.12, 0.06), 0.6, 0.4, grime=0.8, scale=2.0), 14,
+             color=None)
+drum.box((-28.5, -5.8, WZ + 0.07), (1.2, 1.0, 0.14), L.pbr('MAT_Pallet', (0.36, 0.28, 0.19), 0.85, grime=0.6, scale=2.0))
+drum.obj('WHARF_Drums')
 # breakwater of boulders
 bm = bmesh.new()
 for i in range(420):
@@ -107,18 +138,20 @@ for x0, n_along in ((40, 4), (-92, 3)):
             y = 3.9 + row * 7.8          # 6.5 m beam + fenders: 1.3 m between rafted hulls (7.3 with 2 deg yaw overlapped at f60)
             R = S.vessel(f'MOORED{k}', (x, y, 0), D(rnd.choice((0, 180)) + rnd.uniform(-0.5, 0.5)), mats=mats, hull=hm, detail=False)
             S.hard_wear(R['hull'].active_material, 1.5, 1.0)     # primer chips, rust runs from the scuppers, salt-dirty water stains
+            S.salt_wear(R['hull'].active_material, -0.3, 1.2)
             for sy in (1, -1):                                   # old tyres hung over the side as fenders
                 for tx in (-7.0, -2.5, 2.0, 6.5):
                     hb = S.hull_b(tx) * 1.01
-                    L.obj(f'MOORED{k}_Fender', ftyre, None, (tx, sy * (hb + 0.11), 1.05 + rnd.uniform(-0.1, 0.1)),
-                          (D(90 + rnd.uniform(-6, 6)), 0, 0), parent=R['root'])
-                    L.tube(f'MOORED{k}_FenderRope', [(tx, sy * (hb + 0.1), 1.45), (tx, sy * (hb + 0.03), 2.5)], 0.012,
+                    L.obj(f'MOORED{k}_Fender', ftyre, None, (tx, sy * (hb + 0.12), 1.85 + rnd.uniform(-0.08, 0.08)),
+                          (D(90 + rnd.uniform(-6, 6)), 0, 0), parent=R['root'])      # hung just under the rail: reads in the f1-f60 aerials
+                    L.tube(f'MOORED{k}_FenderRope', [(tx, sy * (hb + 0.1), 2.26), (tx, sy * (hb + 0.03), 2.52)], 0.012,
                            mats['rope'], 4, parent=R['root'])
             for f in range(1, 289, 24):
                 R['root'].rotation_euler.x = D(0.8 * math.sin(f / 19.0 + k))
                 R['root'].keyframe_insert('rotation_euler', frame=f)
             k += 1
 S.hard_wear(bpy.data.materials['MAT_BoatWhite'], 1.5, 1.2)   # bulwarks and wheelhouses: chips, rust, salt stains
+S.salt_wear(bpy.data.materials['MAT_BoatWhite'], 1.4, 2.4)
 # mooring lines from the inner row to bollards
 for i in range(4):
     x = 40 + i * 26
@@ -166,6 +199,7 @@ for _mn, _top in (('MAT_BoatWhite', 1.2), ('MAT_IceBox', 0.9)):
     if _mn in bpy.data.materials:
         S.hard_wear(bpy.data.materials[_mn], DZ, _top)
 S.hard_wear(V['hull'].active_material, DZ, 1.0)
+S.salt_wear(V['hull'].active_material, -0.3, 1.2)   # rust streaks, chipped paint and salt that read from the far cameras
 S.hull_contact('BOAT_WaterFoam', boat, width=0.4)
 crew = []
 for i, (x, y, rz, o) in enumerate(((hc, 1.0, 90, 'fisherman_o'), (hc + 0.8, -1.2, 60, 'fisherman_y'), (-2.0, 1.8, 100, 'fisherman_b'),
@@ -445,6 +479,8 @@ while placed < 8 and tries < 400:      # a few distinct people, not a crowd of e
         continue
     if any((x - qx) ** 2 + (y - qy) ** 2 < 1.5 ** 2 for qx, qy in POLES):
         continue
+    if -33 < x < -27 and -7.5 < y < -4.5:    # drums and pallet
+        continue
     c = L.person(f'CROWD{placed}', rnd.choice(crowd_outfits), (x, y, WZ), D(rnd.uniform(0, 360)), seed=200 + placed, mats=mats)
     if placed % 3 == 0:
         L.walk(c, [(x, y), (x + rnd.uniform(-8, 8), y + rnd.uniform(-3, 3))], rnd.randint(1, 60), rnd.randint(150, 288))
@@ -518,7 +554,7 @@ for i, (x, y, rz) in enumerate(((10, -14, 30), (-36, -4, 100), (48, -20, 200))):
 SO.progress('section: camera')
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (60, -20, 25), (90, 25, 2))
-cam.data.dof.aperture_fstop = 5.6
+cam.data.dof.aperture_fstop = 11.0   # the near rafted boats stay sharp in the f1-f72 aerial move
 keys = [
     (1, (70.0, -24.0, 26.0), (110.0, 28.0, 2.0), 30),
     (72, (24.0, -20.0, 15.0), (36.0, 18.0, 2.0), 30),
@@ -555,4 +591,6 @@ os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'o-depart' if DEPART else 'o-return', '1', str(F_END), 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
+s.render.motion_blur_shutter = 0.25   # the aerial move and the pans smeared whole tiles at 0.5
+bpy.ops.wm.save_mainfile()
 print('BUILT', OUT, len(bpy.data.objects), 'objects')
