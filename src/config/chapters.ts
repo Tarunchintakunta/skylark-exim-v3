@@ -94,8 +94,11 @@ const POND_ONLY: ChapterDef[] = [
 
 const SHARED: ChapterDef[] = [
   {
-    id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-intake', alt: 'A refrigerated truck backed up to the lit intake door of the plant at night.' }],
+    id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck stands reversed into the plant loading bay, cab outside; the driver in a hi-vis vest walks toward the dock.' },
+      { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
+    ],
     captions: caps('intake', [[0.1, 0.92]]),
   },
   {
