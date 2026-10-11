@@ -27,8 +27,8 @@ import skhuman as sk  # noqa: E402
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets-src', 'blender', 'humans_ocean.blend')
 
 OCEAN_OUTFITS = {
-    'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair', 'beanie', 'pvc_trim'],   # hair shows at temples/nape
-    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair', 'towel', 'pvc_trim'],   # cotton towel wrap: face reads
+    'fisher': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair', 'beanie'],   # hair shows at temples/nape
+    'fisher_bare': ['pvc_jacket', 'pvc_trousers', 'boots', 'gloves_rubber', 'hair', 'towel'],   # cotton towel wrap: face reads
     'port_hivis': ['work_shirt', 'trousers_dark', 'boots_dark', 'vest', 'hair', 'hardhat'],
     'harbour_lungi': ['shirt_farm', 'lungi', 'sandals', 'hair'],
 }
