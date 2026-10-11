@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { chaptersFor } from './config/chapters'
+import { bindPathHash } from './engine/path'
 import { useApp } from './engine/store'
 import { Film } from './film/Film'
 import { About } from './sections/About'
@@ -17,6 +18,7 @@ export default function App() {
   const path = useApp((s) => s.path)
   const chapters = chaptersFor(path)
   useEffect(() => bindRise(document.getElementById('products')!), [])
+  useEffect(bindPathHash, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
