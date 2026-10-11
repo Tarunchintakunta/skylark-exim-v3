@@ -13,7 +13,8 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   useLayoutEffect(() => bindStage(ref.current!, segs), [segs])
 
   return (
-    <div className="stage" ref={ref} aria-hidden="true">
+    // not aria-hidden as a whole: the globe inside is a focusable, labelled control; the rest is decorative
+    <div className="stage" ref={ref}>
       {segs.map((s, i) => {
         const m = s.media
         if (m.kind === 'gradient') return <div key={i} data-seg={i} className="stage__layer stage__gradient" />
@@ -37,9 +38,9 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           />
         )
       })}
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
       <div className="stage__veil" />
       <div className="stage__scrim" />
     </div>

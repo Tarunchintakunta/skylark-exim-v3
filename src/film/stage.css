@@ -22,3 +22,15 @@
 /* daylight chapters (the port): neutral, bottom-only shade under the caption, no deep-sea tint over the footage */
 .stage.is-soft .stage__scrim { background: linear-gradient(to top, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.3) 26%, rgba(0, 0, 0, 0) 48%); }
 .globe-canvas { position: absolute !important; inset: 0; }
+/* drag to turn: the wheel and vertical swipes still scroll the page */
+.globe-canvas { touch-action: pan-y; cursor: grab; outline-offset: -4px; }
+.globe-canvas.is-grabbing { cursor: grabbing; }
+.globe-hint {
+  position: absolute; left: 67%; bottom: 9vh; transform: translateX(-50%); pointer-events: none;
+  padding: 4px 10px; border-radius: 999px; background: rgba(244, 239, 230, 0.82); color: var(--ink); font-size: 11px;
+  transition: opacity 0.6s;
+}
+.globe-hint.is-gone { opacity: 0; }
+@media (max-width: 819px) { .globe-hint { left: 50%; bottom: auto; top: calc(68px + 12px); } }
+/* the world chapter's scroll spacer lets pointers through to the globe under it (its copy re-enables its own) */
+.chapter[data-chapter="world"] { pointer-events: none; }
