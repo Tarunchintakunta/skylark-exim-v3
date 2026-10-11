@@ -546,7 +546,24 @@ def water_mat():
     dk.operation = 'SCALE'
     L.new(ramp.outputs[0], dk.inputs[0])
     L.new(dp.outputs[0], dk.inputs['Scale'])
-    L.new(dk.outputs[0], smx.inputs[6])
+    # r8 algae: drifting green bloom patches and scum lines piled on the downwind banks
+    tca = nt.nodes.new('ShaderNodeTexCoord')
+    an = nt.nodes.new('ShaderNodeTexNoise')
+    an.inputs['Scale'].default_value = 0.035
+    an.inputs['Detail'].default_value = 7
+    an.inputs['Roughness'].default_value = 0.62
+    L.new(tca.outputs['Object'], an.inputs['Vector'])
+    am = nt.nodes.new('ShaderNodeMapRange')
+    am.inputs['From Min'].default_value = 0.56
+    am.inputs['From Max'].default_value = 0.74
+    am.inputs['To Max'].default_value = 0.6
+    L.new(an.outputs['Fac'], am.inputs['Value'])
+    amx = nt.nodes.new('ShaderNodeMix')
+    amx.data_type = 'RGBA'
+    L.new(am.outputs[0], amx.inputs[0])
+    L.new(dk.outputs[0], amx.inputs[6])          # algae over the depth-darkened tint
+    amx.inputs[7].default_value = (0.045, 0.1, 0.022, 1)      # bloom green
+    L.new(amx.outputs[2], smx.inputs[6])
     L.new(smx.outputs[2], p.inputs['Base Color'])
     p.inputs['Roughness'].default_value = 0.075
     p.inputs['IOR'].default_value = 1.33
@@ -562,7 +579,7 @@ def water_mat():
     nz.inputs['Roughness'].default_value = 0.6
     L.new(mp.outputs[0], nz.inputs['Vector'])
     b = nt.nodes.new('ShaderNodeBump')
-    b.inputs['Strength'].default_value = 0.07           # visible swell: the surface reads as water, not a floor
+    b.inputs['Strength'].default_value = 0.12           # visible swell: the surface reads as water, not a floor
     b.inputs['Distance'].default_value = 0.08
     L.new(nz.outputs['Fac'], b.inputs['Height'])
     # wind ripples: fine wavelets stretched across the wind, in patches (cat's paws)
@@ -803,7 +820,223 @@ def aerator_collection(phase=0.0, name='AER_0', f0=1, f1=600):
         for fc in _fc(wo):
             for kp in fc.keyframe_points:
                 kp.interpolation = 'LINEAR'
+    _churn(C, name, root, phase, f0, f1)
     return C
+
+
+def _churn(C, name, root, phase, f0, f1):
+    """r8: the churn is water, not a decal. Behind each paddle wheel a heaving white-water mound (displaced, lit by
+    the sun, its noise drifting downstream) and a plume of thrown droplets that flicker as they fall."""
+    rnd = random.Random(int(phase * 100) + 3)
+    drift = bpy.data.objects.new(name + '_ChurnDrift', None)        # moves the displacement noise: the mound boils
+    C.objects.link(drift)
+    drift.parent = root
+    for f, y in ((f0, 0.0), (f1, -(f1 - f0) / 24 * 1.6)):
+        drift.location = (phase, y, (f - f0) / 24 * 0.4)
+        drift.keyframe_insert('location', frame=f)
+    for fc in _fc(drift):
+        for kp in fc.keyframe_points:
+            kp.interpolation = 'LINEAR'
+    tx = bpy.data.textures.get('FARM_ChurnNoise') or bpy.data.textures.new('FARM_ChurnNoise', 'CLOUDS')
+    tx.noise_scale = 0.18
+    tx.noise_depth = 3
+    foam = churn_mat()
+    for k, x in enumerate((-0.8, 0.8)):
+        bm = bmesh.new()
+        bmesh.ops.create_grid(bm, x_segments=28, y_segments=40, size=1.0)
+        for v in bm.verts:                     # 1.3 m wide, 2.6 m downstream of the wheel, domed in the middle
+            u, w = v.co.x, (v.co.y + 1) / 2
+            v.co = Vector((u * (0.95 + 0.8 * w), 0.25 + w * 4.0, 0.0))
+            v.co.z = 0.32 * (1 - u * u) * math.exp(-2.0 * w)
+        me = bpy.data.meshes.new('%s_Churn%d' % (name, k))
+        bm.to_mesh(me)
+        bm.free()
+        me.materials.append(foam)
+        o = bpy.data.objects.new(me.name, me)
+        C.objects.link(o)
+        o.parent = root
+        o.location = (x, 0.0, 0.02)
+        vg = o.vertex_groups.new(name='heave')
+        for v in me.vertices:
+            u = abs(v.co.x) / (0.95 + 0.8 * (v.co.y - 0.25) / 4.0)
+            vg.add([v.index], max(0.0, 1 - u * u) * math.exp(-0.8 * (v.co.y - 0.25)), 'REPLACE')
+        d = o.modifiers.new('heave', 'DISPLACE')
+        d.texture = tx
+        d.texture_coords = 'OBJECT'
+        d.texture_coords_object = drift
+        d.direction = 'Z'
+        d.strength = 0.5
+        d.mid_level = 0.35
+        d.vertex_group = 'heave'
+        o.modifiers.new('smooth', 'SMOOTH').iterations = 2
+        for p in me.polygons:
+            p.use_smooth = True
+        # thrown droplets: ballistic arcs off the paddle tips, back and up, falling into the churn
+        bm = bmesh.new()
+        for n in range(520):
+            vy, vz = rnd.uniform(1.2, 3.4), rnd.uniform(1.4, 3.4)
+            t = rnd.uniform(0.04, 0.65)
+            px = rnd.uniform(-0.4, 0.4) + rnd.gauss(0, 0.12)
+            py = 0.3 + vy * t
+            pz = 0.55 + vz * t - 4.9 * t * t
+            if pz < 0.04:
+                continue
+            r = rnd.uniform(0.012, 0.035)
+            res = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=r)
+            bmesh.ops.translate(bm, vec=Vector((px, py, pz)), verts=res['verts'])
+        me = bpy.data.meshes.new('%s_Spray%d' % (name, k))
+        bm.to_mesh(me)
+        bm.free()
+        me.materials.append(spray_mat())
+        o = bpy.data.objects.new(me.name, me)
+        C.objects.link(o)
+        o.parent = root
+        o.location = (x, 0.0, 0.0)
+
+
+def churn_mat():
+    """Aerated white water: bright, slightly translucent, glossy wet crests, darker green-grey troughs."""
+    m = bpy.data.materials.get('FARM_Churn')
+    if m:
+        return m
+    m = bpy.data.materials.new('FARM_Churn')
+    m.use_nodes = True
+    m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    L = nt.links
+    p = nt.nodes['Principled BSDF']
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.name = 'ChurnMap'
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 5.0
+    nz.inputs['Detail'].default_value = 10
+    nz.inputs['Roughness'].default_value = 0.65
+    L.new(mp.outputs[0], nz.inputs['Vector'])
+    cr = nt.nodes.new('ShaderNodeValToRGB')
+    cr.color_ramp.elements[0].position = 0.35
+    cr.color_ramp.elements[0].color = (0.18, 0.24, 0.2, 1)        # water showing through between the bubbles
+    cr.color_ramp.elements[1].position = 0.58
+    cr.color_ramp.elements[1].color = (0.9, 0.92, 0.9, 1)
+    L.new(nz.outputs['Fac'], cr.inputs[0])
+    L.new(cr.outputs[0], p.inputs['Base Color'])
+    p.inputs['Roughness'].default_value = 0.25
+    p.inputs['Coat Weight'].default_value = 0.6
+    p.inputs['Coat Roughness'].default_value = 0.05
+    p.inputs['Subsurface Weight'].default_value = 0.25
+    # edges dissolve into the pond: alpha from the object-space distance to the mound's centre line
+    sep = nt.nodes.new('ShaderNodeSeparateXYZ')
+    L.new(tc.outputs['Object'], sep.inputs[0])
+    ax = nt.nodes.new('ShaderNodeMath')
+    ax.operation = 'ABSOLUTE'
+    L.new(sep.outputs[0], ax.inputs[0])
+    w = nt.nodes.new('ShaderNodeMath')
+    w.operation = 'MULTIPLY_ADD'
+    w.inputs[1].default_value = 0.2
+    w.inputs[2].default_value = 0.9
+    L.new(sep.outputs[1], w.inputs[0])
+    rel = nt.nodes.new('ShaderNodeMath')
+    rel.operation = 'DIVIDE'
+    L.new(ax.outputs[0], rel.inputs[0])
+    L.new(w.outputs[0], rel.inputs[1])
+    edge = nt.nodes.new('ShaderNodeMapRange')
+    edge.inputs['From Min'].default_value = 1.0
+    edge.inputs['From Max'].default_value = 0.35
+    L.new(rel.outputs[0], edge.inputs['Value'])
+    br = nt.nodes.new('ShaderNodeMapRange')
+    br.inputs['From Min'].default_value = 0.3
+    br.inputs['From Max'].default_value = 0.5
+    L.new(nz.outputs['Fac'], br.inputs['Value'])
+    al = nt.nodes.new('ShaderNodeMath')
+    al.operation = 'MULTIPLY'
+    L.new(edge.outputs[0], al.inputs[0])
+    L.new(br.outputs[0], al.inputs[1])
+    ln_ = nt.nodes.new('ShaderNodeMapRange')                  # ...and downstream: the boil thins into the trail
+    ln_.inputs['From Min'].default_value = 4.2
+    ln_.inputs['From Max'].default_value = 1.2
+    L.new(sep.outputs[1], ln_.inputs['Value'])
+    al2 = nt.nodes.new('ShaderNodeMath')
+    al2.operation = 'MULTIPLY'
+    L.new(al.outputs[0], al2.inputs[0])
+    L.new(ln_.outputs[0], al2.inputs[1])
+    L.new(al2.outputs[0], p.inputs['Alpha'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.6
+    bp.inputs['Distance'].default_value = 0.03
+    L.new(nz.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], p.inputs['Normal'])
+    return m
+
+
+def spray_mat():
+    """Droplets: bright water beads, half of them blink out each frame (drifting noise) so the plume flickers."""
+    m = bpy.data.materials.get('FARM_Spray')
+    if m:
+        return m
+    m = bpy.data.materials.new('FARM_Spray')
+    m.use_nodes = True
+    m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    L = nt.links
+    p = nt.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0.85, 0.9, 0.9, 1)
+    p.inputs['Roughness'].default_value = 0.1
+    p.inputs['Transmission Weight'].default_value = 0.4
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    mp = nt.nodes.new('ShaderNodeMapping')
+    mp.name = 'SprayMap'
+    L.new(tc.outputs['Object'], mp.inputs['Vector'])
+    nz = nt.nodes.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 9.0
+    L.new(mp.outputs[0], nz.inputs['Vector'])
+    mr = nt.nodes.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value = 0.48
+    mr.inputs['From Max'].default_value = 0.52
+    L.new(nz.outputs['Fac'], mr.inputs['Value'])
+    L.new(mr.outputs[0], p.inputs['Alpha'])
+    return m
+
+
+def ripple_mat():
+    """Rings spreading from each aerator: glossy crests on a clear overlay, fading out with distance."""
+    m = bpy.data.materials.get('FARM_Ripples')
+    if m:
+        return m
+    m = bpy.data.materials.new('FARM_Ripples')
+    m.use_nodes = True
+    m.surface_render_method = 'DITHERED'
+    nt = m.node_tree
+    L = nt.links
+    p = nt.nodes['Principled BSDF']
+    p.inputs['Base Color'].default_value = (0.03, 0.05, 0.045, 1)
+    p.inputs['Roughness'].default_value = 0.04
+    p.inputs['IOR'].default_value = 1.33
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    wv = nt.nodes.new('ShaderNodeTexWave')
+    wv.name = 'RippleRings'
+    wv.wave_type = 'RINGS'
+    wv.inputs['Scale'].default_value = 11.0
+    wv.inputs['Distortion'].default_value = 1.5
+    wv.inputs['Detail'].default_value = 2.0
+    L.new(tc.outputs['Generated'], wv.inputs['Vector'])
+    bp = nt.nodes.new('ShaderNodeBump')
+    bp.inputs['Strength'].default_value = 0.6
+    bp.inputs['Distance'].default_value = 0.08
+    L.new(wv.outputs['Fac'], bp.inputs['Height'])
+    L.new(bp.outputs[0], p.inputs['Normal'])
+    # radial falloff (generated coords 0..1 across the disc)
+    vm = nt.nodes.new('ShaderNodeVectorMath')
+    vm.operation = 'DISTANCE'
+    vm.inputs[1].default_value = (0.5, 0.5, 0.5)
+    L.new(tc.outputs['Generated'], vm.inputs[0])
+    fo = nt.nodes.new('ShaderNodeMapRange')
+    fo.inputs['From Min'].default_value = 0.5
+    fo.inputs['From Max'].default_value = 0.12
+    fo.inputs['To Max'].default_value = 0.7
+    L.new(vm.outputs['Value'], fo.inputs['Value'])
+    L.new(fo.outputs[0], p.inputs['Alpha'])
+    return m
 
 
 def foam_trail(name, C, rnd, length, bend, spread):
@@ -861,6 +1094,18 @@ def foam_trail(name, C, rnd, length, bend, spread):
     return o
 
 
+def _ripple_disc():
+    me = bpy.data.meshes.get('AER_RippleDisc')
+    if me is None:
+        bm = bmesh.new()
+        bmesh.ops.create_circle(bm, cap_ends=True, segments=48, radius=9.0)
+        me = bpy.data.meshes.new('AER_RippleDisc')
+        bm.to_mesh(me)
+        bm.free()
+        me.materials.append(ripple_mat())
+    return me
+
+
 def _fc(o):
     import sktruck
     return sktruck._fcurves(o.animation_data.action) if o.animation_data and o.animation_data.action else []
@@ -897,12 +1142,27 @@ def place_aerators(C, rnd, near=None):
                 fo.location = (x, y, WATER - 0.02)
                 fo.rotation_euler = o.rotation_euler
                 fo.scale = o.scale
+                rp = bpy.data.objects.new('AER_Ripple_%d_%d_%d' % (i, j, k), _ripple_disc())
+                C.objects.link(rp)
+                rp.location = (x, y + 0.0, WATER + 0.004)
+                rp.rotation_euler = o.rotation_euler
     return out
 
 
 def animate_water(f0, f1):
     """Drift the ripple and foam noise so the water and the churn move."""
-    for mn, node, vel in (('FARM_PondWater', 'RippleMap', (0.35, 0.12, 0.0)), ('FARM_Foam', 'FoamMap', (0.0, 2.6, 0.6))):
+    m = bpy.data.materials.get('FARM_Ripples')
+    if m:
+        sock = m.node_tree.nodes['RippleRings'].inputs['Phase Offset']
+        for f in (f0, f1):
+            sock.default_value = -(f - f0) / 24 * 4.0          # rings run outward
+            sock.keyframe_insert('default_value', frame=f)
+        import sktruck
+        for fc in sktruck._fcurves(m.node_tree.animation_data.action):
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'LINEAR'
+    for mn, node, vel in (('FARM_PondWater', 'RippleMap', (0.35, 0.12, 0.0)), ('FARM_Foam', 'FoamMap', (0.0, 2.6, 0.6)),
+                          ('FARM_Churn', 'ChurnMap', (0.0, -1.8, 0.9)), ('FARM_Spray', 'SprayMap', (0.0, 0.0, 41.0))):
         m = bpy.data.materials.get(mn)
         if not m:
             continue

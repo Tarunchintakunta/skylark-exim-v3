@@ -152,21 +152,299 @@ def _mat(name, color, rough=0.6, sss=0.0, coat=0.0, bump=0.0, sheen=0.0, normal_
     return m
 
 
+# --- small node helpers (procedural shading on the rest-pose 'rest' attribute: no UVs needed, no swimming)
+def _n(nt, t, **kw):
+    n = nt.nodes.new(t)
+    for k, v in kw.items():
+        setattr(n, k, v)
+    return n
+
+
+def _in(nt, sock, v):
+    if isinstance(v, bpy.types.NodeSocket):
+        nt.links.new(v, sock)
+    else:
+        sock.default_value = v
+
+
+def _op(nt, op, a, b=0.0, clamp=False):
+    n = _n(nt, 'ShaderNodeMath', operation=op, use_clamp=clamp)
+    _in(nt, n.inputs[0], a)
+    _in(nt, n.inputs[1], b)
+    return n.outputs[0]
+
+
+def _ss(nt, v, lo, hi):
+    """smoothstep(lo, hi, v)"""
+    n = _n(nt, 'ShaderNodeMapRange', interpolation_type='SMOOTHSTEP')
+    _in(nt, n.inputs['Value'], v)
+    n.inputs['From Min'].default_value = lo
+    n.inputs['From Max'].default_value = hi
+    return n.outputs['Result']
+
+
+def _rng(nt, v, lo, hi, a, b):
+    n = _n(nt, 'ShaderNodeMapRange', clamp=True)
+    _in(nt, n.inputs['Value'], v)
+    for s, x in zip(('From Min', 'From Max', 'To Min', 'To Max'), (lo, hi, a, b)):
+        n.inputs[s].default_value = x
+    return n.outputs['Result']
+
+
+def _col(nt, a, b, fac, blend='MIX'):
+    n = _n(nt, 'ShaderNodeMix', data_type='RGBA', blend_type=blend, clamp_result=False)
+    _in(nt, n.inputs[0], fac)
+    _in(nt, n.inputs[6], a if isinstance(a, bpy.types.NodeSocket) else (*a, 1))
+    _in(nt, n.inputs[7], b if isinstance(b, bpy.types.NodeSocket) else (*b, 1))
+    return n.outputs[2]
+
+
+def _attr(nt, name):
+    return _n(nt, 'ShaderNodeAttribute', attribute_name=name, attribute_type='GEOMETRY')
+
+
+def _noise(nt, vec, scale, detail=2.0, rough=0.5, warp=0.0, sx=(1, 1, 1)):
+    if sx != (1, 1, 1):
+        mp = _n(nt, 'ShaderNodeVectorMath', operation='MULTIPLY')
+        _in(nt, mp.inputs[0], vec)
+        mp.inputs[1].default_value = sx
+        vec = mp.outputs[0]
+    n = _n(nt, 'ShaderNodeTexNoise')
+    _in(nt, n.inputs['Vector'], vec)
+    n.inputs['Scale'].default_value = scale
+    n.inputs['Detail'].default_value = detail
+    n.inputs['Roughness'].default_value = rough
+    n.inputs['Distortion'].default_value = warp
+    return n.outputs['Fac']
+
+
+def _vor(nt, vec, scale):
+    n = _n(nt, 'ShaderNodeTexVoronoi')
+    _in(nt, n.inputs['Vector'], vec)
+    n.inputs['Scale'].default_value = scale
+    return n
+
+
+def _bump(nt, h, strength, dist, prev=None):
+    b = _n(nt, 'ShaderNodeBump')
+    _in(nt, b.inputs['Height'], h)
+    _in(nt, b.inputs['Strength'], strength)
+    b.inputs['Distance'].default_value = dist
+    if prev is not None:
+        nt.links.new(prev, b.inputs['Normal'])
+    return b.outputs['Normal']
+
+
+HAIR_RGB = (0.014, 0.011, 0.009)
+# South Indian skin, linear base albedo: deep brown .. wheatish; picked per person (Object Info random)
+SKIN_TONES = ((0.12, 0.072, 0.045), (0.16, 0.10, 0.062), (0.21, 0.135, 0.085), (0.27, 0.18, 0.115))
+
+
+def _skin_mat():
+    """Procedural skin on the rest-pose coordinates ('rest') and the face masks written at build time
+    (skm: T-zone, beard, brow, scalp hair; skm2: lips, periorbital, lash line).
+    Per person (Object Info random): tone, stubble amount, an occasional short beard, sweat, SSS radius.
+    Melanin + redness mottling, sparse dark spots, pores + micro bump at two scales, roughness 0.3-0.6 with an oily
+    T-zone coat. Supersedes the ocean lane's _skin_detail (flag set below)."""
+    m = bpy.data.materials.get('HUM_Skin')
+    if m:
+        return m
+    m = bpy.data.materials.new('HUM_Skin')
+    m.use_nodes = True
+    m['ocean_skin'] = 1
+    nt = m.node_tree
+    p = nt.nodes['Principled BSDF']
+    rest = _attr(nt, 'rest').outputs['Vector']
+    s1 = _n(nt, 'ShaderNodeSeparateColor')
+    a1 = _attr(nt, 'skm')
+    nt.links.new(a1.outputs['Color'], s1.inputs[0])
+    tz, beard, brow, scalp = s1.outputs[0], s1.outputs[1], s1.outputs[2], a1.outputs['Alpha']
+    s2 = _n(nt, 'ShaderNodeSeparateColor')
+    nt.links.new(_attr(nt, 'skm2').outputs['Color'], s2.inputs[0])
+    lip, orb, lash = s2.outputs[0], s2.outputs[1], s2.outputs[2]
+    r1 = _n(nt, 'ShaderNodeObjectInfo').outputs['Random']
+    r2 = _op(nt, 'FRACT', _op(nt, 'MULTIPLY', r1, 7.31))
+    r3 = _op(nt, 'FRACT', _op(nt, 'MULTIPLY', r1, 13.7))
+    ramp = _n(nt, 'ShaderNodeValToRGB')
+    cr = ramp.color_ramp
+    cr.elements[0].color = (*SKIN_TONES[0], 1)
+    cr.elements[1].position = 1.0
+    cr.elements[1].color = (*SKIN_TONES[-1], 1)
+    for i, c in enumerate(SKIN_TONES[1:-1], 1):
+        cr.elements.new(i / (len(SKIN_TONES) - 1)).color = (*c, 1)
+    nt.links.new(r1, ramp.inputs[0])
+    c = ramp.outputs[0]
+    # mottling: broad melanin patches, mid redness, fine blotch; visible, not a uniform shell
+    n_big = _noise(nt, rest, 7.0, 3.0, 0.55)
+    n_mid = _noise(nt, rest, 26.0, 5.0, 0.6, warp=0.3)
+    n_fine = _noise(nt, rest, 95.0, 4.0, 0.6)
+    c = _col(nt, c, (0.62, 0.58, 0.56), _rng(nt, n_big, 0.35, 0.68, 0.0, 1.0), 'MULTIPLY')
+    c = _col(nt, c, (1.22, 0.92, 0.82), _rng(nt, n_mid, 0.45, 0.72, 0.0, 0.8), 'MULTIPLY')
+    c = _col(nt, c, (0.78, 0.76, 0.74), _rng(nt, n_fine, 0.42, 0.66, 0.0, 0.8), 'MULTIPLY')
+    sp = _vor(nt, rest, 70.0)
+    sep = _n(nt, 'ShaderNodeSeparateColor')
+    nt.links.new(sp.outputs['Color'], sep.inputs[0])
+    spot = _op(nt, 'MULTIPLY', _op(nt, 'GREATER_THAN', sep.outputs[0], 0.86),
+               _op(nt, 'SUBTRACT', 1.0, _ss(nt, sp.outputs['Distance'], 0.04, 0.12)))
+    c = _col(nt, c, (0.62, 0.55, 0.52), _op(nt, 'MULTIPLY', spot, 0.7), 'MULTIPLY')
+    c = _col(nt, c, (0.66, 0.60, 0.64), orb, 'MULTIPLY')                  # darker around the eyes
+    c = _col(nt, c, (0.78, 0.56, 0.56), _op(nt, 'MULTIPLY', lip, 0.9), 'MULTIPLY')   # darker mauve-brown lips
+    # stubble: per-person amount, ~1 in 3 has a short beard
+    has_beard = _op(nt, 'GREATER_THAN', r3, 0.66)
+    amt = _op(nt, 'MULTIPLY', beard, _op(nt, 'ADD', _op(nt, 'MULTIPLY', r2, 0.55), _op(nt, 'MULTIPLY', has_beard, 0.6)), clamp=True)
+    dots = _vor(nt, rest, 1500.0)
+    dot = _op(nt, 'SUBTRACT', 1.0, _ss(nt, dots.outputs['Distance'], 0.16, 0.34))
+    c = _col(nt, c, (0.50, 0.47, 0.48), amt, 'MULTIPLY')         # shaved shadow
+    c = _col(nt, c, HAIR_RGB, _op(nt, 'MULTIPLY', _op(nt, 'MULTIPLY', dot, amt), 0.9))
+    bd = _noise(nt, rest, 900.0, 2.0, 0.6, sx=(1, 1, 0.35))                           # short beard hair texture
+    c = _col(nt, c, HAIR_RGB, _op(nt, 'MULTIPLY', _op(nt, 'MULTIPLY', has_beard, beard),
+                                  _rng(nt, bd, 0.35, 0.6, 0.35, 0.85)))
+    # brows: streaks along the brow; lash line; scalp under the hair reads near-black
+    st = _noise(nt, rest, 80.0, 2.0, 0.5, sx=(1, 9, 9))
+    c = _col(nt, c, HAIR_RGB, _op(nt, 'MULTIPLY', brow, _rng(nt, st, 0.3, 0.62, 0.55, 1.0)))
+    c = _col(nt, c, HAIR_RGB, _op(nt, 'MULTIPLY', lash, 0.95))
+    hl = _op(nt, 'ADD', scalp, _op(nt, 'MULTIPLY', _op(nt, 'SUBTRACT', _noise(nt, rest, 300.0, 2.0), 0.5), 0.7))
+    c = _col(nt, c, (0.02, 0.015, 0.012), _ss(nt, hl, 0.3, 0.75))
+    nt.links.new(c, p.inputs['Base Color'])
+    # roughness 0.3-0.6, oily T-zone and sweat; lips smoother
+    rough = _rng(nt, _noise(nt, rest, 55.0, 3.0), 0.3, 0.7, 0.66, 0.46)
+    sweat = _op(nt, 'ADD', 0.12, _op(nt, 'MULTIPLY', r2, 0.18))
+    rough = _op(nt, 'SUBTRACT', rough, _op(nt, 'MULTIPLY', tz, _op(nt, 'ADD', sweat, 0.05)))
+    rough = _op(nt, 'SUBTRACT', rough, _op(nt, 'MULTIPLY', lip, 0.12))
+    nt.links.new(_op(nt, 'MAXIMUM', rough, 0.28), p.inputs['Roughness'])
+    nt.links.new(_op(nt, 'MULTIPLY', tz, sweat), p.inputs['Coat Weight'])
+    p.inputs['Coat Roughness'].default_value = 0.32
+    p.inputs['Coat IOR'].default_value = 1.38
+    p.inputs['Specular IOR Level'].default_value = 0.4
+    # SSS: darker skin scatters less and shorter; radius per person
+    p.inputs['Subsurface Weight'].default_value = 0.28
+    p.inputs['Subsurface Radius'].default_value = (1.0, 0.40, 0.22)
+    nt.links.new(_op(nt, 'ADD', 0.0035, _op(nt, 'MULTIPLY', r3, 0.003)), p.inputs['Subsurface Scale'])
+    # bump: pores (Voronoi pits ~1 mm), micro grain, fine creases; stubble roughens the jaw
+    nolip = _op(nt, 'SUBTRACT', 1.0, lip)
+    pores = _vor(nt, rest, 700.0)
+    pv = _rng(nt, _noise(nt, rest, 30.0, 2.0), 0.35, 0.65, 0.15, 0.6)
+    b = _bump(nt, _ss(nt, pores.outputs['Distance'], 0.0, 0.45), _op(nt, 'MULTIPLY', nolip, pv), 0.0005)
+    b = _bump(nt, _noise(nt, rest, 2200.0, 2.0), 0.35, 0.00025, b)
+    b = _bump(nt, _noise(nt, rest, 110.0, 5.0, 0.6, sx=(1, 1, 3)), 0.16, 0.0007, b)
+    b = _bump(nt, _op(nt, 'MULTIPLY', dot, amt), 0.35, 0.0003, b)
+    b = _bump(nt, _op(nt, 'MULTIPLY', lip, _noise(nt, rest, 160.0, 2.0, 0.5, sx=(6, 1, 0.4))), 0.5, 0.0005, b)
+    nt.links.new(b, p.inputs['Normal'])
+    return m
+
+
 def _eye_mat():
+    """Eye from the rest-space direction to its own centre ('eyec'): warm sclera with redder corners, dark brown iris
+    (11.7 mm) with a limbal ring and radial fibres, black pupil, a glossy wet coat for the catchlight."""
     m = bpy.data.materials.get('HUM_Eye')
     if m:
         return m
-    m = _mat('HUM_Eye', (0.7, 0.68, 0.64), 0.06, coat=1.0)
+    m = bpy.data.materials.new('HUM_Eye')
+    m.use_nodes = True
     nt = m.node_tree
-    at = nt.nodes.new('ShaderNodeAttribute')
-    at.attribute_name = 'iris'
-    at.attribute_type = 'GEOMETRY'
-    mx = nt.nodes.new('ShaderNodeMix')
-    mx.data_type = 'RGBA'
-    nt.links.new(at.outputs['Fac'], mx.inputs[0])
-    mx.inputs[6].default_value = (0.70, 0.67, 0.62, 1)
-    mx.inputs[7].default_value = (0.025, 0.016, 0.012, 1)
-    nt.links.new(mx.outputs[2], nt.nodes['Principled BSDF'].inputs['Base Color'])
+    p = nt.nodes['Principled BSDF']
+    rest = _attr(nt, 'rest').outputs['Vector']
+    d = _n(nt, 'ShaderNodeVectorMath', operation='SUBTRACT')
+    nt.links.new(rest, d.inputs[0])
+    nt.links.new(_attr(nt, 'eyec').outputs['Vector'], d.inputs[1])
+    nd = _n(nt, 'ShaderNodeVectorMath', operation='NORMALIZE')
+    nt.links.new(d.outputs[0], nd.inputs[0])
+    sx = _n(nt, 'ShaderNodeSeparateXYZ')
+    nt.links.new(nd.outputs[0], sx.inputs[0])
+    fwd = _op(nt, 'ADD', _op(nt, 'MULTIPLY', sx.outputs['Y'], -0.994), _op(nt, 'MULTIPLY', sx.outputs['Z'], 0.11))
+    c = _col(nt, (0.36, 0.31, 0.26), (0.40, 0.20, 0.17), _rng(nt, fwd, 0.35, 0.75, 0.5, 0.0))   # sclera, red corners
+    c = _col(nt, c, (0.45, 0.42, 0.42), _ss(nt, sx.outputs['Z'], 0.05, 0.4), 'MULTIPLY')        # upper lid shadow
+    fib = _noise(nt, nd.outputs[0], 60.0, 3.0, 0.6, sx=(1, 0.2, 1))
+    iris = _col(nt, (0.035, 0.018, 0.010), (0.085, 0.045, 0.022), _rng(nt, fib, 0.35, 0.65, 0.0, 1.0))
+    c = _col(nt, c, (0.03, 0.022, 0.018), _ss(nt, fwd, 0.815, 0.83))      # limbal ring
+    c = _col(nt, c, iris, _ss(nt, fwd, 0.835, 0.85))
+    c = _col(nt, c, (0.004, 0.004, 0.004), _ss(nt, fwd, 0.975, 0.98))    # pupil
+    nt.links.new(c, p.inputs['Base Color'])
+    p.inputs['Roughness'].default_value = 0.12
+    p.inputs['Coat Weight'].default_value = 1.0
+    p.inputs['Coat Roughness'].default_value = 0.0
+    p.inputs['Coat IOR'].default_value = 1.376
+    p.inputs['Specular IOR Level'].default_value = 0.6
+    p.inputs['Subsurface Weight'].default_value = 0.15
+    p.inputs['Subsurface Radius'].default_value = (1.0, 0.5, 0.4)
+    p.inputs['Subsurface Scale'].default_value = 0.002
+    return m
+
+
+def _hair_mat():
+    """Short black hair cards: per-card tone ('strand'), oiled sheen."""
+    m = bpy.data.materials.get('HUM_Hair')
+    if m:
+        return m
+    m = bpy.data.materials.new('HUM_Hair')
+    m.use_nodes = True
+    nt = m.node_tree
+    p = nt.nodes['Principled BSDF']
+    s = _attr(nt, 'strand').outputs['Fac']
+    c = _col(nt, (0.006, 0.005, 0.0045), (0.04, 0.03, 0.022), _rng(nt, s, 0.0, 1.0, 0.0, 0.7))
+    nt.links.new(c, p.inputs['Base Color'])
+    nt.links.new(_rng(nt, s, 0.0, 1.0, 0.42, 0.62), p.inputs['Roughness'])
+    p.inputs['Coat Weight'].default_value = 0.12
+    p.inputs['Coat Roughness'].default_value = 0.3
+    p.inputs['Specular IOR Level'].default_value = 0.5
+    return m
+
+
+def _glove_detail(m):
+    """Gloves read as rubber/nitrile, not a mannequin hand: knuckle creases (the 'crease' attribute copied from the
+    hand), crinkle grain, roughness variation, a wet coat. Works on any glove material (the ocean lane swaps its own)."""
+    if m is None or m.get('glove_detail'):
+        return m
+    m['glove_detail'] = 1
+    nt = m.node_tree
+    p = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    rest = _attr(nt, 'rest').outputs['Vector']
+    cr = _attr(nt, 'crease').outputs['Fac']
+    lk = p.inputs['Normal'].links
+    prev = lk[0].from_socket if lk else None
+    wr = _noise(nt, rest, 420.0, 3.0, 0.6, sx=(1, 1, 4))
+    b = _bump(nt, _op(nt, 'MULTIPLY', cr, wr), 1.0, 0.0022, prev)
+    b = _bump(nt, _noise(nt, rest, 1800.0, 2.0), 0.25, 0.00025, b)
+    nt.links.new(b, p.inputs['Normal'])
+    src = p.inputs['Base Color'].links[0].from_socket if p.inputs['Base Color'].links else p.inputs['Base Color'].default_value[:3]
+    c = _col(nt, src, (0.72, 0.72, 0.72), _op(nt, 'MULTIPLY', cr, _rng(nt, wr, 0.4, 0.7, 0.0, 0.8)), 'MULTIPLY')
+    nt.links.new(c, p.inputs['Base Color'])
+    nt.links.new(_rng(nt, _noise(nt, rest, 40.0, 3.0), 0.3, 0.7, 0.34, 0.6), p.inputs['Roughness'])
+    p.inputs['Coat Weight'].default_value = 0.12
+    p.inputs['Coat Roughness'].default_value = 0.25
+    p.inputs['Specular IOR Level'].default_value = 0.4
+    return m
+
+
+def _boot_mat():
+    """White gumboots as worn rubber: off-white, dark sole band, grime rising from the ground, scuffs, ankle creases."""
+    m = bpy.data.materials.get('HUM_WhiteBoot')
+    if m:
+        return m
+    m = bpy.data.materials.new('HUM_WhiteBoot')
+    m.use_nodes = True
+    nt = m.node_tree
+    p = nt.nodes['Principled BSDF']
+    rest = _attr(nt, 'rest').outputs['Vector']
+    z = _n(nt, 'ShaderNodeSeparateXYZ')
+    nt.links.new(rest, z.inputs[0])
+    z = z.outputs['Z']
+    n1 = _noise(nt, rest, 18.0, 4.0, 0.6)
+    c = _col(nt, (0.66, 0.66, 0.61), (0.54, 0.55, 0.52), _rng(nt, n1, 0.35, 0.65, 0.0, 1.0))
+    grime = _op(nt, 'MULTIPLY', _op(nt, 'SUBTRACT', 1.0, _ss(nt, z, 0.02, 0.16)), _rng(nt, n1, 0.3, 0.7, 0.55, 1.0))
+    c = _col(nt, c, (0.20, 0.17, 0.13), grime)
+    scuff = _rng(nt, _noise(nt, rest, 140.0, 3.0, 0.6), 0.6, 0.72, 0.0, 0.5)
+    c = _col(nt, c, (0.32, 0.30, 0.27), scuff)
+    c = _col(nt, c, (0.035, 0.032, 0.03), _op(nt, 'SUBTRACT', 1.0, _ss(nt, z, 0.022, 0.03)))   # sole
+    nt.links.new(c, p.inputs['Base Color'])
+    nt.links.new(_rng(nt, n1, 0.3, 0.7, 0.32, 0.6), p.inputs['Roughness'])
+    p.inputs['Coat Weight'].default_value = 0.2
+    p.inputs['Coat Roughness'].default_value = 0.25
+    band = _op(nt, 'MULTIPLY', _op(nt, 'SINE', _op(nt, 'MULTIPLY', z, 260.0)),
+               _op(nt, 'MULTIPLY', _ss(nt, z, 0.09, 0.13), _op(nt, 'SUBTRACT', 1.0, _ss(nt, z, 0.2, 0.26))))
+    b = _bump(nt, _op(nt, 'MULTIPLY', band, _noise(nt, rest, 9.0)), 0.5, 0.002)
+    b = _bump(nt, _noise(nt, rest, 600.0, 2.0), 0.12, 0.0003, b)
+    nt.links.new(b, p.inputs['Normal'])
     return m
 
 
@@ -240,7 +518,7 @@ def mats():
     fab = CC0 + '/tex/Fabric030/Fabric030_2K-JPG_NormalGL.jpg'
     fab2 = CC0 + '/tex/Fabric061/Fabric061_2K-JPG_NormalGL.jpg'
     return {
-        'skin': _mat('HUM_Skin', (0.42, 0.25, 0.17), 0.5, sss=0.3, bump=0.12, rand=0.25),   # SSS + pore bump
+        'skin': _skin_mat(),
         'eye': _eye_mat(),
         'white_cotton': _palette(_mat('HUM_WhiteCotton', (0.6, 0.61, 0.6), 0.85, sheen=0.3, bump=0.12, rand=0.04,
                                       wrinkle=0.6, normal_tex=fab, tex_scale=45.0),
@@ -249,8 +527,8 @@ def mats():
         'white_pvc': _palette(_mat('HUM_WhitePVC', (0.84, 0.86, 0.86), 0.32, coat=0.3, bump=0.02),
                               ((0.80, 0.82, 0.82), (0.30, 0.48, 0.62), (0.34, 0.07, 0.08), (0.80, 0.82, 0.82),
                                (0.16, 0.38, 0.30))),   # aprons: white / blue / maroon / green by person
-        'boot': _mat('HUM_WhiteBoot', (0.70, 0.71, 0.69), 0.35, coat=0.2, bump=0.02),
-        'nitrile_blue': _mat('HUM_NitrileBlue', (0.16, 0.33, 0.62), 0.38, coat=0.25, rand=0.06),
+        'boot': _boot_mat(),
+        'nitrile_blue': _mat('HUM_NitrileBlue', (0.10, 0.22, 0.48), 0.38, coat=0.25, rand=0.06),
         'cap_white': _hairnet(_palette(_mat('HUM_CapNonwoven', (0.74, 0.75, 0.77), 0.95, sheen=0.4, bump=0.25),
                                        ((0.74, 0.75, 0.77), (0.42, 0.58, 0.74), (0.74, 0.75, 0.77), (0.36, 0.56, 0.40),
                                         (0.74, 0.75, 0.77), (0.70, 0.45, 0.50)))),   # caps by role: white, blue, green, pink
@@ -260,7 +538,7 @@ def mats():
         'trousers_dark': _mat('HUM_TrouserDark', (0.08, 0.08, 0.09), 0.75, bump=0.1, rand=0.2, wrinkle=0.45),
         'shoe': _mat('HUM_Shoe', (0.05, 0.045, 0.04), 0.45, coat=0.2),
         'stache': _stache_mat(),
-        'hair': _mat('HUM_Hair', (0.025, 0.02, 0.018), 0.5, bump=0.4, rand=0.2),
+        'hair': _hair_mat(),
         'hivis': _mat('HUM_HiVis', (0.75, 0.85, 0.08), 0.6, emission=(0.6, 0.7, 0.05), estr=0.15, bump=0.12, wrinkle=0.45),
         'shirt_farm': _mat('HUM_ShirtFarm', (0.34, 0.27, 0.22), 0.85, sheen=0.2, bump=0.12, rand=0.35, hue_rand=0.5, wrinkle=0.45),
         'shorts': _mat('HUM_Shorts', (0.20, 0.22, 0.25), 0.85, bump=0.1, rand=0.3, wrinkle=0.45),
@@ -391,6 +669,9 @@ def _skin(body, eyes, ao, weights_from=None):
 def _region(body, gender, piece, k):
     """Vertex mask for a clothing piece, from the rest (A-pose) surface. k = height scale."""
     out = []
+    HZ = None
+    if piece in ('haircap', 'cap') and 'hairz' in body.data.attributes:
+        HZ = [d.value for d in body.data.attributes['hairz'].data]
     for v in body.data.vertices:
         x, y, z = v.co.x, v.co.y, v.co.z / k
         ax = abs(x) / k
@@ -419,6 +700,10 @@ def _region(body, gender, piece, k):
             sel = z < 0.105
         elif piece in ('gloves', 'gloves_rubber'):
             sel = sa > (0.50 if piece == 'gloves' else 0.44)
+        elif piece in ('haircap', 'cap') and HZ is not None:
+            # follows the smooth hairline (no staircase, no ear flap): the bouffant covers the hairline,
+            # a cloth cap sits above it so hair shows under the rim
+            sel = HZ[v.index] > (-0.012 if piece == 'haircap' else 0.012) and z > 1.45
         elif piece == 'haircap':
             sel = (z > 1.60) or (z > 1.49 and n.y > 0.1 and ax < 0.10) or (z > 1.545 and ax > 0.055 and n.y > -0.3)
             sel = sel and ax < 0.125 and not (1.5 * KH < z < 1.61 * KH and ax > 0.066 * KH)   # ears stay out
@@ -440,11 +725,13 @@ def _region(body, gender, piece, k):
 STACHE = (1.505, 1.517, 0.030)       # upper lip band (z lo, z hi, half width) on the rest mesh
 SLEEVE = {'jacket': 0.545, 'parka': 0.55, 'labcoat': 0.535, 'shirt': 0.17, 'shirt_farm': 0.31}
 CUFF = ('shirt_farm', 'trousers_rolled', 'jacket', 'labcoat', 'parka', 'haircap', 'shirt', 'trousers', 'trousers_dark',
-        'shorts')
+        'shorts', 'gloves')
+LOOSE = 1.05          # loose cloth stands off the body by THICK * LOOSE (was 1.6: vests and oilskins ballooned)
+RELAX_CURL = 0.22     # finger curl baked into the masters: relaxed hands
 THICK = {'jacket': 0.028, 'parka': 0.05, 'shirt': 0.03, 'shirt_farm': 0.03, 'labcoat': 0.032, 'trousers': 0.02,
          'trousers_dark': 0.016, 'trousers_rolled': 0.016, 'shorts': 0.018, 'boots': 0.016, 'shoes': 0.008,
-         'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.018, 'hair': 0.008, 'cap': 0.014, 'mask': 0.008,
-         'vest': 0.042, 'stache': 0.0012}
+         'gloves': 0.0016, 'gloves_rubber': 0.003, 'haircap': 0.022, 'hair': 0.008, 'cap': 0.02, 'mask': 0.008,
+         'vest': 0.024, 'stache': 0.0012}
 PMAT = {'jacket': 'white_cotton', 'labcoat': 'white_cotton', 'parka': 'parka', 'shirt': 'shirt_blue',
         'shirt_farm': 'shirt_farm', 'trousers': 'white_cotton', 'trousers_dark': 'trousers_dark',
         'trousers_rolled': 'trousers_dark', 'shorts': 'shorts', 'boots': 'boot', 'shoes': 'shoe',
@@ -456,7 +743,12 @@ KH = 1.0
 
 
 def _shell(body, piece, mask, M):
-    """Copy of the body faces inside mask, pushed out along normals (+ fabric folds), solidified."""
+    """Copy of the body faces inside mask, pushed out along normals (+ fabric folds), solidified.
+    'hair' is no longer a shell (it read as a helmet): an empty piece here, hair cards are grown per outfit."""
+    if piece == 'hair':
+        o = bpy.data.objects.new('%s_hair' % body.name, bpy.data.meshes.new('%s_hair' % body.name))
+        bpy.context.scene.collection.objects.link(o)
+        return o
     me = body.data.copy()
     o = bpy.data.objects.new('%s_%s' % (body.name, piece), me)
     bpy.context.scene.collection.objects.link(o)
@@ -505,9 +797,9 @@ def _shell(body, piece, mask, M):
         front = nxt
     if loose_cloth:
         # cloth drapes over the anatomy: push out, then relax (removes muscle detail); hems hug the body
-        hem = {'labcoat': 0.022, 'parka': 0.022, 'vest': 0.045}.get(piece, 0.012)   # vest sits over the shirt
+        hem = {'labcoat': 0.018, 'parka': 0.02, 'vest': 0.026}.get(piece, 0.010)   # vest sits over the shirt
         for v in bm.verts:
-            v.co += v.normal * (hem if v.is_boundary else t * 1.6)
+            v.co += v.normal * (hem if v.is_boundary else t * LOOSE)
         inner = [v for v in bm.verts if not v.is_boundary]
         for it in range(4):
             for _ in range(20):
@@ -535,9 +827,12 @@ def _shell(body, piece, mask, M):
             inner = [v for v in bm.verts if not v.is_boundary]
         bm.normal_update()
         t = 0.006
+    cl = bm.verts.layers.float.get('crease')
     for v in bm.verts:
         z = v.co.z
         extra = 0.0
+        if cl is not None and piece in ('gloves', 'gloves_rubber'):
+            extra -= 0.0016 * v[cl]                     # glove pinches into the knuckle creases: jointed, not sausages
         if piece in ('labcoat',) and z < 0.95:
             extra = (0.95 - z) * 0.10  # skirt flares a little
         if piece == 'haircap':
@@ -587,6 +882,8 @@ def _shell(body, piece, mask, M):
                 x = x0 + (x1 - x0) * ix / nx
                 z = z0 + (z1 - z0) * iz / nz
                 h = bvh.ray_cast(Vector((x, -1.0, z)), Vector((0, 1, 0)))
+                if h[0] is None:
+                    h = bvh.find_nearest(Vector((x, -0.06 * KH, z)))
                 if h[0] is not None:
                     hits[ix, iz] = h[0].y
         tip = min(hits.values())
@@ -751,11 +1048,304 @@ def _slim_hands(body, ao):
         v.co = c
 
 
-def build_masters(out_path, level=1):
+def _sm(x, lo, hi):
+    import numpy as np
+    t = np.clip((x - lo) / (hi - lo), 0.0, 1.0)
+    return t * t * (3 - 2 * t)
+
+
+def _landmarks(body, eyes):
+    """Eye centre (left side, +x), nose tip, ear (lateral-most point at eye height) on the rest mesh."""
+    import numpy as np
+    E = [sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices) for e in eyes]
+    E = max(E, key=lambda c: c.x)
+    co = np.array([v.co[:] for v in body.data.vertices])
+    face = (co[:, 2] > E.z - 0.06) & (co[:, 2] < E.z + 0.02) & (np.abs(co[:, 0]) < 0.01)
+    nose = co[face][np.argmin(co[face][:, 1])]
+    band = (co[:, 2] > E.z - 0.04) & (co[:, 2] < E.z + 0.01) & (co[:, 0] > 0) & (co[:, 0] < 0.11)
+    ear = co[band][np.argmax(co[band][:, 0])]
+    return E, Vector(nose), Vector(ear), co
+
+
+def _face_maps(body, eyes):
+    """Per-vertex masks for the skin shader (rest pose): skm = (T-zone, beard, brow, scalp hair),
+    skm2 = (lips, periorbital, lash line, 0); 'rest' = rest position (stable texture space under the rig);
+    eyes get 'eyec' (their own centre) for the iris."""
+    import numpy as np
+    E, nose, ear, co = _landmarks(body, eyes)
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+    ax = np.abs(x)
+    Ex, Ey, Ez = E
+    front = 1 - _sm(y, ear.y - 0.02, ear.y + 0.005)
+    # T-zone: forehead centre + nose + point of the chin
+    fz = (1 - _sm(ax, 0.025, 0.05)) * _sm(z, Ez + 0.012, Ez + 0.025) * (1 - _sm(z, Ez + 0.055, Ez + 0.075))
+    nz_ = (1 - _sm(ax, 0.008, 0.02)) * _sm(z, Ez - 0.052, Ez - 0.04) * (1 - _sm(z, Ez, Ez + 0.012)) * (y < Ey - 0.01)
+    cz = 0.6 * (1 - _sm(ax, 0.01, 0.025)) * _sm(z, Ez - 0.128, Ez - 0.118) * (1 - _sm(z, Ez - 0.105, Ez - 0.095))
+    tz = np.maximum.reduce([fz * front, nz_, cz * (y < Ey)])
+    # lips: ellipse round the mouth, only the front-most surface
+    zm = nose.z - 0.04
+    lipr = (x / 0.024) ** 2 + ((z - zm) / 0.013) ** 2
+    lip = (1 - _sm(lipr, 0.6, 1.1)) * (y < nose.y + 0.03)
+    # beard: below the line nose wing -> sideburn, above the throat, in front of the ear
+    U = np.where(ax < 0.02, nose.z - 0.012, nose.z - 0.012 + (ax - 0.02) * 0.75)
+    beard = _sm(U - z, 0.0, 0.006) * _sm(z, Ez - 0.17, Ez - 0.145) * (1 - _sm(y, ear.y - 0.022, ear.y - 0.005))
+    beard *= (1 - lip) * (1 - _sm(ax, ear.x - 0.012, ear.x - 0.004))
+    # brows
+    u = ax - Ex
+    zb = Ez + 0.017 + 0.005 * (1 - ((u - 0.003) / 0.026) ** 2)
+    th = 0.0048 - 0.0018 * np.clip((u + 0.022) / 0.05, 0, 1)
+    brow = (1 - _sm(np.abs(z - zb) / th, 0.55, 1.15)) * _sm(u, -0.025, -0.018) * (1 - _sm(u, 0.022, 0.031))
+    brow *= (y < Ey + 0.006)
+    # around the eyes
+    r = np.sqrt((ax - Ex) ** 2 + ((z - Ez) * 1.25) ** 2)
+    orb = _sm(r, 0.011, 0.015) * (1 - _sm(r, 0.021, 0.034)) * np.where(z < Ez, 1.0, 0.55) * (y < Ey + 0.008)
+    lash = _sm(r, 0.0108, 0.0122) * (1 - _sm(r, 0.0138, 0.0158)) * (y < Ey - 0.002)
+    lash *= np.where(z > Ez - 0.002, 1.0, 0.35)
+    # scalp hair: hairline height by azimuth round the head (front .. nape), ears cut out, sideburns
+    sl = (ax < 0.01) & (np.abs(z - Ez - 0.03) < 0.006)
+    hcy = (y[sl].min() + y[sl].max()) / 2 if sl.any() else Ey + 0.08
+    az = np.abs(np.arctan2(x, -(y - hcy))) / math.pi              # 0 front .. 1 back
+    H = np.interp(az, [0.0, 0.12, 0.2, 0.3, 0.36, 0.5, 0.7, 1.0],
+                  np.array([0.080, 0.074, 0.058, 0.036, 0.004, 0.012, -0.03, -0.088]) * KH + Ez)
+    scalp = _sm(z, H - 0.002, H + 0.008) * (ax < 0.125 * KH)
+    earcut = _sm(ax, ear.x - 0.022, ear.x - 0.014) * (np.abs(y - ear.y) < 0.032) * (z > Ez - 0.05) * (z < Ez + 0.03)
+    scalp *= 1 - earcut
+    me = body.data
+    hz = me.attributes.get('hairz') or me.attributes.new('hairz', 'FLOAT', 'POINT')
+    hz.data.foreach_set('value', ((z - H) / KH).astype(np.float32))
+    for nm, vals in (('skm', np.stack([tz, beard, brow, scalp], 1)),
+                     ('skm2', np.stack([lip, orb, lash, np.zeros_like(lip)], 1))):
+        a = me.attributes.get(nm) or me.attributes.new(nm, 'FLOAT_COLOR', 'POINT')
+        a.data.foreach_set('color', np.clip(vals, 0, 1).astype(np.float32).ravel())
+    for o in [body] + list(eyes):
+        a = o.data.attributes.get('rest') or o.data.attributes.new('rest', 'FLOAT_VECTOR', 'POINT')
+        a.data.foreach_set('vector', np.array([v.co[:] for v in o.data.vertices], np.float32).ravel())
+    for e in eyes:
+        c = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
+        a = e.data.attributes.new('eyec', 'FLOAT_VECTOR', 'POINT')
+        a.data.foreach_set('vector', np.tile(np.array(c[:], np.float32), len(e.data.vertices)))
+    return E, nose, ear
+
+
+FACE_BONES = ('face.L', 'face.R', 'nose', 'jaw')
+
+
+def _face_rig(body, ao, E, nose, ear):
+    """Four small face bones under 'head' (cheek/mouth halves, nose, jaw) so each person gets an asymmetric,
+    broader-nosed face by bone scale (person()); the eyes stay on 'head'."""
+    import numpy as np
+    bpy.context.view_layer.objects.active = ao
+    bpy.ops.object.mode_set(mode='EDIT')
+    eb = ao.data.edit_bones
+    heads = {'face.L': (E.x, E.y + 0.012, E.z - 0.035), 'face.R': (-E.x, E.y + 0.012, E.z - 0.035),
+             'nose': (0, nose.y + 0.02, nose.z), 'jaw': (0, E.y + 0.015, E.z - 0.09)}
+    for n, h in heads.items():
+        if n in eb:
+            continue
+        b = eb.new(n)
+        b.head = Vector(h)
+        b.tail = Vector(h) + Vector((0, -0.03, 0))
+        b.roll = 0
+        b.parent = eb['head']
+    bpy.ops.object.mode_set(mode='OBJECT')
+    co = np.array([v.co[:] for v in body.data.vertices])
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+    F = (1 - _sm(y, ear.y - 0.03, ear.y - 0.005)) * _sm(z, E.z - 0.15, E.z - 0.12) * (1 - _sm(z, E.z + 0.02, E.z + 0.05))
+    eye_d = np.sqrt((np.abs(x) - E.x) ** 2 + (y - E.y) ** 2 + (z - E.z) ** 2)
+    F *= _sm(eye_d, 0.02, 0.035)
+    wn = 0.9 * (1 - _sm(np.linalg.norm(co - np.array(nose[:]), axis=1), 0.01, 0.03)) * (y < nose.y + 0.045)
+    wj = 0.55 * F * (1 - _sm(z, nose.z - 0.06, nose.z - 0.035))
+    wl = 0.55 * F * _sm(x, 0.004, 0.03) * (1 - wn)
+    wr = 0.55 * F * _sm(-x, 0.004, 0.03) * (1 - wn)
+    tot = wn + wj + wl + wr
+    sc = np.where(tot > 0.95, 0.95 / np.maximum(tot, 1e-6), 1.0)
+    W = {'nose': wn * sc, 'jaw': wj * sc, 'face.L': wl * sc, 'face.R': wr * sc}
+    hg = body.vertex_groups['head']
+    old = {n: body.vertex_groups.get(n) for n in FACE_BONES}
+    groups = {n: (old[n] or body.vertex_groups.new(name=n)) for n in FACE_BONES}
+    for v in body.data.vertices:
+        hw = 0.0
+        for g in v.groups:
+            if g.group == hg.index or any(og and g.group == og.index for og in old.values()):
+                hw += g.weight
+        if hw <= 0:
+            continue
+        i = v.index
+        rest = hw
+        for n in FACE_BONES:
+            w = float(W[n][i]) * hw
+            if w > 1e-4:
+                groups[n].add([i], w, 'REPLACE')
+                rest -= w
+            elif old[n]:
+                try:
+                    groups[n].remove([i])
+                except RuntimeError:
+                    pass
+        hg.add([i], max(0.0, rest), 'REPLACE')
+
+
+def _hand_crease(body, ao):
+    """'crease' = knuckle lines across the fingers (glove wrinkles / skin creases)."""
+    import numpy as np
+    co = np.array([v.co[:] for v in body.data.vertices])
+    out = np.zeros(len(co))
+    for side in ('L', 'R'):
+        hb = ao.data.bones['hand.' + side]
+        h0, d = np.array(hb.head_local[:]), np.array((hb.tail_local - hb.head_local).normalized()[:])
+        L = hb.length
+        rel = co - h0
+        al = rel @ d
+        dist = np.linalg.norm(rel - np.outer(al, d), axis=1)
+        hand = (al > -0.01) & (al < 1.1 * L) & (dist < 0.08)
+        c = np.zeros(len(co))
+        for f in (0.57, 0.70, 0.86):
+            c = np.maximum(c, np.exp(-((al - f * L) / 0.0045) ** 2))
+        c += 0.5 * np.exp(-((al - 0.03) / 0.008) ** 2)        # wrist crease / cuff gather
+        out = np.where(hand, np.maximum(out, c), out)
+    a = body.data.attributes.get('crease') or body.data.attributes.new('crease', 'FLOAT', 'POINT')
+    a.data.foreach_set('value', np.clip(out, 0, 1).astype(np.float32))
+
+
+def _hair_cards(src, cover, gender, M, seed=1, n_scalp=7000):
+    """Short black hair as narrow cards combed over the scalp (side part, back and down), lying in a 2-6 mm layer
+    that follows the head; density from the 'skm' scalp mask (thins out at the hairline: no zigzag edge), none where
+    a garment covers the scalp (cover objects: cap, hard hat...), so caps sit on hair and hair shows under the rim.
+    Brows get short cards too. Rigid on 'head'."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    me = src.data
+    me.calc_loop_triangles()
+    att = me.attributes.get('skm')
+    if att is None or not len(me.loop_triangles):
+        return None
+    mk = np.empty(len(me.vertices) * 4, np.float32)
+    att.data.foreach_get('color', mk)
+    mk = mk.reshape(-1, 4)
+    co = np.array([v.co[:] for v in me.vertices])
+    tris = np.array([t.vertices[:] for t in me.loop_triangles])
+    a, b, c = co[tris[:, 0]], co[tris[:, 1]], co[tris[:, 2]]
+    area = 0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1)
+    dg = bpy.context.evaluated_depsgraph_get()
+    body_bvh = BVHTree.FromObject(src, dg)
+    cv, cp = [], []
+    for o in cover:
+        if o.type != 'MESH' or not len(o.data.polygons):
+            continue
+        base = len(cv)
+        cv += [o.matrix_world @ v.co for v in o.data.vertices]
+        cp += [[base + i for i in p.vertices] for p in o.data.polygons]
+    cover_bvh = BVHTree.FromPolygons(cv, cp) if cp else None
+    bm = bmesh.new()
+    sl = bm.verts.layers.float.new('strand')
+
+    def grow(chan, count, length_fn, dir_fn, lift, width):
+        tm = mk[tris, chan].mean(axis=1)
+        w = area * np.clip(tm, 0, 1) ** 1.5
+        if w.sum() <= 0:
+            return 0
+        idx = rng.choice(len(tris), count, p=w / w.sum())
+        u, v = rng.random(count), rng.random(count)
+        flip = u + v > 1
+        u[flip], v[flip] = 1 - u[flip], 1 - v[flip]
+        P = a[idx] + (b[idx] - a[idx]) * u[:, None] + (c[idx] - a[idx]) * v[:, None]
+        mv = mk[tris[idx], chan]
+        mval = mv[:, 0] * (1 - u - v) + mv[:, 1] * u + mv[:, 2] * v
+        n = 0
+        for k in range(count):
+            if rng.random() > mval[k] ** 1.3:           # sparse at the hairline
+                continue
+            p = Vector(P[k])
+            hit, nrm, _i, _d = body_bvh.find_nearest(p)
+            if hit is None:
+                continue
+            if cover_bvh is not None and cover_bvh.ray_cast(hit + nrm * 0.001, nrm, 0.08)[0] is not None:
+                continue
+            L = length_fn(hit) * (0.75 + 0.5 * rng.random())
+            steps = 5
+            pts, nrms = [hit + nrm * 0.0004], [nrm]
+            q = hit
+            jit = Vector(rng.normal(0, 0.25, 3))
+            for s in range(1, steps + 1):
+                t = s / steps
+                dvec = dir_fn(q) + jit
+                tang = (dvec - nrm * dvec.dot(nrm))
+                if tang.length < 1e-6:
+                    tang = nrm.orthogonal()
+                q2 = q + tang.normalized() * (L / steps)
+                h2, n2, _i, _d = body_bvh.find_nearest(q2)
+                if h2 is None:
+                    break
+                q, nrm = h2, n2
+                pts.append(q + nrm * (lift[0] + (lift[1] - lift[0]) * t ** 0.7 * (0.6 + 0.8 * rng.random())))
+                nrms.append(nrm)
+            if len(pts) < 3:
+                continue
+            tone = rng.random()
+            row = []
+            for i, (pp, nn) in enumerate(zip(pts, nrms)):
+                t = i / (len(pts) - 1)
+                fw = pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]
+                sd = nn.cross(fw)
+                sd = sd.normalized() if sd.length > 1e-9 else nn.orthogonal().normalized()
+                hw = width * (1 - 0.8 * t) * 0.5
+                v0, v1 = bm.verts.new(pp - sd * hw), bm.verts.new(pp + sd * hw)
+                v0[sl] = v1[sl] = tone
+                row.append((v0, v1))
+            for (v0, v1), (w0, w1) in zip(row, row[1:]):
+                bm.faces.new((v0, v1, w1, w0))
+            n += 1
+        return n
+
+    part = 0.025 if gender == 'male' else 0.0
+
+    def scalp_dir(q):
+        sx = 1.0 if q.x > part else -1.0
+        side = 0.55 * sx * max(0.0, 1 - abs(q.x - part) / 0.06) if gender == 'male' else 0.0
+        return Vector((side + 0.25 * sx, 1.0, -0.55 if q.z < 1.62 * KH else -0.15))
+
+    def scalp_len(q):
+        lo, hi = (0.007, 0.032) if gender == 'male' else (0.03, 0.07)
+        t = max(0.0, min(1.0, (q.z - 1.58 * KH) / (0.08 * KH)))
+        return lo + (hi - lo) * t * t * (3 - 2 * t)
+
+    ns = grow(3, n_scalp, scalp_len, scalp_dir, (0.0015, 0.0055 if gender == 'male' else 0.007), 0.0011)
+    nb = grow(2, 900, lambda q: 0.0065, lambda q: Vector((0.9 if q.x > 0 else -0.9, 0.0, 0.35)),
+              (0.0003, 0.0012), 0.0004)
+    if gender == 'female':
+        # low bun at the nape (hidden when a cap covers it)
+        bk = max((v.co for v in me.vertices if abs(v.co.x) < 0.02 and 1.50 * KH < v.co.z < 1.60 * KH),
+                 key=lambda v: v.y, default=None)
+        if bk is not None:
+            ctr = bk + Vector((0, 0.025 * KH, -0.01 * KH))
+            if cover_bvh is None or cover_bvh.find_nearest(ctr, 0.05)[0] is None:
+                r = bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=1.0,
+                                              matrix=Matrix.Translation(ctr) @ Matrix.Diagonal((0.042, 0.03, 0.034, 1)))
+                for vv in r['verts']:
+                    vv[sl] = rng.random()
+    print('hair cards', src.name, ns, 'scalp', nb, 'brow', flush=True)
+    if not bm.faces:
+        bm.free()
+        return None
+    hm = bpy.data.meshes.new(src.name + '_haircards')
+    bm.to_mesh(hm)
+    bm.free()
+    o = bpy.data.objects.new(hm.name, hm)
+    bpy.context.scene.collection.objects.link(o)
+    o.vertex_groups.new(name='head').add(range(len(hm.vertices)), 1.0, 'REPLACE')
+    hm.materials.append(M['hair'])
+    for p in hm.polygons:
+        p.use_smooth = True
+    return o
+
+
+def build_masters(out_path, level=1, genders=('male', 'female')):
     """Run headless once: writes humans.blend with HUM_Rig_<g> armatures and HUM_<g>_<outfit> meshes."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     M = mats()
-    for gender in ('male', 'female'):
+    for key in ('nitrile_blue', 'rubber_glove'):
+        _glove_detail(M.get(key))
+    for gender in genders:
         body, eyes = _append_body(gender)
         _apply_multires(body, level)
         h = _normalize(body, eyes)
@@ -767,18 +1357,17 @@ def build_masters(out_path, level=1):
         _skin(body, eyes, ao, bpy.data.objects.get('HUMB_male') if gender == 'female' else None)
         _slim_hands(body, ao)
         _close_mouth(body)
+        E, nose, ear = _face_maps(body, eyes)
+        _face_rig(body, ao, E, nose, ear)
+        _hand_crease(body, ao)
+        for sd in ('L', 'R'):                       # relaxed hands: fingers a little curled, never board-flat
+            for i, c in _finger_curl(body.data, ao, sd, RELAX_CURL)[0].items():
+                body.data.vertices[i].co = c
         body.data.materials.clear()
         body.data.materials.append(M['skin'])
         for e in eyes:
             e.data.materials.clear()
             e.data.materials.append(M['eye'])
-            ctr = sum((v.co for v in e.data.vertices), Vector()) / len(e.data.vertices)
-            at = e.data.attributes.new('iris', 'FLOAT', 'POINT')
-            vals = []
-            for v in e.data.vertices:
-                d = (v.co - ctr).normalized()
-                vals.append(max(0.0, min(1.0, (-d.y - 0.80) / 0.08)))
-            at.data.foreach_set('value', vals)
         pieces = {}
         regions = {}
         need = sorted({p for ps in OUTFITS.values() for p in ps} | {'stache'})
@@ -801,7 +1390,7 @@ def build_masters(out_path, level=1):
                 bpy.context.scene.collection.objects.link(c)
                 cps.append(c)
             # hide the skin under opaque clothes (no poke-through when posed); the border ring stays
-            cov = [any(regions[p][i] for p in plist if p in regions and p != 'mask') for i in range(len(body.data.vertices))]
+            cov = [any(regions[p][i] for p in plist if p in regions and p not in ('mask', 'hair')) for i in range(len(body.data.vertices))]
             bm = bmesh.new()
             bm.from_mesh(cps[0].data)
             bm.verts.ensure_lookup_table()
@@ -810,6 +1399,11 @@ def build_masters(out_path, level=1):
             bmesh.ops.delete(bm, geom=kill, context='FACES')
             bm.to_mesh(cps[0].data)
             bm.free()
+            if 'hair' in plist:
+                cover = [c for c, p in zip(cps[1 + len(eyes):], plist) if p not in ('hair', 'mask', 'stache')]
+                hc = _hair_cards(cps[0], cover, gender, M, seed=len(oname) * 31 + len(plist))
+                if hc is not None:
+                    cps.append(hc)
             bpy.ops.object.select_all(action='DESELECT')
             for c in cps:
                 c.select_set(True)
@@ -873,7 +1467,16 @@ def person(name, outfit='plant', gender='male', loc=(0, 0, 0), rot_z=0.0, scale=
     hb = ao.pose.bones.get('head')
     if hb:
         hb.scale = (r.uniform(0.95, 1.05), r.uniform(0.96, 1.04), r.uniform(0.96, 1.05))
-    set_pose(ao, {'upperarm': (4, -24, 0), 'forearm': (14, 0, 0), 'hand': (0, 0, 0)})
+    # asymmetric faces, broader noses (face bones; masters built before round 8 lack them)
+    for n, sc, lo in (('face.L', [r.uniform(0.95, 1.05)] * 3, (r.uniform(-1.5, 1.5), 0, r.uniform(-1.5, 1.5))),
+                      ('face.R', [r.uniform(0.95, 1.05)] * 3, (r.uniform(-1.5, 1.5), 0, r.uniform(-1.5, 1.5))),
+                      ('nose', (r.uniform(1.06, 1.22), r.uniform(0.98, 1.06), r.uniform(0.96, 1.04)), (0, 0, 0)),
+                      ('jaw', (r.uniform(0.97, 1.06), 1.0, r.uniform(0.97, 1.03)), (0, 0, r.uniform(-1, 1)))):
+        pb = ao.pose.bones.get(n)
+        if pb:
+            pb.scale = sc
+            pb.location = [c * 0.001 for c in lo]
+    set_pose(ao, stand(seed))
     return ao
 
 
@@ -911,8 +1514,11 @@ def set_pose(ao, P, frame=None):
         _rot(pb, *full.get(pb.name, (0, 0, 0)), side)
         if frame is not None:
             pb.keyframe_insert('rotation_quaternion', frame=frame)
-    if 'root_dz' in P and frame is not None:
-        pass
+    if 'root_dz' in P:                                    # crouch / kneel: drop the pelvis (hips bone local Y = up)
+        hp = ao.pose.bones['hips']
+        hp.location = (0, P['root_dz'], 0)
+        if frame is not None:
+            hp.keyframe_insert('location', frame=frame)
 
 
 def walk_cycle(ao, f0, f1, path, stride=0.72, base=None, arms=True, bob=0.025, phase=0.0, step=2):
@@ -984,20 +1590,182 @@ def _finger_curl(me, ao, side, curl, knuckle=0.085):
     return out, axis
 
 
-def grip(ao, side, curl=1.0, knuckle=0.085, name=None):
-    """Curl the fingers of one hand around a handle: shape key on a single-user copy of this person's mesh."""
+def _finger_groups(me, ao, side):
+    """Fingers of one hand on the rest mesh (skin and glove vertices alike), thumb first:
+    [(vertex indices, along-the-hand values, MCP along)] + hand frame (h0, d, knuckle axis) as numpy arrays.
+    Connectivity past the finger roots separates the fingers; pieces at the same lateral spot (glove outer/inner
+    shell, skin) are grouped; a merged ring+pinky is split at its largest lateral gap."""
+    import numpy as np
+    from collections import defaultdict
+    hb = ao.data.bones['hand.' + side]
+    L = hb.length
+    h0 = np.array(hb.head_local[:])
+    d = np.array((hb.tail_local - hb.head_local).normalized()[:])
+    _pts, axis = _finger_curl(me, ao, side, 0.0)
+    ax = np.array(axis[:])
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    rel = co - h0
+    al = rel @ d
+    dist = np.linalg.norm(rel - np.outer(al, d), axis=1)
+    lat = rel @ ax
+    hand = (al > -0.01) & (al < 1.2 * L) & (dist < 0.08)
+    S = hand & (al > 0.60 * L)
+    ed = np.empty(len(me.edges) * 2, dtype=np.int64)
+    me.edges.foreach_get('vertices', ed)
+    ed = ed.reshape(-1, 2)
+    ed = ed[S[ed[:, 0]] & S[ed[:, 1]]]
+    par = {int(i): int(i) for i in np.nonzero(S)[0]}
+
+    def f(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    for a_, b_ in ed:
+        ra, rb = f(int(a_)), f(int(b_))
+        if ra != rb:
+            par[ra] = rb
+    comp = defaultdict(list)
+    for i in par:
+        comp[f(i)].append(i)
+    comps = sorted((np.array(c) for c in comp.values() if len(c) >= 6), key=lambda c: lat[c].mean())
+    groups = []
+    for c in comps:
+        if groups and abs(lat[c].mean() - lat[groups[-1]].mean()) < 0.009:
+            groups[-1] = np.concatenate([groups[-1], c])
+        else:
+            groups.append(c)
+    out = []
+    for g in groups:
+        ls = np.sort(lat[g])
+        if ls[-1] - ls[0] > 0.026 and len(ls) > 20:
+            gaps = np.diff(ls)
+            k = int(np.argmax(gaps[len(ls) // 5: -len(ls) // 5])) + len(ls) // 5
+            cut = (ls[k] + ls[k + 1]) / 2
+            out += [g[lat[g] < cut], g[lat[g] >= cut]]
+        else:
+            out.append(g)
+    out.sort(key=lambda g: co[g][:, 1].mean())          # thumb: the front-most group
+    res = []
+    for g in out:
+        root = al[g].min()
+        mcp = root - 0.012 * L / 0.148
+        lo, hi = lat[g].min() - 0.003, lat[g].max() + 0.003
+        web = np.nonzero(hand & (al >= mcp) & (al <= root) & (lat >= lo) & (lat <= hi))[0]
+        idx = np.unique(np.concatenate([g, web]))
+        res.append((idx, al[idx], mcp))
+    return res, (h0, d, ax, co, al)
+
+
+def _grip_axis(ao, side):
+    if ('grip_axis_' + side) not in ao.keys():
+        hb = ao.data.bones['hand.' + side]
+        axis = _finger_curl(ao.children[0].data, ao, side, 0.0)[1]
+        ao['grip_axis_' + side] = list(hb.matrix_local.inverted().to_3x3() @ axis)
+    return Vector(ao['grip_axis_' + side])
+
+
+def grip(ao, side, curl=1.0, knuckle=0.085, name=None, target=None, clearance=0.0015):
+    """Curl the fingers of one hand: shape key on a single-user copy of this person's mesh.
+    target=None: the knuckle curl (curl 1 = closed fist).
+    target=object or list: each finger (and the thumb) closes until it touches the target's surface, joint by joint
+    (proximal phalanx first, then middle, then tip, as a real grip wraps), never closer than `clearance`; the
+    person must already be posed (wrap_hand / ik_hands) with the palm at the object. Report in ao['grip_<side>']:
+    joint angles and the closest finger-to-surface distance per finger (negative = clipping)."""
+    import numpy as np
     mo = ao.children[0]
     if mo.data.users > 1:
         mo.data = mo.data.copy()
     if not mo.data.shape_keys:
         mo.shape_key_add(name='Basis')
+    _grip_axis(ao, side)
+    if target is None:
+        sk = mo.shape_key_add(name=name or ('grip_' + side))
+        pts, axis = _finger_curl(mo.data, ao, side, curl, knuckle)
+        for i, c in pts.items():
+            sk.data[i].co = c
+        sk.value = 1.0
+        return sk
+    tg = target if isinstance(target, (list, tuple)) else [target]
+    dg = bpy.context.evaluated_depsgraph_get()
+    dg.update()
+    tv = []
+    for t in tg:
+        te = t.evaluated_get(dg)
+        tv.append((BVHTree.FromObject(te, dg), t.matrix_world.inverted()))
+    pb = ao.pose.bones['hand.' + side]
+    Mh = np.array(ao.matrix_world @ pb.matrix @ pb.bone.matrix_local.inverted())
+    fingers, (h0, d, ax, co, al) = _finger_groups(mo.data, ao, side)
+    axv = Vector(ax)
+
+    def clear(P, prev=None):
+        """min signed distance of world points P (n,3) to the target surfaces; with prev (the last accepted
+        positions) a vertex whose move crosses a surface counts as clipping (thin walls, rods, net strings)"""
+        best = 1.0
+        W = P @ Mh[:3, :3].T + Mh[:3, 3]
+        W0 = None if prev is None else prev @ Mh[:3, :3].T + Mh[:3, 3]
+        for bvh, inv in tv:
+            for k, w in enumerate(W):
+                q = inv @ Vector(w)
+                hit, nrm, _i, dd = bvh.find_nearest(q, 0.05)
+                if hit is not None:
+                    best = min(best, (q - hit).dot(nrm))
+                if W0 is not None:
+                    q0 = inv @ Vector(W0[k])
+                    mv = q - q0
+                    if mv.length > 1e-7 and bvh.ray_cast(q0, mv, mv.length + clearance)[0] is not None:
+                        return -1.0
+        return best
+
+    def pose(idx, s, piv, A):
+        P = co[idx].copy()
+        for j in (2, 1, 0):
+            w = np.clip((s - piv[j][0] + 0.004) / 0.008, 0.0, 1.0)
+            w = w * w * (3 - 2 * w)
+            p = piv[j][1]
+            for k in np.nonzero(w > 0)[0]:
+                R = Matrix.Rotation(A[j] * w[k], 3, axv)
+                P[k] = np.array(p) + np.array(R @ Vector(P[k] - p))
+        return P
+
     sk = mo.shape_key_add(name=name or ('grip_' + side))
-    pts, axis = _finger_curl(mo.data, ao, side, curl, knuckle)
-    for i, c in pts.items():
-        sk.data[i].co = c
-    hb = ao.data.bones['hand.' + side]
-    ao['grip_axis_' + side] = list(hb.matrix_local.inverted().to_3x3() @ axis)   # knuckle axis, bone space (wrap_hand)
+    rep = {}
+    amax = math.radians(95) * curl
+    step = math.radians(3)
+    for fi, (idx, s, mcp) in enumerate(fingers):
+        tip = s.max()
+        piv = []
+        for frac in (0.0, 0.42, 0.72):
+            sj = mcp + (tip - mcp) * frac
+            near = idx[np.abs(s - max(sj, s.min() + 0.003)) < 0.005]
+            piv.append((sj, co[near].mean(axis=0) if len(near) else co[idx].mean(axis=0)))
+        A = [0.0, 0.0, 0.0]
+        start = clear(co[idx])                         # a finger already touching may still close, not dig in
+        lim = (amax, math.radians(105) * curl, math.radians(75) * curl)
+        for stage in (0, 1, 2):
+            while True:
+                B = list(A)
+                if stage == 0:
+                    B = [A[0] + step, A[1] + step * 1.1, A[2] + step * 0.75]
+                elif stage == 1:
+                    B = [A[0], A[1] + step, A[2] + step * 0.7]
+                else:
+                    B = [A[0], A[1], A[2] + step]
+                if any(b > l for b, l in zip(B, lim)):
+                    break
+                sel = s >= piv[stage][0] - 0.004
+                if clear(pose(idx[sel], s[sel], piv, B), pose(idx[sel], s[sel], piv, A)) < min(clearance, start - 0.0005):
+                    break
+                A = B
+        P = pose(idx, s, piv, A)
+        for k, i in enumerate(idx):
+            sk.data[int(i)].co = Vector(P[k])
+        rep['thumb' if fi == 0 else 'f%d' % fi] = ([round(math.degrees(a)) for a in A], round(clear(P) * 1000, 1))
     sk.value = 1.0
+    ao['grip_' + side] = str(rep)
+    print('GRIP', ao.name, side, rep, flush=True)
     return sk
 
 
@@ -1059,7 +1827,7 @@ def wrap_hand(ao, side, parent, palm, fing, nrm, inf, C=None):
         e.parent = parent
         e.location = v
         tg[k] = e
-    ax = Vector(ao.get('grip_axis_' + side, (1, 0, 0)))
+    ax = _grip_axis(ao, side)
     i = 0 if abs(ax.x) > abs(ax.z) else 2
     trk = ('TRACK_' if ax[i] > 0 else 'TRACK_NEGATIVE_') + 'XYZ'[i]
     cs = []
@@ -1089,12 +1857,37 @@ def ik_feet(ao, tgt_l, tgt_r):
 
 
 ARM_IN = -16.0     # most-inward upperarm side angle: arm hangs just clear of the hip
+def stand(seed=0, amp=1.0):
+    """Relaxed stand: weight on one leg (contrapposto: pelvis drops on the free side, shoulders counter-tilt, free knee
+    bent and turned out), elbows bent 12-24 deg, wrists soft, head tilted a touch. Mirrored / varied by seed."""
+    r = random.Random(seed * 131 + 7)
+    j = lambda a=2.0: r.uniform(-a, a) * amp
+    w, f = ('R', 'L') if r.random() < 0.5 else ('L', 'R')      # weight leg, free leg
+    sg = 1 if w == 'R' else -1                                   # +1: free hip (left) drops
+    P = {'hips': (0, 3.5 * sg + j(0.8), 3 * sg + j()), 'spine': (2 + j(1), -3 * sg + j(), -2 * sg),
+         'chest': (2 + j(1), -1.5 * sg, -1.5 * sg), 'neck': (-2 + j(), 0, j(3)), 'head': (3 + j(), 3 * sg + j(), j(5)),
+         'thigh.' + w: (j(1), -3.5, 0), 'shin.' + w: (-2, 0, 0), 'foot.' + w: (2, 0, 0),
+         'thigh.' + f: (7 + j(), 3.5, 9), 'shin.' + f: (-15 + j(3), 0, 0), 'foot.' + f: (8, 0, 0),
+         'upperarm.L': (4 + j(3), -15, -6), 'upperarm.R': (2 + j(3), -15, -6),
+         'forearm.L': (14 + r.uniform(0, 10), 0, 6), 'forearm.R': (14 + r.uniform(0, 10), 0, 6),
+         'hand.L': (6 + j(), 0, 0), 'hand.R': (6 + j(), 0, 0)}
+    return P
+
+
 POSES = {
-    'stand': {'upperarm': (4, -16, 0), 'forearm': (12, 0, 0)},          # arms hang by the sides, not A-pose
+    'stand': stand(0),          # contrapposto, arms hang with soft elbows: never an A-pose
+    'crouch': {'root_dz': -0.40, 'spine': (24, 0, 0), 'chest': (10, 0, 0), 'neck': (-6, 0, 0), 'head': (-14, 0, 0),
+               'thigh.L': (100, -3, 4), 'shin.L': (-118, 0, 0), 'foot.L': (24, 0, 0),
+               'thigh.R': (82, -4, 4), 'shin.R': (-122, 0, 0), 'foot.R': (36, 0, 0),
+               'upperarm': (34, -12, 0), 'forearm': (58, 0, 0), 'hand': (8, 0, 0)},     # knees together, heels up
+    'kneel': {'root_dz': -0.44, 'spine': (8, 0, 0), 'chest': (4, 0, 0), 'head': (6, 0, 0),
+              'thigh.L': (95, 0, 4), 'shin.L': (-95, 0, 0), 'foot.L': (0, 0, 0),
+              'thigh.R': (-6, -2, 0), 'shin.R': (-96, 0, 0), 'foot.R': (-30, 0, 0),
+              'upperarm': (24, -12, 0), 'forearm': (40, 0, 0), 'hand': (6, 0, 0)},       # one knee down
     'table': {'spine': (10, 0, 0), 'chest': (8, 0, 0), 'neck': (14, 0, 0), 'head': (12, 0, 0),
               'upperarm': (28, -10, 0), 'forearm': (72, 0, 0), 'hand': (-10, 0, 0)},
     'lift_low': {'spine': (30, 0, 0), 'chest': (12, 0, 0), 'head': (-10, 0, 0),
-                 'thigh': (45, 4, 0), 'shin': (-60, 0, 0), 'foot': (15, 0, 0),
+                 'thigh': (45, -2, 0), 'shin': (-60, 0, 0), 'foot': (15, 0, 0),
                  'upperarm': (50, -8, 0), 'forearm': (20, 0, 0)},
     'carry': {'spine': (-4, 0, 0), 'upperarm': (12, -10, 0), 'forearm': (80, 0, 0)},
     'push': {'spine': (14, 0, 0), 'upperarm': (42, -6, 0), 'forearm': (35, 0, 0)},
