@@ -21,3 +21,9 @@ export function faceRotation(lat: number, lon: number): [number, number] {
   const p = latLon(lat, lon)
   return [lat * D, -Math.atan2(p.x, p.z)]
 }
+
+/** Point on (or off) the sphere → [lat, lon] in degrees: the inverse of latLon. */
+export function toLatLon(p: Vector3): [number, number] {
+  const v = p.clone().normalize()
+  return [Math.asin(v.y) / D, Math.atan2(v.z, -v.x) / D - 180]
+}

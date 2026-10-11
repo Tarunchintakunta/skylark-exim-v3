@@ -3,12 +3,12 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, MathUtils, SRGBColorSpace, Vector3, type Mesh } from 'three'
 import type { Line2 } from 'three-stdlib'
-import { MARKET_COORDS, MARKETS_BY_REGION, ORIGIN } from '../config/markets'
+import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from '../config/markets'
 import { env } from '../engine/env'
 import { frame } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import { film } from '../film/controller'
-import { faceRotation, latLon, routePoints } from './geo'
+import { faceRotation, latLon, routePoints, toLatLon } from './geo'
 import { globeUi } from './globeState'
 
 const BRASS = new Color('#e08a5f')
@@ -50,6 +50,15 @@ const SPOTS = MARKETS_BY_REGION.flatMap(({ markets }) => {
 const toSway = (lon: number) => Math.min(SWAY, Math.max(-SWAY, lon - C_LON))
 const SPOT_SWAY = SPOTS.map((ids) => toSway(ids.reduce((s, i) => s + MARKET_COORDS[i].lon, 0) / ids.length))
 const DWELL = 3.2
+/** user rotation (#198): max tilt from the scroll view (deg), idle seconds before easing home, inertia/ease/home rates (1/s) */
+const TILT = 25
+const IDLE = 3
+const FRICTION = 4
+const SEEK = 4
+const HOME = 1.2
+/** wraps a longitude difference into −180..180 */
+const wrapLon = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180
+const clampTilt = (t: number) => Math.min(TILT, Math.max(-TILT, t))
 
 const atmosphere = {
   uniforms: { color: { value: new Color('#9fd3ff') } },
@@ -94,7 +103,8 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     () => MARKET_COORDS.map((m, j) => {
       const to = latLon(m.lat, m.lon, 1.002)
       // varied heights (a golden-ratio spread per market) so the routes don't bundle into one fan
-      return { to, points: routePoints(origin, to, N, 0.12 + 0.26 * ((j * 0.618) % 1)) }
+      // face: the middle of the arc, which the globe turns to when this market is clicked (market and route in front)
+      return { to, points: routePoints(origin, to, N, 0.12 + 0.26 * ((j * 0.618) % 1)), face: toLatLon(origin.clone().add(to)) }
     }),
     [origin],
   )
@@ -169,6 +179,84 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
       if (label && label.style.opacity !== o) label.style.opacity = o
     }
 
+    // drag / keys / market clicks (#198): an offset on top of the scroll view (lat, lon in degrees), with inertia; after
+    // IDLE seconds without input it eases home and the idle tour resumes. Wheel is never handled: it scrolls the page.
+    const wrap = gl.domElement.closest<HTMLElement>('.globe-canvas')!
+    const user = { lat: 0, lon: 0 }
+    const vel = { lat: 0, lon: 0 }
+    let now = 0
+    let idleAt = -Infinity
+    let lastClick = -1
+    let drag: { id: number; x: number; y: number; t: number; live: boolean } | null = null
+    const interact = () => void (idleAt = now)
+    const turn = (dLat: number, dLon: number) => {
+      user.lat = clampTilt(user.lat + dLat)
+      user.lon += dLon
+    }
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0) return
+      // touch: wait to see the gesture; mouse/pen: grab at once
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp, live: e.pointerType !== 'touch' }
+      if (drag.live) grab(e)
+    }
+    const grab = (e: PointerEvent) => {
+      wrap.setPointerCapture(e.pointerId)
+      wrap.classList.add('is-grabbing')
+      vel.lat = vel.lon = 0
+      globeUi.focus = lastClick = -1
+      interact()
+      if (!globeUi.explored) {
+        globeUi.explored = true
+        wrap.parentElement?.querySelector('.globe-hint')?.classList.add('is-gone')
+      }
+    }
+    const move = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return
+      const dx = e.clientX - drag.x
+      const dy = e.clientY - drag.y
+      if (!drag.live) {
+        // touch-action: pan-y hands vertical swipes to the page (pointercancel); only a mostly-horizontal drag turns
+        if (Math.hypot(dx, dy) < 6) return
+        if (Math.abs(dx) <= Math.abs(dy)) return void (drag = null)
+        drag.live = true
+        grab(e)
+      }
+      // ≈ 180° across the globe's on-screen diameter
+      const k = 180 / (2 * (lay.r || wrap.clientHeight / 2.5))
+      const dt = Math.max(e.timeStamp - drag.t, 8) / 1000
+      turn(dy * k, -dx * k)
+      vel.lat = lerp(vel.lat, (dy * k) / dt, 0.5)
+      vel.lon = lerp(vel.lon, (-dx * k) / dt, 0.5)
+      Object.assign(drag, { x: e.clientX, y: e.clientY, t: e.timeStamp })
+      interact()
+    }
+    const up = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return
+      // a pause before letting go means no fling
+      if (env.reduced || e.timeStamp - drag.t > 80) vel.lat = vel.lon = 0
+      drag = null
+      wrap.classList.remove('is-grabbing')
+      interact()
+    }
+    const key = (e: KeyboardEvent) => {
+      const d = { ArrowLeft: [0, -15], ArrowRight: [0, 15], ArrowUp: [10, 0], ArrowDown: [-10, 0] }[e.key]
+      if (!d) return
+      e.preventDefault()
+      globeUi.focus = lastClick = -1
+      interact()
+      // instant under reduced motion; otherwise an inertia kick that glides the same distance
+      if (env.reduced) turn(d[0], d[1])
+      else {
+        vel.lat = d[0] * FRICTION
+        vel.lon = d[1] * FRICTION
+      }
+    }
+    wrap.addEventListener('pointerdown', down)
+    wrap.addEventListener('pointermove', move)
+    wrap.addEventListener('pointerup', up)
+    wrap.addEventListener('pointercancel', up)
+    wrap.addEventListener('keydown', key)
+
     let last = -1
     let clock = 0
     let sway = 0
@@ -178,9 +266,19 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
 
     const off = onTick((time) => {
       const dt = last < 0 ? 0 : Math.min(0.05, time - last)
-      last = time
+      last = now = time
       const i = frame.index
+      // only the world chapter takes pointer and keyboard input; the layer is invisible before it
+      const live = i === worldIndex && !frame.past
+      if (wrap.tabIndex !== (live ? 0 : -1)) {
+        wrap.tabIndex = live ? 0 : -1
+        wrap.style.pointerEvents = live ? 'auto' : 'none'
+      }
       const nearWorld = i === worldIndex || (i === worldIndex - 1 && frame.local > 0.8)
+      if (!nearWorld || frame.past) {
+        user.lat = user.lon = vel.lat = vel.lon = 0
+        globeUi.focus = lastClick = -1
+      }
       if (!nearWorld || frame.past || !onScreen || document.hidden || !group.current) return
       const g = group.current
       const p = i === worldIndex ? frame.local : 0
@@ -209,8 +307,8 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
       originDot.current?.scale.setScalar(s)
 
       // focus: a hovered list item, else a hovered/tapped dot (found below, from last frame's screen positions)
-      let focus = globeUi.highlight
-      if (focus < 0 && px > -1e3) {
+      let focus = globeUi.highlight >= 0 ? globeUi.highlight : globeUi.focus
+      if (focus < 0 && px > -1e3 && !drag?.live) {
         let best = HIT * HIT
         screen.forEach(([x, y, vis], j) => {
           const dd = (x - px) ** 2 + (y - py) ** 2
@@ -223,15 +321,49 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
 
       // rotation: Visakhapatnam → the settled view, then (motion allowed) the idle tour eases toward each region
       const settled = p > DRAW[1]
-      if (settled) clock += dt
+      // user input (#198): a clicked market turns to face the camera and holds while it stays highlighted; a drag or
+      // fling moves the offset; after IDLE seconds it eases home and the tour resumes
+      const clicked = globeUi.focus
+      if (clicked !== lastClick) {
+        lastClick = clicked
+        if (clicked >= 0) {
+          interact()
+          vel.lat = vel.lon = 0
+        }
+      }
+      if (clicked >= 0 && globeUi.highlight === clicked) idleAt = time
+      const idle = time - idleAt > IDLE
+      if (clicked >= 0 && idle) globeUi.focus = lastClick = -1
+      if (settled && idle) clock += dt
       const spot = SPOTS[Math.floor(clock / DWELL) % SPOTS.length]
-      if (!env.reduced) {
+      if (!env.reduced && idle) {
         const target = focus >= 0 ? toSway(MARKET_COORDS[focus].lon) : settled ? SPOT_SWAY[SPOTS.indexOf(spot)] : 0
         sway += (target - sway) * (1 - Math.exp(-dt * 0.9))
       }
-      const lon = lerp(ORIGIN.lon + 4, C_LON, ease(clamp01(p / 0.6))) + sway
-      const lat = lerp(15, C_LAT, k)
-      const [rx, ry] = faceRotation(lat, lon)
+      const baseLon = lerp(ORIGIN.lon + 4, C_LON, ease(clamp01(p / 0.6))) + sway
+      const baseLat = lerp(15, C_LAT, k)
+      if (drag?.live) {
+        // the pointer moves the globe directly
+      } else if (globeUi.focus >= 0) {
+        const [fLat, fLon] = routes[globeUi.focus].face
+        const tLat = clampTilt(fLat - baseLat)
+        const tLon = user.lon + wrapLon(fLon - baseLon - user.lon)
+        const a = env.reduced ? 1 : 1 - Math.exp(-dt * SEEK)
+        user.lat += (tLat - user.lat) * a
+        user.lon += (tLon - user.lon) * a
+      } else if (idle) {
+        user.lon = wrapLon(user.lon)
+        const a = env.reduced ? 1 : 1 - Math.exp(-dt * HOME)
+        user.lat -= user.lat * a
+        user.lon -= user.lon * a
+        if (Math.abs(user.lat) + Math.abs(user.lon) < 0.05) user.lat = user.lon = 0
+      } else {
+        turn(vel.lat * dt, vel.lon * dt)
+        const a = Math.exp(-dt * FRICTION)
+        vel.lat *= a
+        vel.lon *= a
+      }
+      const [rx, ry] = faceRotation(baseLat + user.lat, baseLon + user.lon)
       g.rotation.set(rx, ry, 0, 'XYZ')
       g.updateMatrixWorld()
       camera.updateMatrixWorld()
@@ -266,7 +398,7 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
       placed.clear()
       tmp.copy(origin).applyMatrix4(g.matrixWorld).project(camera)
       if (k > 0.6 && L.origin && place(L.origin, ((tmp.x + 1) / 2) * vw, ((1 - tmp.y) / 2) * vh, boxes, vw, vh)) placed.add(L.origin)
-      const want = focus >= 0 ? [focus] : settled ? spot : []
+      const want = focus >= 0 ? [focus] : settled && idle ? spot : []
       for (const j of want) {
         const label = L.markets[j]
         if (placed.size >= MAX_LABELS || !label || !screen[j][2]) continue
@@ -280,12 +412,17 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     return () => {
       off()
       io.disconnect()
+      wrap.removeEventListener('pointerdown', down)
+      wrap.removeEventListener('pointermove', move)
+      wrap.removeEventListener('pointerup', up)
+      wrap.removeEventListener('pointercancel', up)
+      wrap.removeEventListener('keydown', key)
       removeEventListener('pointermove', onPointer)
       removeEventListener('pointerdown', onPointer)
       document.documentElement.removeEventListener('pointerleave', onLeave)
       removeEventListener('resize', onResize)
     }
-  }, [camera, get, invalidate, labels, origin, routes, worldIndex])
+  }, [camera, get, gl, invalidate, labels, origin, routes, worldIndex])
 
   return (
     <group ref={group}>
@@ -338,6 +475,11 @@ export default function GlobeCanvas() {
     <>
       <Canvas
         className="globe-canvas"
+        role="application"
+        aria-roledescription="globe"
+        aria-label={`Globe of the ${MARKET_COUNT} export markets. Drag or use the arrow keys to turn it.`}
+        tabIndex={-1}
+        style={{ pointerEvents: 'none' }}
         // phones up to 2× so the globe's silhouette isn't a jagged, upscaled edge
         dpr={env.mobile ? [1, 2] : [1, 1.5]}
         frameloop="demand"
@@ -356,7 +498,10 @@ export default function GlobeCanvas() {
         </Suspense>
       </Canvas>
       {/* positioned per frame by Earth; decorative (the stage is aria-hidden), the market list is the real text */}
-      <div className="globe-labels">
+      <p className={`globe-hint mono${globeUi.explored ? ' is-gone' : ''}`} aria-hidden="true">
+        Drag to explore
+      </p>
+      <div className="globe-labels" aria-hidden="true">
         <span className="globe-label globe-label--origin mono" ref={(s) => void (labels.current.origin = s)}>
           {ORIGIN.name}
         </span>

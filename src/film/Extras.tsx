@@ -29,7 +29,7 @@ export function DocCards() {
   )
 }
 
-/** World caption: every market as real text, grouped by region; hover/focus highlights that route on the globe (PRD F8). */
+/** World caption: every market as real text, grouped by region; hover/focus highlights that route on the globe (PRD F8), a click turns the globe to it. */
 export function MarketList() {
   const set = (i: number) => () => void (globeUi.highlight = i)
   return (
@@ -40,7 +40,7 @@ export function MarketList() {
           <ul className="markets__list">
             {markets.map((i) => (
               <li key={i}>
-                <button type="button" className="markets__item" onMouseEnter={set(i)} onMouseLeave={set(-1)} onFocus={set(i)} onBlur={set(-1)}>
+                <button type="button" className="markets__item" onMouseEnter={set(i)} onMouseLeave={set(-1)} onFocus={set(i)} onBlur={set(-1)} onClick={() => void (globeUi.focus = globeUi.highlight = i)}>
                   {MARKET_COORDS[i].name}
                 </button>
               </li>
