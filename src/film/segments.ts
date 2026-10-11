@@ -31,10 +31,10 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
 
 /**
  * Media tier (redesign §2.6), chosen once at load: 960 on phones / Save-Data, 1920 when the frame is wider than
- * 1280 device px (e.g. 1440 wide, or Retina above ~860 css px, dpr capped at 1.5), else 1280.
+ * 1600 device px, so the 1280 tier is never upscaled more than 1.25× (e.g. 1680 wide, or Retina above ~1067 css px, dpr capped at 1.5), else 1280.
  */
 const dpr = Math.min(devicePixelRatio || 1, 1.5)
-export const W = env.mobile || env.saveData ? 960 : innerWidth * dpr > 1280 ? 1920 : 1280
+export const W = env.mobile || env.saveData ? 960 : innerWidth * dpr > 1600 ? 1920 : 1280
 /** stand-in stills (ph-*) only exist at 1280 / 720; a still that is a clip's first frame (a3, b2) exists at every clip tier */
 const stillW = (w: number) => (w === 960 ? 720 : 1280)
 export const clipUrl = (id: string, w = W) => `/media/${id}_${w}.mp4`
