@@ -28,16 +28,21 @@ function documentRoutes(): Plugin {
   }
 }
 
+// Homepage is its own build. Sharing React with /quote and /news adds a request
+// before the hero paints, and that page's LCP budget is 2500 ms.
+const documents = process.env.BUILD_ENTRIES === 'documents'
+const page = (name: string) => resolve(import.meta.dirname, name)
+
 export default defineConfig({
   plugins: [documentRoutes(), react()],
   build: {
     target: 'es2022',
+    // The second build adds quote.html and news.html. It must not wipe the homepage.
+    emptyOutDir: !documents,
     rolldownOptions: {
-      input: {
-        main: resolve(import.meta.dirname, 'index.html'),
-        quote: resolve(import.meta.dirname, 'quote.html'),
-        news: resolve(import.meta.dirname, 'news.html'),
-      },
+      input: documents
+        ? { quote: page('quote.html'), news: page('news.html') }
+        : { main: page('index.html') },
       output: {
         advancedChunks: {
           includeDependenciesRecursively: false,

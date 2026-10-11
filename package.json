@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && BUILD_ENTRIES=documents vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "preview": "vite preview --port 4173 --strictPort",
     "assets": "scripts/fetch-sources.sh && scripts/encode-clips.sh && scripts/make-posters.sh && scripts/optimize-glb.sh",
