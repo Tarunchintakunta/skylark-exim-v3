@@ -357,8 +357,7 @@ def _hardhat(body, k, M):
 
 
 def _pvc_trim(body, k, M):
-    """Oilskin details that make the jacket read as PVC gear, not a sweater: a low collar band at the neck base
-    and seam welts over the shoulders. Weights from the nearest body surface."""
+    """Oilskin details that make the jacket read as PVC gear, not a sweater: seam welts over the shoulders. Weights from the nearest body surface."""
     from mathutils.bvhtree import BVHTree
     bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
     off = (ALIAS_THICK['pvc_jacket'] * 1.6 + 0.008) * k          # sits just outside the jacket shell
@@ -376,19 +375,8 @@ def _pvc_trim(body, k, M):
             rows.append((bm.verts.new(base - side * half_w), bm.verts.new(base + side * half_w)))
         for (a0, a1), (b0, b1) in zip(rows, rows[1:]):
             bm.faces.new((a0, a1, b1, b0))
-    # collar band: a low ring around the neck base, below the jaw
-    ring = []
-    for i in range(24):
-        a = 2 * math.pi * i / 24
-        p = Vector((0.075 * k * math.cos(a), 0.01 * k + 0.07 * k * math.sin(a), 1.40 * k))
-        hit, nrm, _i, _d = bvh.find_nearest(p)
-        d = Vector((p.x, p.y - 0.01 * k, 0)).normalized()
-        c = hit + d * (off + 0.004 * k)
-        ring.append((bm.verts.new(c), bm.verts.new(c + Vector((0, 0, 0.025 * k)) + d * 0.003 * k)))
-    for i in range(24):
-        a0, a1 = ring[i]
-        b0, b1 = ring[(i + 1) % 24]
-        bm.faces.new((a0, b0, b1, a1))
+    # (no collar band: on the r8 library sheet the ring read as a sausage round the neck; the jacket shell's own
+    # neck edge carries the collar)
     # shoulder seam welts (neck to shoulder point, both sides)
     for sx in (-1, 1):
         strip([(sx * (0.07 + 0.11 * t) * k, 0.0, (1.44 - 0.03 * t) * k) for t in [i / 8 for i in range(9)]], 0.006 * k, 0.003 * k)
