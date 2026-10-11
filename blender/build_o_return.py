@@ -121,9 +121,9 @@ for x0, n_along in ((40, 4), (-92, 3)):
             for sy in (1, -1):                                   # old tyres hung over the side as fenders
                 for tx in (-7.0, -2.5, 2.0, 6.5):
                     hb = S.hull_b(tx) * 1.01
-                    L.obj(f'MOORED{k}_Fender', ftyre, None, (tx, sy * (hb + 0.11), 1.05 + rnd.uniform(-0.1, 0.1)),
-                          (D(90 + rnd.uniform(-6, 6)), 0, 0), parent=R['root'])
-                    L.tube(f'MOORED{k}_FenderRope', [(tx, sy * (hb + 0.1), 1.45), (tx, sy * (hb + 0.03), 2.5)], 0.012,
+                    L.obj(f'MOORED{k}_Fender', ftyre, None, (tx, sy * (hb + 0.12), 1.85 + rnd.uniform(-0.08, 0.08)),
+                          (D(90 + rnd.uniform(-6, 6)), 0, 0), parent=R['root'])      # hung just under the rail: reads in the f1-f60 aerials
+                    L.tube(f'MOORED{k}_FenderRope', [(tx, sy * (hb + 0.1), 2.26), (tx, sy * (hb + 0.03), 2.52)], 0.012,
                            mats['rope'], 4, parent=R['root'])
             for f in range(1, 289, 24):
                 R['root'].rotation_euler.x = D(0.8 * math.sin(f / 19.0 + k))
@@ -515,7 +515,7 @@ for i, (x, y, rz) in enumerate(((10, -14, 30), (-36, -4, 100), (48, -20, 200))):
 SO.progress('section: camera')
 # ---------------------------------------------------------------- camera
 cam = L.camera('Camera', 30, (60, -20, 25), (90, 25, 2))
-cam.data.dof.aperture_fstop = 5.6
+cam.data.dof.aperture_fstop = 11.0   # the near rafted boats stay sharp in the f1-f72 aerial move
 keys = [
     (1, (70.0, -24.0, 26.0), (110.0, 28.0, 2.0), 30),
     (72, (24.0, -20.0, 15.0), (36.0, 18.0, 2.0), 30),
@@ -539,4 +539,6 @@ os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
 sys.argv = [sys.argv[0], '--', 'o-return', '1', '288', 'exterior']
 exec(compile(open(os.path.join(HERE, 'render_settings.py')).read(), 'render_settings.py', 'exec'))
+s.render.motion_blur_shutter = 0.25   # the aerial move and the pans smeared whole tiles at 0.5
+bpy.ops.wm.save_mainfile()
 print('BUILT', OUT, len(bpy.data.objects), 'objects')
