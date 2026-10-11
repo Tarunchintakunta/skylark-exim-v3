@@ -396,11 +396,11 @@ for i, (x, y, rz) in enumerate(((-34.0, -33.5, 0.0), (44.0, -34.0, math.pi))):  
 # spine bent and twisted a little, arms asymmetric), never the same pose twice; the banksman signals the crane
 _RELAX = [
     {'hips_z': 0.925, 'spine': (4, 5, -8), 'neck': (0, -4, 0), 'sh_L': (10, -22, 0), 'el_L': (0, -92, 0),      # radio at the chest
-     'sh_R': (-9, -4, 0), 'el_R': (0, -20, 0), 'hp_L': (2, -5, 0), 'kn_L': (0, 4, 0), 'hp_R': (-3, 9, 0), 'kn_R': (0, 15, 0),
-     'an_R': (0, 6, 0)},
+     'sh_R': (-9, -4, 0), 'el_R': (0, -20, 0), 'hp_L': (-2, 2, 0), 'kn_L': (0, 4, 0), 'hp_R': (3, -14, 0), 'kn_R': (0, 27, 0),
+     'an_R': (0, 10, 0)},
     {'hips_z': 0.92, 'spine': (-5, 3, 9), 'neck': (0, 7, 0), 'sh_L': (40, -10, 0), 'el_L': (0, -100, 0),       # hand on the hip
-     'sh_R': (-8, -7, 0), 'el_R': (0, -18, 0), 'hp_R': (0, -3, 0), 'kn_R': (0, 3, 0), 'hp_L': (4, -9, 0), 'kn_L': (0, 17, 0),
-     'an_L': (0, 6, 0)},
+     'sh_R': (-8, -7, 0), 'el_R': (0, -18, 0), 'hp_R': (2, 2, 0), 'kn_R': (0, 4, 0), 'hp_L': (-3, -15, 0), 'kn_L': (0, 28, 0),
+     'an_L': (0, 10, 0)},
 ]
 _SIGNAL = dict(_RELAX[0], **{'sh_R': (-34, -72, 0), 'el_R': (0, -38, 0), 'neck': (0, -10, 0), 'spine': (3, 2, -12)})
 for _i, (_x, _y) in enumerate(((-6.7, -20.2), (-8.4, -18.6))):
