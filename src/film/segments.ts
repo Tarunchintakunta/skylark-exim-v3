@@ -35,7 +35,7 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
  */
 const dpr = Math.min(devicePixelRatio || 1, 1.5)
 export const W = env.mobile || env.saveData ? 960 : innerWidth * dpr > 1600 ? 1920 : 1280
-/** stand-in stills (ph-*) only exist at 1280 / 720; a still that is a clip's first frame (a3, b2) exists at every clip tier */
+/** stand-in stills (ph-*) only exist at 1280 / 720 */
 const stillW = (w: number) => (w === 960 ? 720 : 1280)
 export const clipUrl = (id: string, w = W) => `/media/${id}_${w}.mp4`
 /** Scrubbed film clips on phones load the 720 tier (lighter seek/decode on mid Android); posters stay at W. */

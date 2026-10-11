@@ -6,7 +6,7 @@
 .stage__video { z-index: 1; }
 .stage__layer.is-over { z-index: 2; }
 .stage__gradient {
-  /* x-cranes / x-ship placeholder: deep open-sea blue with a faint horizon */
+  /* x-ship placeholder: deep open-sea blue with a faint horizon */
   background:
     linear-gradient(180deg, rgba(244, 239, 230, 0.08) 0%, rgba(244, 239, 230, 0) 34%),
     radial-gradient(120% 90% at 62% 28%, var(--bay) 0%, var(--deep) 46%, var(--deep-2) 100%);
