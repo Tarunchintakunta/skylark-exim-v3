@@ -103,7 +103,10 @@ const SHARED: ChapterDef[] = [
   },
   {
     id: 'process', path: 'shared', label: 'Process', vh: 200, joinNext: 'shared-frame',
-    media: [{ kind: 'still', poster: 'ph-p-proc', alt: 'A clean quality lab bench with a microscope and a test instrument.' }],
+    media: [
+      { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp washed under spray bars and graded along a conveyor by workers in caps, masks and gloves.' },
+      { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table, then the camera glides through the glass door toward the quality lab.' },
+    ],
     captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
   },
   {
