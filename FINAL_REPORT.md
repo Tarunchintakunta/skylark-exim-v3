@@ -1,8 +1,121 @@
-# FINAL_REPORT: Higgsfield story phase (#175)
+# FINAL_REPORT: Skylark Exim v3, overnight final run (11–12 Oct 2026)
+
+Branch `feat/higgsfield-story` → `main` through **#193**. #193 is not merged; Tarun merges it.
+
+## Shareable URL (no Vercel login)
+**https://skylark-exim-v3-git-feat-higgsfield-story-tarun-44555f1b.vercel.app**
+
+- **Commit:** this branch alias serves `feat/higgsfield-story` at **f44dc92**, which has every code change below. The only later commit is this report, which is docs only.
+- **Immutable URL for the same build:** https://skylark-exim-v3-ixdi3wh0n-tarun-44555f1b.vercel.app
+- **No login wall.** Checked logged out with `curl` and fresh Playwright contexts (no cookies): `/`, `/#ocean`, `/#pond`, `/quote`, `/news` and the media files all return 200. Deployment protection is off for previews, so there's no setting to change.
+- **Deploy limit:** Vercel's free-tier limit (100/day) was hit after f44dc92. Later pushes show "Deployment rate limited — retry in 24 hours". The alias stays on f44dc92 until a deploy succeeds. I didn't retry, to avoid piling up failed deploys.
+
+## Merged into `feat/higgsfield-story` tonight
+Each PR was merged with a merge commit, only after its **merged state** passed typecheck, build and the Playwright suite. Conflicts were resolved on the PR branch, keeping both sides.
+
+| Order | PR | What | Conflicts resolved |
+|---|---|---|---|
+| 1 | #201 | Markets: 15 markets (Bangkok dropped), quieter globe, region grid (#194) | – |
+| 2 | #202 | Products: photoreal stills replace the 3D tuna turntable (#195) | – |
+| 3 | #204 | Header path toggle never overlaps the nav at 900–1199 px (#203) | – |
+| 4 | #199 | Globe: drag to rotate, click a market to face it, ease home when idle (#198) | Globe.tsx, Extras.tsx (see below) |
+| 5 | #205 | Looping hero video, hand-off into the story, headline fit (#197) | – |
+| 6 | #211 | `/#ocean`, `/#pond` and both toggles land on their own chapter; no stale caption after a path switch (#210) | ChapterCopy.tsx, scrub.ts |
+| 7 | #208 | Docs chapter desk photo; leftover-Blender audit, HS21 replaces x-ship (#196) | ScrubStage.tsx, stage.css |
+| 8 | #206 | `/quote` and `/news` pages, closing band, new navbar (#200) | App.tsx |
+| 9 | #209 | LCP: static hero copy before JS, lazy story chunk (#207) | index.html, App.tsx, Hero.tsx, vite.config.ts |
+| 10 | #213 | `video-smoothness`: the start chapter is not a stage still (#212) | – |
+
+- **#199 conflict:** the markets PR rewrote the globe (layout from the caption box, label overlay, idle region tour). The drag, keys, inertia, click-to-face and ease-home were ported onto that version. The tour pauses while the visitor is in control, and drag speed follows the globe's on-screen radius.
+- **#206 conflict:** App.tsx keeps both hash effects: #210's `#ocean`/`#pond` binding and #200's jump to a section anchor arriving from `/quote` or `/news`.
+
+### What the brief asked for, and where it is
+- **a. Ocean/pond (#211).**
+  - `/#ocean` and Wild catch land on o1, the wild-catch boat chapter. `/#pond` and Farmed shrimp land on p1, the ponds.
+  - `tests/path-anchors.spec.ts` has 8 tests: deep links on desktop and Pixel 7, both header toggles, a same-page hash change, and every chapter's clip and copy on both paths. 8/8 pass on the final branch.
+  - The manual walk below repeats the clip → copy check at 3 widths.
+- **b. Docs and the Blender audit (#208).**
+  - Docs now has a readable desk photo.
+  - Audit: every chapter at 1440 and 390, both paths, at 30 % and 75 % of each chapter. The only leftover was the Blender x-ship at the end of sea, now replaced by HS21.
+  - My final walk found no Blender visuals: no `x-cranes`/`x-ship`/`ph-*` references in `src`, and no GLB is loaded. The four logistics GLBs (truck, reefer, crane, ship) remain in `public/models` but nothing references them.
+- **c. Quote and news (#206).**
+  - The form lives at `/quote`. The navbar "Request export quote →", the hero "Contact us", the closing band, the contact band and the mobile bar all link to `/quote`.
+  - `/news` is "News & updates", built from `src/content/news.json`.
+    - The file is empty, because skylarkexim.com has no real news. Its `/blog-news/` page is spam.
+    - The page says "Updates coming soon" and links to `/quote`.
+    - `src/content/NEWS.md` has a template for adding posts.
+  - The homepage ends with the closing band, the contact band and the footer.
+  - Navbar order: Story, Products, About, News, Contact, Request export quote →.
+  - Each page has its own title, meta description and canonical.
+- **d. LCP (#209).**
+  - The hero headline, body, export line and links are static HTML in `index.html`, with inline critical CSS generated from `content.ts`, `tokens.css` and `hero.css`. React's hero takes over at the identical position.
+  - The copy sits above the loader, because Chrome ignores occluded text for LCP. The loader mark moved into the space above the copy.
+  - Story, captions and the business sections are a lazy chunk (Three and the globe already were).
+  - The homepage's 4 kB stylesheet is inlined.
+  - Fonts are `display: block` and preloaded, so CLS is 0.
+- **e. Swordfish still: not regenerated.** This session has no authenticated Higgsfield connector, and the other session wouldn't spend credits on a relayed brief. It still needs a regen. "Pink / Brown" in the p3 species list is kept as is; flagged below.
+
+## Full re-verify on the final branch (f44dc92, local `vite preview` + real GPU where noted)
+| Gate | Target | Result |
+|---|---|---|
+| `tsc`, `npm run build` (homepage + /quote + /news) | pass | pass |
+| Playwright suite (57 tests) | green | **51/51 pass** outside `video-smoothness` (smoke, boot, captions, chrome, globe-drag, globe-labels, path-anchors, pages, prefetch, media-urls, stage-reset, weight, headline). `video-smoothness`: see below |
+| `scroll-perf` (GPU=1) | 60 fps, 0 long tasks | desktop ocean/pond and mobile ocean/pond (4× CPU): **60 fps, p95 16.7–16.8 ms, 0 long tasks** |
+| Lighthouse **mobile**, 3 runs × 3 pages | Perf ≥ 90, A11y ≥ 95, LCP ≤ 2,500 | Home: Perf 96–97, A11y 100, BP 100, SEO 100, **LCP 2,257 / 2,260 / 2,445 ms**, CLS 0, TBT 0. `/quote`: Perf 98, LCP 2,103–2,110 ms. `/news`: Perf 99, LCP 1,802 ms |
+| Lighthouse **desktop**, 3 runs × 3 pages | same | Home: Perf 99, A11y 100, LCP 609–613 ms. `/quote` and `/news`: Perf 100, LCP 443–445 ms. CLS 0 everywhere |
+| Initial load | ≤ 3 MB desktop / ≤ 1.5 MB mobile | **2.03 / 0.84 MB** |
+| Full scroll | ≤ 25 MB / ≤ 12 MB | **22.87 / 8.86 MB** |
+| Every file | ≤ 2,300 KB | largest is the company profile PDF (2,064 KB); the largest clip is `hf-ship_1920.mp4` (1,766 KB) |
+| Console errors | 0 | **0** across every chapter on both paths at 390, 1024 and 1440, plus `/quote` and `/news` |
+| Banned claims (CONTENT.md "Never write" list, "Bay of Bengal") | none | none in `src`, `index.html`, `quote.html` or `news.html` |
+| Vercel preview (logged out) | smoke | smoke, pages, path-anchors and globe-drag against the preview: 24/25 pass. The one failure is `/news/:slug` (see Unfinished) |
+
+**LCP before and after (mobile, same machine).**
+- Before (base 3d5b956): 2,527–2,573 ms. The LCP element was React's `p.hero__body`, shown at the loader reveal.
+- After: median 2,257 ms. The LCP element is the static copy, and observed LCP is under 50 ms in every run.
+- About 1 run in 3 simulates at 2.43–2.45 s, because Lantern counts the in-flight font requests. That's still under the 2,500 ms hard limit, but not always under the 2,300 ms target.
+
+**`video-smoothness` (real GPU):**
+- **Desktop ocean and pond: pass.** Every chapter presents 37–60 fps, with seek p95 ≤ 9 ms.
+- **Throttled profiles still fail:** `desktop-fast4g` (fast 4G) and `android-mid` (4× CPU, 720 tier) miss the stale-%, fps and seek limits in several chapters. They failed the same way on the base build before tonight's merges. Only a design change fixes this (fewer clips per chapter or longer chapters). It isn't a regression.
+
+## Screenshots
+- **Before / after, first screen at 1.5 s on slow 4G:**
+  - Before: `docs/review/lcp/before-390-at-1500ms-slow4g.png` and `before-1440-…` show only the loader.
+  - After: `after-390-…` and `after-1440-…` show the headline and body.
+- **Every chapter in order, at 45 % of each chapter, plus the business sections:**
+  - `docs/review/final/sheet-1440-ocean.jpg`, `sheet-1440-pond.jpg`
+  - `sheet-1024-pond.jpg`
+  - `sheet-390-ocean.jpg`, `sheet-390-pond.jpg`
+- **`/quote` and `/news` at 390, 1024 and 1440:** `docs/review/final/sheet-pages.jpg`.
+- **Earlier before/after shots:** each merged PR has its own under `docs/review/` and `docs/higgsfield/`.
+
+## Unfinished, and why
+1. **`/news/:slug` returns 404 on Vercel.** The fix is PR #215 (#214), held open.
+   - Cause: `cleanUrls` serves `news.html` at `/news`, so the old rewrite to `/news.html` doesn't resolve.
+   - It can't be checked on a preview until the Vercel deploy limit resets. Once a deploy succeeds, run `BASE_URL=<preview> npx playwright test tests/pages.spec.ts`, then merge.
+   - Impact today is small: no news posts exist, so only a hand-typed `/news/anything` URL hits it.
+2. **Swordfish still** (3e) wasn't regenerated (no Higgsfield access in this session).
+3. **Throttled `video-smoothness` profiles** stay red (see above).
+4. **Port 1080p Blender render:** finished (479 frames, 47 min) but not used. #208 replaced x-ship with HS21, and the port chapter uses Higgsfield clips. The frames stay in `assets-src/render/port/`, which isn't committed.
+
+## Tarun to decide
+- **Merge #193 to `main`** to go live. Production stays on `main`, and no production deploy was made.
+- **Swordfish still:** regenerate it (no illustrated sheen), or keep it.
+- **"Pink / Brown"** in the pond species line (p3: "Vannamei · Black Tiger · Sea White · Pink / Brown · Sea Tiger"): kept as is, as the brief asked. It reads like a colour, not a species name, so please confirm the wording against skylarkexim.com.
+- **#215:** merge after the preview check above.
+- **GitHub Actions** jobs don't start (account billing / spending limit), so every red `ci` check is that, not a test result. Fix it under Settings → Billing & plans.
+- **Higgsfield credits** (shared account, last ledger from the other session): 1,106 spent, balance 804.75. The 1,624 guard was never reached. This session spent 0.
+
+---
+
+# Earlier report: Higgsfield story phase (#175)
+
+_Kept for history. The numbers below predate tonight's merges; the current state is above._
 
 Branch `feat/higgsfield-story` → `main`. Not merged; Tarun merges. Full per-take record: `HIGGSFIELD_LOG.md`.
 
-## What is in it
+### What is in it
 - **20 Higgsfield clips (HS01–HS20)** replace the Blender stills and placeholder clips in every film chapter except `docs` (stays a still, #162) and the last sea segment (Blender `x-ship`, kept for the hand-off to the globe). Story beats and prompts: `docs/HIGGSFIELD_STORYBOARD.md`. Contact sheets (0/25/50/75/100 %): `docs/higgsfield/`.
 - **One story with both origins.** The chosen path runs first, then the other origin, which opens with a bridge caption (eyebrow "Wild catch · Farmed", copy from CONTENT.md work flow step 1), then the plant, port, sea and globe. The path toggle still picks which origin comes first.
 - **First screen:** a "What we export" line (Vannamei and Black Tiger shrimp · Marine fish · Raw fresh, chilled and frozen) and a Contact us button that scrolls to the RFQ section (`#quote`).
@@ -11,7 +124,7 @@ Branch `feat/higgsfield-story` → `main`. Not merged; Tarun merges. Full per-ta
 - **Cleanup:** replaced Blender stills (`a3_*`, `b2_*`) removed, posters within the per-file caps, no AVIF (nothing loads it), the sea name removed repo-wide (#173 / #174 merged in).
 - `scripts/encode-hf.sh`: two-pass H.264 High, GOP 6, no B-frames, faststart, no audio, 24 fps; WebP posters within the caps.
 
-## Scores (local, `vite preview` on port 5792 / `lhci autorun` on a random port, build f92a11f)
+### Scores (local, `vite preview` on port 5792 / `lhci autorun` on a random port, build f92a11f)
 | Gate | Target | Result |
 |---|---|---|
 | `npm run typecheck`, `npm run build` | pass | pass |
@@ -27,7 +140,7 @@ Branch `feat/higgsfield-story` → `main`. Not merged; Tarun merges. Full per-ta
 - desktop (no throttling): o3 and p2 (100 vh chapters, under 1 s of scroll in the test) show the poster while the clip is still loading (stale 48-61 %, 11-25 fps); every other chapter 34-60 fps.
 - android-mid (4x CPU, 720 tier): coldchain 14-15 fps, process 16, o3 17-19, p3 17, intake 16-19, sea 19-20; the rest 22-66. A GOP-12 720 tier and a 540p tier were both measured for coldchain/p3/port and did not lift coldchain (14.5-15.2 fps either way), so it is not decode-bound; it is the four clips in 240 vh switching decoders. Not changed.
 
-## Clips (72 frames, 3.0 s at 24 fps; before 124 frames, 5.17 s)
+### Clips (72 frames, 3.0 s at 24 fps; before 124 frames, 5.17 s)
 SSIM = 1920 tier vs the trimmed master. Sizes in KB, tiers 1920/1280/960/720.
 
 | Chapter | Shot | Clip | Frames kept | SSIM | KB |
@@ -55,10 +168,10 @@ SSIM = 1920 tier vs the trimmed master. Sizes in KB, tiers 1920/1280/960/720.
 
 Totals: 1920 tier 28.1 MB, 1280 17.5 MB, 960 10.4 MB, 720 6.6 MB (20 clips).
 
-## Credits
+### Credits
 Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364, video 480), 44 % of the start balance. The credit guard (1,624) was never reached.
 
-## Coordinator re-verification (build 70f76d7, after the hero fix)
+### Coordinator re-verification (build 70f76d7, after the hero fix)
 - **Hero fix:** cherry-picked 4dceb8f from #169 (fluid `--fs-hero`, `max-width: 100%`). Before it, "Visakhapatnam" was clipped at about 507 px wide on the preview. After it, nothing clips at 320, 375, 412, 507, 768, 1440 or 1920 px (checked in the browser at 375 and 507).
 - **Playwright** (weight, boot, smoke): 13/13 pass.
   - Weight at the final build: desktop initial 1.41 MB and full scroll 24.29 MB; mobile initial 0.74–0.76 MB and full scroll 9.77 MB.
@@ -66,7 +179,7 @@ Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364,
 - **lhci on 70f76d7:** assertions pass. LCP 2,519 / 2,500 / 2,499 ms (median 2,500 ms, exactly on the limit). Perf 0.96, A11y 1.0.
 - **GitHub Actions** still can't start jobs (account billing limit), so the red `ci` checks are not test results.
 
-## Not done / open (Tarun's call)
+### Not done / open (Tarun's call)
 - **LCP sits on the 2,500 ms limit** (median 2,500 ms; main 2,498–2,499 ms). Any heavier first screen will tip it over.
 - **HS20 (hf-ship), text artefact: FAIL point.** The stern superstructure carries a small yellow placard with illegible pseudo-lettering, visible at 1920 from about 1.3 s to the end of the trimmed clip (the hull lettering of the full take is cut by the trim). A tracked blur over it left a visible smeared box, so it was not used. Fix options: one more take with "no lettering, no signs" (10 credits; the shot has used its 2 retakes), or accept it.
 - **Seams:** only HS13 → HS15 is a shared-frame join. The nine other end-frame regenerations failed (cuts, dissolves, morphs), so those joins keep the 3 % poster cross-fade.
@@ -76,7 +189,7 @@ Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364,
 - **Vercel preview:** https://skylark-exim-v3-git-hf-final-assembly-tarun-44555f1b.vercel.app/ serves commit **6be75f2**, the assembly *before* the hero fix. On it, the hero, "What we export" and Contact us were checked in a browser, and the "Visakhapatnam" clip at ~507 px was found there. Every later commit (70f76d7 hero fix, b91f3fb, 8846fd6) hit Vercel's free-tier daily deploy limit ("Deployment rate limited — retry in 24 hours"), so the hero fix has only been verified locally on port 5792. Redeploy once the limit resets. No production deploy.
 - `docs` chapter stays a still (#162). PR #176 (storyboard) is still open.
 
-## Follow-up (2026-10-11 evening): #196 and #197
+### Follow-up (2026-10-11 evening): #196 and #197
 - **#196 (PR on `hf/196-docs-audit`):**
   - Docs chapter: a readable export-office desk photo (gpt_image_2_5) with a light blur and the stage's left and bottom scrims. On phones the photo is dimmed so the copy keeps AA. Contrast was measured against the brightest 5 % of background pixels under each text run:
 
@@ -96,3 +209,5 @@ Start 1910.75 → now 1066.75 (from `balance` calls): **844 spent** (images 364,
   - Weight: initial 1.75 / 0.79 MB, full scroll 24.86 / 10.01 MB.
   - **LCP 2.50 s, not below 2.3 s.** Render delay is about 2.0 s of main-JS execution (135 KB gz, 4x CPU). Removing the loader's hold on the hero text did not change it. Options are in PR #205.
 - Credits: 37 for these (12 hero loop, 15 docs image, 10 HS21). See HIGGSFIELD_LOG.md for the shared-account spend.
+
+Ready for Tarun to merge #193 to go live.
