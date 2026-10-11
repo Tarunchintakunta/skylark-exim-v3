@@ -2,7 +2,7 @@ import gsap from 'gsap'
 import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
 import { onTick } from '../engine/ticker'
-import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
+import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
@@ -111,7 +111,7 @@ function load(s: Slot, id: string) {
   s.pending = null
   s.dead = false
   s.ready = false
-  s.v.src = clipUrl(id)
+  s.v.src = clipUrl(id, FILM_W)
   s.v.load()
   // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives
   setTimeout(() => {

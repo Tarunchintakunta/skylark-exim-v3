@@ -38,6 +38,8 @@ export const W = env.mobile || env.saveData ? 960 : innerWidth * dpr > 1280 ? 19
 /** stand-in stills (ph-*) only exist at 1280 / 720; a still that is a clip's first frame (a3, b2) exists at every clip tier */
 const stillW = (w: number) => (w === 960 ? 720 : 1280)
 export const clipUrl = (id: string, w = W) => `/media/${id}_${w}.mp4`
+/** Scrubbed film clips on phones load the 720 tier (lighter seek/decode on mid Android); posters stay at W. */
+export const FILM_W = W === 960 ? 720 : W
 export const posterUrl = (id: string, w = W) => `/media/${id}_${w}.webp`
 const stillUrl = (id: string, w: number) => (id.startsWith('ph-') ? `/media/${id}_${stillW(w)}.webp` : posterUrl(id, w))
 export const endPosterUrl = (id: string) => `/media/${id}_end_1920.webp`
