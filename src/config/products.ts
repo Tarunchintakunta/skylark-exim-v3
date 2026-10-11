@@ -30,13 +30,4 @@ export const SHRIMP_FORMS: { name: string; options: string }[] = [
   { name: 'Easy Peel', options: 'Vannamei / Black Tiger' },
 ]
 
-/**
- * Hero turntable slot (#130): photoreal clips `/media/<id>_{1920,1280,960}.mp4` + `.webp` posters from the Blender
- * pass. Flip `available` once the files are in public/media; until then the slot is a typographic composition.
- */
-export const HERO: { id: string; name: string; category: Category; available: boolean }[] = [
-  { id: 'prod-tuna', name: 'Tuna', category: 'marine', available: true },
-  { id: 'prod-shrimp', name: 'Vannamei', category: 'shrimps', available: false },
-]
-
 export { STATES }
