@@ -1,4 +1,4 @@
-/* Products (#130): editorial head, quiet category switch, typographic cards, shrimp-forms index. No boxes, no pills. */
+/* Products (#130, #195): editorial head, quiet category switch, photo cards (1:1 stills), shrimp-forms index. No boxes, no pills. */
 .pr :focus-visible { outline-color: var(--brass-ink); } /* #E08A5F on sand is under 3:1 */
 .pr-label, .pcard__meta { font-size: var(--fs-small); letter-spacing: 0.04em; color: var(--ink-2); }
 
@@ -31,7 +31,11 @@
 .pcard::before, .pcard::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: var(--hairline-ink); }
 .pcard::after { background: var(--brass-ink); transform: scaleX(0); transform-origin: right; transition: transform 0.7s var(--ease-out); }
 .pcard:hover::after, .pcard:focus-within::after { transform: scaleX(1); transform-origin: left; }
-.pcard__img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; margin-bottom: 8px; }
+.pcard__media { display: block; overflow: hidden; margin-bottom: 8px; background: var(--light-2); }
+.pcard__img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; transition: transform 1.2s var(--ease-out); }
+.pcard:hover .pcard__img { transform: scale(1.03); }
+.pcard__tags { display: flex; flex-wrap: wrap; gap: 0 0.5em; font-size: var(--fs-small); color: var(--ink-2); }
+.pcard__tags li:not(:last-child)::after { content: '·'; margin-left: 0.5em; color: var(--brass-ink); }
 .pcard__meta { display: flex; gap: 12px; }
 .pcard__no { color: var(--brass-ink); font-variant-numeric: tabular-nums; }
 .pcard__name { font-size: clamp(2rem, 2.6vw, 2.75rem); line-height: 1; letter-spacing: -0.01em; text-wrap: balance; }
@@ -74,6 +78,8 @@
     margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) 8px; scroll-padding-inline: var(--gutter); scrollbar-width: none;
   }
   .pr-grid::-webkit-scrollbar { display: none; }
-  .pcard { flex: 0 0 76%; scroll-snap-align: start; min-height: 11.5rem; }
+  .pcard { flex: 0 0 76%; scroll-snap-align: start; }
   .pr-forms__index { grid-template-columns: 1fr; }
 }
+
+@media (prefers-reduced-motion: reduce) { .pcard__img { transition: none; } .pcard:hover .pcard__img { transform: none; } }
