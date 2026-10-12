@@ -5,6 +5,9 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/story", "destination": "/story.html" },
+    { "source": "/quote", "destination": "/quote.html" },
+    { "source": "/news", "destination": "/news.html" },
     { "source": "/news/:slug", "destination": "/news" }
   ],
   "headers": [
