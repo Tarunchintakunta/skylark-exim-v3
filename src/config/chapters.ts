@@ -80,13 +80,13 @@ const POND_ONLY: ChapterDef[] = [
   },
   {
     id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician kneels on a plank walkway at the pond edge and fills a sample bottle with pond water.' }],
+    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician crouches on the pond bank and reads a handheld water meter, its probe hanging on a cable into the pond, aerators churning behind him.' }],
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
     id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: workers wade waist-deep drawing the drag net toward the bank.' },
+      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks blue crates beside white ice boxes and a white truck.' },
       { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in blue and white crates beside the refrigerated truck.' },
     ],
     captions: caps('p3', [[0.1, 0.9]]),
@@ -124,26 +124,31 @@ const PLANT_POND: ChapterDef[] = [
   },
 ]
 
-/**
- * The wild-catch path's plant (#219): no shrimp on screen or in the copy. Only path-neutral footage (the truck at the
- * dock, the cold store) and a still for the quality beat, which needs its own clip (no fish-processing footage exists).
- */
+/** The wild-catch path's plant (#219): whole fish and tuna loins through the same plant, never a shrimp on screen or in the copy. */
 const PLANT_OCEAN: ChapterDef[] = [
   {
-    id: 'intake', path: 'ocean', label: 'Intake', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' }],
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 140, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
+      { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, crates of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
+    ],
     captions: caps('intake.ocean', [[0.1, 0.92]]),
   },
   {
-    // needs clip: fish at the plant (washing, grading, quality); until then a dimmed still of the cold store
-    id: 'process', path: 'ocean', label: 'Quality', vh: 100, joinNext: 'cut',
-    media: [{ kind: 'dom', poster: 'ph-plant', alt: 'A dimmed view of the plant cold store: racks of plain cartons on pallets.' }],
-    captions: caps('process.ocean', [[0.05, 0.95]]),
+    id: 'process', path: 'ocean', label: 'Washing and portioning', vh: 160, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-fish-wash', alt: 'Whole seer fish and Indian mackerel are rinsed under chilled water on a stainless table and sorted by size into blue crates.' },
+      { kind: 'video', id: 'hf-fish-cut', alt: 'A worker portions a deep-red tuna loin on a white board; finished loins lie on crushed ice beside it.' },
+    ],
+    captions: caps('process.ocean', [[0.04, 0.5], [0.5, 0.96]]),
   },
   {
-    id: 'coldchain', path: 'ocean', label: 'Cold storage', vh: 120, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' }],
-    captions: caps('coldchain.ocean', [[0.1, 1]]).map((c) => ({ ...c, extra: 'other-path' as const })),
+    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 160, joinNext: 'crossfade',
+    media: [
+      { kind: 'video', id: 'hf-fish-freeze', alt: 'A rack of whole fish and tuna loins is wheeled into the freezer while a packer lays glazed frozen fish into a plain carton.' },
+      { kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' },
+    ],
+    captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
   },
 ]
 

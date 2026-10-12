@@ -30,7 +30,10 @@ done
 ffmpeg -v error -y -i "$in" -frames:v 1 "$tmp/first.png"
 ffmpeg -v error -y -sseof -0.1 -i "$in" -update 1 -frames:v 1 "$tmp/last.png"
 # caps match tests/weight.spec.ts (720 webp <= 40 KB, other webp <= 120 KB), with 1 KB headroom
-webp(){ local q cap=$4; for q in 78 70 62 54 46 38 30 24 18 12; do cwebp -quiet -m 6 -q $q -resize "$3" 0 "$1" -o "$2"; [ $(( $(wc -c < "$2") )) -le $(( (cap - 1) * 1024 )) ] && return 0; done; echo "  ! $2 over $cap KB"; }
+webp(){ local q cap=$4; for q in 78 70 62 54 46 38 30 24 18 12; do cwebp -quiet -m 6 -q $q -resize "$3" 0 "$1" -o "$2"; [ $(( $(wc -c < "$2") )) -le $(( (cap - 1) * 1024 )) ] && return 0; done
+  # busy frames (sunlit water) can miss the cap even at q 12: let cwebp search for the size instead
+  cwebp -quiet -m 6 -pass 10 -size $(( (cap - 1) * 1024 )) -resize "$3" 0 "$1" -o "$2"
+  [ $(( $(wc -c < "$2") )) -le $(( (cap - 1) * 1024 )) ] || echo "  ! $2 over $cap KB"; }
 for w in 1920 1280 960; do webp "$tmp/first.png" "$OUT/${id}_${w}.webp" $w 120; done
 webp "$tmp/first.png" "$OUT/${id}_720.webp" 720 40
 webp "$tmp/last.png" "$OUT/${id}_end_1920.webp" 1920 120

@@ -217,7 +217,7 @@ for (const [name, prof] of Object.entries(PROFILES)) {
       // start: /#ocean and /#pond land on the path's first chapter (#210), and the start chapter's motion is the hero
       // loop (#197), not a stage clip; smoke.spec.ts checks the loop on / (#212)
       // the wild path's quality beat is a still until its fish-in-the-plant clips land (#219, "needs clip")
-      const stills = ['world', 'docs', 'start', ...(path === 'ocean' ? ['process'] : [])]
+      const stills = ['world', 'docs', 'start']
       expect.soft(rows.filter((r) => r.motion === 'STILL' && !stills.includes(r.chapter)).map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
       for (const r of rows) {
         if (r.motion !== 'video') continue
