@@ -80,7 +80,7 @@ const POND_ONLY: ChapterDef[] = [
   },
   {
     id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician kneels on a plank walkway at the pond edge and fills a sample bottle with pond water.' }],
+    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician crouches on the pond bank and reads a handheld water meter, its probe hanging on a cable into the pond, aerators churning behind him.' }],
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
