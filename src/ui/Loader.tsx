@@ -1,30 +1,30 @@
 import gsap from 'gsap'
 import { useEffect } from 'react'
 import { env } from '../engine/env'
-import { storyReady } from '../engine/boot'
-import { MAX_MS, gate } from '../engine/preload'
+import { MAX_MS, gate, type Gate } from '../engine/preload'
 import { store } from '../engine/store'
 import { lockScroll, unlockScroll } from '../engine/ticker'
 
-/** sessionStorage key: set at the first reveal; index.html skips the intro on later loads in the same tab session */
+/** sessionStorage key: set at the first reveal; index.html and story.html skip the intro on later loads in the same tab session */
 const SEEN = 'skylark-intro'
 
 /**
- * Intro loader (STORY §0, #218). Its markup and CSS are static in index.html so it paints before any JS; the intro
+ * Intro loader (STORY §0, #218). Its markup and CSS are static in the page's HTML so it paints before any JS; the intro
  * (mark, name, wave line) is CSS. This component drives the rest: the wave line fills with real progress (preload.ts), scroll
  * is locked until the reveal, then the mark grows and a hole opens onto the looping hero.
  * - min 1.2 s so the intro finishes drawing; 0.8 s on a deep link (#ocean / #pond) or with reduced motion
- * - max 3.0 s from navigation start, whatever is still loading; a CSS fade in index.html covers the case where this
+ * - max 3.0 s from navigation start, whatever is still loading; a CSS fade in the HTML covers the case where this
  *   script itself arrives later than that
- * - a return visit in the same session never shows it (index.html adds .intro-skip before first paint)
+ * - a return visit in the same session never shows it (the HTML adds .intro-skip before first paint)
+ * `wait` is the page's own part of the gate: the story chunk and its first clip on /story, nothing more on the homepage.
  */
-export function Loader() {
+export function Loader({ wait }: { wait: Gate }) {
   useEffect(() => {
     const html = document.documentElement
     const root = document.getElementById('boot')
-    // the site is shown once the story has mounted; the static hero copy stays until then (#207)
+    // the site is shown once the page has mounted; the static hero copy stays until then (#207)
     const ready = () =>
-      storyReady.then(() => {
+      wait.mounted.then(() => {
         if (!store.getState().ready) {
           store.setState({ ready: true })
           html.dataset.ready = '1'
@@ -59,7 +59,7 @@ export function Loader() {
       root.setAttribute('aria-valuenow', String(Math.round(f * 100)))
     }
     let cancelled = false
-    gate(set, html.classList.contains('intro-short') || env.reduced ? 800 : 1200).then(() => {
+    gate(set, html.classList.contains('intro-short') || env.reduced ? 800 : 1200, wait).then(() => {
       if (cancelled) return
       set(1)
       remember()

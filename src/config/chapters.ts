@@ -192,3 +192,9 @@ const sharedFor = (path: 'ocean' | 'pond') => [...(path === 'pond' ? PLANT_POND 
 export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...sharedFor('ocean')]
 export const POND: ChapterDef[] = [start, ...POND_ONLY, ...sharedFor('pond')]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)
+
+/** First clip after the shared start chapter on a path (o1 / p1): what /story's loader waits for, and what the homepage prefetches. */
+export function firstClip(path: 'ocean' | 'pond') {
+  const m = chaptersFor(path).slice(1).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
+  return m?.kind === 'video' ? m : null
+}
