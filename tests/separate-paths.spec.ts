@@ -10,9 +10,9 @@ const ORDER = {
   ocean: ['start', 'o1', 'o2', 'o3', 'o4', 'intake', 'process', 'coldchain', ...ENDING],
   pond: ['start', 'p1', 'p2', 'p3', 'intake', 'process', 'coldchain', ...ENDING],
 }
-/** clips that belong to one path only: pond farms and the shrimp plant / the boat */
+/** clips that belong to one path only: pond farms and the shrimp plant / the boat and the fish plant */
 const POND_CLIPS = /hf-(ponds|sample|harvest|sort|intake|wash|peel|lab|iqf|pack)_/
-const OCEAN_CLIPS = /hf-(depart|catch|ice|return)_/
+const OCEAN_CLIPS = /hf-(depart|catch|ice|return|fish-[a-z]+)_/
 const FIRST = { ocean: 'o1', pond: 'p1' } as const
 
 const ready = (page: Page) => page.waitForFunction(() => document.documentElement.dataset.ready === '1')
