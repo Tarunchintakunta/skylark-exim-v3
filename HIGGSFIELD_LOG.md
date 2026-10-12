@@ -180,3 +180,22 @@ Same pipeline as the pond retakes: gpt_image_2_5 max 4k start frames (three cand
 | freeze | video, minimax_h3 2K 5 s, start = c | 85045087 | 10 | PASS (trimmed 0-71) | the packer settles glazed fish into the carton while the rack goes toward the freezer; after about 3 s the push-in crops the packer, so the head is kept |
 
 Captions are fact-only (skylarkexim.com work flow and company text): receiving checks, washing and grading, IQF or block freezing with glaze, 700-pallet cold store. "Blast freezing" is on the never-write list and is not used.
+
+## 2026-10-12: "Into the plant." as one continuous 3-beat arrival (#229)
+
+Each beat's last frame is the next beat's start frame. Beat 1 has three generated start-frame candidates (docs/review/arrive/sheet-beat1.jpg), with the old hf-arrive end frame as the yard reference. Beats 2 and 3 start from the previous beat's real last frame. minimax_h3 2K at 5 s. Beat 1 is trimmed to frames 52-123. Beats 2 and 3 are retimed from 124 to 72 frames (about 1.7×), so they keep both seam frames.
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| beat 1, frames a/b/c | image, gpt_image_2_5 max 4k | cb792d3d / 92b8b91a / 3d1cc553 | 45 | b picked | all three show the driver. a: the truck is already close to the docks. c: the truck is small and far off. b: the driver is clear at the wheel (zoom-checked), with reefer mist, no logos and the gate open |
+| beat 1 (hf-arrive) | video, start = b | 6d8b2945 | 10 | PASS (trimmed 52-123) | the truck comes through the gate and turns toward the docks; the driver is visible throughout, the reefer mists, and the dock worker gestures. The last frame was zoom-checked (driver, hands on wheel) |
+| beat 2, take 1 | video, start = beat 1 frame 123 | 88f37e45 | 10 | REJECT | the truck ends side-on along the wall, never backed into a bay (looks like it slides sideways) |
+| beat 2, take 2 | video, same start | cb2fa4ae | 10 | REJECT | it reverses with lights on but ends angled near the first bay, not flush in a seal |
+| beat 2 end keyframe | image, gpt_image_2_5 max 4k, ref = beat 2 start | de522ff4 | 15 | used | the truck is square in the middle bay with the cab toward the camera, the driver at the mirror and the worker's palm raised (docs/review/arrive/b2-keys.jpg) |
+| beat 2 (hf-reverse) | video, start = beat 1 frame 123, end = keyframe | a701641b | 10 | PASS (retimed 124 → 72) | the truck reverses in an arc into the middle bay with red and reverse lights on; the worker walks in from the left and guides it; the driver is visible. First frame vs beat 1's end: SSIM 0.92 |
+| beat 3 wild (hf-unload-fish) | video, start = beat 2 frame 123 | 6d198fa0 | 10 | PASS (retimed) | the camera glides past the truck into the dock hall: rear doors open, cold vapour, workers in whites roll crates of whole mackerel on ice onto trolleys, and a probe goes into a crate |
+| beat 3 farmed (hf-unload-shrimp) | video, same start | eadaea82 | 10 | PASS (retimed) | the same move with crates of shrimp on ice and a probe check |
+
+Seams: beat 2 last frame vs beat 3 start, SSIM 1.000 (identical). Beat 3 first frame vs that start, 0.91. The engine's 3 % in-chapter crossfade covers both.
+
+Balance after this and the o2 retake: 299.75, so **1,611 used** of the 1,624 guard. That leaves 13, not enough for another image or a pair of videos.
