@@ -22,6 +22,11 @@
 /* daylight chapters (the port): neutral, bottom-only shade under the caption, no deep-sea tint over the footage */
 .stage.is-soft .stage__scrim { background: linear-gradient(to top, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.3) 26%, rgba(0, 0, 0, 0) 48%); }
 .globe-canvas { position: absolute !important; inset: 0; }
+/* #D: the placeholder (the globe's entry frame) shows at once; the live canvas fades in over it on its first frame */
+.globe-ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.4s; }
+.globe-canvas { opacity: 0; transition: opacity 0.4s; }
+.is-globe-live .globe-canvas { opacity: 1; }
+.is-globe-live .globe-ph { opacity: 0; }
 /* drag to turn: the wheel and vertical swipes still scroll the page */
 .globe-canvas { touch-action: pan-y; cursor: grab; outline-offset: -4px; }
 .globe-canvas.is-grabbing { cursor: grabbing; }
