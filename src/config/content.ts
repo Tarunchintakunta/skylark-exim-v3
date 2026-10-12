@@ -26,14 +26,10 @@ export const start = {
   ocean: { label: 'The Ocean', sub: 'Wild catch' },
   pond: { label: 'The Pond', sub: 'Farmed shrimp' },
   skip: 'Skip the story',
+  /** hero fork and end-of-path link (#219) */
+  choose: 'Choose the story',
+  other: 'See the other story',
   cta: 'Request export quote',
-}
-
-/** Hand-off between the two origins when the story runs on into the other one (CONTENT.md work flow, step 1). */
-export const bridge: CaptionCopy = {
-  eyebrow: 'Wild catch · Farmed',
-  title: 'From fishing vessels and from farms.',
-  body: 'Shrimp are sourced directly from farms or fishing vessels. Initial quality checks (size, freshness, health) are done before acceptance.',
 }
 
 /** Hero "What we export" line (CONTENT.md products and states). */
@@ -47,7 +43,7 @@ export const film: Record<string, CaptionCopy[]> = {
   p1: [{ eyebrow: 'The Pond · 01', title: 'Partner farms on the Andhra coast.', body: 'Strategic partnerships with aquaculture farmers and a focus on responsible sourcing.' }],
   p2: [{ eyebrow: 'The Pond · 02', title: 'Every batch has a history.', body: 'We guarantee superior freshness, traceability, and product integrity across all markets.' }],
   p3: [{ eyebrow: 'The Pond · 03', title: 'Harvested into ice.', body: 'Shrimp are sourced directly from farms. Initial quality checks (size, freshness, health) are done before acceptance.', chips: SHRIMP_CHIPS }],
-  intake: [{ eyebrow: 'The Plant · Anandapuram', title: 'Both origins arrive at one door.', body: 'Our processing unit at Anandapuram, Visakhapatnam: a state-of-the-art shrimp processing facility equipped with internationally acclaimed modernized equipment.' }],
+  intake: [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Our processing unit at Anandapuram, Visakhapatnam: a state-of-the-art shrimp processing facility equipped with internationally acclaimed modernized equipment.' }],
   process: [
     { eyebrow: 'The Plant · Washing', title: 'Washed clean.', body: 'Thorough washing with clean, treated water to remove impurities.' },
     { eyebrow: 'The Plant · Grading', title: 'Graded to one standard.', body: 'Sorted by size, weight, and type. Grading ensures uniformity for export standards.' },
@@ -59,6 +55,11 @@ export const film: Record<string, CaptionCopy[]> = {
     { eyebrow: 'The Plant · Packing', title: 'Packed and labelled.', body: 'Export-grade cartons, vacuum packs, or customized packaging. Labels with product details, size, batch, and export compliance.' },
     { eyebrow: 'The Plant · Cold storage', title: 'Held at −18\u00a0°C to −20\u00a0°C.', body: 'Our warehouse has a total storage capacity of 700 pallets.' },
   ],
+  // the wild-catch path (#219): skylarkexim.com describes its plant and work flow for shrimp only, so the fish path's
+  // plant says only what holds for any seafood (company text, the unit, the warehouse) and shows no shrimp
+  'intake.ocean': [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Transported under chilled conditions to our processing unit at Anandapuram, Visakhapatnam.' }],
+  'process.ocean': [{ eyebrow: 'The Plant · Quality', title: 'One standard, every stage.', body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.', note: 'Quality control staff · Lab unit, Anandapuram' }],
+  'coldchain.ocean': [{ eyebrow: 'The Plant · Cold storage', title: 'Held cold until dispatch.', body: 'Our warehouse has a total storage capacity of 700 pallets.' }],
   docs: [{ eyebrow: 'Export · Documentation', title: 'Paperwork, done properly.', body: 'Our documentation staff professionally prepare all necessary documents and handle logistical tracking of shipments. Compliance with export certificates (HACCP, EU, FDA, etc.).' }],
   port: [{ eyebrow: 'Export · The port', title: 'Loaded under the cranes.', body: 'Shipped in reefer containers to maintain the cold chain until the destination.' }],
   sea: [{ eyebrow: 'Export · At sea', title: 'From Visakhapatnam to the world’s table.', note: 'Cold chain · outbound' }],
