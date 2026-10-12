@@ -11,7 +11,7 @@ const SEEN = 'skylark-intro'
 
 /**
  * Intro loader (STORY §0, #218). Its markup and CSS are static in index.html so it paints before any JS; the intro
- * (mark, wave line, name) is CSS. This component drives the rest: a hairline shows real progress (preload.ts), scroll
+ * (mark, name, wave line) is CSS. This component drives the rest: the wave line fills with real progress (preload.ts), scroll
  * is locked until the reveal, then the mark grows and a hole opens onto the looping hero.
  * - min 1.2 s so the intro finishes drawing; 0.8 s on a deep link (#ocean / #pond) or with reduced motion
  * - max 3.0 s from navigation start, whatever is still loading; a CSS fade in index.html covers the case where this
@@ -48,14 +48,14 @@ export function Loader() {
     }
     // from here on this script owns the timing: stop the CSS failsafe fade
     root.style.animation = 'none'
-    const bar = root.querySelector<HTMLElement>('.loader__bar')!
+    const bar = root.querySelector<SVGPathElement>('.loader__bar')!
     const mark = root.querySelector<HTMLElement>('.loader__mark')!
     lockScroll()
     let shown = 0
     const set = (f: number) => {
       if (f <= shown) return // never move backwards
       shown = f
-      bar.style.transform = `scaleX(${f})`
+      bar.style.strokeDashoffset = String(1 - f)
       root.setAttribute('aria-valuenow', String(Math.round(f * 100)))
     }
     let cancelled = false
@@ -75,7 +75,7 @@ export function Loader() {
       // the mark grows and dissolves while a circular hole opens from the centre onto the looping hero
       mark.style.animation = 'none' // the CSS pulse animates opacity, which would win over the fade below
       const tl = gsap.timeline({ onComplete: done })
-      tl.to(root.querySelectorAll('.loader__track, .loader__wave, .loader__name'), { autoAlpha: 0, duration: 0.25 }, 0)
+      tl.to(root.querySelector('.loader__side'), { autoAlpha: 0, duration: 0.25 }, 0)
       tl.to(mark, { scale: 7, autoAlpha: 0, duration: 1.0, ease: 'power3.in' }, 0)
       tl.to(root, { '--r': `${Math.hypot(innerWidth, innerHeight) / 2 + 2}px`, duration: 1.0, ease: 'power3.inOut' }, 0.15)
     })
