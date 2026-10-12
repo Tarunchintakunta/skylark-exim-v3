@@ -77,8 +77,8 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
 }
 
 /**
- * Loader gate (#218): buffer these clips into free decoders before the reveal, so either path's first chapter plays on
- * arrival (deep link or header toggle). Returns their elements; the loader waits for `canplaythrough`.
+ * Loader gate (#218): buffer these clips into free decoders before the reveal, so the chosen path's first chapter plays
+ * on arrival. Returns their elements; the loader waits for `canplaythrough`.
  */
 export function warm(ids: string[]) {
   return ids.flatMap((id) => slotFor(id, ids)?.v ?? [])

@@ -1,23 +1,25 @@
 import { chaptersFor } from '../config/chapters'
 import { warm } from '../film/scrub'
 import { storyReady } from './boot'
+import { store } from './store'
 
 /**
  * Loader gate (#218). The loader holds until everything the first screens need can play:
  * - the fonts, through `document.fonts.load()` (index.html preloads the files)
  * - the story chunk, mounted
- * - the hero loop, then the first chapter's clip on each path (wild catch and farmed), at `canplaythrough`
+ * - the hero loop, then the first chapter's clip of the chosen path (#ocean / #pond, else wild catch), at `canplaythrough`;
+ *   the other story loads nothing until the visitor switches (#219)
  * Progress is real: each part reports its share (a clip by how much of it is buffered) and the bar shows the mean.
  * Times are from navigation start: at least `min` ms so the intro finishes drawing, and never more than MAX_MS.
  */
 const FACES = ['400 1em "Instrument Serif"', '400 1em "Inter Tight"', '500 1em "Inter Tight"']
 export const MAX_MS = 3000
 
-/** first clip after the shared start chapter, per path */
-const FIRST = (['ocean', 'pond'] as const).flatMap((p) => {
-  const m = chaptersFor(p).slice(1).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
+/** first clip after the shared start chapter on the chosen path */
+function firstClip() {
+  const m = chaptersFor(store.getState().path).slice(1).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
   return m?.kind === 'video' ? [m.id] : []
-})
+}
 
 const at = (ms: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, ms - performance.now())))
 
@@ -44,16 +46,17 @@ function playable(v: HTMLVideoElement | null, report: (f: number) => void) {
 }
 
 export function gate(onProgress: (f: number) => void, min: number) {
-  const shares = Array<number>(FACES.length + 2 + FIRST.length).fill(0)
+  const first = firstClip()
+  const shares = Array<number>(FACES.length + 2 + first.length).fill(0)
   const part = (k: number) => (f: number) => {
     shares[k] = Math.max(shares[k], f)
     onProgress(shares.reduce((a, b) => a + b, 0) / shares.length)
   }
   const fonts = FACES.map((f, k) => document.fonts.load(f).catch(() => {}).then(() => part(k)(1)))
   const story = storyReady.then(() => part(FACES.length)(1))
-  // the hero loop first, then the two chapter clips: on a slow line they would otherwise split its bandwidth three ways
+  // the hero loop first, then the chapter clip: on a slow line they would otherwise split the bandwidth
   const k0 = FACES.length + 1
   const hero = playable(document.querySelector<HTMLVideoElement>('.hero__video'), part(k0))
-  const clips = hero.then(() => Promise.all(warm(FIRST).map((v, k) => playable(v, part(k0 + 1 + k)))))
+  const clips = hero.then(() => Promise.all(warm(first).map((v, k) => playable(v, part(k0 + 1 + k)))))
   return Promise.race([Promise.all([...fonts, story, clips, at(min)]), at(MAX_MS)])
 }

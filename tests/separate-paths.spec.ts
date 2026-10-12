@@ -14,8 +14,6 @@ const ORDER = {
 const POND_CLIPS = /hf-(ponds|sample|harvest|sort|intake|wash|peel|lab|iqf|pack)_/
 const OCEAN_CLIPS = /hf-(depart|catch|ice|return)_/
 const FIRST = { ocean: 'o1', pond: 'p1' } as const
-/** the loader buffers the first clip of both paths so either opens at once (#218); it is never shown on the other path */
-const WARMED = /\/hf-(depart|ponds)_\d+\.mp4$/
 
 const ready = (page: Page) => page.waitForFunction(() => document.documentElement.dataset.ready === '1')
 const order = (page: Page) => page.locator('[data-chapter]').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.chapter))
@@ -85,7 +83,7 @@ for (const url of ['/', '/#ocean']) {
     const { seen, clips } = await fullScroll(page)
     expect(seen.filter((c) => !ORDER.ocean.includes(c))).toEqual([])
     expect(clips.filter((c) => POND_CLIPS.test(c))).toEqual([])
-    expect(urls.filter((u) => !WARMED.test(u) && POND_CLIPS.test(u))).toEqual([])
+    expect(urls.filter((u) => POND_CLIPS.test(u))).toEqual([])
   })
 }
 
@@ -98,7 +96,7 @@ test('/#pond is the farmed-shrimp story only', async ({ page }) => {
   const { seen, clips } = await fullScroll(page)
   expect(seen.filter((c) => !ORDER.pond.includes(c))).toEqual([])
   expect(clips.filter((c) => OCEAN_CLIPS.test(c))).toEqual([])
-  expect(urls.filter((u) => !WARMED.test(u) && OCEAN_CLIPS.test(u))).toEqual([])
+  expect(urls.filter((u) => OCEAN_CLIPS.test(u))).toEqual([])
 })
 
 test('header toggle swaps the story both ways', async ({ page }) => {
@@ -158,5 +156,5 @@ test('after a switch the other path is gone: no stale clip, no prefetch of its c
   const { seen, clips } = await fullScroll(page)
   expect(seen.filter((c) => !ORDER.pond.includes(c))).toEqual([])
   expect(clips.filter((c) => OCEAN_CLIPS.test(c))).toEqual([])
-  expect(urls.filter((u) => !WARMED.test(u) && OCEAN_CLIPS.test(u))).toEqual([])
+  expect(urls.filter((u) => OCEAN_CLIPS.test(u))).toEqual([])
 })
