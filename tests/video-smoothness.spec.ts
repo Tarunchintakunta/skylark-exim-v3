@@ -216,7 +216,9 @@ for (const [name, prof] of Object.entries(PROFILES)) {
       // the documentation interlude stays a still by decision (#162)
       // start: /#ocean and /#pond land on the path's first chapter (#210), and the start chapter's motion is the hero
       // loop (#197), not a stage clip; smoke.spec.ts checks the loop on / (#212)
-      expect.soft(rows.filter((r) => r.motion === 'STILL' && !['world', 'docs', 'start'].includes(r.chapter)).map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
+      // the wild path's quality beat is a still until its fish-in-the-plant clips land (#219, "needs clip")
+      const stills = ['world', 'docs', 'start', ...(path === 'ocean' ? ['process'] : [])]
+      expect.soft(rows.filter((r) => r.motion === 'STILL' && !stills.includes(r.chapter)).map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
       for (const r of rows) {
         if (r.motion !== 'video') continue
         expect.soft(r.presentedFps, `${r.chapter} presented fps`).toBeGreaterThanOrEqual(LIMITS.fps)
