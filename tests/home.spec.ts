@@ -35,7 +35,7 @@ test('homepage sections come in order', async ({ page }) => {
   const order = await page.locator('main > .home-hero, main > section').evaluateAll((els) => els.map((el) => el.id || el.className.split(' ').pop()))
   expect(order).toEqual(['home-hero', 'intro', 'products', 'markets', 'plant', 'why', 'about', 'close', 'contact'])
   await expect(page.locator('#products .pcard')).toHaveCount(8) // marine fish; the shrimp tab has the other 5
-  await expect(page.locator('#intro .story-card a')).toHaveAttribute('href', '/story#ocean')
+  await expect(page.locator('#intro .story-card a').first()).toHaveAttribute('href', '/story#ocean')
   await expect(page.locator('#intro .story-card a').nth(1)).toHaveAttribute('href', '/story#pond')
 })
 
