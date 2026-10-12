@@ -8,6 +8,7 @@ const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url),
 /**
  * #207 LCP: the hero headline and body as static HTML, painted before any JS and above the loader (occluded text does
  * not count for LCP). Markup mirrors src/ui/Hero.tsx and comes from the same content.ts, so the copy never drifts.
+ * Where the copy would meet the loader mark, an inline script drops it under the loader (see below).
  * The loader removes #hero-static when it finishes; React's hero sits at the same fixed position, so nothing shifts.
  */
 export function staticHero(): Plugin {
@@ -16,8 +17,11 @@ export function staticHero(): Plugin {
 <h1 class="hero__title">${esc(lead)} <em>world</em>.</h1>
 <p class="hero__body">${esc(start.body)}</p>
 <div class="hero__exports"><h2 class="hero__exports-title mono">${esc(exportsLine.title)}</h2><ul>${exportsLine.items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
-<a class="hero__contact" href="/quote">Contact us</a><a class="hero__path" href="#pond">Or follow the ${esc(start.pond.sub.toLowerCase())} →</a>
+<a class="hero__contact" href="/quote">Contact us</a><div class="hero__fork" role="group" aria-label="${esc(start.choose)}"><span class="hero__fork-label mono">${esc(start.choose)}</span><a class="hero__fork-btn" href="#ocean" data-path="ocean" aria-current="true">${esc(start.ocean.sub)}</a><a class="hero__fork-btn" href="#pond" data-path="pond">${esc(start.pond.sub)}</a></div>
 </div></div>`
+  // after the loader markup (end of body), once the web fonts have set the copy (fallback metrics differ): is there
+  // room above the copy for the mark? Only z-index changes, so the check can never shift the layout
+  const fit = `<script>document.fonts.ready.then(function(){var b=document.querySelector('.loader__track'),h=document.querySelector('#hero-static h1');if(b&&h&&h.getBoundingClientRect().top<b.getBoundingClientRect().bottom+24)document.documentElement.classList.add('hero-under-loader')})</script>`
   // tokens (vars + @font-face), the base rules the hero inherits from global.css, and hero.css itself
   const base =
     'body{color:var(--ice);font-family:var(--f-body);font-size:var(--fs-body);line-height:1.6;-webkit-font-smoothing:antialiased}' +
@@ -26,8 +30,9 @@ export function staticHero(): Plugin {
     '.mono{font-family:var(--f-body);font-size:var(--fs-small);letter-spacing:0.04em;line-height:1.45}' +
     // id selector: the bundled hero.css (.hero hidden until ready) loads after this style and must not win
     '#hero-static{visibility:visible;opacity:1;z-index:101}#hero-static .hero__copy{pointer-events:none}' +
-    // short landscape phones: no room above the copy for the mark, so the loader covers it as before
-    '@media (max-height:560px){#hero-static{z-index:var(--z-copy)}.loader{align-content:center;padding-top:0}}'
+    // no room above the copy even for the small mark (360×640, landscape phones): the inline script measures it once the
+    // fonts are in and only drops the copy under the loader (z-index, no layout change), as before #207
+    '.hero-under-loader #hero-static{z-index:var(--z-copy)}'
   return {
     name: 'static-hero',
     // the homepage's own stylesheet is ~4 kB: inline it so the first paint waits on no request (Story's CSS stays lazy)
@@ -50,7 +55,8 @@ export function staticHero(): Plugin {
       handler: (src) =>
         src
           .replace('/*static-hero-css*/', css('styles/tokens.css') + base + css('ui/hero.css'))
-          .replace('<!--static-hero-->', html),
+          .replace('<!--static-hero-->', html)
+          .replace('</body>', `${fit}\n  </body>`),
     },
   }
 }

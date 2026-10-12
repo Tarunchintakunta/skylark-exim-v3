@@ -1,4 +1,6 @@
-import { DOC_CARDS, LABEL_FIELDS } from '../config/content'
+import { DOC_CARDS, LABEL_FIELDS, start } from '../config/content'
+import { setPath } from '../engine/path'
+import { useApp } from '../engine/store'
 import { MARKET_COORDS, MARKETS_BY_REGION } from '../config/markets'
 import { globeUi } from '../three/globeState'
 
@@ -49,5 +51,24 @@ export function MarketList() {
         </div>
       ))}
     </div>
+  )
+}
+
+/** End of a path's own chapters (#219): one quiet link over to the other story, before the shared ending. */
+export function OtherPath() {
+  const other = useApp((s) => (s.path === 'ocean' ? 'pond' : 'ocean'))
+  return (
+    <p className="caption__other" data-fade>
+      <a
+        href={`#${other}`}
+        data-other-path={other}
+        onClick={(e) => {
+          e.preventDefault()
+          setPath(other, true)
+        }}
+      >
+        {start.other}: {start[other].sub} →
+      </a>
+    </p>
   )
 }
