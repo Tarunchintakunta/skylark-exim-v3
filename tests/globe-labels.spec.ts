@@ -35,7 +35,7 @@ for (const v of VIEWS) {
     const { width: vw, height: vh } = v.viewport
     const ctx = await browser.newContext({ viewport: v.viewport, isMobile: v.isMobile, hasTouch: v.isMobile })
     const page = await ctx.newPage()
-    await page.goto('/')
+    await page.goto('/story')
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
     const goto = (p: number) =>
       page.evaluate((p) => {

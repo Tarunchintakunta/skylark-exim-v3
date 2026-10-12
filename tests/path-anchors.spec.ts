@@ -42,7 +42,7 @@ async function landed(page: Page, p: (typeof PATHS)[keyof typeof PATHS]) {
 
 for (const p of Object.values(PATHS)) {
   test(`deep link ${p.hash} lands on ${p.chapter}`, async ({ page }) => {
-    await page.goto('/' + p.hash)
+    await page.goto('/story' + p.hash)
     await landed(page, p)
   })
 }
@@ -52,7 +52,7 @@ for (const p of Object.values(PATHS)) {
   test(`deep link ${p.hash} lands on ${p.chapter} on a phone`, async ({ browser }) => {
     const ctx = await browser.newContext({ ...devices['Pixel 7'] })
     const page = await ctx.newPage()
-    await page.goto('/' + p.hash)
+    await page.goto('/story' + p.hash)
     await landed(page, p)
     await ctx.close()
   })
@@ -60,7 +60,7 @@ for (const p of Object.values(PATHS)) {
 
 test('header path toggle lands on each path from the hero and from inside the film', async ({ page, isMobile }) => {
   test.skip(!!isMobile, 'the toggle sits in the header on both widths, but one width is enough for the click path')
-  await page.goto('/')
+  await page.goto('/story')
   await page.waitForFunction(() => document.querySelector('.loader') === null || getComputedStyle(document.querySelector('.loader')!).opacity === '0', null, { timeout: 15_000 })
   for (const p of [PATHS.pond, PATHS.ocean]) {
     await page.locator('.path-toggle a', { hasText: p.toggle }).click()
@@ -76,7 +76,7 @@ test('header path toggle lands on each path from the hero and from inside the fi
 })
 
 test('a same-page hash change switches the path and lands on it', async ({ page }) => {
-  await page.goto('/' + PATHS.pond.hash)
+  await page.goto('/story' + PATHS.pond.hash)
   await landed(page, PATHS.pond)
   await page.evaluate(() => (location.hash = '#ocean'))
   await landed(page, PATHS.ocean)
@@ -87,7 +87,7 @@ for (const path of ['ocean', 'pond'] as const) {
     test.setTimeout(120_000)
     const { chaptersFor } = await import('../src/config/chapters')
     const list = chaptersFor(path)
-    await page.goto('/#' + path)
+    await page.goto('/story#' + path)
     await landed(page, path === 'ocean' ? PATHS.ocean : PATHS.pond)
     for (const ch of list) {
       const clips = ch.media.flatMap((m) => (m.kind === 'video' ? [m.id] : []))

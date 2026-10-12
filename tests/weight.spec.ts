@@ -3,7 +3,9 @@ import { statSync, readdirSync } from 'node:fs'
 import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 
 // TRD §13 / ASSETS_SPEC budgets. Transferred bytes from CDP, initial (loader done) and after a full scroll.
+// /story per path; the homepage (#233) has the same initial budgets and a 6 MB full scroll.
 const BUDGET = { desktop: { initial: 3e6, full: 25e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
+const HOME_FULL = 6e6
 const MB = (b: number) => +(b / 1e6).toFixed(2)
 
 /**
@@ -22,7 +24,7 @@ const CAPS: [RegExp, number][] = [
   [/\.webp$/, 120],
   [/\.glb$/, 1536],
   [/\.woff2$/, 40],
-  [/\.(svg|txt)$/, 20],
+  [/\.(svg|txt|xml)$/, 20],
   [/\.pdf$/, 2300],
   [/\.(ktx2|jpg|png)$/, 1024],
 ]
@@ -44,7 +46,7 @@ test('every file under public/ is within its per-file cap', () => {
 })
 
 for (const profile of Object.keys(PROFILES) as ProfileName[]) {
-  for (const path of ['ocean', 'pond']) {
+  for (const path of ['home', 'ocean', 'pond']) {
     test(`weight ${profile} ${path}`, async ({ browser }) => {
       const p = PROFILES[profile]
       const ctx = await browser.newContext({ viewport: p.viewport, isMobile: p.mobile, hasTouch: p.mobile })
@@ -55,7 +57,7 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       let bytes = 0
       cdp.on('Network.loadingFinished', (e) => (bytes += e.encodedDataLength))
       cdp.on('Network.loadingFailed', () => {})
-      await page.goto(`/#${path}`)
+      await page.goto(path === 'home' ? '/' : `/story#${path}`)
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
       await page.waitForTimeout(500)
       const initial = bytes
@@ -64,7 +66,7 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       await ctx.close()
       console.log(profile, path, `initial ${MB(initial)} MB · full scroll ${MB(full)} MB`)
       expect(initial).toBeLessThanOrEqual(BUDGET[profile].initial)
-      expect(full).toBeLessThanOrEqual(BUDGET[profile].full)
+      expect(full).toBeLessThanOrEqual(path === 'home' ? HOME_FULL : BUDGET[profile].full)
     })
   }
 }

@@ -10,7 +10,7 @@ export async function open(browser: Browser, profile: ProfileName, hash = ''): P
   const p = PROFILES[profile]
   const ctx = await browser.newContext({ viewport: p.viewport, isMobile: p.mobile, hasTouch: p.mobile, deviceScaleFactor: p.mobile ? 2.625 : 1 })
   const page = await ctx.newPage()
-  await page.goto('/' + hash)
+  await page.goto('/story' + hash)
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
   return { ctx, page }
 }

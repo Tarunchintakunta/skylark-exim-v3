@@ -64,7 +64,7 @@ async function landsOn(page: Page, path: 'ocean' | 'pond') {
   await expect(page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: path === 'ocean' ? 'Wild catch' : 'Farmed shrimp' })).toHaveAttribute('aria-current', 'true')
 }
 
-for (const url of ['/', '/#ocean']) {
+for (const url of ['/story', '/story#ocean']) {
   test(`${url} is the wild-catch story only`, async ({ page }) => {
     const urls = requests(page)
     await page.goto(url)
@@ -89,7 +89,7 @@ for (const url of ['/', '/#ocean']) {
 
 test('/#pond is the farmed-shrimp story only', async ({ page }) => {
   const urls = requests(page)
-  await page.goto('/#pond')
+  await page.goto('/story#pond')
   await ready(page)
   await landsOn(page, 'pond')
   await expect(page.locator('[data-chapter="o1"], [data-chapter="o2"], [data-chapter="o3"], [data-chapter="o4"]')).toHaveCount(0)
@@ -100,7 +100,7 @@ test('/#pond is the farmed-shrimp story only', async ({ page }) => {
 })
 
 test('header toggle swaps the story both ways', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await ready(page)
   await page.waitForSelector('#boot', { state: 'detached' })
   const toggle = page.getByRole('group', { name: 'Story path' })
@@ -111,7 +111,7 @@ test('header toggle swaps the story both ways', async ({ page }) => {
 })
 
 test('hero fork swaps the story both ways, and the header mirrors it', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await ready(page)
   await page.waitForSelector('#boot', { state: 'detached' })
   const btn = (p: 'ocean' | 'pond') => page.locator(`.hero:not(#hero-static) .hero__fork-btn[data-path="${p}"]`)
@@ -129,7 +129,7 @@ test('hero fork swaps the story both ways, and the header mirrors it', async ({ 
 
 for (const [from, to] of [['ocean', 'pond'], ['pond', 'ocean']] as const) {
   test(`end-of-path link switches ${from} → ${to}`, async ({ page }) => {
-    await page.goto(`/#${from}`)
+    await page.goto(`/story#${from}`)
     await ready(page)
     await page.waitForSelector('#boot', { state: 'detached' })
     // the last caption of the path's own plant carries the link
@@ -143,7 +143,7 @@ for (const [from, to] of [['ocean', 'pond'], ['pond', 'ocean']] as const) {
 }
 
 test('after a switch the other path is gone: no stale clip, no prefetch of its clips', async ({ page }) => {
-  await page.goto('/#ocean')
+  await page.goto('/story#ocean')
   await ready(page)
   await page.waitForSelector('#boot', { state: 'detached' })
   // inside the wild story, past the point where its next clips are prefetched

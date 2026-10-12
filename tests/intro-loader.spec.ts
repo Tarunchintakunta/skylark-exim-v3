@@ -38,7 +38,7 @@ for (const [name, viewport, mobile] of [
     const page = await ctx.newPage()
     await page.addInitScript(TIMES)
     await throttle4g(ctx, page, 'slow')
-    await page.goto('/', { waitUntil: 'commit' })
+    await page.goto('/story', { waitUntil: 'commit' })
     // static markup: on screen as soon as the document parses, with the intro and an empty progress line
     await page.waitForSelector('#boot .loader__name', { state: 'attached' })
     await expect(page.locator('#boot')).toBeVisible()
@@ -69,7 +69,7 @@ test('on fast 4G the gate completes before the cap, and progress is real: it mov
       if (Number.isFinite(v) && seen.at(-1) !== v) seen.push(v)
     }).observe(document, { subtree: true, attributes: true, attributeFilter: ['aria-valuenow'] })
   })
-  await page.goto('/')
+  await page.goto('/story')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 15_000 })
   const bar = await page.evaluate(() => (window as unknown as { __bar: number[] }).__bar)
   const t = await times(page)
@@ -82,7 +82,7 @@ test('on fast 4G the gate completes before the cap, and progress is real: it mov
 })
 
 test('a return visit in the same session skips the loader', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.addInitScript(TIMES)
@@ -98,7 +98,7 @@ test('a return visit in the same session skips the loader', async ({ page }) => 
 
 test('a deep link gets the short intro and lands on its path', async ({ page }) => {
   await page.addInitScript(TIMES)
-  await page.goto('/#pond')
+  await page.goto('/story#pond')
   await expect(page.locator('html')).toHaveClass(/intro-short/)
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   const t = await times(page)
@@ -111,7 +111,7 @@ test('a deep link gets the short intro and lands on its path', async ({ page }) 
 test('reduced motion: a static mark and name, then a plain fade', async ({ browser }) => {
   const ctx = await browser.newContext({ reducedMotion: 'reduce' })
   const page = await ctx.newPage()
-  await page.goto('/', { waitUntil: 'commit' })
+  await page.goto('/story', { waitUntil: 'commit' })
   await page.waitForSelector('#boot .loader__name', { state: 'attached' })
   const still = await page.evaluate(() => ({
     path: getComputedStyle(document.querySelector('#boot .loader__svg path')!).strokeDashoffset,
@@ -127,8 +127,8 @@ test('reduced motion: a static mark and name, then a plain fade', async ({ brows
 })
 
 test('never traps: with no script, the loader fades away on its own at 3 s', async ({ page }) => {
-  await page.route(/\/assets\/main-.*\.js$/, (r) => r.abort())
-  await page.goto('/')
+  await page.route(/\/assets\/story-.*\.js$/, (r) => r.abort())
+  await page.goto('/story')
   await expect(page.locator('#boot')).toBeVisible()
   await page.waitForTimeout(3600)
   await expect(page.locator('#boot')).toBeHidden()

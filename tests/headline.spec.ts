@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 for (const width of [320, 390, 768, 1024, 1440, 1920, 2560]) {
   test(`hero headline fits at ${width} px`, async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width, height: width < 800 ? 844 : Math.round(width * 0.6) } })
-    await page.goto('/')
+    await page.goto('/story')
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
     await page.evaluate(() => document.fonts.ready)
     const r = await page.evaluate(() => {
