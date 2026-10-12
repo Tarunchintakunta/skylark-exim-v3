@@ -17,7 +17,7 @@ main section[id] { scroll-margin-top: 68px; }
 /* markets: the list beside the globe (stacked on phones, globe first) */
 .home-markets { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 96px); align-items: center; }
 .home-markets__copy .section__title { margin-top: 14px; }
-.home-globe { position: relative; width: 100%; max-width: 720px; aspect-ratio: 1; justify-self: center; overflow: hidden; border-radius: 50%; }
+.home-globe { position: relative; width: 100%; max-width: 720px; aspect-ratio: 1; justify-self: center; }
 .home-globe .globe-ph { border-radius: 50%; }
 .home-globe .globe-hint { left: 50%; bottom: 8%; }
 @media (max-width: 819px) {
