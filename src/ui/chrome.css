@@ -20,11 +20,26 @@
 .topbar.is-light .brand__mark { color: var(--brass-ink); }
 .brand__word { font-size: 0.9375rem; letter-spacing: 0.01em; }
 .path-toggle { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; font-size: 0.9375rem; opacity: 0.86; white-space: nowrap; }
+/* the seven-link nav meets the centred toggle on /story: from 1400 px the toggle joins the row too, between brand and nav */
+@media (min-width: 1400px) {
+  .path-toggle { position: static; transform: none; margin: 0 auto; }
+  .topbar:has(.path-toggle) .nav { margin-left: 0; }
+}
 .path-toggle a { color: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 5px; transition: text-decoration-color 0.3s; }
 .path-toggle a[aria-current='true'], .path-toggle a:hover { text-decoration-color: currentColor; }
 .topbar { gap: clamp(16px, 2.4vw, 32px); }
 .nav { margin-left: auto; }
-.nav ul { display: flex; gap: clamp(14px, 2vw, 28px); }
+.nav > ul { display: flex; gap: clamp(14px, 1.8vw, 28px); }
+/* "Our Story": its two paths drop down on hover or keyboard focus (links stay focusable while transparent) */
+.nav__group { position: relative; }
+.nav__sub {
+  position: absolute; top: calc(100% + 10px); left: -14px; z-index: 1; display: grid; gap: 10px; min-width: 11rem; padding: 12px 14px;
+  background: var(--deep-2); border: 1px solid var(--hairline); border-radius: var(--radius);
+  opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity 0.2s, transform 0.2s var(--ease-out);
+}
+.nav__sub::before { content: ''; position: absolute; inset: -12px 0 auto; height: 12px; }
+.nav__group:hover .nav__sub, .nav__group:focus-within .nav__sub { opacity: 1; pointer-events: auto; transform: none; }
+.topbar.is-light .nav__sub { background: var(--light); border-color: var(--hairline-ink); }
 .nav__link { font-size: 0.9375rem; text-decoration: none; opacity: 0.82; transition: opacity 0.2s, color 0.2s; }
 .nav__link:hover { opacity: 1; color: var(--brass); }
 .topbar.is-light .nav__link:hover { color: var(--brass-ink); }
@@ -36,14 +51,27 @@
   .nav { margin-left: 0; }
 }
 
-/* the centered path toggle and the full link row overlap below this width */
+/* the menu button: below 1400 px on /story (the toggle shares the bar), below 1100 px on the other pages */
 @media (max-width: 1399px) {
-  .menu-btn { display: inline-block; padding: 10px 4px; }
-  .nav { position: absolute; top: 64px; right: var(--gutter); display: none; padding: 16px 20px; background: var(--deep-2); border: 1px solid var(--hairline); border-radius: var(--radius); }
-  .nav.is-open { display: block; }
-  .nav ul { flex-direction: column; gap: 14px; }
+  .topbar:not(.is-page) .menu-btn { display: inline-block; padding: 10px 4px; }
+  .topbar:not(.is-page) .nav { position: absolute; top: 64px; right: var(--gutter); display: none; padding: 16px 20px; background: var(--deep-2); border: 1px solid var(--hairline); border-radius: var(--radius); }
+  .topbar:not(.is-page) .nav.is-open { display: block; }
+  .topbar:not(.is-page) .nav > ul { flex-direction: column; gap: 14px; }
   .topbar.is-light .nav { background: var(--light); border-color: var(--hairline-ink); }
   .path-toggle { position: static; transform: none; margin-right: auto; }
+}
+@media (max-width: 1099px) {
+  .topbar.is-page .menu-btn { display: inline-block; margin-left: auto; padding: 10px 4px; }
+  .topbar.is-page .nav { position: absolute; top: 64px; right: var(--gutter); display: none; padding: 16px 20px; background: var(--deep-2); border: 1px solid var(--hairline); border-radius: var(--radius); }
+  .topbar.is-page .nav.is-open { display: block; }
+  .topbar.is-page .nav > ul { flex-direction: column; gap: 14px; }
+}
+/* inside the open menu the two paths sit indented under "Our Story" */
+@media (max-width: 1399px) {
+  .topbar:not(.is-page) .nav__sub { position: static; min-width: 0; padding: 10px 0 0 14px; background: none; border: 0; opacity: 1; pointer-events: auto; transform: none; }
+}
+@media (max-width: 1099px) {
+  .topbar.is-page .nav__sub { position: static; min-width: 0; padding: 10px 0 0 14px; background: none; border: 0; opacity: 1; pointer-events: auto; transform: none; }
 }
 @media (max-width: 899px) {
   .brand__word { display: none; }
