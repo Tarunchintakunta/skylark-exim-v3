@@ -114,6 +114,30 @@ export const ABOUT = {
   ],
 }
 
+/**
+ * Homepage bands (#233). Sentences are CONTENT.md lines; the card titles are Tarun's. No founding year: none is on
+ * skylarkexim.com (CONTENT.md "Never write"), so the intro says where, not since when.
+ */
+export const HOME = {
+  intro: {
+    eyebrow: start.eyebrow,
+    title: 'Seafood exporters from Visakhapatnam.',
+    body: 'Raw material is sourced directly from farms or fishing vessels. Our processing unit is at Anandapuram, Visakhapatnam.',
+  },
+  stories: {
+    ocean: { title: 'Wild catch: from sea to port', cta: 'Watch the wild catch story' },
+    pond: { title: 'Farmed shrimp: from pond to port', cta: 'Watch the farmed shrimp story' },
+    /** shared by both cards: where every path ends */
+    end: ['The plant', 'The port'],
+  },
+  plant: {
+    eyebrow: 'The plant · Anandapuram',
+    title: 'One standard, every stage.',
+    body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.',
+  },
+  news: { title: 'Latest updates', empty: 'Updates coming soon.', all: 'All news' },
+}
+
 /** Contact (CONTENT.md "Contact"). */
 export const CONTACT = {
   phones: [

@@ -13,11 +13,12 @@ const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url),
  */
 export function staticHero(): Plugin {
   const lead = start.title.replace(/ world\.$/, '')
-  const html = `<div class="hero hero--static" id="hero-static"><div class="hero__copy">
+  // the homepage's fork links over to /story (no aria-current: no path is chosen there); the film's fork stays in-page
+  const html = (story: boolean) => `<div class="hero hero--static" id="hero-static"><div class="hero__copy">
 <h1 class="hero__title">${esc(lead)} <em>world</em>.</h1>
 <p class="hero__body">${esc(start.body)}</p>
 <div class="hero__exports"><h2 class="hero__exports-title mono">${esc(exportsLine.title)}</h2><ul>${exportsLine.items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
-<a class="hero__contact" href="/quote">Contact us</a><div class="hero__fork" role="group" aria-label="${esc(start.choose)}"><span class="hero__fork-label mono">${esc(start.choose)}</span><a class="hero__fork-btn" href="#ocean" data-path="ocean" aria-current="true">${esc(start.ocean.sub)}</a><a class="hero__fork-btn" href="#pond" data-path="pond">${esc(start.pond.sub)}</a></div>
+<a class="hero__contact" href="/quote">Contact us</a><div class="hero__fork" role="group" aria-label="${esc(start.choose)}"><span class="hero__fork-label mono">${esc(start.choose)}</span><a class="hero__fork-btn" href="${story ? '' : '/story'}#ocean" data-path="ocean"${story ? ' aria-current="true"' : ''}>${esc(start.ocean.sub)}</a><a class="hero__fork-btn" href="${story ? '' : '/story'}#pond" data-path="pond">${esc(start.pond.sub)}</a></div>
 </div></div>`
   // after the loader markup (end of body), once the web fonts have set the copy (fallback metrics differ): is there
   // room above the copy for the mark? Only z-index changes, so the check can never shift the layout
@@ -35,27 +36,27 @@ export function staticHero(): Plugin {
     '.hero-under-loader #hero-static{z-index:var(--z-copy)}'
   return {
     name: 'static-hero',
-    // the homepage's own stylesheet is ~4 kB: inline it so the first paint waits on no request (Story's CSS stays lazy)
+    // the hero pages' own stylesheets are small: inline them so the first paint waits on no request (lazy CSS stays lazy)
     generateBundle: {
       order: 'post',
       handler(_, bundle) {
-        const html = bundle['index.html']
-        if (html?.type !== 'asset') return
-        let src = String(html.source)
-        src = src.replace(/<link rel="stylesheet"[^>]*href="\/(assets\/main-[^"]+\.css)"[^>]*>/, (tag, file: string) => {
-          const css = bundle[file]
-          return css?.type === 'asset' ? `<style>${css.source}</style>` : tag
-        })
-        html.source = src
+        for (const name of ['index.html', 'story.html']) {
+          const html = bundle[name]
+          if (html?.type !== 'asset') continue
+          html.source = String(html.source).replace(/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"[^>]*>/g, (tag, file: string) => {
+            const css = bundle[file]
+            return css?.type === 'asset' ? `<style>${css.source}</style>` : tag
+          })
+        }
       },
     },
     // 'pre': before Vite's own HTML pass, which strips CSS comments (and with them the placeholder)
     transformIndexHtml: {
       order: 'pre',
-      handler: (src) =>
+      handler: (src, ctx) =>
         src
           .replace('/*static-hero-css*/', css('styles/tokens.css') + base + css('ui/hero.css'))
-          .replace('<!--static-hero-->', html)
+          .replace('<!--static-hero-->', html(ctx.path.startsWith('/story')))
           .replace('</body>', `${fit}\n  </body>`),
     },
   }
