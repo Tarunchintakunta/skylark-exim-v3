@@ -57,7 +57,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-catch', alt: 'Fishermen in oilskins haul a dripping net in over the rail, silver fish caught in the mesh.' }],
+    media: [{ kind: 'video', id: 'hf-catch', alt: 'On deck, the boom\'s power block lifts a dripping net full of silver fish in over the rail while the crew lean back and pull it aboard; the fish spill onto the deck beside blue crates of ice.' }],
     captions: caps('o2', [[0.55, 1]]),
   },
   {
