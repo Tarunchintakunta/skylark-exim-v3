@@ -180,3 +180,12 @@ Same pipeline as the pond retakes: gpt_image_2_5 max 4k start frames (three cand
 | freeze | video, minimax_h3 2K 5 s, start = c | 85045087 | 10 | PASS (trimmed 0-71) | the packer settles glazed fish into the carton while the rack goes toward the freezer; after about 3 s the push-in crops the packer, so the head is kept |
 
 Captions are fact-only (skylarkexim.com work flow and company text): receiving checks, washing and grading, IQF or block freezing with glaze, 700-pallet cold store. "Blast freezing" is on the never-write list and is not used.
+
+## 2026-10-12: o2 "The catch" retake (#230)
+
+Start frame: gpt_image_2_5 max 4k, three candidates (docs/review/catch/sheet-catch.jpg). The o1 end frame and the o3 opening are the references, for the boat, crew kit and crates. Video: minimax_h3 2K at 5 s, trimmed to 72 frames.
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| o2 catch, frames a/b/c | image, gpt_image_2_5 max 4k | 6e77e263 / f8150254 / da1c57a7 | 45 | a picked | all three put the crew inside the rail, facing the sea. b and c spread the crew and net across the whole frame. a: the bag hangs from the power block right at the rail, with spilled fish and ice crates in the foreground |
+| o2 catch | video, minimax_h3 2K 5 s, start = a | 1f375e2b | 10 | PASS (trimmed 44-115) | all motion is inbound: the bag swings in over the rail, the crew lean back and pull it aboard, and fish spill onto the deck; water runs back into the sea. Frames 48/72/96/120 zoom-checked: the net stays in front of or beside the crew, never through them. Frames 0-43 are cut (the bag only hangs at the rail) |
