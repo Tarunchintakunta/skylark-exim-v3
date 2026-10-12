@@ -181,6 +181,14 @@ Same pipeline as the pond retakes: gpt_image_2_5 max 4k start frames (three cand
 
 Captions are fact-only (skylarkexim.com work flow and company text): receiving checks, washing and grading, IQF or block freezing with glaze, 700-pallet cold store. "Blast freezing" is on the never-write list and is not used.
 
+## 2026-10-12: o2 "The catch" retake (#230)
+
+Start frame: gpt_image_2_5 max 4k, three candidates (docs/review/catch/sheet-catch.jpg). The o1 end frame and the o3 opening are the references, for the boat, crew kit and crates. Video: minimax_h3 2K at 5 s, trimmed to 72 frames.
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| o2 catch, frames a/b/c | image, gpt_image_2_5 max 4k | 6e77e263 / f8150254 / da1c57a7 | 45 | a picked | all three put the crew inside the rail, facing the sea. b and c spread the crew and net across the whole frame. a: the bag hangs from the power block right at the rail, with spilled fish and ice crates in the foreground |
+| o2 catch | video, minimax_h3 2K 5 s, start = a | 1f375e2b | 10 | PASS (trimmed 44-115) | all motion is inbound: the bag swings in over the rail, the crew lean back and pull it aboard, and fish spill onto the deck; water runs back into the sea. Frames 48/72/96/120 zoom-checked: the net stays in front of or beside the crew, never through them. Frames 0-43 are cut (the bag only hangs at the rail) |
 ## 2026-10-12: "Into the plant." as one continuous 3-beat arrival (#229)
 
 Each beat's last frame is the next beat's start frame. Beat 1 has three generated start-frame candidates (docs/review/arrive/sheet-beat1.jpg), with the old hf-arrive end frame as the yard reference. Beats 2 and 3 start from the previous beat's real last frame. minimax_h3 2K at 5 s. Beat 1 is trimmed to frames 52-123. Beats 2 and 3 are retimed from 124 to 72 frames (about 1.7×), so they keep both seam frames.
