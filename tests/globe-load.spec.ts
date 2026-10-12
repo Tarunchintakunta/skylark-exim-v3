@@ -1,19 +1,21 @@
 import { devices, expect, test, type Page } from '@playwright/test'
 
 /**
- * How long the globe takes to show (#D): from the Markets chapter entering the viewport to the first frame with the
- * earth drawn (`globe:first-frame`), and to the first visible globe picture (the placeholder, or the live frame).
+ * How long the globe takes to show (#D). `shown`: the moment the stage hands over to the globe layer (the Markets
+ * chapter owns the frame). From there: `picture`, the first globe picture on screen (the placeholder or the live
+ * frame), and `frame`, the first live frame with the earth drawn (`globe:first-frame`, 0 if it was already drawn).
+ * `enter` is when the chapter's top edge entered the viewport, for reference.
  * The visitor scrolls in from the documentation chapter at about 1,500 px/s, like a normal wheel or swipe.
  */
-type R = { enter: number; frame: number; picture: number }
+type R = { enterToShown: number; frame: number; picture: number }
 
 async function measure(page: Page): Promise<R> {
   await page.goto('/#ocean')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.evaluate(() => {
-    const w = window as unknown as { __g: { enter: number; picture: number } }
-    w.__g = { enter: -1, picture: -1 }
+    const w = window as unknown as { __g: { enter: number; shown: number; picture: number } }
+    w.__g = { enter: -1, shown: -1, picture: -1 }
     const world = document.querySelector('[data-chapter="world"]')!
     new IntersectionObserver(([e]) => {
       if (e.isIntersecting && w.__g.enter < 0) w.__g.enter = performance.now()
@@ -24,7 +26,8 @@ async function measure(page: Page): Promise<R> {
       const ph = layer?.querySelector<HTMLImageElement>('.globe-ph')
       const live = layer?.classList.contains('is-globe-live')
       const shown = layer && +getComputedStyle(layer).opacity > 0.5
-      if (w.__g.enter > 0 && w.__g.picture < 0 && shown && (live || (ph?.complete && ph.naturalWidth))) w.__g.picture = performance.now()
+      if (shown && w.__g.shown < 0) w.__g.shown = performance.now()
+      if (w.__g.shown > 0 && w.__g.picture < 0 && (live || (ph?.complete && ph.naturalWidth))) w.__g.picture = performance.now()
       if (w.__g.picture < 0) requestAnimationFrame(poll)
     }
     requestAnimationFrame(poll)
@@ -37,9 +40,9 @@ async function measure(page: Page): Promise<R> {
   }
   await page.waitForFunction(() => performance.getEntriesByName('globe:first-frame').length > 0, null, { timeout: 30_000 })
   return page.evaluate(() => {
-    const g = (window as unknown as { __g: { enter: number; picture: number } }).__g
+    const g = (window as unknown as { __g: { enter: number; shown: number; picture: number } }).__g
     const frame = performance.getEntriesByName('globe:first-frame')[0].startTime
-    return { enter: Math.round(g.enter), frame: Math.round(frame - g.enter), picture: Math.round((g.picture > 0 ? g.picture : frame) - g.enter) }
+    return { enterToShown: Math.round(g.shown - g.enter), frame: Math.max(0, Math.round(frame - g.shown)), picture: Math.max(0, Math.round((g.picture > 0 ? g.picture : frame) - g.shown)) }
   })
 }
 
