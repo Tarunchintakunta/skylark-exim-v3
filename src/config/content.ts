@@ -51,15 +51,21 @@ export const film: Record<string, CaptionCopy[]> = {
   ],
   coldchain: [
     { eyebrow: 'The Plant · Quality lab', title: 'Tested before it moves.', body: 'Checks for hygiene, freshness, texture and absence of defects. Samples tested for international food safety compliance.' },
-    { eyebrow: 'The Plant · Freezing', title: 'Frozen at its best.', body: 'IQF (Individually Quick Frozen) or block freezing. A thin ice glaze preserves freshness during shipment.' },
+    { eyebrow: 'The Plant · Freezing', title: 'Frozen at its best.', body: 'IQF (Individually Quick Frozen) or block freezing. Glazing (a thin ice layer) applied to preserve freshness during shipment.' },
     { eyebrow: 'The Plant · Packing', title: 'Packed and labelled.', body: 'Export-grade cartons, vacuum packs, or customized packaging. Labels with product details, size, batch, and export compliance.' },
     { eyebrow: 'The Plant · Cold storage', title: 'Held at −18\u00a0°C to −20\u00a0°C.', body: 'Our warehouse has a total storage capacity of 700 pallets.' },
   ],
-  // the wild-catch path (#219): skylarkexim.com describes its plant and work flow for shrimp only, so the fish path's
-  // plant says only what holds for any seafood (company text, the unit, the warehouse) and shows no shrimp
-  'intake.ocean': [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Transported under chilled conditions to our processing unit at Anandapuram, Visakhapatnam.' }],
-  'process.ocean': [{ eyebrow: 'The Plant · Quality', title: 'One standard, every stage.', body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.', note: 'Quality control staff · Lab unit, Anandapuram' }],
-  'coldchain.ocean': [{ eyebrow: 'The Plant · Cold storage', title: 'Held cold until dispatch.', body: 'Our warehouse has a total storage capacity of 700 pallets.' }],
+  // the wild-catch path (#219): the fish in the plant. Only work-flow steps that hold for any seafood (receiving checks,
+  // washing, grading, freezing and glazing, cold storage) and the company's quality text; nothing shrimp-specific
+  'intake.ocean': [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Transported under chilled conditions to our processing unit at Anandapuram, Visakhapatnam. Initial quality checks (size, freshness, health) are done before acceptance.' }],
+  'process.ocean': [
+    { eyebrow: 'The Plant · Washing', title: 'Washed and graded.', body: 'Thorough washing with clean, treated water to remove impurities. Sorted by size, weight and type. Grading ensures uniformity for export standards.' },
+    { eyebrow: 'The Plant · Quality', title: 'One standard, every stage.', body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.', note: 'Quality control staff · Lab unit, Anandapuram' },
+  ],
+  'coldchain.ocean': [
+    { eyebrow: 'The Plant · Freezing', title: 'Frozen at its best.', body: 'IQF (Individually Quick Frozen) or block freezing. Glazing (a thin ice layer) applied to preserve freshness during shipment.' },
+    { eyebrow: 'The Plant · Cold storage', title: 'Held cold until dispatch.', body: 'Our warehouse has a total storage capacity of 700 pallets.' },
+  ],
   docs: [{ eyebrow: 'Export · Documentation', title: 'Paperwork, done properly.', body: 'Our documentation staff professionally prepare all necessary documents and handle logistical tracking of shipments. Compliance with export certificates (HACCP, EU, FDA, etc.).' }],
   port: [{ eyebrow: 'Export · The port', title: 'Loaded under the cranes.', body: 'Shipped in reefer containers to maintain the cold chain until the destination.' }],
   sea: [{ eyebrow: 'Export · At sea', title: 'From Visakhapatnam to the world’s table.', note: 'Cold chain · outbound' }],
