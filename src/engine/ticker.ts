@@ -67,6 +67,9 @@ export function unlockScroll() {
 }
 
 export function scrollToY(y: number, immediate = false) {
+  // Lenis clamps to the page height it last measured (a debounced ResizeObserver): a jump right after the story mounts,
+  // with the intro already seen this session, would land at 0. Measure first.
+  lenis?.resize()
   if (lenis) lenis.scrollTo(y, { immediate, duration: 1.4, force: true })
   else window.scrollTo({ top: y, behavior: immediate || env.reduced ? 'instant' : 'smooth' })
 }
