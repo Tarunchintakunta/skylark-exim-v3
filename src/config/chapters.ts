@@ -80,13 +80,13 @@ const POND_ONLY: ChapterDef[] = [
   },
   {
     id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician kneels on a plank walkway at the pond edge and fills a sample bottle with pond water.' }],
+    media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician crouches on the pond bank and reads a handheld water meter, its probe hanging on a cable into the pond, aerators churning behind him.' }],
     captions: caps('p2', [[0.1, 0.92]]),
   },
   {
     id: 'p3', path: 'pond', label: 'Harvest', vh: 120, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: workers wade waist-deep drawing the drag net toward the bank.' },
+      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks blue crates beside white ice boxes and a white truck.' },
       { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in blue and white crates beside the refrigerated truck.' },
     ],
     captions: caps('p3', [[0.1, 0.9]]),
