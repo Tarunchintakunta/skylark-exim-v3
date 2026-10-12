@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { Gate } from './engine/preload'
 import { useApp } from './engine/store'
+import { bindStoryPrefetch } from './home/prefetch'
 import { HeroFrame, bindLoop } from './ui/HeroFrame'
 import { Loader } from './ui/Loader'
 import { PageHeader } from './ui/PageHeader'
@@ -30,7 +31,7 @@ function HomeHero() {
 
 /**
  * Homepage (#233): the looping coastal hero, then a normal scrolling company page. The film, its engine and its clips
- * live on /story.
+ * live on /story; story links here only prefetch it on hover or focus.
  */
 export default function Home() {
   const hero = useRef<HTMLDivElement>(null)
@@ -41,6 +42,7 @@ export default function Home() {
     io.observe(hero.current!)
     return () => io.disconnect()
   }, [])
+  useEffect(bindStoryPrefetch, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
