@@ -158,9 +158,9 @@ Start frames: gpt_image_2_5, quality max 4k, three candidates per shot (contact 
 
 | Shot | Kind | Job | Credits | Verdict | Notes |
 |---|---|---|---|---|---|
-| p2 sample, frames a/b/c | image, gpt_image_2_5 max 4k | 4d2b3e3e / 22c35303 / f7a1fa22 | 45 | b picked | a: meter held up toward the lens; c: a second probe pole on the bank. b: crouched technician, meter in hand, probe on a cable in the water |
+| p2 sample, frames a/b/c | image, gpt_image_2_5 max 4k | 4d2b3e3e / 22c35303 / f7a1fa22 | 45 | b picked | all three pass the brief (meter on a cable, probe in the water, no poles). a: the aerator is small and far off. c: tighter framing, with the meter raised close to his face. b: he looks down at the meter, and the aerator splash fills the middle of the frame |
 | p2 sample | video, minimax_h3 2K 5 s, start = b | e282315f | 10 | PASS (trimmed 0-71) | he taps the meter and reads it; the cable hangs naturally; nothing is lifted toward camera; no poles |
-| p3 harvest, frames a/b/c | image, gpt_image_2_5 max 4k | 580f99ce / 75985b3e / 4ca3020d | 45 | b picked | a: float line runs behind one worker's legs; c: logo-like marks on the truck box. b: four workers behind the net, floats in front, blue crates, white ice boxes, plain white truck |
+| p3 harvest, frames a/b/c | image, gpt_image_2_5 max 4k | 580f99ce / 75985b3e / 4ca3020d | 45 | b picked | a: the float line runs out of the frame at both bottom corners, so the arc does not read. c is also clean. b: the whole float arc sits in front of the four workers, with blue crates, white ice boxes and a plain white truck on the bank |
 | p3 harvest | video, minimax_h3 2K 5 s, start = b | 1d6c2362 | 10 | PASS (trimmed 0-71) | the crew pulls the head rope; the float arc tightens in front of them and stays one line; the bank crew lifts blue crates |
 
 The 1920 poster of hf-harvest missed the 120 KB cap even at q 12 (sunlit water), so encode-hf.sh now falls back to a cwebp size search.
