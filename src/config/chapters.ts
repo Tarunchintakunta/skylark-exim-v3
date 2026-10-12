@@ -96,9 +96,11 @@ const POND_ONLY: ChapterDef[] = [
 /** The farmed path's plant: the shrimp footage and the full work flow (CONTENT.md, written for shrimp). */
 const PLANT_POND: ChapterDef[] = [
   {
-    id: 'intake', path: 'pond', label: 'Intake', vh: 120, joinNext: 'crossfade',
+    id: 'intake', path: 'pond', label: 'Intake', vh: 240, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
+      { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
+      { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
+      { kind: 'video', id: 'hf-unload-shrimp', alt: 'The rear doors open into the dock and cold vapour rolls out; workers in white coats, hairnets and gloves roll out insulated crates of shrimp on ice and probe one crate\'s temperature.' },
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
     ],
     captions: caps('intake', [[0.1, 0.92]]),
@@ -127,9 +129,11 @@ const PLANT_POND: ChapterDef[] = [
 /** The wild-catch path's plant (#219): whole fish and tuna loins through the same plant, never a shrimp on screen or in the copy. */
 const PLANT_OCEAN: ChapterDef[] = [
   {
-    id: 'intake', path: 'ocean', label: 'Intake', vh: 140, joinNext: 'crossfade',
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 280, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
+      { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
+      { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
+      { kind: 'video', id: 'hf-unload-fish', alt: 'The rear doors open into the dock and cold vapour rolls out; workers in white coats, hairnets and gloves roll out insulated crates of whole fish on ice and probe one crate\'s temperature.' },
       { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, crates of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
     ],
     captions: caps('intake.ocean', [[0.1, 0.92]]),
