@@ -152,6 +152,18 @@ Audit (1440 and 390 px, both paths, every chapter at 30 % and 75 % of its scroll
 
 Balance (from `balance` calls): 1066.75 before. Then 804.75 after these three jobs, a drop of 262, of which 37 is mine. The other 225 is 15 GPT Image 2.5 generations at 15:24 and 15:44 UTC by a parallel website session on the same account, per the transactions API and the coordinator. Spend since the 1910.75 start: 1106 (all sessions). Credit guard (1,624) not reached.
 
+## 2026-10-12: pond retakes (#224)
+
+Start frames: gpt_image_2_5, quality max 4k, three candidates per shot (contact sheets in docs/review/retakes). The pick is uploaded as a 2560 px JPEG and used as the minimax_h3 2K start image. minimax_h3 at 4 s failed twice (refunded); at 5 s it renders, so every clip is 5 s and trimmed to 72 frames.
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| p2 sample, frames a/b/c | image, gpt_image_2_5 max 4k | 4d2b3e3e / 22c35303 / f7a1fa22 | 45 | b picked | all three pass the brief (meter on a cable, probe in the water, no poles). a: the aerator is small and far off. c: tighter framing, with the meter raised close to his face. b: he looks down at the meter, and the aerator splash fills the middle of the frame |
+| p2 sample | video, minimax_h3 2K 5 s, start = b | e282315f | 10 | PASS (trimmed 0-71) | he taps the meter and reads it; the cable hangs naturally; nothing is lifted toward camera; no poles |
+| p3 harvest, frames a/b/c | image, gpt_image_2_5 max 4k | 580f99ce / 75985b3e / 4ca3020d | 45 | b picked | a: the float line runs out of the frame at both bottom corners, so the arc does not read. c is also clean. b: the whole float arc sits in front of the four workers, with blue crates, white ice boxes and a plain white truck on the bank |
+| p3 harvest | video, minimax_h3 2K 5 s, start = b | 1d6c2362 | 10 | PASS (trimmed 0-71) | the crew pulls the head rope; the float arc tightens in front of them and stays one line; the bank crew lifts blue crates |
+
+The 1920 poster of hf-harvest missed the 120 KB cap even at q 12 (sunlit water), so encode-hf.sh now falls back to a cwebp size search.
 ## 2026-10-12: fish in the plant, wild path (#225)
 
 Same pipeline as the pond retakes: gpt_image_2_5 max 4k start frames (three candidates each, contact sheets in docs/review/fish) with the hf-wash plant as the look reference, then minimax_h3 2K at 5 s, trimmed to 72 frames. Species: tuna, seer fish and Indian mackerel. The brief named pomfret, which is on the CONTENT.md never-write list, so it is left out.
