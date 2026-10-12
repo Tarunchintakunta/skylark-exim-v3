@@ -1,5 +1,5 @@
 import { Line, useTexture } from '@react-three/drei'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, MathUtils, SRGBColorSpace, Vector3, type Mesh } from 'three'
 import type { Line2 } from 'three-stdlib'
@@ -87,6 +87,15 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
   const dots = useRef<(Mesh | null)[]>([])
   const originDot = useRef<Mesh>(null)
   const { camera, invalidate, gl, scene, get } = useThree()
+
+  // the first frame with the earth drawn: a mark for tests/globe-load.spec.ts and the cue for the placeholder to fade
+  const drawn = useRef(false)
+  useFrame(() => {
+    if (drawn.current) return
+    drawn.current = true
+    performance.mark('globe:first-frame')
+    gl.domElement.closest('.stage__light')?.classList.add('is-globe-live')
+  })
 
   // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile, then one render
   useEffect(() => {
