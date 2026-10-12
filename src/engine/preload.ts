@@ -1,26 +1,62 @@
-import { posterUrl } from '../film/segments'
+import { chaptersFor } from '../config/chapters'
+import { warm } from '../film/scrub'
+import { storyReady } from './boot'
+import { store } from './store'
 
 /**
- * Critical set for the loader (redesign §2.5, #134 LCP): the fonts and the hero loop's poster, nothing else.
- * - Fonts load through `document.fonts.load()` only (index.html preloads the two critical files).
- * - The poster is the first frame of the hero loop at this device's tier (also preloaded in index.html).
- * - The loop itself keeps downloading behind: the hero shows the poster until the video has painted, then plays.
- * Never blocks: resolves at MAX_MS whatever is still loading.
+ * Loader gate (#218). The loader holds until everything the first screens need can play:
+ * - the fonts, through `document.fonts.load()` (index.html preloads the files)
+ * - the story chunk, mounted
+ * - the hero loop, then the first chapter's clip of the chosen path (#ocean / #pond, else wild catch), at `canplaythrough`;
+ *   the other story loads nothing until the visitor switches (#219)
+ * Progress is real: each part reports its share (a clip by how much of it is buffered) and the bar shows the mean.
+ * Times are from navigation start: at least `min` ms so the intro finishes drawing, and never more than MAX_MS.
  */
 const FACES = ['400 1em "Instrument Serif"', '400 1em "Inter Tight"', '500 1em "Inter Tight"']
-const MAX_MS = 2500
+export const MAX_MS = 3000
 
-export function preloadCritical(onProgress: (f: number) => void) {
-  let done = 0
-  const total = FACES.length + 1
-  const tick = () => onProgress(++done / total)
+/** first clip after the shared start chapter on the chosen path */
+function firstClip() {
+  const m = chaptersFor(store.getState().path).slice(1).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
+  return m?.kind === 'video' ? [m.id] : []
+}
 
-  const fonts = FACES.map((f) => document.fonts.load(f).catch(() => {}).then(tick))
-  const poster = new Promise<void>((resolve) => {
-    const img = new Image()
-    img.onload = img.onerror = () => resolve()
-    img.src = posterUrl('hero-loop')
-  }).then(tick)
+const at = (ms: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, ms - performance.now())))
 
-  return Promise.race([Promise.all([...fonts, poster]), new Promise((r) => setTimeout(r, MAX_MS))])
+/** Resolves once the video can play through, or errors; a video with no source (reduced motion) counts as done. */
+function playable(v: HTMLVideoElement | null, report: (f: number) => void) {
+  return new Promise<void>((resolve) => {
+    if (!v?.getAttribute('src')) return resolve()
+    const done = () => {
+      report(1)
+      resolve()
+    }
+    if (v.readyState >= 4) return done()
+    v.addEventListener('canplaythrough', done, { once: true })
+    v.addEventListener('error', done, { once: true })
+    // `progress` events are sparse under throttling and can come before the duration is known: sample instead
+    const iv = setInterval(() => {
+      const b = v.buffered
+      if (b.length && v.duration) report(b.end(b.length - 1) / v.duration)
+    }, 150)
+    v.addEventListener('canplaythrough', () => clearInterval(iv), { once: true })
+    v.addEventListener('error', () => clearInterval(iv), { once: true })
+    setTimeout(() => clearInterval(iv), MAX_MS)
+  })
+}
+
+export function gate(onProgress: (f: number) => void, min: number) {
+  const first = firstClip()
+  const shares = Array<number>(FACES.length + 2 + first.length).fill(0)
+  const part = (k: number) => (f: number) => {
+    shares[k] = Math.max(shares[k], f)
+    onProgress(shares.reduce((a, b) => a + b, 0) / shares.length)
+  }
+  const fonts = FACES.map((f, k) => document.fonts.load(f).catch(() => {}).then(() => part(k)(1)))
+  const story = storyReady.then(() => part(FACES.length)(1))
+  // the hero loop first, then the chapter clip: on a slow line they would otherwise split the bandwidth
+  const k0 = FACES.length + 1
+  const hero = playable(document.querySelector<HTMLVideoElement>('.hero__video'), part(k0))
+  const clips = hero.then(() => Promise.all(warm(first).map((v, k) => playable(v, part(k0 + 1 + k)))))
+  return Promise.race([Promise.all([...fonts, story, clips, at(min)]), at(MAX_MS)])
 }

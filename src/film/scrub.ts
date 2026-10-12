@@ -30,10 +30,14 @@ const FRAME = 1 / 24
 const EPS = 1 / 48
 /** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
+/** clips prefetched ahead of the scroll: two on desktop, one on phones, Save-Data and 3G or slower (#218) */
+const AHEAD = env.mobile || env.saveData || env.slow ? 1 : 2
 
 let segs: Segment[] = []
 let posters: (HTMLElement | null)[] = []
 let slots: Slot[] = []
+/** one slot per <video> for the page's life: a path switch rebinds the stage but keeps what the decoders already hold */
+const slotOf = new WeakMap<HTMLVideoElement, Slot>()
 let veil: HTMLElement | null = null
 let stage: HTMLElement | null = null
 let cur = -1
@@ -49,7 +53,7 @@ const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
-/** The hero's looping video (#197) covers the start chapter: its clip loads after the loader, its posters after the first scroll. */
+/** The hero's looping video (#197) covers the start chapter: its clip and posters load on the first scroll. */
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -57,7 +61,8 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   segs = segments
   posters = segments.map((_, i) => el.querySelector<HTMLElement>(`[data-seg="${i}"]`))
   veil = el.querySelector('.stage__veil')
-  slots = [...el.querySelectorAll('video')].map((v) => makeSlot(v))
+  slots = [...el.querySelectorAll('video')].map((v) => slotOf.get(v) ?? makeSlot(v))
+  for (const s of slots) s.v.style.opacity = '0'
   cur = -1
   shown = null
   over = -1
@@ -68,12 +73,20 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
     stopReady()
     stopTick?.()
     stopTick = null
-    for (const s of slots) release(s)
   }
+}
+
+/**
+ * Loader gate (#218): buffer these clips into free decoders before the reveal, so the chosen path's first chapter plays
+ * on arrival. Returns their elements; the loader waits for `canplaythrough`.
+ */
+export function warm(ids: string[]) {
+  return ids.flatMap((id) => slotFor(id, ids)?.v ?? [])
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
   const s: Slot = { v, id: null, painted: false, pending: null, dead: false, ready: false, used: 0 }
+  slotOf.set(v, s)
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
     if (v.requestVideoFrameCallback) {
@@ -113,16 +126,6 @@ function load(s: Slot, id: string) {
   setTimeout(() => {
     if (s.id === id && s.v.readyState < 2) s.dead = true
   }, 4000)
-}
-
-function release(s: Slot) {
-  if (!s.id) return
-  s.id = null
-  s.painted = false
-  s.ready = false
-  s.v.removeAttribute('src')
-  s.v.load()
-  s.v.style.opacity = '0'
 }
 
 const videoId = (i: number) => {
@@ -194,9 +197,9 @@ function tick() {
   const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
   const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
   let active: Slot | null = null
-  // the start clip loads once the loader is done (behind the hero loop) so the hand-off has frames ready; a deep link
-  // that is about to jump past the hero doesn't fetch it at all
-  if (want && !(landing.pending && i === 0) && (scrolled || i > 0 || store.getState().ready)) {
+  // the start clip waits for the first scroll: the hero loop covers it, and the loader's budget goes to the first chapter
+  // of each path (#218); a deep link that is about to jump past the hero doesn't fetch it at all
+  if (want && !(landing.pending && i === 0) && (scrolled || i > 0)) {
     active = slotFor(want, [ahead, behind])
     if (active) {
       active.used = clock
@@ -211,8 +214,8 @@ function tick() {
   }
   if (ahead && scrolled && (!want || active?.ready)) {
     const a = slotFor(ahead, [want, behind])
-    // the one after that once the next can play through too (short chapters pass in < 1 s); phones only ever prefetch the next
-    const ahead2 = env.mobile ? null : videoNearId(ahead, frame.dir < 0 ? -1 : 1)
+    // the one after that once the next can play through too (short chapters pass in < 1 s), on fast connections only
+    const ahead2 = AHEAD > 1 ? videoNearId(ahead, frame.dir < 0 ? -1 : 1) : null
     if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
   }
   setShown(active && active.painted && !active.dead ? active : null)

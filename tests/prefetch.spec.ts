@@ -79,12 +79,16 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await ctx.close()
 })
 
-test('the first screen loads the hero loop first, then only the start beat behind it (#197)', async ({ browser }) => {
+test('the first screen loads the hero loop first, then only the chosen path\'s first clip; the start beat waits for a scroll (#197, #218)', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
   await page.waitForTimeout(1500)
-  const clips = await page.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.endsWith('.mp4')))
-  // the hero loop first; behind it only the start beat it dissolves into
-  expect(clips[0]).toContain('/hero-loop_')
-  expect(clips.slice(1).every((c) => c.includes('/opening_')), clips.join(', ')).toBe(true)
+  const clips = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname).filter((n) => n.endsWith('.mp4')))
+  const first = await clips()
+  expect(first[0]).toContain('/hero-loop_')
+  expect(first.slice(1).map((c) => c.replace(/_\d+\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
+  // the start beat the loop dissolves into loads on the first scroll
+  await page.mouse.move(700, 450)
+  await page.mouse.wheel(0, 200)
+  await expect.poll(async () => (await clips()).some((c) => c.includes('/opening_')), { timeout: 5_000 }).toBe(true)
   await ctx.close()
 })
