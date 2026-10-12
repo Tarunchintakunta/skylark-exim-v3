@@ -44,7 +44,8 @@ for (const width of [390, 1440]) {
   test(`temperatures stay on one line after the split at ${width} px`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width, height: 844 } })
     const page = await ctx.newPage()
-    await page.goto('/')
+    // the temperature caption is on the farmed path's cold chain (#219: the wild path's plant has its own copy)
+    await page.goto('/#pond')
     const sel = '[data-chapter="coldchain"] .caption__title .line'
     await page.waitForFunction((sel) => document.querySelectorAll(sel).length > 0, sel)
     const lines = await page.evaluate((sel) => [...document.querySelectorAll(sel)].map((l) => l.textContent ?? ''), sel)

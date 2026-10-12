@@ -10,7 +10,7 @@ test('loads, loader completes, one h1', async ({ page }) => {
   await expect(page.locator('html')).not.toHaveClass(/is-locked/)
 })
 
-test('header toggle switches which origin runs first and keeps the hash; Ocean is the default', async ({ page }) => {
+test('header toggle swaps the story and keeps the hash; Ocean is the default', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   const ocean = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Wild catch' })
@@ -20,10 +20,9 @@ test('header toggle switches which origin runs first and keeps the hash; Ocean i
   await pond.click()
   await expect(pond).toHaveAttribute('aria-current', 'true')
   await expect(page).toHaveURL(/#pond$/)
-  // one story with both origins: the chosen one runs first
-  const order = await page.locator('[data-chapter]').evaluateAll((els) => els.map((el) => (el as HTMLElement).dataset.chapter))
-  expect(order.indexOf('p1')).toBeGreaterThan(0)
-  expect(order.indexOf('p1')).toBeLessThan(order.indexOf('o1'))
+  // two separate stories (#219): the pond path has no ocean chapter
+  await expect(page.locator('[data-chapter="p1"]')).toHaveCount(1)
+  await expect(page.locator('[data-chapter="o1"]')).toHaveCount(0)
 })
 
 test('inside the film the toggle lands on the other path\'s first chapter', async ({ page }) => {

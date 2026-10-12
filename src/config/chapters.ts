@@ -1,4 +1,4 @@
-import { bridge, film, type CaptionCopy } from './content'
+import { film, type CaptionCopy } from './content'
 import { MARKET_COUNT } from './markets'
 
 /**
@@ -21,7 +21,7 @@ export type Join = 'shared-frame' | 'crossfade' | 'cut'
 export interface Caption extends CaptionCopy {
   at: [number, number]
   /** DOM extra shown with the caption */
-  extra?: 'label-card' | 'doc-cards' | 'markets'
+  extra?: 'label-card' | 'doc-cards' | 'markets' | 'other-path'
 }
 
 export interface ChapterDef {
@@ -93,9 +93,10 @@ const POND_ONLY: ChapterDef[] = [
   },
 ]
 
-const SHARED: ChapterDef[] = [
+/** The farmed path's plant: the shrimp footage and the full work flow (CONTENT.md, written for shrimp). */
+const PLANT_POND: ChapterDef[] = [
   {
-    id: 'intake', path: 'shared', label: 'Intake', vh: 120, joinNext: 'crossfade',
+    id: 'intake', path: 'pond', label: 'Intake', vh: 120, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' },
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
@@ -103,7 +104,7 @@ const SHARED: ChapterDef[] = [
     captions: caps('intake', [[0.1, 0.92]]),
   },
   {
-    id: 'process', path: 'shared', label: 'Process', vh: 200, joinNext: 'shared-frame',
+    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'shared-frame',
     media: [
       { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp washed under spray bars and graded along a conveyor by workers in caps, masks and gloves.' },
       { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table, then the camera glides through the glass door toward the quality lab.' },
@@ -111,7 +112,7 @@ const SHARED: ChapterDef[] = [
     captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
   },
   {
-    id: 'coldchain', path: 'shared', label: 'Lab · freeze · pack', vh: 240, joinNext: 'crossfade',
+    id: 'coldchain', path: 'pond', label: 'Lab · freeze · pack', vh: 240, joinNext: 'crossfade',
     // one shot per caption: lab, IQF, packing, cold store (each a quarter of the scroll)
     media: [
       { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
@@ -119,8 +120,35 @@ const SHARED: ChapterDef[] = [
       { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
       { kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' },
     ],
-    captions: caps('coldchain', [[0.02, 0.25], [0.25, 0.5], [0.5, 0.75], [0.75, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : c)),
+    captions: caps('coldchain', [[0.02, 0.25], [0.25, 0.5], [0.5, 0.75], [0.75, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
   },
+]
+
+/**
+ * The wild-catch path's plant (#219): no shrimp on screen or in the copy. Only path-neutral footage (the truck at the
+ * dock, the cold store) and a still for the quality beat, which needs its own clip (no fish-processing footage exists).
+ */
+const PLANT_OCEAN: ChapterDef[] = [
+  {
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 100, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-arrive', alt: 'A white refrigerated truck reverses across the wet yard toward the plant loading dock while a worker in a hi-vis vest waves it back.' }],
+    captions: caps('intake.ocean', [[0.1, 0.92]]),
+  },
+  {
+    // needs clip: fish at the plant (washing, grading, quality); until then a dimmed still of the cold store
+    id: 'process', path: 'ocean', label: 'Quality', vh: 100, joinNext: 'cut',
+    media: [{ kind: 'dom', poster: 'ph-plant', alt: 'A dimmed view of the plant cold store: racks of plain cartons on pallets.' }],
+    captions: caps('process.ocean', [[0.05, 0.95]]),
+  },
+  {
+    id: 'coldchain', path: 'ocean', label: 'Cold storage', vh: 120, joinNext: 'crossfade',
+    media: [{ kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' }],
+    captions: caps('coldchain.ocean', [[0.1, 1]]).map((c) => ({ ...c, extra: 'other-path' as const })),
+  },
+]
+
+/** The shared ending, identical on both paths: documents, the port, the ship out to sea, the markets. */
+const ENDING: ChapterDef[] = [
   {
     id: 'docs', path: 'shared', label: 'Documentation', vh: 100, joinNext: 'cut',
     media: [{ kind: 'dom', poster: 'ph-docs', alt: 'An export office desk in daylight: shipment folders, a binder of certificates and a laptop with a tracking map. Three cards: export documents, compliance, shipment tracking.' }],
@@ -149,13 +177,9 @@ const SHARED: ChapterDef[] = [
   },
 ]
 
-/** The other origin's first chapter opens with the bridge caption; its own captions start after it. */
-const bridged = ([first, ...rest]: ChapterDef[]): ChapterDef[] => [
-  { ...first, captions: [{ ...bridge, at: [0.02, 0.3] }, ...first.captions.map((c) => ({ ...c, at: [Math.max(c.at[0], 0.34), c.at[1]] as [number, number] }))] },
-  ...rest,
-]
+const sharedFor = (path: 'ocean' | 'pond') => [...(path === 'pond' ? PLANT_POND : PLANT_OCEAN), ...ENDING]
 
-/** One story with both origins: the chosen path first, then the other one, then the plant, port and world. */
-export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...bridged(POND_ONLY), ...SHARED]
-export const POND: ChapterDef[] = [start, ...POND_ONLY, ...bridged(OCEAN_ONLY), ...SHARED]
+/** Two separate stories (#219): each origin, then its own plant, then the shared ending. No chapter of one path renders on the other. */
+export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...sharedFor('ocean')]
+export const POND: ChapterDef[] = [start, ...POND_ONLY, ...sharedFor('pond')]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)

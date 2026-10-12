@@ -18,22 +18,22 @@
     <!-- intro variant before first paint (#218): seen this session → no loader; #ocean / #pond → the short intro -->
     <script>try{var c=document.documentElement.classList;if(sessionStorage.getItem('skylark-intro'))c.add('intro-skip');else if(/^#(ocean|pond)$/.test(location.hash))c.add('intro-short')}catch(e){}</script>
     <style>
-      /* critical: the loader and the hero copy paint before any JS. The mark sits above the copy, which stays on top of
-         the loader (#207): Chrome ignores occluded text for LCP, so hidden copy would wait for the reveal. */
+      /* critical: the loader and the hero copy paint before any JS. The mark sits in the header band above the copy (#219: it
+         clears the copy on short laptops too), and the copy stays on top of the loader (#207): Chrome ignores occluded text for LCP, so hidden copy would wait for the reveal. */
       body{margin:0;background:#071f26}
-      .loader{--r:0px;--k:1;position:fixed;inset:0;z-index:100;display:grid;justify-content:center;align-content:start;padding-top:max(24px,calc(15vh - 56px));justify-items:center;gap:18px;background:#071f26;color:#f6f2ea;-webkit-mask:radial-gradient(circle at 50% 50%,transparent var(--r),#000 calc(var(--r) + 1px));mask:radial-gradient(circle at 50% 50%,transparent var(--r),#000 calc(var(--r) + 1px));animation:loader-out .4s ease 3s forwards}
+      .loader{--r:0px;--k:1;position:fixed;inset:0;z-index:100;display:grid;justify-content:center;align-content:start;padding-top:12px;justify-items:center;gap:8px;background:#071f26;color:#f6f2ea;-webkit-mask:radial-gradient(circle at 50% 50%,transparent var(--r),#000 calc(var(--r) + 1px));mask:radial-gradient(circle at 50% 50%,transparent var(--r),#000 calc(var(--r) + 1px));animation:loader-out .4s ease 3s forwards}
       /* intro (#218): the mark draws in (done by 1.15 s), a wave line runs under it, then the name fades in; --k shortens it on deep links */
       .intro-short .loader{--k:.6}
       .intro-skip .loader{display:none}
-      .loader__mark{width:84px;height:84px;color:#e08a5f;will-change:transform;animation:mark-pulse 2.4s ease-in-out calc(1.2s * var(--k)) infinite}
+      .loader__mark{width:44px;height:44px;color:#e08a5f;will-change:transform;animation:mark-pulse 2.4s ease-in-out calc(1.2s * var(--k)) infinite}
       .loader__svg{display:block;width:100%;height:100%}
       .loader__svg path{stroke-dasharray:1;stroke-dashoffset:1;animation:mark-draw calc(.8s * var(--k)) cubic-bezier(.22,1,.36,1) forwards}
       .loader__svg path:nth-child(2){animation-delay:calc(.1s * var(--k))}.loader__svg path:nth-child(3){animation-delay:calc(.15s * var(--k))}
       .loader__svg path:nth-child(4){animation-delay:calc(.35s * var(--k))}.loader__svg path:nth-child(5){animation-delay:calc(.25s * var(--k))}.loader__svg path:nth-child(6){animation-delay:calc(.3s * var(--k))}
-      .loader__wave{display:block;width:120px;height:8px;overflow:hidden;color:rgba(244,250,250,.38)}
+      .loader__wave{display:block;width:96px;height:8px;overflow:hidden;color:rgba(244,250,250,.38)}
       .loader__wave path{stroke-dasharray:1;stroke-dashoffset:1;animation:mark-draw calc(.6s * var(--k)) ease-out calc(.45s * var(--k)) forwards,wave-drift 2.8s linear infinite}
       .loader__name{margin:0;font:500 .8125rem/1.25 "Inter Tight",sans-serif;letter-spacing:.08em;color:rgba(246,242,234,.82);animation:name-in calc(.45s * var(--k)) ease-out calc(.65s * var(--k)) backwards}
-      .loader__track{width:120px;height:1px;background:rgba(244,250,250,.14);overflow:hidden}
+      .loader__track{width:96px;height:1px;background:rgba(244,250,250,.14);overflow:hidden}
       .loader__bar{height:100%;background:#e08a5f;transform:scaleX(0);transform-origin:left;transition:transform .25s linear}
       @keyframes mark-draw{to{stroke-dashoffset:0}}
       @keyframes mark-pulse{50%{opacity:.6}}
