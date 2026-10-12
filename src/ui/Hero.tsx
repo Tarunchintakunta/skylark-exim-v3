@@ -12,6 +12,8 @@ import './hero.css'
  * Hero frame (redesign §3): a full-bleed looping coastal video (#197) that dissolves into the scrubbed story, one editorial headline, one line of body,
  * a slim scroll cue and one text link to the other path. Fixed while the start chapter is on screen; fades over its last 15%.
  */
+const PATHS = ['ocean', 'pond'] as const
+
 export function Hero() {
   const ready = useApp((s) => s.ready)
   const path = useApp((s) => s.path)
@@ -63,7 +65,6 @@ export function Hero() {
     })
   }, [ready])
 
-  const other = path === 'ocean' ? 'pond' : 'ocean'
   const [lead, last] = [start.title.replace(/ world\.$/, ''), 'world']
   return (
     <div className="hero" ref={root}>
@@ -100,16 +101,25 @@ export function Hero() {
         <a className="hero__contact" href="/quote">
           Contact us
         </a>
-        <a
-          className="hero__path"
-          href={`#${other}`}
-          onClick={(e) => {
-            e.preventDefault()
-            setPath(other, true)
-          }}
-        >
-          Or follow the {start[other].sub.toLowerCase()} →
-        </a>
+        {/* the fork (#219): two separate stories; the static copy in index.html carries the same markup */}
+        <div className="hero__fork" role="group" aria-label={start.choose}>
+          <span className="hero__fork-label mono">{start.choose}</span>
+          {PATHS.map((p) => (
+            <a
+              key={p}
+              className="hero__fork-btn"
+              href={`#${p}`}
+              data-path={p}
+              aria-current={path === p ? 'true' : undefined}
+              onClick={(e) => {
+                e.preventDefault()
+                setPath(p, true)
+              }}
+            >
+              {start[p].sub}
+            </a>
+          ))}
+        </div>
       </div>
       <span className="hero__cue" aria-hidden="true">
         Scroll
