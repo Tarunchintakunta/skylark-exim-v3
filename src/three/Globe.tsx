@@ -6,8 +6,7 @@ import type { Line2 } from 'three-stdlib'
 import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from '../config/markets'
 import { env } from '../engine/env'
 import { frame } from '../engine/store'
-import { onTick } from '../engine/ticker'
-import { film } from '../film/controller'
+import { onTick, startClock } from '../engine/ticker'
 import { faceRotation, latLon, routePoints, toLatLon } from './geo'
 import { GLOBE_TEXTURE, globeUi } from './globeState'
 
@@ -75,8 +74,16 @@ const haze = {
 
 export type GlobeLabels = { markets: (HTMLSpanElement | null)[]; origin: HTMLSpanElement | null }
 
-/** Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11). */
+/** seconds the standalone globe takes for the pull-back and the routes, once it first comes on screen */
+const INTRO_S = 3.2
+
+/**
+ * Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11).
+ * `worldIndex` is the world chapter in the film; -1 is the standalone globe (homepage Markets, in a [data-globe] box):
+ * no film, always live while on screen, and the pull-back plays once over INTRO_S instead of following the scroll.
+ */
 function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<GlobeLabels> }) {
+  const standalone = worldIndex < 0
   // 2048×1024 desktop, 1024×512 phones (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
   const tex = useTexture(GLOBE_TEXTURE)
   tex.colorSpace = SRGBColorSpace
@@ -94,7 +101,7 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     if (drawn.current) return
     drawn.current = true
     performance.mark('globe:first-frame')
-    gl.domElement.closest('.stage__light')?.classList.add('is-globe-live')
+    gl.domElement.closest('.stage__light, [data-globe]')?.classList.add('is-globe-live')
   })
 
   // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile, then one render
@@ -127,7 +134,7 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
 
     // pause when the world chapter is off-screen or the tab is hidden (frameloop="demand": no invalidate, no render)
     let onScreen = true
-    const section = document.querySelector('[data-chapter="world"]')
+    const section = standalone ? gl.domElement.closest('[data-globe]') : document.querySelector('[data-chapter="world"]')
     const io = new IntersectionObserver(([e]) => void (onScreen = e.isIntersecting), { rootMargin: '50% 0px' })
     if (section) io.observe(section)
 
@@ -135,8 +142,10 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     let px = -1e4
     let py = -1e4
     const onPointer = (e: PointerEvent) => {
-      px = e.clientX
-      py = e.clientY
+      // the film's canvas fills the viewport; the standalone one sits in the page, so read the pointer in its own box
+      const r = standalone ? wrap.getBoundingClientRect() : null
+      px = e.clientX - (r?.left ?? 0)
+      py = e.clientY - (r?.top ?? 0)
     }
     const onLeave = () => (px = py = -1e4)
     addEventListener('pointermove', onPointer, { passive: true })
@@ -149,7 +158,14 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     const onResize = () => (dirty = true)
     addEventListener('resize', onResize)
     const lay = { r: 0, cx: 0, cy: 0 }
+    const top = standalone ? 0 : HEADER
     const measure = (vw: number, vh: number) => {
+      if (standalone) {
+        lay.r = Math.min(vw, vh) * 0.4
+        lay.cx = vw / 2
+        lay.cy = vh / 2
+        return
+      }
       const cap = section?.querySelector('.caption--markets')?.getBoundingClientRect()
       if (!cap?.height) return
       if (env.mobile) {
@@ -173,7 +189,7 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
       const [w, h] = s
       const l = Math.min(Math.max(x - w / 2, EDGE), vw - EDGE - w)
       const free = (t: number) => !boxes.some(([bl, bt, br, bb]) => l < br + GAP && l + w > bl - GAP && t < bb + GAP && t + h > bt - GAP)
-      const t = [y - LIFT - h, y + LIFT].map((t) => Math.min(Math.max(t, HEADER + EDGE), vh - EDGE - h)).find(free)
+      const t = [y - LIFT - h, y + LIFT].map((t) => Math.min(Math.max(t, top + EDGE), vh - EDGE - h)).find(free)
       if (t === undefined) return false
       boxes.push([l, t, l + w, t + h])
       const tf = `translate(${Math.round(l)}px, ${Math.round(t)}px)`
@@ -270,27 +286,30 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     let clock = 0
     let sway = 0
     let lastFocus = -2
+    let shownFor = 0
     const screen: [number, number, boolean][] = routes.map(() => [0, 0, false])
     const placed = new Set<HTMLElement>()
 
     const off = onTick((time) => {
       const dt = last < 0 ? 0 : Math.min(0.05, time - last)
       last = now = time
-      const i = frame.index
+      const i = standalone ? worldIndex : frame.index
+      const past = !standalone && frame.past
       // only the world chapter takes pointer and keyboard input; the layer is invisible before it
-      const live = i === worldIndex && !frame.past
+      const live = i === worldIndex && !past
       if (wrap.tabIndex !== (live ? 0 : -1)) {
         wrap.tabIndex = live ? 0 : -1
         wrap.style.pointerEvents = live ? 'auto' : 'none'
       }
       const nearWorld = i === worldIndex || (i === worldIndex - 1 && frame.local > 0.8)
-      if (!nearWorld || frame.past) {
+      if (!nearWorld || past) {
         user.lat = user.lon = vel.lat = vel.lon = 0
         globeUi.focus = lastClick = -1
       }
-      if (!nearWorld || frame.past || !onScreen || document.hidden || !group.current) return
+      if (!nearWorld || past || !onScreen || document.hidden || !group.current) return
       const g = group.current
-      const p = i === worldIndex ? frame.local : 0
+      if (standalone) shownFor += dt
+      const p = standalone ? (env.reduced ? 1 : Math.min(1, shownFor / INTRO_S)) : i === worldIndex ? frame.local : 0
       const { width: vw, height: vh } = get().size
       if (dirty || (sinceMeasure += dt) > 1) {
         measure(vw, vh)
@@ -431,7 +450,7 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
       document.documentElement.removeEventListener('pointerleave', onLeave)
       removeEventListener('resize', onResize)
     }
-  }, [camera, get, gl, invalidate, labels, origin, routes, worldIndex])
+  }, [camera, get, gl, invalidate, labels, origin, routes, worldIndex, standalone])
 
   return (
     <group ref={group}>
@@ -477,8 +496,10 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
   )
 }
 
-export default function GlobeCanvas() {
-  const worldIndex = film.chapters.findIndex((c) => c.id === 'world')
+/** `worldIndex`: the world chapter's index in the film, or -1 for the standalone globe (see Earth). */
+export default function GlobeCanvas({ worldIndex }: { worldIndex: number }) {
+  // the film starts the engine; a page without the film still needs the clock that drives Earth's tick
+  useEffect(() => void (worldIndex < 0 && startClock()), [worldIndex])
   const labels = useRef<GlobeLabels>({ markets: [], origin: null })
   return (
     <>
