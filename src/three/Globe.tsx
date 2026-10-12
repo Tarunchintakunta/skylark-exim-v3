@@ -1,5 +1,5 @@
 import { Line, useTexture } from '@react-three/drei'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
 import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, MathUtils, SRGBColorSpace, Vector3, type Mesh } from 'three'
 import type { Line2 } from 'three-stdlib'
@@ -9,7 +9,7 @@ import { frame } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import { film } from '../film/controller'
 import { faceRotation, latLon, routePoints, toLatLon } from './geo'
-import { globeUi } from './globeState'
+import { GLOBE_TEXTURE, globeUi } from './globeState'
 
 const BRASS = new Color('#e08a5f')
 const MARIGOLD = new Color('#eaa221')
@@ -77,8 +77,8 @@ export type GlobeLabels = { markets: (HTMLSpanElement | null)[]; origin: HTMLSpa
 
 /** Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11). */
 function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<GlobeLabels> }) {
-  // 2048×1024 everywhere (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
-  const tex = useTexture('/textures/earth_day_2048.webp')
+  // 2048×1024 desktop, 1024×512 phones (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
+  const tex = useTexture(GLOBE_TEXTURE)
   tex.colorSpace = SRGBColorSpace
   tex.anisotropy = 4
   const seg = env.mobile ? 64 : 128
@@ -87,6 +87,15 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
   const dots = useRef<(Mesh | null)[]>([])
   const originDot = useRef<Mesh>(null)
   const { camera, invalidate, gl, scene, get } = useThree()
+
+  // the first frame with the earth drawn: a mark for tests/globe-load.spec.ts and the cue for the placeholder to fade
+  const drawn = useRef(false)
+  useFrame(() => {
+    if (drawn.current) return
+    drawn.current = true
+    performance.mark('globe:first-frame')
+    gl.domElement.closest('.stage__light')?.classList.add('is-globe-live')
+  })
 
   // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile, then one render
   useEffect(() => {
@@ -480,8 +489,8 @@ export default function GlobeCanvas() {
         aria-label={`Globe of the ${MARKET_COUNT} export markets. Drag or use the arrow keys to turn it.`}
         tabIndex={-1}
         style={{ pointerEvents: 'none' }}
-        // phones up to 2× so the globe's silhouette isn't a jagged, upscaled edge
-        dpr={env.mobile ? [1, 2] : [1, 1.5]}
+        // capped at 1.5× everywhere (#D): fill rate on phones; the halo's soft edge keeps the silhouette smooth
+        dpr={[1, 1.5]}
         frameloop="demand"
         gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
