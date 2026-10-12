@@ -24,6 +24,8 @@ main section[id] { scroll-margin-top: 68px; }
   .home-markets { grid-template-columns: 1fr; }
   .home-globe { order: -1; max-width: 420px; }
   .home-globe .globe-hint { top: auto; }
+  /* touch targets: 24 px tall at least (the film's caption keeps its tighter list) */
+  .home-markets .markets__item { min-height: 24px; padding: 2px 0; }
 }
 
 /* the plant: four stills with the film's captions */
