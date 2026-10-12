@@ -1,8 +1,6 @@
 import { DOC_CARDS, LABEL_FIELDS, start } from '../config/content'
 import { setPath } from '../engine/path'
 import { useApp } from '../engine/store'
-import { MARKET_COORDS, MARKETS_BY_REGION } from '../config/markets'
-import { globeUi } from '../three/globeState'
 
 /** Packing caption: the carton label's field names as a quiet hairline list. Field names only, never values (STORY §7). */
 export function LabelCard() {
@@ -28,29 +26,6 @@ export function DocCards() {
         </li>
       ))}
     </ul>
-  )
-}
-
-/** World caption: every market as real text, grouped by region; hover/focus highlights that route on the globe (PRD F8), a click turns the globe to it. */
-export function MarketList() {
-  const set = (i: number) => () => void (globeUi.highlight = i)
-  return (
-    <div className="markets" aria-label="Markets" role="group">
-      {MARKETS_BY_REGION.map(({ region, markets }) => (
-        <div className="markets__group" key={region} data-fade>
-          <h3 className="markets__region mono">{region}</h3>
-          <ul className="markets__list">
-            {markets.map((i) => (
-              <li key={i}>
-                <button type="button" className="markets__item" onMouseEnter={set(i)} onMouseLeave={set(-1)} onFocus={set(i)} onBlur={set(-1)} onClick={() => void (globeUi.focus = globeUi.highlight = i)}>
-                  {MARKET_COORDS[i].name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
   )
 }
 

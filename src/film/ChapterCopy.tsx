@@ -1,5 +1,6 @@
 import type { ChapterDef } from '../config/chapters'
-import { DocCards, LabelCard, MarketList, OtherPath } from './Extras'
+import { MarketList } from '../sections/MarketList'
+import { DocCards, LabelCard, OtherPath } from './Extras'
 import './film.css'
 
 /** Chapters whose copy sits in a right-hand column instead of bottom-left, for editorial rhythm (redesign §6). */
