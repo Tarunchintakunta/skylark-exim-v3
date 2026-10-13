@@ -62,6 +62,11 @@ let lastY = 0
 /** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
 const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
 ;(globalThis as { __scrub?: typeof probe }).__scrub = probe
+// the decoder pool, for tests (navigator.webdriver) and ?debug only
+if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
+  Object.defineProperty(globalThis, '__scrubSlots', {
+    get: () => slots.map((s) => ({ id: s.id, readyState: s.v.readyState, ready: s.ready, dead: s.dead, painted: s.painted })),
+  })
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
