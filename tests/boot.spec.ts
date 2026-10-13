@@ -42,7 +42,7 @@ test('boot downloads each file once and only what the first screens need', async
   for (const [f, b] of opening) expect(b, `${f} downloaded more than once`).toBeLessThanOrEqual(statSync(`dist${f}`).size * 1.1)
   const fonts = reqs.filter((f) => f.endsWith('.woff2'))
   expect(fonts.length, `fonts: ${fonts.join(', ')}`).toBe(new Set(fonts).size)
-  const posters = new Set(firstScreen.filter((f) => f.endsWith('.webp')))
+  const posters = new Set(firstScreen.filter((f) => /\.(webp|avif)$/.test(f)))
   expect(posters.size, `posters: ${[...posters].join(', ')}`).toBeLessThanOrEqual(4)
   expect(reqs.some((f) => f.includes('RfqForm')), 'RFQ chunk loaded at boot').toBe(false)
   console.log(`before first scroll: ${(total / 1024).toFixed(0)} KB, ${reqs.length} requests, posters ${posters.size}`)

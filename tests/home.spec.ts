@@ -9,7 +9,7 @@ const ready = async (page: Page) => {
 }
 
 /** anything of the film: its scripts, its clips (every .mp4 but the hero loop), its posters' end frames */
-const isStory = (url: string) => /\/assets\/(story|Story)-|\/media\/(?!hero-loop_)[^/]+\.mp4(\?|$)|_end_1920\.webp$/.test(url)
+const isStory = (url: string) => /\/assets\/(story|Story)-|\/media\/(?!hero-loop_)[^/]+\.mp4(\?|$)|_end_1280\.(webp|avif)$/.test(url)
 
 /** the chapter whose box covers the top of the viewport on /story */
 const chapterOnScreen = (page: Page) =>

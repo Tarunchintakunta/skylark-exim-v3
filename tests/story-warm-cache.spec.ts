@@ -81,7 +81,7 @@ const POND_ONLY = ['hf-ponds', 'hf-sample', 'hf-harvest', 'hf-unload-shrimp', 'h
 test('only the active path is fetched; decoders play from blob: URLs or hold their clip whole; a path switch drops the other path’s clips', async ({ page }) => {
   const clips = new Set<string>()
   page.on('request', (r) => {
-    const m = new URL(r.url()).pathname.match(/^\/media\/(.+)_\d+\.mp4$/)
+    const m = new URL(r.url()).pathname.match(/^\/media\/(.+?)_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/)
     if (m) clips.add(m[1])
   })
   await page.setViewportSize({ width: 1440, height: 900 })

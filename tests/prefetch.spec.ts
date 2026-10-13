@@ -61,7 +61,7 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
 
   const late: string[] = []
   for (const [f, t] of firstAt) {
-    const id = f.replace(/^\/media\/|_\d+\.mp4$/g, '')
+    const id = f.replace(/^\/media\/|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/g, '')
     const ch = clipChapter[id]
     if (!ch || id === 'opening') continue
     const entered = enteredAt.get(ch)
@@ -84,10 +84,10 @@ test('the first screen loads the hero loop first, then only the chosen path\'s f
   const clips = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname).filter((n) => n.endsWith('.mp4')))
   const first = await clips()
   expect(first[0]).toContain('/hero-loop_')
-  expect(first.slice(1).map((c) => c.replace(/_\d+\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
+  expect(first.slice(1).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
   // the start beat the loop dissolves into loads once the loader has revealed the page, before any scroll
   await page.waitForSelector('#boot', { state: 'detached' })
   // (and from then on the warm cache, #251, fetches the rest of the path in idle time)
-  await expect.poll(async () => (await clips()).map((c) => c.replace(/_\d+\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hero-loop', '/media/hf-depart', '/media/opening']))
+  await expect.poll(async () => (await clips()).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hero-loop', '/media/hf-depart', '/media/opening']))
   await ctx.close()
 })
