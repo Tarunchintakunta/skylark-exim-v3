@@ -4,6 +4,7 @@ import { frame, store } from '../engine/store'
 import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
 import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
+import { cachedUrl } from './warmcache'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of POOL <video> decoders.
@@ -31,6 +32,8 @@ interface Slot {
   ready: boolean
   /** last time this slot was the current clip (breaks eviction ties) */
   used: number
+  /** playing from the warm cache's blob: URL (#251), so its seeks never touch the network */
+  blob: boolean
 }
 
 const FRAME = 1 / 24
@@ -76,6 +79,8 @@ let scrolled = false
  */
 let primed = false
 let stopTick: (() => void) | null = null
+/** the clip on screen after the reveal can play through: the warm cache (#251) waits for this before it takes bandwidth */
+let settled = false
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
   stage = el
@@ -110,7 +115,7 @@ export function warm(ids: string[]) {
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
-  const s: Slot = { v, id: null, painted: false, pending: null, holdSince: 0, dead: false, loaded: false, ready: false, used: 0 }
+  const s: Slot = { v, id: null, painted: false, pending: null, holdSince: 0, dead: false, loaded: false, ready: false, used: 0, blob: false }
   slotOf.set(v, s)
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
@@ -149,7 +154,11 @@ function load(s: Slot, id: string) {
   s.dead = false
   s.loaded = false
   s.ready = false
-  s.v.src = clipUrl(id, FILM_W)
+  const cached = cachedUrl(id)
+  s.blob = cached !== null
+  // the clip id, readable whether the source is a file or a blob: URL
+  s.v.dataset.clip = id
+  s.v.src = cached ?? clipUrl(id, FILM_W)
   s.v.load()
   // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives. Not readyState: it
   // drops below 2 during every seek, and a clip caught mid-seek would sit on its poster for the rest of the chapter.
@@ -162,6 +171,18 @@ const videoId = (i: number) => {
   const m = segs[i]?.media
   return m?.kind === 'video' ? m.id : null
 }
+
+/** A decoder holds `id` from the network, completely buffered: the warm cache (#251) needn't download it again. */
+export function fullyLoaded(id: string) {
+  return slots.some((s) => {
+    const v = s.v
+    if (s.id !== id || s.blob || !Number.isFinite(v.duration) || v.buffered.length !== 1) return false
+    return v.buffered.start(0) <= EPS && v.buffered.end(0) >= v.duration - EPS
+  })
+}
+
+/** A decoder is downloading `id` from the network right now: the warm cache leaves it alone until it's done. */
+export const downloading = (id: string) => slots.some((s) => s.id === id && !s.blob && s.v.networkState === s.v.NETWORK_LOADING)
 
 /** The next `n` distinct clips from segment i in direction d (skipping stills/globe). */
 function clipsFrom(i: number, d: 1 | -1, n: number) {
@@ -247,6 +268,13 @@ function tick() {
   }
   if (scrolled && (!want || (active && (active.v.readyState >= 1 || active.dead)))) for (const id of ahead) slotFor(id, keep, i)
   setShown(active && active.painted && !active.dead ? active : null)
+  // a decoder still on its network source moves to the warm cache's blob once that clip is cached: right away when it's
+  // off screen, or while the hero still fully covers the start chapter, never under a clip the visitor is watching
+  for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && (s !== shown || (frame.index === 0 && frame.local < 0.05))) load(s, s.id)
+  if (!settled && active?.ready && store.getState().revealed) {
+    settled = true
+    dispatchEvent(new Event('scrub:settled'))
+  }
   probe.id = want
   probe.chapter = seg.chapter
   probe.shown = shown !== null && shown === active

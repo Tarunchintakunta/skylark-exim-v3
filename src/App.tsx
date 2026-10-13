@@ -7,6 +7,7 @@ import { store, useApp } from './engine/store'
 import { scrollToY } from './engine/ticker'
 import { ScrubStage } from './film/ScrubStage'
 import { warm } from './film/scrub'
+import { startWarmCache } from './film/warmcache'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
 import { Hero } from './ui/Hero'
@@ -42,6 +43,7 @@ export default function App() {
   }, [ready])
   // #ocean / #pond: the path anchors (#210); other section anchors (/#products from /quote) are handled above
   useEffect(bindPathHash, [])
+  useEffect(startWarmCache, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
