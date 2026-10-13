@@ -4,10 +4,12 @@ import type { PointerEvent } from 'react'
 import { chaptersFor, firstClip } from '../config/chapters'
 import { HOME } from '../config/content'
 import { env } from '../engine/env'
+import { cardSrcSet, mediaUrl } from '../film/segments'
 import { SPRING_OPTS, reveal, rise } from '../motion/tokens'
 
 const PATHS = ['ocean', 'pond'] as const
-const POSTER_W = [720, 960, 1280] as const
+/** card width: one column on phones (gutters at most 2 × 32 px there), two above (CSS vars are not allowed in sizes) */
+const SIZES = '(max-width: 819px) calc(100vw - 40px), 46vw'
 /** poster travel at the card's edge (px) and the zoom that keeps its edges covered */
 const SHIFT = 10
 const ZOOM = 1.05
@@ -34,18 +36,21 @@ function StoryCard({ path }: { path: (typeof PATHS)[number] }) {
       <a className="story-card__link" href={`/story#${path}`} data-story={path} onPointerMove={move} onPointerLeave={leave}>
         <span className="story-card__poster">
           {/* the path's first frame, from its own clip; lazy: nothing of the film loads before it is near */}
-          <m.img
-            className="story-card__img"
-            style={{ x, y, scale }}
-            src={`/media/${clip.id}_960.webp`}
-            srcSet={POSTER_W.map((w) => `/media/${clip.id}_${w}.webp ${w}w`).join(', ')}
-            sizes="(max-width: 819px) calc(100vw - 2 * var(--gutter)), 46vw"
-            width={960}
-            height={540}
-            alt={clip.alt}
-            loading="lazy"
-            decoding="async"
-          />
+          <picture>
+            <source type="image/avif" srcSet={cardSrcSet(clip.id, 'avif')} sizes={SIZES} />
+            <m.img
+              className="story-card__img"
+              style={{ x, y, scale }}
+              src={mediaUrl(`${clip.id}_960.webp`)}
+              srcSet={cardSrcSet(clip.id, 'webp')}
+              sizes={SIZES}
+              width={960}
+              height={540}
+              alt={clip.alt}
+              loading="lazy"
+              decoding="async"
+            />
+          </picture>
         </span>
         <h3 className="story-card__title display">{HOME.stories[path].title}</h3>
         <p className="story-card__route mono">{route(path).join(' · ')}</p>
