@@ -1,5 +1,16 @@
 /* Homepage below the hero (#233). Sections reuse sections.css; this adds the bands that only the homepage has. */
-.home-hero { position: relative; height: 100svh; background: var(--deep-2); }
+.home-hero { position: relative; height: 100svh; background: var(--deep-2); overflow: clip; }
+/* hero → content (#237): as the page scrolls, the loop drifts down and dims and the copy fades, so the sand sections
+   slide up over it. A CSS scroll timeline: it runs on the compositor, needs no JS, and browsers without it keep the
+   hero still. Transform and opacity only, shared curve; none with reduced motion. */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .home-hero .hero__media { animation: hero-drift linear both; animation-timeline: scroll(root); animation-range: 0 100svh; }
+    .home-hero .hero__copy { animation: hero-copy-out linear both; animation-timeline: scroll(root); animation-range: 0 60svh; }
+  }
+}
+@keyframes hero-drift { to { transform: translateY(18%) scale(1.04); opacity: 0.55; } }
+@keyframes hero-copy-out { to { transform: translateY(-8%); opacity: 0; } }
 /* section anchors clear the fixed bar */
 main section[id] { scroll-margin-top: 68px; }
 .home-intro__body { max-width: 52ch; color: var(--ink-2); font-size: var(--fs-lead); line-height: 1.45; }
