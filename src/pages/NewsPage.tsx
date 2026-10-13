@@ -1,11 +1,13 @@
+import * as m from 'motion/react-m'
 import { formatNewsDate, NEWS, newsPost } from '../content/news'
+import { reveal, rise, riseAlone } from '../motion/tokens'
 
 function Empty() {
   return (
-    <div className="news-empty">
+    <m.div className="news-empty" {...riseAlone}>
       <p>Updates coming soon</p>
       <a className="btn btn--solid" href="/quote">Request export quote</a>
-    </div>
+    </m.div>
   )
 }
 
@@ -19,18 +21,18 @@ function Index() {
       {NEWS.length === 0 ? (
         <Empty />
       ) : (
-        <ul className="news-grid">
+        <m.ul className="news-grid" {...reveal}>
           {NEWS.map((post) => (
-            <li key={post.slug}>
+            <m.li key={post.slug} variants={rise}>
               <a className="news-card" href={`/news/${post.slug}`}>
                 <img src={post.image} alt="" width={640} height={427} />
                 <time dateTime={post.date}>{formatNewsDate(post.date)}</time>
                 <h2>{post.title}</h2>
                 <p>{post.summary}</p>
               </a>
-            </li>
+            </m.li>
           ))}
-        </ul>
+        </m.ul>
       )}
     </main>
   )
