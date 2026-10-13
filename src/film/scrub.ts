@@ -20,6 +20,8 @@ interface Slot {
   painted: boolean
   pending: number | null
   dead: boolean
+  /** fired loadeddata since the last load(): a slot that ever decoded a frame is never marked dead by the timer */
+  loaded: boolean
   /** fired canplaythrough: safe to start the neighbour */
   ready: boolean
   /** last time this slot was the current clip (pool eviction) */
@@ -85,7 +87,7 @@ export function warm(ids: string[]) {
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
-  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, ready: false, used: 0 }
+  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, loaded: false, ready: false, used: 0 }
   slotOf.set(v, s)
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
@@ -97,9 +99,11 @@ function makeSlot(v: HTMLVideoElement): Slot {
     } else s.painted = true
   }
   v.addEventListener('loadeddata', () => {
+    s.loaded = true
     s.dead = false
     markPainted()
   })
+  v.addEventListener('canplay', () => (s.dead = false))
   v.addEventListener('canplaythrough', () => (s.ready = true))
   v.addEventListener('error', () => (s.dead = true))
   v.addEventListener('seeked', () => {
@@ -109,6 +113,7 @@ function makeSlot(v: HTMLVideoElement): Slot {
       return
     }
     s.pending = null
+    s.dead = false
     markPainted()
   })
   return s
@@ -119,12 +124,14 @@ function load(s: Slot, id: string) {
   s.painted = false
   s.pending = null
   s.dead = false
+  s.loaded = false
   s.ready = false
   s.v.src = clipUrl(id, FILM_W)
   s.v.load()
-  // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives
+  // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives. Not readyState: it
+  // drops below 2 during every seek, and a clip caught mid-seek would sit on its poster for the rest of the chapter.
   setTimeout(() => {
-    if (s.id === id && s.v.readyState < 2) s.dead = true
+    if (s.id === id && !s.loaded) s.dead = true
   }, 4000)
 }
 
