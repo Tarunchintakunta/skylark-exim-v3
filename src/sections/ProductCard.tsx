@@ -1,16 +1,22 @@
+import * as m from 'motion/react-m'
+import type { Variants } from 'motion/react'
 import { PRODUCT_W, STATES, productSrc, type Product } from '../config/products'
+import { DUR, EASE, LIFT, rise } from '../motion/tokens'
 
 const MOBILE = '(max-width: 819px)'
 const PHONE_W = PRODUCT_W.slice(0, 2)
 /** card width: swipe row on phones, 3 columns to 1099 px, 4 or 5 above */
 const SIZES = `${MOBILE} 76vw, (max-width: 1099px) 30vw, 22vw`
+/** the grid's rise, plus a 4 px lift on hover (the soft shadow and the 1.03 image zoom are CSS, opacity and transform) */
+const CARD: Variants = { ...rise, hover: { y: LIFT, transition: { duration: DUR.fast, ease: EASE } } }
 
 /** One product: a 1:1 catalogue still, category label, name in the display serif, the scientific name where the site
  * gives one, the states it ships in, and an Enquire button. Phones only get the 480/640 stills; the first card loads eagerly. */
 export function ProductCard({ product, label, index, onEnquire }: { product: Product; label: string; index: number; onEnquire: () => void }) {
   const first = index === 0
   return (
-    <li className="pcard" data-reveal>
+    <m.li className="pcard" variants={CARD} whileHover="hover">
+      <span className="pcard__shadow" aria-hidden="true" />
       <picture className="pcard__media">
         <source type="image/avif" media={MOBILE} srcSet={productSrc(product.image, 'avif', PHONE_W)} sizes="76vw" />
         <source type="image/webp" media={MOBILE} srcSet={productSrc(product.image, 'webp', PHONE_W)} sizes="76vw" />
@@ -41,6 +47,6 @@ export function ProductCard({ product, label, index, onEnquire }: { product: Pro
       <button type="button" className="pcard__cta" onClick={onEnquire} aria-label={`Enquire about ${product.name}`}>
         <u>Enquire</u> <span aria-hidden="true">→</span>
       </button>
-    </li>
+    </m.li>
   )
 }

@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
 import { HOME, film } from '../config/content'
 import { chaptersFor } from '../config/chapters'
-import { bindReveals } from '../sections/reveal'
+import * as m from 'motion/react-m'
+import { reveal, rise } from '../motion/tokens'
 
 /** clip ids on the farmed-shrimp path (the plant stills) and the caption that goes with each */
 const STILLS = [
@@ -14,18 +14,16 @@ const ALT = new Map(chaptersFor('pond').flatMap((c) => c.media).flatMap((m) => (
 
 /** The plant at Anandapuram: four first frames from the film's plant clips, each with the film's own caption (facts only). */
 export function Plant() {
-  const root = useRef<HTMLElement>(null)
-  useEffect(() => bindReveals(root.current!), [])
   return (
-    <section id="plant" className="section theme-light home-plant" ref={root} aria-labelledby="plant-title">
-      <header className="section__head">
-        <p className="eyebrow mono" data-reveal>{HOME.plant.eyebrow}</p>
-        <h2 id="plant-title" className="section__title" data-reveal>{HOME.plant.title}</h2>
-        <p className="home-intro__body" data-reveal>{HOME.plant.body}</p>
-      </header>
-      <ul className="plant-grid">
+    <section id="plant" className="section theme-light home-plant" aria-labelledby="plant-title">
+      <m.header className="section__head" {...reveal}>
+        <m.p className="eyebrow mono" variants={rise}>{HOME.plant.eyebrow}</m.p>
+        <m.h2 id="plant-title" className="section__title" variants={rise}>{HOME.plant.title}</m.h2>
+        <m.p className="home-intro__body" variants={rise}>{HOME.plant.body}</m.p>
+      </m.header>
+      <m.ul className="plant-grid" {...reveal}>
         {STILLS.map(({ id, copy }) => (
-          <li key={id} className="plant-still" data-reveal>
+          <m.li key={id} className="plant-still" variants={rise}>
             <img
               className="plant-still__img"
               src={`/media/${id}_720.webp`}
@@ -40,9 +38,9 @@ export function Plant() {
             <p className="plant-still__eyebrow mono">{copy.eyebrow?.replace('The Plant · ', '')}</p>
             <h3 className="plant-still__title">{copy.title}</h3>
             <p className="plant-still__body">{copy.body}</p>
-          </li>
+          </m.li>
         ))}
-      </ul>
+      </m.ul>
     </section>
   )
 }
