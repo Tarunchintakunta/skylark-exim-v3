@@ -3,8 +3,9 @@ import { MARKET_COUNT } from './markets'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
- * - video: public/media/<id>_{960,1280,1920}.mp4 + <id>_{960,1280,1920}.webp first-frame posters + <id>_end_1920.webp
- * - still: a clip's first frame (every clip tier), or a ph-* stand-in at 720 / 1280, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
+ * - video: public/media/<id>_{m,960,1280,1920}{.av1,.hevc,}.mp4 + <id>_{m,960,1280,1920}.{avif,webp} first-frame posters
+ *   + <id>_end_1280.{avif,webp} (scripts/encode-hf.sh)
+ * - still: a clip's first frame (every clip tier), or a ph-* stand-in at m / 960 / 1280 / 1920 / 2560, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
  * - gradient: deep-blue stand-in
  * - dom: documentation interlude over a pre-blurred still
  * - globe: the R3F globe
@@ -39,6 +40,21 @@ export interface ChapterDef {
   theme?: 'light'
   /** 'soft': a light, neutral bottom scrim instead of the deep-sea one, for daylight footage (the port) */
   scrim?: 'soft'
+}
+
+/**
+ * Phone portrait clips (<id>_m, 810×1440) are a fixed crop of the 2560×1440 master: where the crop's centre sits, as a share
+ * of the master's width (0.158–0.842). Picked from first/middle/last frames so the subject stays in frame for the whole
+ * clip (contact sheet in the HD PR). Read by scripts/encode-hf.sh; a missing id is centred.
+ */
+export const CROP_X: Record<string, number> = {
+  'hero-loop': 0.5, opening: 0.5,
+  'hf-depart': 0.6, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
+  'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
+  'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.5, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.45, 'hf-fish-intake': 0.45,
+  'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
+  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.55, 'hf-fish-freeze': 0.45,
+  'hf-stuff': 0.62, 'hf-cranes': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.55,
 }
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
