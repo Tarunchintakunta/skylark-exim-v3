@@ -11,8 +11,9 @@ import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segmen
  *   direction load in parallel (one more while the scroll is fast). A clip on screen for under a second can't wait for
  *   its neighbour to finish buffering first.
  * - A new clip takes the decoder whose clip is furthest from the current segment, never one inside that window.
- * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
- *   presented frame stays up instead of stalling or flashing back to the poster.
+ * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held for HOLD ms, so the
+ *   last presented frame stays up instead of stalling or flashing back to the poster; after that the picture follows the
+ *   buffered frame nearest the target, so it keeps moving with the page as the download arrives.
  * - `fastSeek()` while the scroll is fast,
  *   exact `currentTime` once it settles. Frames count as presented from `requestVideoFrameCallback`.
  */
@@ -21,6 +22,8 @@ interface Slot {
   id: string | null
   painted: boolean
   pending: number | null
+  /** when the current target was first found outside `buffered` (0: it wasn't) */
+  holdSince: number
   dead: boolean
   /** fired loadeddata since the last load(): a slot that ever decoded a frame is never marked dead by the timer */
   loaded: boolean
@@ -32,6 +35,8 @@ interface Slot {
 
 const FRAME = 1 / 24
 const EPS = 1 / 48
+/** ms a target outside `buffered` is held before the picture moves to the nearest buffered frame */
+const HOLD = 250
 /** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
 const light = env.mobile || env.saveData || env.slow
@@ -92,7 +97,7 @@ export function warm(ids: string[]) {
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
-  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, loaded: false, ready: false, used: 0 }
+  const s: Slot = { v, id: null, painted: false, pending: null, holdSince: 0, dead: false, loaded: false, ready: false, used: 0 }
   slotOf.set(v, s)
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
@@ -267,9 +272,16 @@ function seek(s: Slot, p: number, vel: number, t0 = 0) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
   // no extra easing here: Lenis already smooths the scroll, a second lerp only adds lag behind the page
-  const t = t0 + p * Math.max(0, v.duration - FRAME - t0)
-  // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it
-  if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) return
+  let t = t0 + p * Math.max(0, v.duration - FRAME - t0)
+  // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it.
+  // Held for more than HOLD ms: show the buffered frame nearest the target instead, so the picture doesn't sit still
+  if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) {
+    const now = performance.now()
+    s.holdSince ||= now
+    const near = now - s.holdSince > HOLD ? nearestBuffered(v, t) : null
+    if (near === null) return
+    t = near
+  } else s.holdSince = 0
   if (v.seeking) {
     s.pending = t
     return
@@ -283,6 +295,21 @@ function buffered(v: HTMLVideoElement, t: number) {
   const b = v.buffered
   for (let k = 0; k < b.length; k++) if (t >= b.start(k) - EPS && t <= b.end(k) + EPS) return true
   return false
+}
+
+/** The buffered time closest to `t` between the current frame and `t` (in the direction of travel), or null. */
+function nearestBuffered(v: HTMLVideoElement, t: number) {
+  const from = v.currentTime
+  const lo = Math.min(from, t)
+  const hi = Math.max(from, t)
+  let best: number | null = null
+  const b = v.buffered
+  for (let k = 0; k < b.length; k++) {
+    // a frame short of the range's end: the last buffered frame may not be complete yet
+    const c = Math.min(Math.max(t, b.start(k)), Math.max(b.start(k), b.end(k) - FRAME))
+    if (c >= lo && c <= hi && (best === null || Math.abs(c - t) < Math.abs(best - t))) best = c
+  }
+  return best
 }
 
 /** Every stage layer to opacity 0 except `keep`; clears the cross-fade overlay. */
