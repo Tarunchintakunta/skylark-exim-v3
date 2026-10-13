@@ -17,10 +17,8 @@
     <link rel="preload" href="/fonts/inter-tight-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/instrument-serif-latin-400-italic.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/inter-tight-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <!-- hero loop poster (#197) at the tier src/film/segments.ts picks (960 phones, 1920 above 1600 device px, else 1280) -->
-    <link rel="preload" as="image" type="image/webp" href="/media/hero-loop_960.webp" media="(max-width: 819px), (pointer: coarse)" fetchpriority="high" />
-    <link rel="preload" as="image" type="image/webp" href="/media/hero-loop_1920.webp" media="(min-width: 820px) and (pointer: fine) and ((min-width: 1601px) or ((min-resolution: 1.5dppx) and (min-width: 1067px)))" fetchpriority="high" />
-    <link rel="preload" as="image" type="image/webp" href="/media/hero-loop_1280.webp" media="(min-width: 820px) and (max-width: 1600px) and (pointer: fine) and ((max-resolution: 1.49dppx) or (max-width: 1066px))" fetchpriority="high" />
+    <!-- hero loop poster (#197, #hd): AVIF preloads matching the hero <picture> (scripts/static-hero.ts) -->
+    <!--hero-preload-->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <!-- the film moved to /story: old /#ocean, /#pond and /#story links go there before anything paints (no server sees a hash) -->
     <script>if(/^#(ocean|pond|story)$/.test(location.hash))location.replace('/story'+(location.hash==='#story'?'':location.hash))</script>

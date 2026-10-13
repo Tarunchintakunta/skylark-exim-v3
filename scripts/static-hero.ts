@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import type { Plugin } from 'vite'
 import { exportsLine, start } from '../src/config/content'
+import { heroPoster } from '../src/config/hero'
+import { versioned } from './clip-manifest'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s*\n\s*/g, '')
@@ -34,6 +36,13 @@ export function staticHero(): Plugin {
     // no room above the copy even for the small mark (360×640, landscape phones): the inline script measures it once the
     // fonts are in and only drops the copy under the loader (z-index, no layout change), as before #207
     '.hero-under-loader #hero-static{z-index:var(--z-copy)}'
+  // the hero poster (LCP image, #hd): AVIF preloads with the hero <picture>'s own sources, so the browser picks the same
+  // file for both; browsers without AVIF skip them (type) and load the WebP from the <picture>
+  const preload = () =>
+    heroPoster(versioned)
+      .filter((p) => p.type === 'image/avif')
+      .map((p) => `<link rel="preload" as="image" type="${p.type}" imagesrcset="${p.srcSet}" imagesizes="100vw" media="${p.media}" fetchpriority="high" />`)
+      .join('\n    ')
   return {
     name: 'static-hero',
     // the hero pages' own stylesheets are small: inline them so the first paint waits on no request (lazy CSS stays lazy)
@@ -57,6 +66,7 @@ export function staticHero(): Plugin {
         src
           .replace('/*static-hero-css*/', css('styles/tokens.css') + base + css('ui/hero.css'))
           .replace('<!--static-hero-->', html(ctx.path.startsWith('/story')))
+          .replace('<!--hero-preload-->', preload())
           .replace('</body>', `${fit}\n  </body>`),
     },
   }
