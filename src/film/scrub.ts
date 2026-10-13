@@ -3,7 +3,7 @@ import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
 import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
-import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
+import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 import { cachedUrl } from './warmcache'
 
 /**
@@ -158,7 +158,7 @@ function load(s: Slot, id: string) {
   s.blob = cached !== null
   // the clip id, readable whether the source is a file or a blob: URL
   s.v.dataset.clip = id
-  s.v.src = cached ?? clipUrl(id, FILM_W)
+  s.v.src = cached ?? clipUrl(id)
   s.v.load()
   // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives. Not readyState: it
   // drops below 2 during every seek, and a clip caught mid-seek would sit on its poster for the rest of the chapter.
@@ -369,7 +369,9 @@ function loadPosters(i: number) {
   const last = store.getState().ready ? i + 2 : i
   for (let k = i; k <= last; k++) {
     const p = posters[k]
-    if (p instanceof HTMLImageElement && !p.getAttribute('src') && p.dataset.src) p.src = p.dataset.src
+    // the URL is taken here, not at render: by now the page knows whether AVIF decodes
+    const src = segs[k] && posterFor(segs[k].media)
+    if (p instanceof HTMLImageElement && !p.getAttribute('src') && src) p.src = src
   }
 }
 

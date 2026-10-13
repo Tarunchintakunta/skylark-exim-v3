@@ -1,17 +1,17 @@
 import { chaptersFor } from '../config/chapters'
 import { env } from '../engine/env'
 import { frame, store, type Path } from '../engine/store'
-import { GLOBE_TEXTURE } from '../three/globeState'
+import { GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
 import { CLIPS, type Clip } from './manifest'
 import { downloading, fullyLoaded } from './scrub'
-import { FILM_W, clipUrl, endPosterUrl, posterFor } from './segments'
+import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, posterFor, served } from './segments'
 
 /**
  * Warm cache (#251): once the first screen is up, one loader fetches every clip of the active path into Blobs, so the
  * stage's <video>s play from blob: URLs and a seek never touches the network. Only the active path, at the page's own
- * tier. Coarse first: the first and the middle clip of each chapter in story order, then the rest, so a fast scroll
- * meets something cached everywhere early. Save-Data and 2g/3g keep the distance prefetch only (scrub.ts), which
- * stays the fallback for clips not cached yet.
+ * tier and in one codec (#hd: it waits for segments.ts to settle the codec). Coarse first: the first and the middle clip
+ * of each chapter in story order, then the rest, so a fast scroll meets something cached everywhere early. Save-Data
+ * and 2g/3g keep the distance prefetch only (scrub.ts), which stays the fallback for clips not cached yet.
  */
 const PARALLEL = env.mobile ? 2 : 4
 /** ms since the last scroll that still counts as scrolling */
@@ -30,7 +30,6 @@ addEventListener(
   },
   { passive: true },
 )
-const tier = FILM_W as 720 | 1280 | 1920
 
 const urls = new Map<string, string>()
 let path: Path | null = null
@@ -64,16 +63,21 @@ export function order(clips: Clip[]) {
   return [...coarse, ...clips.filter((c) => !coarse.includes(c))]
 }
 
+/** bytes of a clip in the codec and tier this page plays */
+const size = (c: Clip) => c.files[codec][served(W, codec)]?.bytes ?? 0
+
 async function run(p: Path) {
   abort?.abort()
   const ctl = (abort = new AbortController())
+  await Promise.all([codecReady, avifReady])
+  if (ctl.signal.aborted) return
   const clips = CLIPS[p]
   const keep = new Set(clips.map((c) => c.id))
   // the other path's clips go; the chapters both paths share stay cached
   for (const [id, u] of urls) if (!keep.has(id)) (URL.revokeObjectURL(u), urls.delete(id))
   path = p
-  total = clips.reduce((a, c) => a + c.tiers[tier].bytes, 0)
-  done = clips.reduce((a, c) => a + (urls.has(c.id) ? c.tiers[tier].bytes : 0), 0)
+  total = clips.reduce((a, c) => a + size(c), 0)
+  done = clips.reduce((a, c) => a + (urls.has(c.id) ? size(c) : 0), 0)
   emit()
   const queue = order(clips).filter((c) => !urls.has(c.id))
   // nothing new starts while the visitor scrolls, so the scrub's progressive loads get the bandwidth; at idle coarse
@@ -91,19 +95,19 @@ async function run(p: Path) {
   const fetchOne = async (c: Clip) => {
     // a decoder already has the whole clip from the network: count it, don't download it twice
     if (fullyLoaded(c.id)) {
-      done += c.tiers[tier].bytes
+      done += size(c)
       return emit()
     }
     const stop = new AbortController()
     ctl.signal.addEventListener('abort', () => stop.abort())
     loading.set(c.id, stop)
     try {
-      const res = await fetch(clipUrl(c.id, tier), { signal: stop.signal })
+      const res = await fetch(clipUrl(c.id), { signal: stop.signal })
       if (!res.ok) return
       const blob = await res.blob()
       if (ctl.signal.aborted) return
       urls.set(c.id, URL.createObjectURL(blob))
-      done += c.tiers[tier].bytes
+      done += size(c)
       emit()
     } finally {
       loading.delete(c.id)
@@ -122,7 +126,7 @@ async function run(p: Path) {
         for (const q of [...queue])
           if (fullyLoaded(q.id)) {
             queue.splice(queue.indexOf(q), 1)
-            done += q.tiers[tier].bytes
+            done += size(q)
             emit()
           }
       }
@@ -153,7 +157,7 @@ async function run(p: Path) {
   // last, the globe the film ends on: its code, its placeholder frame and its texture
   if (!ctl.signal.aborted) {
     void import('../three/Globe').catch(() => {})
-    void warmImage(`/textures/globe-ph_${env.mobile ? 720 : 1280}.webp`)
+    images.push(warmGlobePlaceholder(await avifReady))
     void fetch(GLOBE_TEXTURE).then((r) => r.arrayBuffer()).catch(() => {})
   }
 }

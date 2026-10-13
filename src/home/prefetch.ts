@@ -1,6 +1,6 @@
 import { firstClip } from '../config/chapters'
 import type { Path } from '../engine/store'
-import { FILM_W, clipUrl, posterUrl } from '../film/segments'
+import { clipUrl, posterUrl } from '../film/segments'
 
 const hinted = new Set<string>()
 function hint(rel: 'modulepreload' | 'prefetch', href: string, as?: string) {
@@ -37,7 +37,7 @@ export function prefetchStory(path: Path) {
   const clip = firstClip(path)
   if (!clip) return
   hint('prefetch', posterUrl(clip.id), 'image')
-  hint('prefetch', clipUrl(clip.id, FILM_W), 'video')
+  hint('prefetch', clipUrl(clip.id), 'video')
 }
 
 /** Hover or keyboard focus on any story link (nav, hero fork, story cards) warms /story; nothing loads before that. */

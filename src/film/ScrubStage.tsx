@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { GlobeLayer } from './GlobeLayer'
 import { POOL, bindStage } from './scrub'
-import { posterFor, toSegments } from './segments'
+import { toSegments } from './segments'
 import './stage.css'
 
 /** The one fixed stage: posters under POOL video decoders (the current clip and the next ones), a veil for cuts and the bottom scrim. */
@@ -29,9 +29,8 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
             key={i}
             data-seg={i}
             className={m.kind === 'dom' ? 'stage__layer stage__dom' : 'stage__layer'}
-            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them from data-src after the first scroll
+            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them after the first scroll
             src={undefined}
-            data-src={posterFor(m)!}
             alt=""
             decoding="async"
             fetchPriority="low"
