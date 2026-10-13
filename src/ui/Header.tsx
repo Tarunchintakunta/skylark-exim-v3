@@ -6,6 +6,7 @@ import { onTick } from '../engine/ticker'
 import { film } from '../film/controller'
 import { Mark } from './Mark'
 import { SiteNav } from './SiteNav'
+import { bindScrolled } from './scrolled'
 import './chrome.css'
 
 const PATHS: Path[] = ['ocean', 'pond']
@@ -19,6 +20,7 @@ export function Header() {
   const root = useRef<HTMLElement>(null)
   const [open, setOpen] = useState(false)
   const path = useApp((s) => s.path)
+  useEffect(() => bindScrolled((on) => root.current!.classList.toggle('is-scrolled', on)), [])
 
   useEffect(() => {
     let light = false
