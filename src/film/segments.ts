@@ -1,5 +1,6 @@
 import type { ChapterDef, Media } from '../config/chapters'
 import { env } from '../engine/env'
+import { MP4_V } from './manifest'
 
 export interface Segment {
   media: Media
@@ -37,7 +38,11 @@ const dpr = Math.min(devicePixelRatio || 1, 1.5)
 export const W = env.mobile || env.saveData || env.slow ? 960 : innerWidth * dpr > 1600 ? 1920 : 1280
 /** stand-in stills (ph-*) only exist at 1280 / 720 */
 const stillW = (w: number) => (w === 960 ? 720 : 1280)
-export const clipUrl = (id: string, w = W) => `/media/${id}_${w}.mp4`
+/** versioned by content hash (#251): /media/*.mp4 is cached immutably, so a re-encoded clip needs a new URL */
+export const clipUrl = (id: string, w = W) => {
+  const v = MP4_V[`${id}_${w}`]
+  return `/media/${id}_${w}.mp4${v ? `?v=${v}` : ''}`
+}
 /** Scrubbed film clips on phones load the 720 tier (lighter seek/decode on mid Android); posters stay at W. */
 export const FILM_W = W === 960 ? 720 : W
 export const posterUrl = (id: string, w = W) => `/media/${id}_${w}.webp`

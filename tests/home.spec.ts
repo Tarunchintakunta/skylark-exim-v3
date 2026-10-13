@@ -9,7 +9,7 @@ const ready = async (page: Page) => {
 }
 
 /** anything of the film: its scripts, its clips (every .mp4 but the hero loop), its posters' end frames */
-const isStory = (url: string) => /\/assets\/(story|Story)-|\/media\/(?!hero-loop_)[^/]+\.mp4$|_end_1920\.webp$/.test(url)
+const isStory = (url: string) => /\/assets\/(story|Story)-|\/media\/(?!hero-loop_)[^/]+\.mp4(\?|$)|_end_1920\.webp$/.test(url)
 
 /** the chapter whose box covers the top of the viewport on /story */
 const chapterOnScreen = (page: Page) =>
@@ -67,7 +67,7 @@ test('hovering a story link prefetches the story chunk and that path\'s first cl
   await expect(page.locator('link[rel="modulepreload"][href*="/assets/Story-"]')).toHaveCount(0)
   await page.locator('#intro .story-card a').nth(1).hover()
   await expect(page.locator('link[rel="modulepreload"][href*="/assets/Story-"]')).toHaveCount(1)
-  await expect(page.locator('link[rel="prefetch"][href*="/media/hf-ponds_"][href$=".mp4"]')).toHaveCount(1)
+  await expect(page.locator('link[rel="prefetch"][href*="/media/hf-ponds_"][href*=".mp4?v="]')).toHaveCount(1)
   await expect(page.locator('link[rel="prefetch"][href*="/media/hf-depart_"]')).toHaveCount(0)
 })
 

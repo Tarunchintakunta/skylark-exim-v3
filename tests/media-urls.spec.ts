@@ -19,7 +19,7 @@ test('every chapter media URL exists in public/ for every tier', async () => {
         if (m.kind === 'video') urls.add(clipUrl(m.id, w)).add(endPosterUrl(m.id))
       }
 
-  const missing = [...urls].filter((u) => !existsSync(join('public', u)))
+  const missing = [...urls].filter((u) => !existsSync(join('public', u.split('?')[0])))
   expect(urls.size).toBeGreaterThan(30)
   expect(missing).toEqual([])
 })

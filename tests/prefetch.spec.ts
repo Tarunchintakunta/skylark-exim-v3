@@ -22,7 +22,7 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   const firstAt = new Map<string, number>()
   const bytes = new Map<string, number>()
   cdp.on('Network.requestWillBeSent', (e) => {
-    if (!e.request.url.endsWith('.mp4')) return
+    if (!new URL(e.request.url).pathname.endsWith('.mp4')) return
     const f = new URL(e.request.url).pathname
     urls.set(e.requestId, f)
     if (!firstAt.has(f)) firstAt.set(f, Date.now())
