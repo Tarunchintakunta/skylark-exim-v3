@@ -41,6 +41,20 @@ h1 em, h2 em, h3 em, .display em { font-style: italic; }
 
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; border-radius: 2px; }
+/* on sand the ring is the darker rust, 3:1 or better against the page (#238) */
+.theme-light :focus-visible, .doc :focus-visible, .topbar.is-light :focus-visible { outline-color: var(--brass-ink); }
+
+/* page transitions (#238): the browser crossfades one page into the next; PageTransition.tsx covers browsers without it */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-fast); animation-timing-function: var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
+
+/* tap feedback on buttons and button-like links: scale 0.97 while pressed. The `scale` property and a keyframe, so it
+   composes with each element's own transform and never fights its `transition` list */
+:is(.btn, .hero__contact, .hero__fork-btn, .quote-cta, .pcard__cta, .pr-switch__btn, .menu-btn, .nav__link, .contact-band__cta, .close__updates, .story-card__link, .news-card, .markets__item):active { animation: press 0.15s var(--ease-out) forwards; }
+.nav__link, .hero__contact, .hero__fork-btn, .pcard__cta, .close__updates { display: inline-block; }
+@keyframes press { to { scale: 0.97; } }
+@media (prefers-reduced-motion: reduce) { :is(.btn, .hero__contact, .hero__fork-btn, .quote-cta, .pcard__cta, .pr-switch__btn, .menu-btn, .nav__link, .contact-band__cta, .close__updates, .story-card__link, .news-card, .markets__item):active { animation: none; } }
 
 .sr-only {
   position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
