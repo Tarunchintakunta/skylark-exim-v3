@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import { film } from '../config/content'
 import { env } from '../engine/env'
 import { MarketList } from '../sections/MarketList'
@@ -14,9 +14,17 @@ export function Markets() {
   const box = useRef<HTMLDivElement>(null)
   const [near, setNear] = useState(false)
   useEffect(() => {
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && setNear(true), { rootMargin: '50% 0px' })
+    // mounting three.js is one long task (WebGL context, shaders): start it once the section is near AND the page has
+    // stopped scrolling for 200 ms, as a transition, so it never lands in the middle of a scroll (#239). The placeholder
+    // frame shows until then.
+    let inView = false
+    let quiet = 0
+    const mount = () => inView && startTransition(() => setNear(true))
+    const wait = () => (clearTimeout(quiet), (quiet = window.setTimeout(mount, 200)))
+    const io = new IntersectionObserver(([e]) => (inView = e.isIntersecting) && wait(), { rootMargin: '50% 0px' })
+    addEventListener('scroll', wait, { passive: true })
     io.observe(box.current!)
-    return () => io.disconnect()
+    return () => (io.disconnect(), removeEventListener('scroll', wait), clearTimeout(quiet))
   }, [])
   const world = film.world[0]
   return (
