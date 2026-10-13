@@ -1,3 +1,4 @@
+import { mediaUrl } from '../film/media'
 import { MARINE_FISH, SHRIMPS, STATES } from './content'
 
 // docs/CONTENT.md "Products". No sizes, counts, MOQ or prices anywhere.
@@ -11,10 +12,13 @@ export interface Product {
   image: string
 }
 
-/** Product still widths. Phones only ever get 480/640 (each under 70 KB); 960 is the desktop tier (under 150 KB). */
+/**
+ * Product still widths. The largest is 960: the 4k originals are not in the repo or on the build machine (#hd), so there
+ * is no 1280 / 1600 re-export; phones (76vw × 3 dpr ≈ 890 px) get the 960 too.
+ */
 export const PRODUCT_W = [480, 640, 960] as const
 export const productSrc = (image: string, ext: 'avif' | 'webp', widths: readonly number[] = PRODUCT_W) =>
-  widths.map((w) => `/media/${image}_${w}.${ext} ${w}w`).join(', ')
+  widths.map((w) => `${mediaUrl(`${image}_${w}.${ext}`)} ${w}w`).join(', ')
 
 const slug = (name: string) => 'prod-' + name.toLowerCase().replace(/[^a-z]+/g, '-').replace(/-$/, '')
 
