@@ -45,7 +45,7 @@ function instrument() {
     __scrub?: { id: string | null; shown: boolean; chapter: number }
   }
   const m: (typeof w)['__stuck'] = (w.__stuck = { run: false, frames: [], loadstart: {}, loadeddata: {}, long: [], lcp: 0, nonPassive: new Map() })
-  const idOf = (v: EventTarget | null) => /\/media\/(.+)_\d+\.mp4/.exec((v as HTMLVideoElement)?.currentSrc || (v as HTMLVideoElement)?.src || '')?.[1]
+  const idOf = (v: EventTarget | null) => (v as HTMLVideoElement)?.dataset?.clip || /\/media\/(.+)_\d+\.mp4/.exec((v as HTMLVideoElement)?.currentSrc || (v as HTMLVideoElement)?.src || '')?.[1]
   for (const [ev, rec] of [['loadstart', m.loadstart], ['loadeddata', m.loadeddata]] as [string, Record<string, number>][])
     document.addEventListener(ev, (e) => {
       const id = idOf(e.target)

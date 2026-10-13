@@ -24,7 +24,7 @@ async function onScreen(page: Page) {
       chapter: sec?.id ?? null,
       titles: [...(sec?.querySelectorAll('.caption__title') ?? [])].map((t) => t.textContent?.trim()),
       probe: (window as W).__scrub?.id ?? null,
-      src: video?.currentSrc ?? '',
+      src: video?.dataset.clip ?? video?.currentSrc ?? '',
       hash: location.hash,
     }
   })

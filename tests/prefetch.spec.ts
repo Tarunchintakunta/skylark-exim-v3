@@ -87,6 +87,7 @@ test('the first screen loads the hero loop first, then only the chosen path\'s f
   expect(first.slice(1).map((c) => c.replace(/_\d+\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
   // the start beat the loop dissolves into loads once the loader has revealed the page, before any scroll
   await page.waitForSelector('#boot', { state: 'detached' })
-  await expect.poll(async () => (await clips()).map((c) => c.replace(/_\d+\.mp4$/, '')), { timeout: 5_000 }).toEqual(['/media/hero-loop', '/media/hf-depart', '/media/opening'])
+  // (and from then on the warm cache, #251, fetches the rest of the path in idle time)
+  await expect.poll(async () => (await clips()).map((c) => c.replace(/_\d+\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hero-loop', '/media/hf-depart', '/media/opening']))
   await ctx.close()
 })

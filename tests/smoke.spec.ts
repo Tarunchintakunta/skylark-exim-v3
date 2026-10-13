@@ -59,8 +59,8 @@ test('the hero loop plays, loops, and hands over to the scrubbed story on scroll
   // past the hand-off: the loop has faded out and paused, the opening shot scrubs underneath
   expect(await page.locator('.hero__media').evaluate((el) => (el as HTMLElement).style.opacity)).toBe('0')
   expect(await loop.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
-  const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.currentSrc))
-  expect(shown.join()).toContain('/opening_')
+  const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.dataset.clip))
+  expect(shown.join()).toContain('opening')
 })
 
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
