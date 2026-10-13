@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, startTransition, Suspense, useEffect, useState } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { env } from '../engine/env'
 import { useApp } from '../engine/store'
@@ -24,7 +24,7 @@ function prefetch() {
 }
 
 /**
- * Mounts the R3F globe (lazy three.js chunks) from two chapters before the world chapter, and unmounts it once the film
+ * Mounts the R3F globe (lazy three.js chunks) in idle time from two chapters before the world chapter, and unmounts it once the film
  * has scrolled past (redesign §2.8): no WebGL context or render loop alive behind the business sections.
  * One chapter earlier the chunks, texture and placeholder are fetched in idle time, so the globe is ready on arrival;
  * the placeholder covers the frames until the live globe draws (#D).
@@ -38,16 +38,21 @@ export function GlobeLayer({ chapters }: { chapters: ChapterDef[] }) {
   const warm = ready && at >= world - 3
   const near = at >= world - 2
   const [ph, setPh] = useState(false)
+  // the canvas (WebGL context, scene) mounts in idle time, as a transition, once the film is two chapters away
+  const [mount, setMount] = useState(false)
   useEffect(() => {
     if (!warm) return
     prefetch()
     setPh(true)
   }, [warm])
+  useEffect(() => {
+    if (near && !mount) idle(() => startTransition(() => setMount(true)))
+  }, [near, mount])
   if (past) return null
   return (
     <>
       {ph && <img className="globe-ph" src={PLACEHOLDER} alt="" decoding="async" />}
-      {near && (
+      {near && mount && (
         <Suspense fallback={null}>
           <GlobeCanvas worldIndex={world} />
         </Suspense>

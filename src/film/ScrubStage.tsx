@@ -1,11 +1,11 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { GlobeLayer } from './GlobeLayer'
-import { bindStage } from './scrub'
+import { POOL, bindStage } from './scrub'
 import { posterFor, toSegments } from './segments'
 import './stage.css'
 
-/** The one fixed stage: posters under three video decoders (prev, current, next), a veil for cuts and the bottom scrim. */
+/** The one fixed stage: posters under POOL video decoders (the current clip and the next ones), a veil for cuts and the bottom scrim. */
 export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   const segs = useMemo(() => toSegments(chapters), [chapters])
   const ref = useRef<HTMLDivElement>(null)
@@ -38,9 +38,9 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           />
         )
       })}
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      {Array.from({ length: POOL }, (_, k) => (
+        <video key={k} className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      ))}
       <div className="stage__veil" />
       <div className="stage__scrim" />
     </div>

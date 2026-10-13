@@ -1,7 +1,7 @@
-import { Line, useTexture } from '@react-three/drei'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useRef, type RefObject } from 'react'
-import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, MathUtils, SRGBColorSpace, Vector3, type Mesh } from 'three'
+import { Line } from '@react-three/drei'
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
+import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, ImageBitmapLoader, MathUtils, SRGBColorSpace, Texture, Vector3, type Mesh } from 'three'
 import type { Line2 } from 'three-stdlib'
 import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from '../config/markets'
 import { env } from '../engine/env'
@@ -82,12 +82,19 @@ const INTRO_S = 3.2
  * `worldIndex` is the world chapter in the film; -1 is the standalone globe (homepage Markets, in a [data-globe] box):
  * no film, always live while on screen, and the pull-back plays once over INTRO_S instead of following the scroll.
  */
-function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<GlobeLabels> }) {
+function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; labels: RefObject<GlobeLabels>; live: boolean; onWarm: () => void }) {
   const standalone = worldIndex < 0
-  // 2048×1024 desktop, 1024×512 phones (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs
-  const tex = useTexture(GLOBE_TEXTURE)
-  tex.colorSpace = SRGBColorSpace
-  tex.anisotropy = 4
+  // 2048×1024 desktop, 1024×512 phones (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs.
+  // An ImageBitmap is decoded off the main thread, so the upload below is a copy, not a decode.
+  const bitmap = useLoader(ImageBitmapLoader, GLOBE_TEXTURE, (l) => void l.setOptions({ imageOrientation: 'flipY' }))
+  const tex = useMemo(() => {
+    const t = new Texture(bitmap)
+    t.flipY = false
+    t.colorSpace = SRGBColorSpace
+    t.anisotropy = 4
+    t.needsUpdate = true
+    return t
+  }, [bitmap])
   const seg = env.mobile ? 64 : 128
   const group = useRef<Group>(null)
   const lines = useRef<(Line2 | null)[]>([])
@@ -104,15 +111,17 @@ function Earth({ worldIndex, labels }: { worldIndex: number; labels: RefObject<G
     gl.domElement.closest('.stage__light, [data-globe]')?.classList.add('is-globe-live')
   })
 
-  // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile, then one render
+  // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile; only then does the
+  // canvas render at all (frameloop 'never' until onWarm), so the first frame doesn't upload, compile and draw in one task
   useEffect(() => {
     const idle = (fn: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200))
     idle(() => {
       gl.initTexture(tex)
       // compileAsync uses KHR_parallel_shader_compile: no main-thread wait on link status
-      idle(() => void gl.compileAsync(scene, camera).then(() => idle(() => invalidate())))
+      idle(() => void gl.compileAsync(scene, camera).then(() => idle(onWarm)))
     })
-  }, [gl, scene, camera, tex, invalidate])
+  }, [gl, scene, camera, tex, onWarm])
+  useEffect(() => void (live && invalidate()), [live, invalidate])
 
   const origin = useMemo(() => latLon(ORIGIN.lat, ORIGIN.lon, 1.002), [])
   const routes = useMemo(
@@ -501,6 +510,8 @@ export default function GlobeCanvas({ worldIndex }: { worldIndex: number }) {
   // the film starts the engine; a page without the film still needs the clock that drives Earth's tick
   useEffect(() => void (worldIndex < 0 && startClock()), [worldIndex])
   const labels = useRef<GlobeLabels>({ markets: [], origin: null })
+  const [live, setLive] = useState(false)
+  const warm = useMemo(() => () => setLive(true), [])
   return (
     <>
       <Canvas
@@ -512,7 +523,7 @@ export default function GlobeCanvas({ worldIndex }: { worldIndex: number }) {
         style={{ pointerEvents: 'none' }}
         // capped at 1.5× everywhere (#D): fill rate on phones; the halo's soft edge keeps the silhouette smooth
         dpr={[1, 1.5]}
-        frameloop="demand"
+        frameloop={live ? 'demand' : 'never'}
         gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
         onCreated={({ gl }) => {
@@ -524,7 +535,7 @@ export default function GlobeCanvas({ worldIndex }: { worldIndex: number }) {
         <hemisphereLight args={['#ffffff', '#cfe3ea', 0.8]} />
         <directionalLight position={[-3, 2, 3]} intensity={2.5} />
         <Suspense fallback={null}>
-          <Earth worldIndex={worldIndex} labels={labels} />
+          <Earth worldIndex={worldIndex} labels={labels} live={live} onWarm={warm} />
         </Suspense>
       </Canvas>
       {/* positioned per frame by Earth; decorative (the stage is aria-hidden), the market list is the real text */}
