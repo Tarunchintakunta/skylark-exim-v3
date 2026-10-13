@@ -207,3 +207,12 @@ Each beat's last frame is the next beat's start frame. Beat 1 has three generate
 Seams: beat 2 last frame vs beat 3 start, SSIM 1.000 (identical). Beat 3 first frame vs that start, 0.91. The engine's 3 % in-chapter crossfade covers both.
 
 Balance after this and the o2 retake: 299.75, so **1,611 used** of the 1,624 guard. That leaves 13, not enough for another image or a pair of videos.
+
+## 2026-10-13: right-hand-drive driver; beat 3 retake blocked on credits (#245)
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| hf-arrive | hflip of the beat 1 master, encode-hf.sh | none | 0 | PASS | the driver sat on the cab's left (viewer's right, facing the truck); mirrored, he sits on the right as in an Indian right-hand-drive truck. No text or logos in frame. Before/after: docs/review/arrive/rhd-hf-arrive.jpg |
+| hf-reverse | hflip of the beat 2 master | none | 0 | PASS | same fix; the guide worker now stands at the right of the bay. docs/review/arrive/rhd-hf-reverse.jpg |
+| hf-unload-fish, hf-unload-shrimp | hflip of the beat 3 masters | none | 0 | stopgap | mirrored only so the seam with hf-reverse stays continuous (reverse end vs unload start, SSIM 0.81; 0.79 before). These clips still show the truck body inside the room and are to be retaken |
+| beat 3 retake | gpt_image_2_5 4K ×3 per shot, minimax_h3 2K 3.0 s | not run | 0 | BLOCKED | balance 297.11 on 13 Oct, about 1,613.6 used of the 1,624 guard: about 10.4 credits left. Six start frames (about 90) and two 3 s videos (about 12-20) need about 110-130. Waiting for the guard to be raised or a top-up |
