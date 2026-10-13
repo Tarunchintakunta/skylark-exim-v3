@@ -7,6 +7,8 @@ export type Path = 'ocean' | 'pond'
 export interface AppState {
   path: Path
   ready: boolean
+  /** the loader has gone and the static hero copy has handed over to React's (#237) */
+  revealed: boolean
   /** id of the chapter currently on screen */
   chapter: string
   /** the whole film has scrolled away (business sections on screen); mirrors frame.past, changes rarely */
@@ -17,7 +19,7 @@ export interface AppState {
 
 const hashPath = (): Path => (location.hash === '#pond' ? 'pond' : 'ocean')
 
-export const store = createStore<AppState>(() => ({ path: hashPath(), ready: false, chapter: 'start', past: false, prefill: {} }))
+export const store = createStore<AppState>(() => ({ path: hashPath(), ready: false, revealed: false, chapter: 'start', past: false, prefill: {} }))
 export const useApp = <T,>(sel: (s: AppState) => T) => useStore(store, sel)
 
 /** Per-frame values. Mutable on purpose: written by the ticker, read by ticker callbacks. Never put these in React state. */
