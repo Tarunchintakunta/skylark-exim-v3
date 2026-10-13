@@ -1,11 +1,42 @@
+import * as m from 'motion/react-m'
 import type { MouseEvent, Ref } from 'react'
 import { exportsLine, start } from '../config/content'
 import type { Path } from '../engine/store'
 import { env } from '../engine/env'
+import { useApp } from '../engine/store'
 import { FILM_W, clipUrl, posterUrl } from '../film/segments'
+import { DUR, EASE, STAGGER } from '../motion/tokens'
 import './hero.css'
 
 const PATHS = ['ocean', 'pond'] as const
+
+/**
+ * The headline's one-time reveal once the loader has gone (#237): word by word, a lift and a dip in light that starts and
+ * ends fully visible. The static HTML copy is the LCP element and is never hidden; this runs on React's copy after the
+ * hand-off, transform and opacity only. Words are inline-block (kerning inside a word is kept, so nothing reflows).
+ */
+const WAVE = (i: number) => ({
+  y: ['0em', '-0.08em', '0em'],
+  opacity: [1, 0.55, 1],
+  transition: { duration: DUR.slow, ease: EASE, delay: i * STAGGER * 2 },
+})
+
+function Title({ lead, last }: { lead: string; last: string }) {
+  const revealed = useApp((s) => s.revealed)
+  const words = [...lead.split(' ').map((w) => <>{w}</>), <><em>{last}</em>.</>]
+  return (
+    <h1 className="hero__title">
+      {words.map((w, i) => (
+        <span key={i}>
+          {i > 0 && ' '}
+          <m.span className="hero__word" animate={revealed && !env.reduced ? WAVE(i) : undefined}>
+            {w}
+          </m.span>
+        </span>
+      ))}
+    </h1>
+  )
+}
 
 /**
  * The hero's markup (redesign §3), shared by the homepage and /story: a full-bleed looping coastal video (#197), one
@@ -49,9 +80,7 @@ export function HeroFrame({
       />
       </div>
       <div className="hero__copy">
-        <h1 className="hero__title">
-          {lead} <em>{last}</em>.
-        </h1>
+        <Title lead={lead} last={last} />
         <p className="hero__body">{start.body}</p>
         <div className="hero__exports">
           <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
