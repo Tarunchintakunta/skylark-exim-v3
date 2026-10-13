@@ -1,5 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { loadVitals } from './engine/vitals'
+import { MotionRoot } from './motion/MotionRoot'
 import { QuotePage } from './pages/QuotePage'
 import { usePageMeta } from './pages/meta'
 import './styles/global.css'
@@ -28,6 +30,10 @@ function QuoteApp() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QuoteApp />
+    <MotionRoot>
+      <QuoteApp />
+    </MotionRoot>
   </StrictMode>,
 )
+
+loadVitals()
