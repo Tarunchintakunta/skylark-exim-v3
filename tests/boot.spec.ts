@@ -22,7 +22,7 @@ test('boot downloads each file once and only what the first screens need', async
     const f = ids.get(e.requestId)
     if (f) bytes.set(f, (bytes.get(f) ?? 0) + e.dataLength)
   })
-  await page.goto('/')
+  await page.goto('/story')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForTimeout(2000)
 

@@ -3,6 +3,7 @@ import type { ChapterDef } from '../config/chapters'
 import { env } from '../engine/env'
 import { useApp } from '../engine/store'
 import { GLOBE_TEXTURE } from '../three/globeState'
+import '../sections/markets.css'
 
 const loadGlobe = () => import('../three/Globe')
 const GlobeCanvas = lazy(loadGlobe)
@@ -48,7 +49,7 @@ export function GlobeLayer({ chapters }: { chapters: ChapterDef[] }) {
       {ph && <img className="globe-ph" src={PLACEHOLDER} alt="" decoding="async" />}
       {near && (
         <Suspense fallback={null}>
-          <GlobeCanvas />
+          <GlobeCanvas worldIndex={world} />
         </Suspense>
       )}
     </>

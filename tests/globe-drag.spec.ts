@@ -13,7 +13,7 @@ const labelOpacity = (page: Page, name: string) =>
 test('drag turns the globe, wheel scrolls the page, click faces a market', async ({ page }) => {
   page.setDefaultTimeout(10_000)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.goto('/')
+  await page.goto('/story')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
   await toWorld(page, 0.5)
   await page.waitForTimeout(1200)

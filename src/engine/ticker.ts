@@ -10,6 +10,15 @@ type TickFn = (time: number) => void
 let subs: { fn: TickFn; order: number }[] = []
 let lenis: Lenis | null = null
 let started = false
+let ticking = false
+
+/** The clock alone, without smooth scrolling: pages with no film (the homepage globe) still get onTick callbacks. */
+export function startClock() {
+  if (ticking) return
+  ticking = true
+  gsap.ticker.lagSmoothing(0)
+  gsap.ticker.add(tick)
+}
 
 /** One clock for everything (TRD §1): gsap.ticker drives Lenis, ScrollTrigger and every per-frame callback. */
 export function startEngine() {
@@ -23,8 +32,7 @@ export function startEngine() {
   }
   if (env.coarse) ScrollTrigger.config({ ignoreMobileResize: true })
   ScrollTrigger.normalizeScroll(false)
-  gsap.ticker.lagSmoothing(0)
-  gsap.ticker.add(tick)
+  startClock()
 }
 
 function tick(time: number) {
@@ -67,6 +75,9 @@ export function unlockScroll() {
 }
 
 export function scrollToY(y: number, immediate = false) {
+  // Lenis clamps to the page height it last measured (a debounced ResizeObserver): a jump right after the story mounts,
+  // with the intro already seen this session, would land at 0. Measure first.
+  lenis?.resize()
   if (lenis) lenis.scrollTo(y, { immediate, duration: 1.4, force: true })
   else window.scrollTo({ top: y, behavior: immediate || env.reduced ? 'instant' : 'smooth' })
 }

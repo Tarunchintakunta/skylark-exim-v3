@@ -160,7 +160,7 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         if (f) perFile.set(f, (perFile.get(f) ?? 0) + e.encodedDataLength)
       })
 
-      await page.goto(`${baseURL}/#${path}`)
+      await page.goto(`${baseURL}/story#${path}`)
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 60_000 })
       await page.waitForTimeout(500)
       const initial = bytes
@@ -194,7 +194,7 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         }
       })
       const report = {
-        url: `${baseURL}/#${path}`,
+        url: `${baseURL}/story#${path}`,
         profile: name,
         initialKB: Math.round(initial / 1024),
         fullScrollMB: +(bytes / 1048576).toFixed(2),

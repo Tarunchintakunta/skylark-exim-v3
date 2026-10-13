@@ -67,9 +67,9 @@ test('news page is an honest empty state', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'News & updates' })).toBeVisible()
   await expect(page.getByText('Updates coming soon')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Request export quote', exact: true })).toHaveAttribute('href', '/quote')
-  const labels = await page.getByRole('navigation', { name: 'Sections' }).locator('.nav__link').allTextContents()
-  expect(labels.slice(0, 5).map((label) => label.trim())).toEqual(['Story', 'Products', 'About', 'News', 'Contact'])
-  await expect(page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'News' })).toHaveAttribute('aria-current', 'page')
+  const labels = await page.getByRole('navigation', { name: 'Site' }).locator('.nav__link').allTextContents()
+  expect(labels.slice(0, 9).map((label) => label.trim())).toEqual(['Home', 'Our Story', 'Wild catch', 'Farmed shrimp', 'Products', 'Markets', 'About', 'News', 'Contact'])
+  await expect(page.getByRole('navigation', { name: 'Site' }).getByRole('link', { name: 'News' })).toHaveAttribute('aria-current', 'page')
 })
 
 test('an unknown news slug stays on the news layout', async ({ page }) => {
@@ -84,7 +84,7 @@ test('an unknown news slug stays on the news layout', async ({ page }) => {
 test('Products in the quote navbar opens the homepage at #products', async ({ page }) => {
   await page.goto('/quote')
   await ready(page)
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: 'Products' }).click()
+  await page.getByRole('navigation', { name: 'Site' }).getByRole('link', { name: 'Products' }).click()
   await page.waitForURL(/\/#products$/)
   await ready(page)
   await page.waitForSelector('#boot', { state: 'detached' })

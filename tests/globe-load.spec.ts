@@ -10,7 +10,7 @@ import { devices, expect, test, type Page } from '@playwright/test'
 type R = { enterToShown: number; frame: number; picture: number }
 
 async function measure(page: Page): Promise<R> {
-  await page.goto('/#ocean')
+  await page.goto('/story#ocean')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.evaluate(() => {

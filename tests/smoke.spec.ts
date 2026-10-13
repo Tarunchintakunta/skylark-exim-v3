@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const ready = (page: import('@playwright/test').Page) => page.waitForFunction(() => document.documentElement.dataset.ready === '1')
 
 test('loads, loader completes, one h1', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await ready(page)
   await expect(page.locator('h1')).toHaveCount(1)
   await expect(page.locator('.loader')).toHaveCount(0)
@@ -11,7 +11,7 @@ test('loads, loader completes, one h1', async ({ page }) => {
 })
 
 test('header toggle swaps the story and keeps the hash; Ocean is the default', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await ready(page)
   const ocean = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Wild catch' })
   const pond = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Farmed shrimp' })
@@ -26,7 +26,7 @@ test('header toggle swaps the story and keeps the hash; Ocean is the default', a
 })
 
 test('inside the film the toggle lands on the other path\'s first chapter', async ({ page }) => {
-  await page.goto('/#ocean')
+  await page.goto('/story#ocean')
   await ready(page)
   const o2 = await page.locator('[data-chapter="o2"]').evaluate((el) => (el as HTMLElement).offsetTop + 50)
   await page.evaluate((y) => window.scrollTo(0, y), o2)
@@ -39,7 +39,7 @@ test('inside the film the toggle lands on the other path\'s first chapter', asyn
 })
 
 test('the hero loop plays, loops, and hands over to the scrubbed story on scroll (#197)', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await ready(page)
   const loop = page.locator('video.hero__video')
   await expect(loop).toHaveAttribute('loop', '')
@@ -79,10 +79,11 @@ test('RFQ shows validation errors, then falls back to a pre-filled mailto', asyn
   await expect(link).toHaveAttribute('href', /^mailto:info@skylarkexim\.com\?subject=Export%20quote%20request/)
 })
 
-test('every nav link lands on its section', async ({ page }) => {
+test('every homepage nav link lands on its section', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  for (const id of ['products', 'about', 'contact']) {
+  await page.waitForSelector('#boot', { state: 'detached' })
+  for (const id of ['products', 'markets', 'about', 'contact']) {
     await page.locator(`.nav a[href="/#${id}"]`).click()
     await page.waitForTimeout(1800)
     const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)
