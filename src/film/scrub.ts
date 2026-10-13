@@ -65,7 +65,11 @@ const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 
 let clock = 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
-/** The hero's looping video (#197) covers the start chapter: its clip and posters load on the first scroll. */
+/**
+ * The hero's looping video (#197) covers the start chapter: its clip loads in idle time after the loader's reveal (the
+ * loader already buffered the path's first clip), so it's there on the first scroll without competing with the first screen.
+ */
+let primed = false
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -81,8 +85,12 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   stopTick?.()
   stopTick = onTick(tick, -5)
   const stopReady = store.subscribe((st, was) => st.ready && !was.ready && cur >= 0 && loadPosters(cur))
+  const prime = () => ('requestIdleCallback' in window ? requestIdleCallback(() => (primed = true), { timeout: 1000 }) : setTimeout(() => (primed = true), 200))
+  const stopReveal = store.subscribe((st, was) => st.revealed && !was.revealed && prime())
+  if (store.getState().revealed) prime()
   return () => {
     stopReady()
+    stopReveal()
     stopTick?.()
     stopTick = null
   }
@@ -217,9 +225,9 @@ function tick() {
   const ahead = clipsFrom(i, frame.dir < 0 ? -1 : 1, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
   const keep = [want, ...ahead]
   let active: Slot | null = null
-  // the start clip waits for the first scroll: the hero loop covers it, and the loader's budget goes to the first chapter
+  // the start clip waits for the reveal: the hero loop covers it, and the loader's budget goes to the first chapter
   // of each path (#218); a deep link that is about to jump past the hero doesn't fetch it at all
-  if (want && !(landing.pending && i === 0) && (scrolled || i > 0)) {
+  if (want && !(landing.pending && i === 0) && (scrolled || primed || i > 0)) {
     active = slotFor(want, keep, i)
     if (active) {
       active.used = clock
