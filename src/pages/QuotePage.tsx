@@ -1,4 +1,6 @@
+import * as m from 'motion/react-m'
 import { CONTACT } from '../config/content'
+import { reveal, rise } from '../motion/tokens'
 import RfqForm from '../sections/RfqForm'
 
 /**
@@ -14,17 +16,20 @@ export function QuotePage() {
           <p className="eyebrow">Quote</p>
           <h1 id="quote-title" className="section__title">Request an export quote</h1>
         </header>
-        <div className="quote-layout">
-          <RfqForm />
-          <aside className="quote-aside" aria-label="Office">
+        {/* the h1 above is the LCP element and stays put; the form and the office panel rise in */}
+        <m.div className="quote-layout" {...reveal}>
+          <m.div variants={rise}>
+            <RfqForm />
+          </m.div>
+          <m.aside className="quote-aside" aria-label="Office" variants={rise}>
             <h2>Office</h2>
             <p>{CONTACT.office}</p>
             <h2>Email</h2>
             <p>
               <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
             </p>
-          </aside>
-        </div>
+          </m.aside>
+        </m.div>
       </main>
     </>
   )

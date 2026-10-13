@@ -1,24 +1,22 @@
-import { useEffect, useRef } from 'react'
 import { ABOUT, HOME } from '../config/content'
 import { NEWS, formatNewsDate } from '../content/news'
-import { bindReveals } from '../sections/reveal'
+import * as m from 'motion/react-m'
+import { reveal, rise } from '../motion/tokens'
 
 /** About in short (the lead paragraph and the partners), and the latest news item, or a quiet "coming soon". */
 export function Company() {
-  const root = useRef<HTMLElement>(null)
-  useEffect(() => bindReveals(root.current!), [])
   const latest = NEWS[0]
   return (
-    <section id="about" className="section theme-light home-company" ref={root} aria-labelledby="about-title">
+    <m.section id="about" className="section theme-light home-company" {...reveal} aria-labelledby="about-title">
       <div className="home-company__about">
-        <p className="eyebrow mono" data-reveal>About</p>
-        <h2 id="about-title" className="section__title" data-reveal>{ABOUT.title}</h2>
-        <p className="about__lead" data-reveal>{ABOUT.company[0]}</p>
-        <p className="home-company__partners" data-reveal>
+        <m.p className="eyebrow mono" variants={rise}>About</m.p>
+        <m.h2 id="about-title" className="section__title" variants={rise}>{ABOUT.title}</m.h2>
+        <m.p className="about__lead" variants={rise}>{ABOUT.company[0]}</m.p>
+        <m.p className="home-company__partners" variants={rise}>
           <span className="mono">Managing partners</span> {ABOUT.partners.map((p) => p.name).join(' · ')}
-        </p>
+        </m.p>
       </div>
-      <aside className="home-news" aria-labelledby="news-title" data-reveal>
+      <m.aside className="home-news" aria-labelledby="news-title" variants={rise}>
         <p className="eyebrow mono">News</p>
         <h2 id="news-title" className="home-news__title display">{HOME.news.title}</h2>
         {latest ? (
@@ -33,7 +31,7 @@ export function Company() {
         <a className="home-news__all" href="/news">
           {HOME.news.all} <span aria-hidden="true">→</span>
         </a>
-      </aside>
-    </section>
+      </m.aside>
+    </m.section>
   )
 }

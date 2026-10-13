@@ -1,46 +1,22 @@
-import gsap from 'gsap'
-import { SplitText } from 'gsap/SplitText'
-import { useEffect, useRef, useState } from 'react'
+import * as m from 'motion/react-m'
+import { useEffect, useState } from 'react'
 import { CATEGORIES, SHRIMP_FORMS, SPECIES_OFFERED, STATES, type Category } from '../config/products'
-import { env } from '../engine/env'
 import { store, useApp } from '../engine/store'
+import { reveal, rise, riseAlone } from '../motion/tokens'
 import { ProductCard } from './ProductCard'
-import { bindReveals } from './reveal'
 import './sections.css'
 import './products.css'
 
-gsap.registerPlugin(SplitText)
-
 const TABS: Category[] = ['marine', 'shrimps']
 const LATIN = /(Litopenaeus vannamei|Penaeus monodon)/
-
-/** [data-lines] headings rise out of a line mask once, as they enter. */
-function bindLines(root: HTMLElement) {
-  if (env.reduced) return () => {}
-  const splits = [...root.querySelectorAll<HTMLElement>('[data-lines]')].map((el) =>
-    SplitText.create(el, {
-      type: 'lines', mask: 'lines', autoSplit: true,
-      onSplit: (s) => gsap.from(s.lines, { yPercent: 105, duration: 0.9, stagger: 0.08, ease: 'power3.out', scrollTrigger: { trigger: el, start: 'top 88%', once: true } }),
-    }),
-  )
-  return () => splits.forEach((s) => s.revert())
-}
 
 /** Products (STORY §12): category follows the chosen path; every product card enquires straight into the RFQ. */
 export function Products() {
   const path = useApp((s) => s.path)
   const [tab, setTab] = useState<Category>(path === 'pond' ? 'shrimps' : 'marine')
-  const head = useRef<HTMLElement>(null)
-  const body = useRef<HTMLDivElement>(null)
 
   useEffect(() => setTab(path === 'pond' ? 'shrimps' : 'marine'), [path])
   useEffect(() => store.setState({ prefill: { category: tab } }), [tab])
-  useEffect(() => {
-    const a = bindReveals(head.current!)
-    const b = bindLines(head.current!)
-    return () => (a(), b())
-  }, [])
-  useEffect(() => bindReveals(body.current!), [tab])
 
   const enquire = (category: Category, species: string) => {
     location.assign(`/quote#${new URLSearchParams({ category, species })}`)
@@ -49,19 +25,19 @@ export function Products() {
 
   return (
     <section id="products" className="section theme-light pr" aria-labelledby="products-title">
-      <header className="pr-head" ref={head}>
+      <m.header className="pr-head" {...reveal}>
         <div className="pr-head__copy">
-          <p className="eyebrow mono" data-reveal>Products</p>
-          <h2 id="products-title" className="pr-title" data-lines>
+          <m.p className="eyebrow mono" variants={rise}>Products</m.p>
+          <m.h2 id="products-title" className="pr-title" variants={rise}>
             Our <em>Products</em>
-          </h2>
-          <ul className="pr-states display" aria-label="Product states" data-reveal>
+          </m.h2>
+          <m.ul className="pr-states display" aria-label="Product states" variants={rise}>
             {STATES.map((s) => (
               <li key={s}>{s}</li>
             ))}
-          </ul>
+          </m.ul>
         </div>
-      </header>
+      </m.header>
 
       <div className="pr-switch" role="group" aria-label="Product category">
         {TABS.map((t) => (
@@ -72,33 +48,34 @@ export function Products() {
         ))}
       </div>
 
-      <div id="pr-panel" className="pr-panel" ref={body}>
-        <ul className={`pr-grid pr-grid--${cat.products.length}`} aria-label={cat.label}>
+      <div id="pr-panel" className="pr-panel">
+        {/* keyed by tab: the other category's cards come in afresh */}
+        <m.ul key={tab} className={`pr-grid pr-grid--${cat.products.length}`} aria-label={cat.label} {...reveal}>
           {cat.products.map((p, i) => (
             <ProductCard key={p.name} product={p} label={cat.label} index={i} onEnquire={() => enquire(tab, p.name)} />
           ))}
-        </ul>
+        </m.ul>
 
         {tab === 'shrimps' && (
           <div className="pr-forms">
-            <div className="pr-forms__lede" data-reveal>
+            <m.div className="pr-forms__lede" {...riseAlone}>
               <h3 className="pr-forms__title display">Shrimp forms</h3>
               <p className="pr-forms__species">
                 <span className="pr-label">Species offered</span>
                 {SPECIES_OFFERED.split(LATIN).map((t, i) => (i % 2 ? <i key={i}>{t}</i> : t))}
               </p>
-            </div>
-            <dl className="pr-forms__index">
+            </m.div>
+            <m.dl className="pr-forms__index" {...reveal}>
               {SHRIMP_FORMS.map((f, i) => (
-                <div key={f.name} className="pr-forms__row" data-reveal>
+                <m.div key={f.name} className="pr-forms__row" variants={rise}>
                   <dt>
                     <span className="pr-forms__no">{String(i + 1).padStart(2, '0')}</span>
                     {f.name}
                   </dt>
                   <dd>{f.options}</dd>
-                </div>
+                </m.div>
               ))}
-            </dl>
+            </m.dl>
           </div>
         )}
       </div>
