@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
+import { frame as motionFrame } from 'motion/react'
 import { env } from './env'
 import { frame } from './store'
 
@@ -12,15 +13,25 @@ let lenis: Lenis | null = null
 let started = false
 let ticking = false
 
-/** The clock alone, without smooth scrolling: pages with no film (the homepage globe) still get onTick callbacks. */
+/**
+ * The clock alone, without smooth scrolling: pages with no film (the homepage globe) still get onTick callbacks.
+ * One requestAnimationFrame for the page (#235): Motion's frame loop drives GSAP's root timeline, Lenis and every onTick
+ * callback, in that order, so Lenis, ScrollTrigger and Motion never tick on separate loops.
+ */
 export function startClock() {
   if (ticking) return
   ticking = true
-  gsap.ticker.lagSmoothing(0)
-  gsap.ticker.add(tick)
+  gsap.ticker.remove(gsap.updateRoot)
+  // GSAP's clock starts at its own origin: carry its current time on, so tweens already running don't jump
+  const t0 = performance.now() / 1000 - gsap.ticker.time
+  motionFrame.update(({ timestamp }) => {
+    const time = timestamp / 1000 - t0
+    gsap.updateRoot(time)
+    tick(time)
+  }, true)
 }
 
-/** One clock for everything (TRD §1): gsap.ticker drives Lenis, ScrollTrigger and every per-frame callback. */
+/** One clock for everything (TRD §1): the shared frame loop drives Lenis, ScrollTrigger and every per-frame callback. */
 export function startEngine() {
   if (started) return
   started = true
