@@ -39,7 +39,10 @@ export function Loader({ wait }: { wait: Gate }) {
     }
     const handOff = () => {
       root?.remove()
-      ready().then(() => document.getElementById('hero-static')?.remove())
+      ready().then(() => {
+        document.getElementById('hero-static')?.remove()
+        store.setState({ revealed: true })
+      })
     }
     if (!root || html.classList.contains('intro-skip') || performance.now() >= MAX_MS) {
       remember()
