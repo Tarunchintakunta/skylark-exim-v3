@@ -1,14 +1,13 @@
 import { lazy, startTransition, Suspense, useEffect, useState } from 'react'
 import type { ChapterDef } from '../config/chapters'
-import { env } from '../engine/env'
+import { PORTRAIT } from '../config/hero'
 import { useApp } from '../engine/store'
-import { GLOBE_TEXTURE } from '../three/globeState'
+import { GLOBE_PH, GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
+import { avifReady } from './segments'
 import '../sections/markets.css'
 
 const loadGlobe = () => import('../three/Globe')
 const GlobeCanvas = lazy(loadGlobe)
-/** the globe's entry frame (close over the sea off Visakhapatnam), shown until the live globe has drawn */
-const PLACEHOLDER = `/textures/globe-ph_${env.mobile ? 720 : 1280}.webp`
 
 const idle = (fn: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 2000 }) : setTimeout(fn, 300))
 let fetched = false
@@ -17,7 +16,7 @@ function prefetch() {
   if (fetched) return
   fetched = true
   idle(() => {
-    new Image().src = PLACEHOLDER
+    void avifReady.then(warmGlobePlaceholder)
     void loadGlobe()
     new Image().src = GLOBE_TEXTURE
   })
@@ -51,7 +50,15 @@ export function GlobeLayer({ chapters }: { chapters: ChapterDef[] }) {
   if (past) return null
   return (
     <>
-      {ph && <img className="globe-ph" src={PLACEHOLDER} alt="" decoding="async" />}
+      {/* the globe's entry frame (close over the sea off Visakhapatnam), shown until the live globe has drawn */}
+      {ph && (
+        <picture>
+          <source type="image/avif" media={PORTRAIT} srcSet={GLOBE_PH('avif').sq} />
+          <source type="image/webp" media={PORTRAIT} srcSet={GLOBE_PH('webp').sq} />
+          <source type="image/avif" srcSet={GLOBE_PH('avif').wide} sizes="100vw" />
+          <img className="globe-ph" src="/textures/globe-ph_1920.webp" srcSet={GLOBE_PH('webp').wide} sizes="100vw" alt="" decoding="async" />
+        </picture>
+      )}
       {near && mount && (
         <Suspense fallback={null}>
           <GlobeCanvas worldIndex={world} />
