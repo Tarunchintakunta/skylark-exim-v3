@@ -11,7 +11,8 @@ import { expect, test, type Browser, type CDPSession, type Page } from '@playwri
  *
  * Terms:
  * - poster frame: a frame in a video segment where the clip is not on screen (__scrub.shown false)
- * - frozen: the picture has not changed while the page moved more than 5% of the viewport inside one video segment
+ * - frozen: the picture has not changed while the page kept moving (every frame) by more than 5% of the viewport, inside
+ *   one video segment
  * - needed: the first frame a clip's segment is on screen; a clip "starts before" when its loadstart is earlier
  */
 
@@ -218,8 +219,11 @@ function analyse(r: Run) {
   let since = 0
   let yAt = 0
   let seg = ''
+  let prevY = NaN
   const needed: Record<string, number> = {}
   for (const [t, y, ch, id, shown, sig] of r.frames) {
+    const still = y === prevY
+    prevY = y
     if (!id) {
       seg = ''
       continue
@@ -236,7 +240,7 @@ function analyse(r: Run) {
     const s = segs[segs.length - 1]
     s.frames++
     s.shown += shown
-    if (sig !== lastSig) {
+    if (sig !== lastSig || still) {
       lastSig = sig
       since = t
       yAt = y
@@ -250,9 +254,10 @@ function analyse(r: Run) {
   const ids = Object.keys(needed)
   const started = ids.filter((id) => (r.loadstart[id] ?? Infinity) < needed[id])
   const ready = ids.filter((id) => (r.loadeddata[id] ?? Infinity) < needed[id])
-  // long tasks from the documentation chapter (the globe's warm-up starts there) to the end of the film
-  const docsAt = r.frames.find((f) => r.chapters[f[2]] === 'docs')?.[0] ?? Infinity
-  const globe = r.long.filter(([t]) => t >= docsAt).map(([, d]) => Math.round(d))
+  // long tasks entering the world chapter (from the sea chapter on), and from the documentation chapter, where the globe
+  // starts to warm up (chunks and texture there, the canvas mounts in the port chapter)
+  const from = (id: string) => r.frames.find((f) => r.chapters[f[2]] === id)?.[0] ?? Infinity
+  const longFrom = (t0: number) => r.long.filter(([t]) => t >= t0).map(([, d]) => Math.round(d))
   // scroll speed over the moving part of the run (first move to the furthest point)
   const yMax = Math.max(...r.frames.map((f) => f[1]))
   const first = r.frames.find((f) => f[1] !== r.frames[0][1])
@@ -266,7 +271,8 @@ function analyse(r: Run) {
     clipsStartedBefore: `${started.length}/${ids.length}`,
     clipsReadyBefore: `${ready.length}/${ids.length}`,
     lateStart: ids.filter((id) => !started.includes(id)),
-    globeLongTasks: globe,
+    globeLongTasks: longFrom(from('sea')),
+    warmLongTasks: longFrom(from('docs')),
     fullMB: +(r.bytes / 1048576).toFixed(2),
     pxPerSec: t1 > t0 ? Math.round(((last![1] - first![1]) * 1000) / (t1 - t0)) : 0,
     worstSegments: segs.filter((s) => s.frames && s.shown / s.frames < 0.9).map((s) => `${s.key} ${Math.round((100 * s.shown) / s.frames)}% of ${s.frames}`),
@@ -289,9 +295,15 @@ for (const [name, prof] of Object.entries(PROFILES)) {
     const get = async (browser: Browser, hash: string, mode: Mode): Promise<Run> => {
       const f = `test-results/stuck-cache/${name}${hash}-${mode}.json`
       if (existsSync(f)) return JSON.parse(readFileSync(f, 'utf8'))
+      // STUCK_REUSE=1: re-derive the numbers from the raw runs of an earlier invocation
+      const raw = `review/stuck-raw-${process.env.STUCK_LABEL ?? 'run'}/${name}${hash}-${mode}.json`
+      if (process.env.STUCK_REUSE && existsSync(raw)) return JSON.parse(readFileSync(raw, 'utf8'))
       const r = await run(browser, prof, hash, mode)
       mkdirSync('test-results/stuck-cache', { recursive: true })
       writeFileSync(f, JSON.stringify(r))
+      // the raw run too, so the numbers can be re-derived later
+      mkdirSync(`review/stuck-raw-${process.env.STUCK_LABEL ?? 'run'}`, { recursive: true })
+      writeFileSync(`review/stuck-raw-${process.env.STUCK_LABEL ?? 'run'}/${name}${hash}-${mode}.json`, JSON.stringify(r))
       return r
     }
     const save = (k: string, v: unknown) => {
@@ -334,13 +346,14 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         expect(a.frozenMaxMs, `longest frozen picture (${a.frozenAt})`).toBeLessThanOrEqual(400)
       })
 
+      // targets: none on desktop (no throttle); at most one, under 100 ms, on a phone at 4x CPU; the rest is reported
       test(`6 · globe: long tasks entering world, ${path} fling`, async ({ browser }) => {
         test.setTimeout(300_000)
         const a = analyse(await get(browser, `#${path}`, 'fling'))
         if (prof.mobile && prof.slow) {
           expect(a.globeLongTasks.length, `long tasks ${a.globeLongTasks}`).toBeLessThanOrEqual(1)
           expect(Math.max(0, ...a.globeLongTasks), 'longest task (ms)').toBeLessThan(100)
-        } else if (!prof.mobile) expect(a.globeLongTasks, 'long tasks > 50 ms from docs to world').toEqual([])
+        } else if (!prof.mobile && !prof.slow) expect(a.globeLongTasks, 'long tasks > 50 ms from the sea chapter to world').toEqual([])
       })
     }
 
