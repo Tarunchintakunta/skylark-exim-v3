@@ -6,9 +6,11 @@ import { onTick } from '../engine/ticker'
 import { FILM_W, clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
 
 /**
- * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
- * - The current clip loads on entry; after the first scroll the next starts once the current fires `canplaythrough`, and the one after
- *   once the next can play through (direction-aware, so scrolling up prefetches upwards).
+ * Video engine (TRD §6, redesign §2.3-2.4). A pool of POOL <video> decoders.
+ * - The current clip loads on entry; after the first scroll, once it has metadata, the next AHEAD clips in the scroll
+ *   direction load in parallel (one more while the scroll is fast). A clip on screen for under a second can't wait for
+ *   its neighbour to finish buffering first.
+ * - A new clip takes the decoder whose clip is furthest from the current segment, never one inside that window.
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
  *   presented frame stays up instead of stalling or flashing back to the poster.
  * - `fastSeek()` while the scroll is fast,
@@ -22,9 +24,9 @@ interface Slot {
   dead: boolean
   /** fired loadeddata since the last load(): a slot that ever decoded a frame is never marked dead by the timer */
   loaded: boolean
-  /** fired canplaythrough: safe to start the neighbour */
+  /** fired canplaythrough */
   ready: boolean
-  /** last time this slot was the current clip (pool eviction) */
+  /** last time this slot was the current clip (breaks eviction ties) */
   used: number
 }
 
@@ -32,8 +34,11 @@ const FRAME = 1 / 24
 const EPS = 1 / 48
 /** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
-/** clips prefetched ahead of the scroll: two on desktop, one on phones, Save-Data and 3G or slower (#218) */
-const AHEAD = env.mobile || env.saveData || env.slow ? 1 : 2
+const light = env.mobile || env.saveData || env.slow
+/** decoders on the stage (ScrubStage renders this many <video>s) */
+export const POOL = env.mobile ? 4 : 5
+/** clips prefetched ahead of the scroll: three on desktop, two on phones, Save-Data and 3G or slower; one more while fast */
+const AHEAD = light ? 2 : 3
 
 let segs: Segment[] = []
 let posters: (HTMLElement | null)[] = []
@@ -83,7 +88,7 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
  * on arrival. Returns their elements; the loader waits for `canplaythrough`.
  */
 export function warm(ids: string[]) {
-  return ids.flatMap((id) => slotFor(id, ids)?.v ?? [])
+  return ids.flatMap((id) => slotFor(id, ids, 0)?.v ?? [])
 }
 
 function makeSlot(v: HTMLVideoElement): Slot {
@@ -140,27 +145,30 @@ const videoId = (i: number) => {
   return m?.kind === 'video' ? m.id : null
 }
 
-/** Nearest video clip from segment i in direction d (skipping stills/globe), or null. */
-function videoNear(i: number, d: 1 | -1) {
-  for (let k = i + d; k >= 0 && k < segs.length; k += d) {
+/** The next `n` distinct clips from segment i in direction d (skipping stills/globe). */
+function clipsFrom(i: number, d: 1 | -1, n: number) {
+  const out: string[] = []
+  for (let k = i + d; k >= 0 && k < segs.length && out.length < n; k += d) {
     const id = videoId(k)
-    if (id) return id
+    if (id && !out.includes(id)) out.push(id)
   }
-  return null
+  return out
 }
 
-/** Nearest clip after the segment that plays `id`, in direction d. */
-function videoNearId(id: string, d: 1 | -1) {
-  const k = segs.findIndex((s) => s.media.kind === 'video' && s.media.id === id)
-  return k < 0 ? null : videoNear(k, d)
+/** Segments between segment `at` and the nearest one playing `id` (Infinity: not on this path). */
+function distance(id: string | null, at: number) {
+  let best = Infinity
+  segs.forEach((s, k) => s.media.kind === 'video' && s.media.id === id && (best = Math.min(best, Math.abs(k - at))))
+  return best
 }
 
-/** Slot holding `id`, loading it into the least recently used slot not in `keep` if needed. */
-function slotFor(id: string, keep: (string | null)[]) {
+/** Slot holding `id`, else load it into a free slot or the one whose clip is furthest from segment `at`, never one in `keep`. */
+function slotFor(id: string, keep: (string | null)[], at: number) {
   const have = slots.find((s) => s.id === id)
   if (have) return have
   const free = slots.filter((x) => x !== shown && (x.id === null || !keep.includes(x.id)))
-  const s = free.find((x) => x.id === null) ?? free.sort((a, b) => a.used - b.used)[0]
+  const far = (x: Slot) => (x.id === null ? Infinity : distance(x.id, at))
+  const s = free.sort((a, b) => far(b) - far(a) || a.used - b.used)[0]
   if (!s) return null
   load(s, id)
   return s
@@ -199,15 +207,15 @@ function tick() {
 
   if (i !== cur) enter(i, cur)
 
-  // decoders: current now; the neighbour in the scroll direction once the current can play through
+  // decoders: current now; the next AHEAD clips in the scroll direction once it has metadata (one more while fast)
   const want = videoId(i)
-  const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
-  const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
+  const ahead = clipsFrom(i, frame.dir < 0 ? -1 : 1, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
+  const keep = [want, ...ahead]
   let active: Slot | null = null
   // the start clip waits for the first scroll: the hero loop covers it, and the loader's budget goes to the first chapter
   // of each path (#218); a deep link that is about to jump past the hero doesn't fetch it at all
   if (want && !(landing.pending && i === 0) && (scrolled || i > 0)) {
-    active = slotFor(want, [ahead, behind])
+    active = slotFor(want, keep, i)
     if (active) {
       active.used = clock
       seek(active, p, vel)
@@ -219,12 +227,7 @@ function tick() {
     scrolled = true
     loadPosters(i)
   }
-  if (ahead && scrolled && (!want || active?.ready)) {
-    const a = slotFor(ahead, [want, behind])
-    // the one after that once the next can play through too (short chapters pass in < 1 s), on fast connections only
-    const ahead2 = AHEAD > 1 ? videoNearId(ahead, frame.dir < 0 ? -1 : 1) : null
-    if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
-  }
+  if (scrolled && (!want || (active && (active.v.readyState >= 1 || active.dead)))) for (const id of ahead) slotFor(id, keep, i)
   setShown(active && active.painted && !active.dead ? active : null)
   probe.id = want
   probe.chapter = seg.chapter
