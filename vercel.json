@@ -21,7 +21,7 @@
       ]
     },
     {
-      "source": "/(media|models|textures)/(.*)",
+      "source": "/(models|textures|media/news)/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -30,7 +30,7 @@
       ]
     },
     {
-      "source": "/media/(.*)\\.mp4",
+      "source": "/media/([^/]+)",
       "headers": [
         {
           "key": "Cache-Control",
