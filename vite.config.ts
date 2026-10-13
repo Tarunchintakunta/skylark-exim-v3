@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 import { defineConfig, type Connect, type Plugin } from 'vite'
+import { clipManifest } from './scripts/clip-manifest'
 import { staticHero } from './scripts/static-hero'
 
 /** /story, /quote and /news are their own HTML entries: only /story boots the film. */
@@ -41,7 +42,7 @@ const INPUTS: Record<string, Record<string, string>> = {
 }
 
 export default defineConfig({
-  plugins: [documentRoutes(), react(), staticHero()],
+  plugins: [clipManifest(), documentRoutes(), react(), staticHero()],
   build: {
     target: 'es2022',
     // the later builds add their pages and must not wipe the homepage
