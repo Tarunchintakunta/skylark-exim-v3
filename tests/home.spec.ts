@@ -24,7 +24,8 @@ test('the homepage has no film and requests nothing of the story, even scrolled 
   await page.goto('/')
   await ready(page)
   await expect(page.locator('.stage, [data-chapter], video.stage__video, .path-toggle')).toHaveCount(0)
-  await expect(page.locator('video')).toHaveCount(1) // the hero loop
+  await expect(page.locator('video')).toHaveCount(0) // the hero is a frame sequence on a canvas
+  await expect(page.locator('.home-hero canvas.seq__canvas')).toHaveCount(1)
   await scrollThrough(page, false, 3000)
   expect(story).toEqual([])
 })

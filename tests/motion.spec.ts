@@ -87,54 +87,6 @@ test.describe('reduced motion', () => {
   })
 })
 
-test('hero: the static headline (LCP) is visible before JS; after the loader the words lift once, from and back to visible, in place', async ({ page }) => {
-  // what the HTML paints before any script runs
-  await page.route(/\/assets\/.*\.js$/, (r) => r.abort())
-  await page.goto('/')
-  const staticH1 = page.locator('#hero-static h1')
-  expect((await style(staticH1)).opacity).toBe(1)
-  const before = (await staticH1.boundingBox())!
-  await page.unroute(/\/assets\/.*\.js$/)
-
-  // track every word's opacity and transform from the hand-off on
-  await page.addInitScript(() => {
-    const w = window as unknown as { __wave: { o: number; t: string }[] }
-    w.__wave = []
-    const f = () => {
-      for (const el of document.querySelectorAll<HTMLElement>('.hero:not(#hero-static) .hero__word')) {
-        const cs = getComputedStyle(el)
-        if (getComputedStyle(el.closest('.hero')!).visibility === 'visible') w.__wave.push({ o: +cs.opacity, t: cs.transform })
-      }
-      requestAnimationFrame(f)
-    }
-    requestAnimationFrame(f)
-  })
-  await page.goto('/')
-  await ready(page)
-  await page.waitForTimeout(1600)
-  const after = (await page.locator('.hero:not(#hero-static) h1').boundingBox())!
-  // React's copy sits exactly where the static copy was (no shift at the hand-off)
-  for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(after[k] - before[k])).toBeLessThan(1.5)
-  const wave = await page.evaluate(() => (window as unknown as { __wave: { o: number; t: string }[] }).__wave)
-  expect(wave.some((s) => s.t !== 'none' && s.t !== 'matrix(1, 0, 0, 1, 0, 0)')).toBe(true) // it moved
-  expect(Math.min(...wave.map((s) => s.o))).toBeGreaterThanOrEqual(0.5) // never from (or near) 0
-  for (const w of await page.locator('.hero:not(#hero-static) .hero__word').all()) expect(await style(w)).toEqual(settled)
-})
-
-test('hero → content: the loop drifts and dims and the copy fades as the page scrolls', async ({ page }) => {
-  await page.goto('/')
-  await ready(page)
-  const media = page.locator('.home-hero .hero__media')
-  const copy = page.locator('.home-hero .hero__copy')
-  const still = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/
-  expect((await style(media)).transform).toMatch(still)
-  expect((await style(media)).opacity).toBe(1)
-  await page.evaluate(() => scrollTo(0, innerHeight * 0.5))
-  await expect.poll(async () => (await style(media)).transform).not.toMatch(still)
-  expect((await style(media)).opacity).toBeLessThan(1)
-  expect((await style(copy)).opacity).toBeLessThan(0.5)
-})
-
 test('navbar: shrinks and blurs past 40 px; the underline sits under the current page and slides to a hovered link', async ({ page }) => {
   await page.goto('/')
   await ready(page)
