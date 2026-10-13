@@ -7,8 +7,8 @@ main section[id] { scroll-margin-top: 68px; }
 /* the two stories */
 .story-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(20px, 3vw, 48px); }
 .story-card__link { display: grid; gap: 14px; color: var(--ink); text-decoration: none; }
-.story-card__img { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); background: var(--deep); transition: transform 0.6s var(--ease-out); }
-.story-card__link:hover .story-card__img { transform: scale(1.015); }
+.story-card__poster { display: block; overflow: hidden; border-radius: var(--radius); background: var(--deep); }
+.story-card__img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
 .story-card__title { margin-top: 8px; font-size: var(--fs-h3); line-height: 1.15; }
 .story-card__route { color: var(--ink-2); }
 .story-card__cta { color: var(--brass-ink); }
