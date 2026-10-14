@@ -44,6 +44,8 @@ export const film: Record<string, CaptionCopy[]> = {
   p2: [{ eyebrow: 'The Pond · 02', title: 'Every batch has a history.', body: 'We guarantee superior freshness, traceability, and product integrity across all markets.' }],
   p3: [{ eyebrow: 'The Pond · 03', title: 'Harvested into ice.', body: 'Shrimp are sourced directly from farms. Initial quality checks (size, freshness, health) are done before acceptance.', chips: SHRIMP_CHIPS }],
   intake: [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Our processing unit at Anandapuram, Visakhapatnam: a state-of-the-art shrimp processing facility equipped with internationally acclaimed modernized equipment.' }],
+  /** the same unit in words that fit fish too (#262): anywhere that is not the farmed-shrimp path */
+  'intake.any': [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Our processing unit at Anandapuram, Visakhapatnam, equipped with internationally acclaimed modernized equipment.' }],
   process: [
     { eyebrow: 'The Plant · Washing', title: 'Washed clean.', body: 'Thorough washing with clean, treated water to remove impurities.' },
     { eyebrow: 'The Plant · Grading', title: 'Graded to one standard.', body: 'Sorted by size, weight, and type. Grading ensures uniformity for export standards.' },
