@@ -153,10 +153,45 @@ def trolley(name, loc, rot, C):
 _LM = {}
 
 
+def _steel_crate_mesh(w=0.6, d=0.4, h=0.3, t=0.012):
+    """Stainless steel seafood crate (#256): straight pressed walls, rolled rim, two pressed beads, hand slots."""
+    import bmesh
+    bm = bmesh.new()
+    for v in bmesh.ops.create_cube(bm, size=1)['verts']:
+        v.co = Vector((v.co.x * w, v.co.y * d, v.co.z * h + h / 2))
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.normal.z > 0.9], context='FACES_ONLY')
+    ext = bmesh.ops.extrude_edge_only(bm, edges=[e for e in bm.edges if e.is_boundary])
+    for v in [g for g in ext['geom'] if isinstance(g, bmesh.types.BMVert)]:
+        v.co.x -= math.copysign(t, v.co.x)
+        v.co.y -= math.copysign(t, v.co.y)
+    ext2 = bmesh.ops.extrude_edge_only(bm, edges=[g for g in ext['geom'] if isinstance(g, bmesh.types.BMEdge)])
+    for v in [g for g in ext2['geom'] if isinstance(g, bmesh.types.BMVert)]:
+        v.co.z = t
+    bmesh.ops.contextual_create(bm, geom=[g for g in ext2['geom'] if isinstance(g, bmesh.types.BMEdge)])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
+    def bar(c, sz):
+        for v in bmesh.ops.create_cube(bm, size=1)['verts']:
+            v.co = Vector((v.co.x * sz[0] + c[0], v.co.y * sz[1] + c[1], v.co.z * sz[2] + c[2]))
+    for cx, cy, sx, sy in ((0, d / 2, w + 0.016, 0.016), (0, -d / 2, w + 0.016, 0.016), (w / 2, 0, 0.016, d),
+                           (-w / 2, 0, 0.016, d)):
+        bar((cx, cy, h - 0.008), (sx, sy, 0.016))                       # rolled rim
+        for z in (0.1, 0.18):
+            bar((cx, cy, z), (sx * 0.96 if sx > sy else 0.006, sy * 0.96 if sy > sx else 0.006, 0.012))   # beads
+    return L.bm_to_mesh(bm, 'PL_SteelCrate')
+
+
 def crate(name, color, loc, rot, parent, fill, seed, C=None):
+    """Every crate in the plant chain is stainless steel (#256); `color` is ignored."""
     if 'm' not in _LM:
         _LM['m'] = L.M()
-    o = L.crate(name, color, loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)   # library HDPE: bump + wear
+        _LM['mesh'] = _steel_crate_mesh()
+        _LM['mat'] = P.plain('PL_SteelCrate', (0.66, 0.68, 0.7), 0.36, 0.8, bump=0.04, bump_scale=120, aniso=0.4)
+        _LM['mesh'].materials.append(_LM['mat'])
+    o = L.crate(name, 'blue', loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)
+    o.data = _LM['mesh']
+    o.material_slots[0].link = 'OBJECT'
+    o.material_slots[0].material = _LM['mat']
     if fill:                                    # packed full: product and crushed ice heaped to the rim, readable
         for ch in o.children:                   # from a standing eye line (the library bed sits 10 cm down)
             if ch.name.startswith(name + '_'):
