@@ -84,8 +84,8 @@ def _curtains():
     m = bpy.data.materials.get('PL_StripCurtain')
     if m:
         pb = next(n for n in m.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
-        pb.inputs['Base Color'].default_value = (0.66, 0.57, 0.33, 1)    # aged, yellowed PVC
-        pb.inputs['Alpha'].default_value = 0.32
+        pb.inputs['Base Color'].default_value = (0.8, 0.85, 0.87, 1)     # clear PVC: no yellow cast when we pass through
+        pb.inputs['Alpha'].default_value = 0.2
 
 
 def _cap():
