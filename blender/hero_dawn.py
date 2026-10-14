@@ -10,7 +10,7 @@ from mathutils import Vector
 
 FRAMES = 144
 CAM = [(1, (-260.0, 2300.0, 120.0), (330.0, 120.0, 30.0)),        # (frame, camera, look-at)
-       (FRAMES, (-200.0, 1500.0, 92.0), (380.0, 100.0, 28.0))]
+       (FRAMES, (-200.0, 1500.0, 92.0), (220.0, 100.0, 28.0))]
 SUN_ELEV, SUN_AZ = math.radians(2.5), math.radians(40.0)          # azimuth from +Y (sea) toward +X (east)
 
 s = bpy.context.scene
