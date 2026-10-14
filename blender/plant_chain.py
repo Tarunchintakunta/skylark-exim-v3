@@ -244,12 +244,15 @@ def build_truck_reverse(C_people):
     R = T.reefer_truck('TRK_RigidReefer', crate_fn=lambda n, c, l, r, par, fill, s: crate(n, c, l, r, par, fill, s))
     T.drive(R, truck_state, 1, 300)
     T.set_reverse(R, [(1, False), (R_START - 4, True), (R_END + 6, False)])
-    # rear doors: closed until 262, swing into the plant 262..282 (R +, L -), held after
-    for door, sgn, f0 in ((R['door_r'], 1, 262), (R['door_l'], -1, 266)):
-        door.rotation_euler = (0, 0, 0)
-        door.keyframe_insert('rotation_euler', frame=f0)
-        door.rotation_euler = (0, 0, sgn * D(96))
-        door.keyframe_insert('rotation_euler', frame=f0 + 18)
+    # rear doors (#255): a swing door would open 0.96 m into the plant through the sealed dock, so the doors roll up
+    # into the box head instead (262..282, workers' hands ride the handles up); the truck never crosses the wall
+    for door, f0 in ((R['door_r'], 262), (R['door_l'], 266)):
+        z0 = door.location.z
+        for f, k in ((f0, 1.0), (f0 + 18, 0.05)):
+            door.scale = (1, 1, k)
+            door.location.z = z0 + (1 - k) * T.BH / 2          # the top edge stays put: it rolls up, not in
+            door.keyframe_insert('scale', frame=f)
+            door.keyframe_insert('location', index=2, frame=f)
     # parked trucks at two other bays (doors closed, no cargo, static)
     for nm, bx, col in (('TRK_Parked1', 0.0, (0.80, 0.81, 0.80)), ('TRK_Parked2', -9.2, (0.56, 0.62, 0.68))):
         T.reefer_truck(nm, loc=(bx, -3.08, 0), rot_z=D(-90), load=False, cab_color=col)
