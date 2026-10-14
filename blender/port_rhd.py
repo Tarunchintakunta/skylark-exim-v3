@@ -155,6 +155,11 @@ H.load(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 roots = sorted(o.name[:-len('_Driver')] for o in bpy.data.objects
                if o.name.endswith('_Driver') and bpy.data.objects.get(o.name[:-len('_Driver')] + '_Body'))
 print('RHD', [convert(r) for r in roots])
+# the camera skimmed 2-5 m over the gate canopy (f40-58) and the blue roof filled the frame: lift it 9 m there
+cam = bpy.data.objects['Camera']
+for f, dz in ((26, 0.0), (42, 9.0), (58, 9.0), (76, 0.0)):
+    cam.delta_location = (0, 0, dz)
+    cam.keyframe_insert('delta_location', index=2, frame=f)
 out = sys.argv[sys.argv.index('--') + 1] if '--' in sys.argv else None
 if out:
     bpy.ops.wm.save_as_mainfile(filepath=bpy.path.abspath(out))
