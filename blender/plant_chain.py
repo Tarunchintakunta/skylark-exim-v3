@@ -464,6 +464,26 @@ def fit_truck(cam, root, f0=1, f1=212, margin=0.04, step=1.06, rounds=40):
     print('FIT truck in frame:', 'ok' if not bad else 'still %d frames' % len(bad))
 
 
+def clear_lens_path(cam, f0=1, f1=288, radius=7.0):
+    """Remove trees and palms the camera would fly through or brush (a canopy filling the frame at f97)."""
+    from mathutils import Vector
+    s = bpy.context.scene
+    trees = [o for o in s.objects if o.type == 'MESH' and any(k in o.name for k in ('Tree', 'Palm', 'Veg', 'Shrub'))]
+    boxes = {o: [o.matrix_world @ Vector(c) for c in o.bound_box] for o in trees}
+    hit = set()
+    for f in range(f0, f1 + 1, 2):
+        s.frame_set(f)
+        p = cam.matrix_world.translation
+        for o, bb in boxes.items():
+            lo = Vector([min(v[i] for v in bb) - radius for i in range(3)])
+            hi = Vector([max(v[i] for v in bb) + radius for i in range(3)])
+            if all(lo[i] <= p[i] <= hi[i] for i in range(3)):
+                hit.add(o)
+    for o in hit:
+        o.hide_render = o.hide_viewport = True
+    print('lens path cleared:', sorted(o.name for o in hit))
+
+
 def shift_all(delta):
     """Shift every keyframe of every action by delta frames (scene frame = global frame + delta)."""
     acts = set()
@@ -531,6 +551,7 @@ def build(scene, out):
     cam = camera_truck_reverse()
     B.extend_camera(cam)
     fit_truck(cam, R['root'])
+    clear_lens_path(cam)
     import plant_cold
     if scene in plant_cold.BEATS:                     # coldchain: one shot per caption (lab / IQF / pack / store)
         s.camera = plant_cold.build(scene, C_people, cam)
