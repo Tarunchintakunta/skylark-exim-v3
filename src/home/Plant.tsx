@@ -6,7 +6,7 @@ import { reveal, rise } from '../motion/tokens'
 
 /** clip ids on the farmed-shrimp path (the plant stills) and the caption that goes with each */
 const STILLS = [
-  { id: 'hf-intake', copy: film.intake[0] },
+  { id: 'hf-intake', copy: film['intake.any'][0] },
   { id: 'hf-lab', copy: film.coldchain[0] },
   { id: 'hf-iqf', copy: film.coldchain[1] },
   { id: 'hf-store', copy: film.coldchain[3] },
