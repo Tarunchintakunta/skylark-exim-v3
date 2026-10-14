@@ -230,3 +230,53 @@ def build(scene, C, cam_main):
     if scene == 'p-store':
         return store_action(C)
     return cam_main
+
+
+COLD_KEYS = [   # p-cold (#257): from p-intake's last frame straight down the centre aisle (x = CX, clear above the
+    # belts), through the lab, freezer and cold-store doorways, then follows the pallet-truck worker up the aisle
+    (540, (7.95, 21.0, 3.85), (8.2, 31.0, 2.3)),
+    (600, (8.2, 31.5, 3.75), (8.2, 42.0, 2.5)),
+    (650, (8.2, 41.5, 3.1), (8.2, 52.0, 2.6)),
+    (700, (8.2, 50.5, 2.85), (8.2, 61.0, 2.5)),
+    (750, (8.2, 59.0, 2.7), (8.25, 70.0, 2.3)),
+    (790, (8.15, 65.6, 2.65), (8.4, 76.0, 2.1)),
+    (814, (8.0, 69.4, 2.6), (8.6, 80.0, 2.0)),
+]
+
+
+def cold_glide(cam):
+    """Replace every camera key after global 479 with COLD_KEYS; 479 itself stays, so frame 1 of p-cold is p-intake's
+    last frame. The cold-store crew's beat (built at 880+) is pulled forward 230 frames to be under way as we arrive."""
+    tgt = bpy.data.objects['CAM_Target']
+    for o in (cam, tgt):
+        for fc in T._fcurves(o.animation_data.action):
+            for kp in [k for k in fc.keyframe_points if k.co.x > 479.5][::-1]:
+                fc.keyframe_points.remove(kp)
+    for f, loc, t in COLD_KEYS:
+        cam.location = loc
+        cam.keyframe_insert('location', frame=f)
+        tgt.location = t
+        tgt.keyframe_insert('location', frame=f)
+    for o in (cam, tgt):
+        for fc in T._fcurves(o.animation_data.action):
+            for kp in fc.keyframe_points:
+                kp.interpolation = 'BEZIER'
+                kp.handle_left_type = kp.handle_right_type = 'AUTO_CLAMPED'
+            fc.update()
+    for o in bpy.data.objects:
+        if o.name.startswith(('HUM_Cold', 'IN_ColdLift')) and o.animation_data and o.animation_data.action:
+            for fc in T._fcurves(o.animation_data.action):
+                for kp in fc.keyframe_points:
+                    if kp.co.x >= 870:
+                        kp.co.x -= 230
+                        kp.handle_left.x -= 230
+                        kp.handle_right.x -= 230
+    SI.swing_strips([o for o in bpy.data.objects if o.name.startswith('IN_ColdStrip_')], [(778, 792, SI.CX, 0.9, -1)])
+    vs = bpy.context.scene.view_settings
+    for fc in T._fcurves(bpy.context.scene.animation_data.action):
+        if fc.data_path == 'view_settings.exposure':
+            for kp in [k for k in fc.keyframe_points if k.co.x > 479.5][::-1]:
+                fc.keyframe_points.remove(kp)
+    for f, ev in ((640, -0.5), (680, -0.72), (725, -0.6), (790, -0.45), (814, -0.45)):   # bright lab eased down
+        vs.exposure = ev
+        vs.keyframe_insert('exposure', frame=f)

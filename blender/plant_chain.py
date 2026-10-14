@@ -640,9 +640,12 @@ def build(scene, out):
                   (910, -0.5)):   # white hall: hold highlights; the bright lab eased down further
         vs.exposure = ev
         vs.keyframe_insert('exposure', frame=f)
+    if scene == 'p-cold':
+        import plant_cold
+        plant_cold.cold_glide(cam)
     f0, f1 = OFFSETS[scene]
     B.frame_people(s, (1, 909) if s.camera == cam else (f0, f1))
-    if scene in ('p-proc', 'p-freeze', 'p-lab', 'p-iqf', 'p-pack', 'p-store'):
+    if scene in ('p-proc', 'p-freeze', 'p-lab', 'p-iqf', 'p-pack', 'p-store', 'p-cold'):
         for cn in ('SET_PlantExterior',):
             bpy.data.collections[cn].hide_render = True
     shift_all(1 - f0)
