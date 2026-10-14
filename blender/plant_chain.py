@@ -398,12 +398,12 @@ def camera_truck_reverse():
         keys.append((f, (t.x + 9.3, -10.25, 3.1 + 0.4 * (f - 1) / 47), (t.x - 5.5, -9.6, 1.7)))
     t80 = tx(80)
     keys += [
-        (80, (23.5, -16.5, 6.0), (t80.x - 1.0, t80.y, 1.6)),
-        (120, (19.0, -21.5, 7.8), (8.0, -9.5, 1.6)),
-        (165, (12.5, -20.0, 5.6), (9.0, -6.0, 1.8)),
-        (200, (3.4, -13.4, 2.3), (7.5, -8.7, 1.2)),       # driver steps down from the cab
-        (222, (4.4, -12.6, 1.85), (7.9, -8.7, 0.75)),     # ... walks to the front wheel
-        (240, (4.0, -11.3, 1.6), (7.7, -8.9, 0.5)),      # chock goes under the tyre, held in frame
+        (80, (23.5, -16.5, 9.0), (t80.x - 1.0, t80.y, 1.6)),      # high enough to clear the palms by the gate
+        (120, (19.0, -21.5, 10.0), (8.0, -9.5, 1.6)),
+        (165, (13.5, -24.5, 7.2), (8.6, -6.5, 1.6)),      # wide: the whole truck stays in frame while reversing
+        (200, (2.5, -17.5, 4.2), (9.0, -6.0, 1.8)),       # driver's side, whole truck as it seals on the dock
+        (222, (4.7, -7.6, 2.7), (8.65, -8.1, 2.3)),       # parked: in on the driver at the right-hand wheel
+        (240, (4.9, -7.0, 2.75), (8.65, -8.0, 2.35)),
         (256, (4.6, -1.6, 2.6), (4.9, 3.0, 2.4)),         # at the door plane of bay 4.6: the dock seals fall outside the frame
         (272, (5.0, 1.9, 2.85), (8.8, 1.0, 2.45)),
         (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY - 0.45, -1.4, 2.15)),   # door opener's glove stays out of frame
