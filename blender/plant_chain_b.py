@@ -40,8 +40,8 @@ CAM_KEYS = [
 
 
 def _key_world_to_truck(R, wx, wy, wz):
-    """World point -> local coordinates of the docked truck root (origin (9.2, -3.08), heading -90 deg)."""
-    ox, oy = S.TRUCK_BAY, -3.08
+    """World point -> local coordinates of the docked truck root (origin (9.2, -3.14), heading -90 deg)."""
+    ox, oy = S.TRUCK_BAY, -3.14
     return (oy - wy, wx - ox, wz)
 
 

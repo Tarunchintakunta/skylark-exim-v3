@@ -79,7 +79,7 @@ def _bezier(p0, p1, p2, p3, n=80):
 
 FWD = Path(_forward_pts())
 F_STOP, R_START, R_END = 118, 128, 212
-TRUCK_END = (S.TRUCK_BAY, -3.08)
+TRUCK_END = (S.TRUCK_BAY, -3.14)         # 6 cm off the wall face: the chassis never enters it (#255)
 
 
 def _rev_path():
@@ -255,7 +255,7 @@ def build_truck_reverse(C_people):
             door.keyframe_insert('location', index=2, frame=f)
     # parked trucks at two other bays (doors closed, no cargo, static)
     for nm, bx, col in (('TRK_Parked1', 0.0, (0.80, 0.81, 0.80)), ('TRK_Parked2', -9.2, (0.56, 0.62, 0.68))):
-        T.reefer_truck(nm, loc=(bx, -3.08, 0), rot_z=D(-90), load=False, cab_color=col)
+        T.reefer_truck(nm, loc=(bx, -3.14, 0), rot_z=D(-90), load=False, cab_color=col)
     seat_driver(R, C_people)
     import plant_chain_b as B
 
