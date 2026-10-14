@@ -239,8 +239,8 @@ COLD_KEYS = [   # p-cold (#257): from p-intake's last frame straight down the ce
     (650, (8.2, 41.5, 3.1), (8.2, 52.0, 2.6)),
     (700, (8.2, 50.5, 2.85), (8.2, 61.0, 2.5)),
     (750, (8.2, 59.0, 2.7), (8.25, 70.0, 2.3)),
-    (790, (8.15, 65.6, 2.65), (8.4, 76.0, 2.1)),
-    (814, (8.0, 69.4, 2.6), (8.6, 80.0, 2.0)),
+    (790, (8.15, 65.6, 3.05), (8.4, 76.0, 2.2)),       # over the staged steel pallets inside the door
+    (814, (8.0, 69.4, 3.0), (8.6, 80.0, 2.1)),
 ]
 
 
@@ -272,6 +272,18 @@ def cold_glide(cam):
                         kp.handle_left.x -= 230
                         kp.handle_right.x -= 230
     SI.swing_strips([o for o in bpy.data.objects if o.name.startswith('IN_ColdStrip_')], [(778, 792, SI.CX, 0.9, -1)])
+    # the stacker works right in the lens path inside the door: she and her box stay out of this shot
+    for o in bpy.data.objects:
+        if o.name.startswith(('HUM_ColdStack', 'IN_ColdLift')):
+            for ob in [o] + list(o.children_recursive):
+                ob.hide_render = ob.hide_viewport = True
+    # cold-chain rule (#257): every box the glide passes reads as steel, the packing tables' boxes included
+    steel = S.MATS()['stainless']
+    for o in bpy.data.objects:
+        if o.type == 'MESH' and o.name.startswith(('IN_PackCartons', 'IN_PackPallet')) and 'Carton' in o.name:
+            for sl in o.material_slots:
+                sl.link = 'OBJECT'
+                sl.material = steel
     vs = bpy.context.scene.view_settings
     for fc in T._fcurves(bpy.context.scene.animation_data.action):
         if fc.data_path == 'view_settings.exposure':
