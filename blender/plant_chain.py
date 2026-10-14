@@ -21,7 +21,16 @@ import sklib as L            # noqa: E402
 from sktruck import Part     # noqa: E402
 
 REPO = os.path.dirname(HERE)
-OFFSETS = {'truck-reverse': (1, 288), 'p-intake': (288, 479), 'p-proc': (479, 766), 'p-freeze': (766, 1053),
+_person = H.person
+
+
+def _coat_person(name, outfit='plant', *a, **k):
+    """Plant and cold-store workers all wear the white coat, hairnet, mask and blue nitrile gloves (#256, #257)."""
+    return _person(name, 'plant_coat' if outfit in ('plant', 'coldstore') else outfit, *a, **k)
+
+
+H.person = _coat_person
+OFFSETS = {'truck-reverse': (1, 288), 'p-intake': (288, 479), 'p-cold': (479, 814), 'p-proc': (479, 766), 'p-freeze': (766, 1053),
            'p-lab': (766, 909), 'p-iqf': (910, 1053), 'p-pack': (910, 1053), 'p-store': (900, 1043),
            'p-docs': (1100, 1243)}
 D = math.radians
@@ -199,6 +208,17 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
                 if ch.name.endswith('_ice'):
                     ch.scale.z *= 1.8
     return o
+
+
+def white_coats():
+    """Hard rule (#256, #257): every plant coat is white. The library cotton picks a role colour per person (navy,
+    maroon, teal, green); collapse that palette to off-white with a slight per-person variation in brightness."""
+    m = bpy.data.materials.get('HUM_WhiteCotton')
+    for n in (m.node_tree.nodes if m else ()):
+        if n.type == 'VALTORGB':
+            for k, e in enumerate(n.color_ramp.elements):
+                v = 0.66 + 0.03 * (k % 3)
+                e.color = (v, v + 0.01, v, 1)
 
 
 def shrimp_fn(C):
@@ -601,6 +621,7 @@ def build(scene, out):
     if scene != 'p-docs':                             # round-8 contrast + wear pass (identical in every hall scene)
         plant_grade.apply(scene, lambda n, c, l, r, par, fill, sd: crate(n, c, l, r, par, fill, sd))
     B.apply_holds()                                   # contact grips, now every hand's action exists
+    white_coats()
     B.shadow_policy()
     P.hdri_world('kloofendal_48d_partly_cloudy_puresky_4k.hdr', strength=0.9, rot_deg=201, sun_elev=46, sun_az=145,
                  sun_energy=4.2, sun_color=(1.0, 0.95, 0.88))
