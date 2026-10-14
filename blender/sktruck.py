@@ -25,7 +25,7 @@ def _mats():
         'chassis': P.grime_paint('TRK_Chassis', (0.03, 0.03, 0.032), rough=0.45, grime=0.3, streak=0.2, coat=0.0, metal=0.3),
         'rubber': P.tex_mat('TRK_Tyre', 'Rubber004', scale=4.0, tint=(0.35, 0.35, 0.36), rough_mul=1.0, metal=0.0, normal=0.8),
         'rim': P.plain('TRK_Rim', (0.55, 0.56, 0.57), 0.3, 1.0),
-        'glass': P.plain('TRK_Glass', (0.02, 0.025, 0.03), 0.02, 0.0, coat=1.0),
+        'glass': P.plain('TRK_Glass', (0.10, 0.12, 0.13), 0.04, 0.0, coat=1.0, alpha=0.32),   # see-through: the driver reads
         'chrome': P.plain('TRK_Chrome', (0.9, 0.9, 0.92), 0.08, 1.0),
         'lamp_clear': P.plain('TRK_LampClear', (0.85, 0.85, 0.85), 0.05, 0.0, transmission=0.6, coat=1.0),
         'lamp_red': P.plain('TRK_LampRed', (0.55, 0.02, 0.01), 0.1, 0.0, coat=1.0, emission=(1, 0.03, 0.01), estr=0.6),
@@ -160,6 +160,25 @@ def _wheel_meshes(M):
         poly.use_smooth = True
     _SHARED['tyre'], _SHARED['rim'] = me, rme
     return me, rme
+
+
+def _cut_windows(cab, name, root, coll, cx1, W2):
+    """Shell the convex cab hull (4 cm walls) and cut the windscreen and side-window openings through it, so the
+    interior and the driver read through the glass panes, which overlap the openings by 3 cm all round."""
+    sol = cab.modifiers.new('shell', 'SOLIDIFY')
+    sol.thickness, sol.offset, sol.use_even_offset = 0.04, -1.0, True
+    p = Part()
+    a, b = Vector((cx1 + 0.02, 0, 1.80)), Vector((cx1 - 0.025, 0, 2.76))
+    ang = math.atan2(b.x - a.x, b.z - a.z)
+    for sy in (-1, 1):
+        p.box((a + b) / 2 + Vector((0, sy * 0.52, 0)), (0.4, 0.9, (b - a).length - 0.06), Euler((0, ang, 0)))
+        p.box((cx1 - 0.55, sy * W2, 2.33), (0.69, 0.4, 0.56))
+        p.box((cx1 - 1.3, sy * W2, 2.45), (0.29, 0.4, 0.29))
+    cut = p.make(name + '_WindowCut', None, root, coll=coll)
+    cut.hide_render = True
+    cut.display_type = 'WIRE'
+    bo = cab.modifiers.new('windows', 'BOOLEAN')
+    bo.operation, bo.solver, bo.object = 'DIFFERENCE', 'EXACT', cut
 
 
 def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, load=True, seed=1,
@@ -389,7 +408,8 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
                 (cx1 - 0.03, sy * (W2 - 0.02), 2.86), (cx1 + 0.02, sy * W2, 1.72), (cx1 + 0.02, sy * W2, 1.05)]
     p = Part()
     p.hull(pts)
-    p.make(name + '_Cab', M['white'], root, bevel=0.07, seg=4, coll=coll)
+    cab = p.make(name + '_Cab', M['white'], root, bevel=0.07, seg=4, coll=coll)
+    _cut_windows(cab, name, root, coll, cx1, W2)     # hollow cab with real window openings: the driver shows (#255)
     pts = []                                    # bonnet nose: its own hull so the screen corner stays concave
     for sy in (-1, 1):
         pts += [(cx1 - 0.1, sy * (W2 - 0.02), 1.62), (cx1 - 0.1, sy * (W2 - 0.02), 1.0),
@@ -513,14 +533,40 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     p.box((-0.355, -0.008, 0.43), (0.64, 0.012, 0.6))
     p.make(name + '_CabDoorGlass', M['glass'], cdh, coll=coll)
     R['cab_door'] = cdh
-    # cab interior silhouette (seats + dash) so the windows aren't empty
+    # cab interior, right-hand drive (Indian): the wheel, column and driver's seat on the right (-Y); dash, binnacle,
+    # gear lever in the middle, passenger seat on the left, a floor so the footwell reads through the glass
     p = Part()
-    p.box((cx1 - 0.35, 0, 1.75), (0.35, 2.1, 0.35))
+    p.box((cx1 - 0.3, 0, 1.94), (0.48, 2.2, 0.28))                          # dashboard
+    p.box((cx1 - 0.52, -0.55, 2.13), (0.14, 0.5, 0.12), Euler((0, 0.5, 0)))  # instrument binnacle, driver's side
+    p.box((cx1 - 0.7, 0.0, 1.62), (0.5, 0.36, 0.3))                         # centre console
+    p.cyl((cx1 - 0.75, 0.0, 1.77), (cx1 - 0.8, 0.0, 2.05), 0.014, 8)        # gear lever
+    p.box(((cx0 + cx1) / 2, 0, 1.38), (cx1 - cx0, 2.2, 0.04))               # cab floor
     for sy in (-0.55, 0.55):
-        p.box((cx0 + 0.55, sy, 1.75), (0.5, 0.55, 0.15))
-        p.box((cx0 + 0.32, sy, 2.15), (0.12, 0.5, 0.75))
-    p.cyl((cx1 - 0.55, -0.55, 2.05), (cx1 - 0.45, -0.55, 2.0), 0.2, 20)
+        p.box((cx0 + 0.55, sy, 1.75), (0.5, 0.52, 0.15))                    # seat cushion
+        p.box((cx0 + 0.3, sy, 2.2), (0.12, 0.5, 0.75), Euler((0, -0.12, 0)))   # backrest, slightly raked
+        p.box((cx0 + 0.24, sy, 2.68), (0.1, 0.28, 0.2))                     # headrest
+        p.box((cx0 + 0.55, sy, 1.55), (0.36, 0.36, 0.26))                   # seat base
     p.make(name + '_CabInterior', M['dark'], root, coll=coll)
+    # steering wheel on the right: rim ring, three spokes, hub, column into the dash; raked like a cab-over wheel
+    wc = Vector((cx0 + 1.02, -0.55, 2.2))
+    tilt = Euler((0, math.radians(-52), 0))            # wheel plane leans back toward the driver
+    u, v = tilt.to_matrix() @ Vector((0, 1, 0)), tilt.to_matrix() @ Vector((0, 0, 1))
+    p = Part()
+    n, rr = 28, 0.235
+    ring = [wc + u * (rr * math.cos(2 * math.pi * k / n)) + v * (rr * math.sin(2 * math.pi * k / n)) for k in range(n)]
+    for k in range(n):
+        p.cyl(ring[k], ring[(k + 1) % n], 0.018, 8)
+    for ang in (math.pi / 2 + 0.0, math.pi * 7 / 6, math.pi * 11 / 6):
+        p.cyl(wc, wc + u * (rr * math.cos(ang)) + v * (rr * math.sin(ang)), 0.012, 6)
+    nrm = tilt.to_matrix() @ Vector((1, 0, 0))
+    p.cyl(wc - nrm * 0.02, wc + nrm * 0.05, 0.05, 16)                     # hub
+    p.cyl(wc + nrm * 0.05, Vector((cx1 - 0.5, -0.55, 1.98)), 0.035, 10)    # column
+    p.make(name + '_SteeringWheel', M['dark'], root, smooth=True, coll=coll)
+    R['wheel_grips'] = []
+    for side, ang in (('L', math.radians(20)), ('R', math.radians(160))):   # ten-to-two; +Y is the driver's left
+        g = _empty('%s_Grip%s' % (name, side), wc + u * (rr * math.cos(ang)) + v * (rr * math.sin(ang)), root, coll)
+        R['wheel_grips'].append(g)
+    R['seat_driver'] = Vector((cx0 + 0.52, -0.55, 1.9))                    # driver's hip point, truck-local
 
     # ---------------- wheels
     tyre, rim = _wheel_meshes(M)
