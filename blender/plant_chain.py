@@ -250,64 +250,11 @@ def build_truck_reverse(C_people):
         door.keyframe_insert('rotation_euler', frame=f0)
         door.rotation_euler = (0, 0, sgn * D(96))
         door.keyframe_insert('rotation_euler', frame=f0 + 18)
-    # cab door opens 198..208, stays open
-    cd = R['cab_door']
-    cd.rotation_euler = (0, 0, 0)
-    cd.keyframe_insert('rotation_euler', frame=198)
-    cd.rotation_euler = (0, 0, D(-62))
-    cd.keyframe_insert('rotation_euler', frame=208)
     # parked trucks at two other bays (doors closed, no cargo, static)
     for nm, bx, col in (('TRK_Parked1', 0.0, (0.80, 0.81, 0.80)), ('TRK_Parked2', -9.2, (0.56, 0.62, 0.68))):
         T.reefer_truck(nm, loc=(bx, -3.08, 0), rot_z=D(-90), load=False, cab_color=col)
-
-    # driver (hi-vis), steps down, places a chock at the front wheel, stands by the cab
-    drv = H.person('HUM_Driver', 'driver', 'male', coll=C_people, seed=11)
-    drv.location = (7.85, -8.85, 0.92)
-    drv.rotation_euler = (0, 0, D(-90))
-    for f in (1, 202):
-        drv.keyframe_insert('location', frame=f)
-        drv.keyframe_insert('rotation_euler', frame=f)
-    key_hide(drv, [(1, True), (203, False)])
-    for c in drv.children:
-        key_hide(c, [(1, True), (203, False)])
-    H.set_pose(drv, {'thigh.L': (30, 4, 0), 'shin.L': (-40, 0, 0), 'upperarm.R': (60, -10, 0), 'forearm.R': (40, 0, 0),
-                     'upperarm.L': (20, -15, 0), 'forearm.L': (30, 0, 0), 'spine': (8, 0, 0)}, 203)
-    drv.location = (7.3, -8.9, 0.45)
-    drv.keyframe_insert('location', frame=209)
-    H.set_pose(drv, {'thigh.R': (30, 4, 0), 'shin.R': (-40, 0, 0), 'upperarm.R': (50, -10, 0), 'forearm.R': (40, 0, 0),
-                     'spine': (6, 0, 0)}, 209)
-    drv.location = (7.05, -8.95, 0.0)
-    drv.keyframe_insert('location', frame=215)
-    H.set_pose(drv, H.POSES['stand'], 215)
-    # turn toward the wheel, crouch, place the chock, stand up and stay by the cab
-    drv.rotation_euler = (0, 0, D(-90))
-    drv.keyframe_insert('rotation_euler', frame=215)
-    drv.rotation_euler = (0, 0, D(-242))
-    drv.keyframe_insert('rotation_euler', frame=222)
-    drv.location = (7.45, -9.05, 0.0)
-    drv.keyframe_insert('location', frame=222)
-    crouch = dict(H.POSES['crouch'], upperarm=(45, -6, 0), forearm=(30, 0, 0))   # library crouch: pelvis down
-    H.set_pose(drv, dict(H.POSES['stand'], root_dz=0.0), 222)                     # (root_dz), knees together
-    H.set_pose(drv, crouch, 232)
-    H.set_pose(drv, crouch, 240)
-    H.set_pose(drv, dict(H.POSES['stand'], root_dz=0.0), 250)
-    drv.rotation_euler = (0, 0, D(-120))
-    drv.keyframe_insert('rotation_euler', frame=262)
-    H.set_pose(drv, {'upperarm': (6, -22, 0), 'forearm': (20, 0, 0), 'head': (4, 0, 8)}, 300)
-    ch = chock('TRK_Chock', C_people)
-    ch.rotation_euler = (0, 0, D(-90))
-    for f, loc in ((222, (7.78, -8.88, 0.85)), (228, (7.95, -8.7, 0.45)), (234, (8.12, -8.47, 0.03)),
-                   (236, (8.15, -8.42, 0.0))):
-        ch.location = loc
-        ch.keyframe_insert('location', frame=f)
-    key_hide(ch, [(1, True), (222, False)])
-    ik = drv.pose.bones['forearm.R'].constraints.new('IK')         # his hand carries the chock to the tyre
-    ik.target, ik.chain_count, ik.use_tail = ch, 2, True
-    for f, v in ((1, 0.0), (220, 0.0), (223, 1.0), (237, 1.0), (242, 0.0)):
-        ik.influence = v
-        ik.keyframe_insert('influence', frame=f)
+    seat_driver(R, C_people)
     import plant_chain_b as B
-    B.grip_on(drv, 'R', ch, 230, 0.8)
 
     # dock workers: two open the rear doors from inside (hands on the door handles via IK), one pushes a trolley
     # across, two wait with empty trolleys, one at the strip curtain
@@ -391,6 +338,29 @@ def build_truck_reverse(C_people):
     w4.rotation_euler = (0, 0, D(200))
     H.jitter(w4, H.POSES['look'], 1, 300, every=24, amp=4, seed=4)
     return R
+
+
+def seat_driver(R, C):
+    """Indian right-hand drive (#255): the driver sits on the right (-Y) seat, hands on the wheel at ten-to-two,
+    visible through the glass for the whole drive; he checks the right mirror while reversing and stays in the cab."""
+    for o in R['cab_door'].children_recursive:          # the door never opens now: the cab body's own window and
+        o.hide_render = o.hide_viewport = True          # seams show, no doubled window frame
+    drv = H.person('HUM_Driver', 'driver', 'male', coll=C, seed=11)
+    hip = R['seat_driver']
+    drv.parent = R['root']
+    drv.location = (hip.x + 0.042, hip.y, hip.z - 0.903)          # rig hips sit 0.903 m above its origin
+    drv.rotation_euler = (0, 0, D(90))                            # rig faces -Y; the truck faces +X
+    sit = {'thigh.L': (88, -4, 0), 'thigh.R': (88, 4, 0), 'shin.L': (-84, 0, 0), 'shin.R': (-84, 0, 0),
+           'foot.L': (6, 0, 0), 'foot.R': (6, 0, 0), 'spine': (-6, 0, 0), 'chest': (4, 0, 0),
+           'upperarm.L': (48, -10, 0), 'upperarm.R': (48, -10, 0), 'forearm.L': (40, 0, 0), 'forearm.R': (40, 0, 0)}
+    look = lambda yaw: dict(sit, neck=(0, yaw * 0.4, 0), head=(4, yaw * 0.6, 0))
+    for f, yaw in ((1, 0), (96, 0), (112, -38), (200, -38), (214, 0), (300, 0)):   # right mirror while reversing
+        H.set_pose(drv, look(yaw), f)
+    for g, sd in zip(R['wheel_grips'], ('L', 'R')):
+        c = drv.pose.bones['forearm.' + sd].constraints.new('IK')
+        c.target, c.chain_count, c.use_tail = g, 2, True
+        H.grip(drv, sd, curl=0.85)
+    return drv
 
 
 def _lift(arm_obj, z):
