@@ -428,6 +428,43 @@ def camera_truck_reverse():
     return cam
 
 
+def fit_truck(cam, root, f0=1, f1=212, margin=0.04, step=1.06, rounds=40):
+    """Hard rule (#255): the whole truck stays in frame while it arrives and reverses. Dolly each camera key in that
+    range back along its view line until every frame between keys keeps the truck's bounds `margin` inside the frame."""
+    from bpy_extras.object_utils import world_to_camera_view as w2c
+    s = bpy.context.scene
+    tgt = bpy.data.objects['CAM_Target']
+    meshes = [o for o in root.children_recursive if o.type == 'MESH' and not o.hide_render]
+    keys = sorted({int(round(k.co.x)) for fc in T._fcurves(cam.animation_data.action) for k in fc.keyframe_points
+                   if fc.data_path == 'location'})
+    span = [k for k in keys if k <= f1]
+    span = span + [k for k in keys if k > f1][:1]
+
+    def worst(f):
+        s.frame_set(f)
+        m = 1.0
+        for o in meshes:
+            for c in o.bound_box:
+                v = w2c(s, cam, o.matrix_world @ Vector(c))
+                m = min(m, v.x, v.y, 1 - v.x, 1 - v.y)
+        return m
+    for _ in range(rounds):
+        bad = [f for f in range(f0, f1 + 1) if worst(f) < margin]
+        if not bad:
+            break
+        push = set()
+        for f in bad:
+            lo = max([k for k in span if k <= f], default=span[0])
+            hi = min([k for k in span if k >= f], default=span[-1])
+            push.update((lo, hi) if hi <= f1 else (lo,))
+        for k in push:
+            s.frame_set(k)
+            c, t = cam.location.copy(), tgt.location.copy()
+            cam.location = t + (c - t) * step
+            cam.keyframe_insert('location', frame=k)
+    print('FIT truck in frame:', 'ok' if not bad else 'still %d frames' % len(bad))
+
+
 def shift_all(delta):
     """Shift every keyframe of every action by delta frames (scene frame = global frame + delta)."""
     acts = set()
@@ -494,6 +531,7 @@ def build(scene, out):
     B.build_interior_people(C_people, R)
     cam = camera_truck_reverse()
     B.extend_camera(cam)
+    fit_truck(cam, R['root'])
     import plant_cold
     if scene in plant_cold.BEATS:                     # coldchain: one shot per caption (lab / IQF / pack / store)
         s.camera = plant_cold.build(scene, C_people, cam)
