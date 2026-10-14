@@ -396,7 +396,8 @@ def freeze_crew(C, rnd, crate_fn):
     for sx in (-0.28, 0.28):
         q.cyl((sx - 0.04, 1.2, 0.04), (sx + 0.04, 1.2, 0.04), 0.035, 12)
     q.make('IN_ColdJackWheels', P.plain('IN_JackWheel', (0.05, 0.05, 0.06), 0.6), pt, coll=C)
-    S.pallet('IN_ColdJackPallet', (0, 0.78, 0.09), M, C, 0.0, cartons=3).parent = pt
+    S.pallet('IN_ColdJackPallet', (0, 0.78, 0.09), dict(M, wood=M['galv'], carton=M['stainless']), C, 0.0,
+             cartons=3).parent = pt                                   # steel pallet of steel boxes (#257)
     H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 74.0))], stride=0.5,   # stops ~4 m short of the store camera
                  base={'upperarm.L': (4, -24, 0), 'forearm.L': (16, 0, 0)}, arms=False, step=2)
     th = bpy.data.objects.new('HUM_Cold_Tow', None)
@@ -418,7 +419,7 @@ def freeze_crew(C, rnd, crate_fn):
     C.objects.link(cb)
     p = Part()
     p.box((0, 0, 0), (0.4, 0.3, 0.26))
-    p.make('IN_ColdLiftCartonBox', bpy.data.materials.get('IN_CartonKraft') or M['wood'], cb, bevel=0.008, coll=C)
+    p.make('IN_ColdLiftCartonBox', M['stainless'], cb, bevel=0.008, coll=C)
     for f, loc in ((880, (CX - 0.75, 66.75, DZ + 1.48)), (930, (CX - 0.75, 66.75, DZ + 1.48)),
                    (960, (CX - 0.45, 66.9, DZ + 1.12)), (1000, (CX - 0.45, 67.25, DZ + 1.12)),
                    (1030, (CX + 0.55, 67.35, DZ + 1.47)), (1070, (CX + 0.55, 67.35, DZ + 1.47))):

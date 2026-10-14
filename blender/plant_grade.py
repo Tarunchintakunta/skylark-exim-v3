@@ -206,7 +206,7 @@ def _cold():
         nt.links.new(mr.outputs[0], pb.inputs['Alpha'])
         pb.inputs['Base Color'].default_value = (0.78, 0.83, 0.87, 1)
         fm['r8'] = True
-    for n in ('IN_ColdCartons', 'IN_ColdStaged', 'IN_ColdWrap'):          # wrap dents with its cartons
+    for n in ():                         # steel boxes (#257) don't dent like cartons
         o = bpy.data.objects.get(n)
         if o is None or o.modifiers.get('dent'):
             continue

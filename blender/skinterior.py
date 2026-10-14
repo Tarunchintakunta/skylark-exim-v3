@@ -958,7 +958,7 @@ def cold_store(C, M, rnd):
     p.box((CX, y0 - 0.25, DZ + 3.72), (5.8, 0.15, 0.15))
     p.make('IN_ColdDoorRail', M['stainless'], None, coll=C)
     strips = _strip_curtain('IN_ColdStrip', CX - 1.75, CX + 1.75, y0 + 0.18, DZ, DZ + 3.55, C, M)
-    # racks: uprights + beams (orange beams, blue uprights), five levels, both sides
+    # racks: galvanised steel uprights + beams (#257), five levels, both sides
     up = Part()
     bm_ = Part()
     fr = Part()
@@ -972,10 +972,10 @@ def cold_store(C, M, rnd):
             for dx in (0.0, side * 1.2):
                 bm_.box((xr + dx, 66.5 + 8.4, z), (0.06, 16.8, 0.12))
                 fr.box((xr + dx, 66.5 + 8.4, z + 0.065), (0.07, 16.8, 0.008))
-    up.make('IN_RackUprights', M['rack_blue'], None, coll=C)
-    bm_.make('IN_RackBeams', M['rack_orange'], None, coll=C)
+    up.make('IN_RackUprights', M['galv'], None, coll=C)
+    bm_.make('IN_RackBeams', M['galv'], None, bevel=0.004, coll=C)
     fr.make('IN_RackFrost', M['frost'], None, coll=C)
-    # wrapped pallets of cartons on every level
+    # galvanised steel pallets of stacked stainless steel boxes on every level (#257: no cardboard, no plastic)
     cart = Part()
     wrap = Part()
     wood = Part()
@@ -991,30 +991,21 @@ def cold_store(C, M, rnd):
                 h = rnd.choice((0.55, 0.65, 0.7, 0.75))
                 cart.box((xc, yy, z + 0.14 + h / 2), (0.98, 1.16, h))
                 wrap.box((xc, yy, z + 0.14 + h / 2), (1.0, 1.18, h + 0.02))
-    wood.make('IN_ColdPalletWood', M['wood'], None, coll=C)
-    cart.make('IN_ColdCartons', P.plain('IN_CartonKraft', (0.5, 0.38, 0.24), 0.7, bump=0.15, bump_scale=20), None,
-              bevel=0.01, coll=C)
-    wrap.make('IN_ColdWrap', P.plain('IN_StretchWrapCold', (0.82, 0.85, 0.88), 0.15, alpha=0.25, coat=0.8, bump=0.25,
-                                      bump_scale=6), None, coll=C)
-    lab_ = Part()
-    lab2 = Part()
-    for side, xr in ((-1, CX - 2.6), (1, CX + 2.6)):                 # coloured product labels on the carton faces
+    wood.make('IN_ColdPalletWood', M['galv'], None, coll=C)
+    cart.make('IN_ColdCartons', M['stainless'], None, bevel=0.012, coll=C)
+    seam = Part()                                                   # box lids: a dark seam line under each lid
+    for side, xr in ((-1, CX - 2.6), (1, CX + 2.6)):
         for k in range(7):
-            yy = 67.7 + k * 2.4
             for lv in range(5):
-                z = DZ + 0.26 + lv * 0.98
-                xf = xr + side * 0.6 - side * 0.5
-                (lab_ if (k + lv) % 2 else lab2).box((xf - side * 0.012, yy + rnd.uniform(-0.3, 0.3), z + 0.42),
-                                                     (0.004, 0.2, 0.14))
-    lab_.make('IN_ColdLabelsBlue', P.plain('IN_LabelBlueBand', (0.08, 0.2, 0.45), 0.5), None, coll=C)
-    lab2.make('IN_ColdLabelsOrange', P.plain('IN_LabelOrangeBand', (0.75, 0.35, 0.06), 0.5), None, coll=C)
+                seam.box((xr + side * 0.6, 67.7 + k * 2.4, DZ + 0.26 + lv * 0.98 + 0.5), (1.0, 1.18, 0.012))
+    seam.make('IN_ColdBoxSeams', M['dark'], None, coll=C)
     st = Part()
     stw = Part()
     for k, (xx, yy) in enumerate(((CX - 0.8, 66.6), (CX + 0.9, 67.4), (CX - 0.7, 69.4))):   # staged in the aisle
         stw.box((xx, yy, DZ + 0.07), (1.0, 1.2, 0.14))
         st.box((xx, yy, DZ + 0.14 + 0.6), (0.98, 1.16, 1.2))
-    stw.make('IN_ColdStagedWood', M['wood'], None, coll=C)
-    st.make('IN_ColdStaged', bpy.data.materials['IN_CartonKraft'], None, bevel=0.01, coll=C)
+    stw.make('IN_ColdStagedWood', M['galv'], None, coll=C)
+    st.make('IN_ColdStaged', M['stainless'], None, bevel=0.012, coll=C)
     # cold store lights: cooler and a touch dimmer
     for k in range(4):
         _light('IN_ColdArea%d' % k, (CX, 68 + k * 4.2, CEIL - 0.3), (3, 3), 260, C, color=(0.88, 0.94, 1.0))
