@@ -402,8 +402,7 @@ def camera_truck_reverse():
         (120, (19.0, -21.5, 10.0), (8.0, -9.5, 1.6)),
         (165, (13.5, -24.5, 7.2), (8.6, -6.5, 1.6)),      # wide: the whole truck stays in frame while reversing
         (200, (2.5, -17.5, 4.2), (9.0, -6.0, 1.8)),       # driver's side, whole truck as it seals on the dock
-        (222, (4.7, -7.6, 2.7), (8.65, -8.1, 2.3)),       # parked: in on the driver at the right-hand wheel
-        (240, (4.9, -7.0, 2.75), (8.65, -8.0, 2.35)),
+        (228, (4.9, -8.6, 2.8), (8.65, -8.0, 2.3)),       # parked: beside the cab, the driver at the right-hand wheel
         (256, (4.6, -1.6, 2.6), (4.9, 3.0, 2.4)),         # at the door plane of bay 4.6: the dock seals fall outside the frame
         (272, (5.0, 1.9, 2.85), (8.8, 1.0, 2.45)),
         (288, (8.95, 4.35, 2.85), (S.TRUCK_BAY - 0.45, -1.4, 2.15)),   # door opener's glove stays out of frame
