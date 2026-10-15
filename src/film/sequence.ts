@@ -56,6 +56,13 @@ export function loadOrder(frames: number, density = DENSITY): number[] {
 let worker: Worker | null = null
 const sequences = new Map<string, Sequence>()
 
+// what each sequence holds, for tests (navigator.webdriver) and ?debug only
+if (typeof navigator !== 'undefined' && (navigator.webdriver || new URLSearchParams(location.search).has('debug')))
+  Object.defineProperty(globalThis, '__sequences', {
+    get: () =>
+      [...sequences.values()].map((s) => ({ id: s.spec.id, frames: s.spec.frames, progress: +s.progress.toFixed(3), complete: s.complete, bytes: s.loaded })),
+  })
+
 function decoder() {
   if (worker) return worker
   worker = new Worker(new URL('./decode.worker.ts', import.meta.url), { type: 'module' })

@@ -22,26 +22,30 @@ const pixels = (page: Page) =>
 const visible = (page: Page, sel: string) =>
   page.locator(`.home-hero .hero ${sel}`).first().evaluate((el) => getComputedStyle(el).visibility === 'visible' && +getComputedStyle(el).opacity > 0.9)
 
-for (const [label, vp, set] of [
-  ['desktop', { width: 1440, height: 900 }, 'desktop'],
-  ['phone', { width: 375, height: 812 }, 'mobile'],
+for (const [label, vp, set, frames] of [
+  ['desktop', { width: 1440, height: 900 }, '1920', 60],
+  ['phone', { width: 375, height: 812 }, 'm', 48],
 ] as const) {
-  test(`${label}: frames load first, then every 8th, then the gaps, from the ${set} set`, async ({ browser }) => {
+  test(`${label}: frames load coarse first and each one only once, from the ${set} set`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: vp })
     const page = await ctx.newPage()
     const order: number[] = []
     page.on('request', (r) => {
-      const m = r.url().match(new RegExp(`/sequence/hero/${set}/hero_(\\d+)\\.webp$`))
+      const m = r.url().match(new RegExp(`/media/hero-seq_${set}_(\\d+)\\.(avif|webp)`))
       if (m) order.push(+m[1] - 1)
     })
     await page.goto('/')
     await ready(page)
-    await page.mouse.wheel(0, 20)
-    await expect.poll(() => new Set(order).size, { timeout: 20_000 }).toBe(60)
-    const seq = [...new Set(order)]
-    expect(seq[0]).toBe(0)
-    const keys = seq.slice(0, 8)
-    expect(keys.every((i) => i % 8 === 0)).toBe(true)
+    // standing still at the top: the coarse passes come first, so after a handful of frames the whole set is already
+    // covered at low density (any scroll position has a frame within a few indices) rather than filled from the start
+    await expect.poll(() => new Set(order).size, { timeout: 30_000 }).toBeGreaterThanOrEqual(8)
+    const coarse = [...new Set(order)].slice(0, 8).sort((a, b) => a - b)
+    expect(coarse[0]).toBe(0)
+    const gaps = coarse.slice(1).map((v, i) => v - coarse[i])
+    expect(Math.max(...gaps, frames - 1 - coarse[coarse.length - 1])).toBeLessThanOrEqual(Math.ceil(frames / 3))
+    // and in the end the whole set is in, each frame fetched exactly once (the bitmap cap costs a decode, not a request)
+    await expect.poll(() => new Set(order).size, { timeout: 60_000 }).toBe(frames)
+    expect(order.length).toBe(new Set(order).size)
     await ctx.close()
   })
 
@@ -61,8 +65,8 @@ for (const [label, vp, set] of [
     const at0 = await pixels(page)
     expect(await frame()).toBeLessThanOrEqual(1)
     await heroScroll(page, 0.5)
-    await expect.poll(frame, { timeout: 10_000 }).toBeGreaterThan(25)
-    await expect.poll(frame).toBeLessThan(35)
+    await expect.poll(frame, { timeout: 10_000 }).toBeGreaterThan(frames * 0.4)
+    await expect.poll(frame).toBeLessThan(frames * 0.6)
     expect(await pixels(page)).not.toBe(at0)
     await heroScroll(page, 0)
     await expect.poll(frame, { timeout: 10_000 }).toBeLessThanOrEqual(1)
@@ -101,13 +105,13 @@ test('the static headline (LCP) paints before any script and React takes over in
   for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(after[k] - before[k])).toBeLessThan(1.5)
 })
 
-test('resize from landscape to portrait swaps to the mobile set', async ({ page }) => {
+test('resize from landscape to portrait swaps to the portrait set', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/')
   await ready(page)
-  await expect(page.locator('.seq')).toHaveAttribute('data-set', 'desktop')
+  await expect(page.locator('.seq')).toHaveAttribute('data-set', '1920')
   await page.setViewportSize({ width: 768, height: 1024 })
-  await expect(page.locator('.seq')).toHaveAttribute('data-set', 'mobile')
+  await expect(page.locator('.seq')).toHaveAttribute('data-set', 'm')
   await page.mouse.wheel(0, 20)
   await expect(page.locator('.seq')).toHaveAttribute('data-painted', 'true')
 })

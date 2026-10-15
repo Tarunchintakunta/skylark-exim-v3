@@ -17,7 +17,8 @@ tmp=$(mktemp -d "${TMPDIR:-/tmp}/frames.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
 
 # set_frames <tier> <frames> <ffmpeg filter> <budget bytes>
 set_frames() {
-  local tier=$1 n=$2 vf=$3 budget=$4 d="$tmp/$tier"
+  local tier=$1 n=$2 vf=$3 budget=$4
+  local d="$tmp/$tier"
   mkdir -p "$d"
   ffmpeg -nostdin -v error -y -i "$in" -vf "fps=$n/$dur,$vf" -frames:v "$n" "$d/%03d.png"
   rm -f "public/media/${name}-seq_${tier}_"*.avif "public/media/${name}-seq_${tier}_"*.webp
@@ -27,7 +28,7 @@ set_frames() {
       for f in "$d"/*.png; do
         out="public/media/${name}-seq_${tier}_$(basename "${f%.png}").$ext"
         if [ "$ext" = avif ]; then
-          ffmpeg -nostdin -v error -y -i "$f" -vf format=yuv420p -c:v libsvtav1 -preset 8 -crf "$q" -frames:v 1 "$out"
+          ffmpeg -nostdin -v error -y -i "$f" -vf format=yuv420p -c:v libsvtav1 -preset 8 -crf "$q" -frames:v 1 "$out" 2>&1 | grep -v '^Svt' || true
         else
           cwebp -quiet -m 6 -q "$q" "$f" -o "$out"
         fi

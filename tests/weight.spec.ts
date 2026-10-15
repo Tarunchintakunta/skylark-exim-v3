@@ -2,11 +2,13 @@ import { expect, test } from '@playwright/test'
 import { statSync, readdirSync } from 'node:fs'
 import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 
-// TRD §13 / ASSETS_SPEC budgets. Transferred bytes from CDP, initial (loader done) and after a full scroll.
-// /story per path, counted once the warm cache has the whole path; the homepage (#233) has the same initial budgets and
-// a 6 MB full scroll.
+// TRD §13 / ASSETS_SPEC budgets (#264). Transferred bytes from CDP, initial (the page ready) and after a full scroll.
+// /story per path, counted once the warm cache has the whole path. Per tier, because a device downloads one tier: a
+// 2560 retina desktop 40 MB, a 1920 desktop 25 MB, a phone 12 MB. The homepage carries the hero's frame set, so it has
+// its own 8 MB full-scroll budget.
 const BUDGET = { desktop: { initial: 3e6, full: 25e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
-const HOME_FULL = 6e6
+const RETINA_FULL = 40e6
+const HOME_FULL = 8e6
 const MB = (b: number) => +(b / 1e6).toFixed(2)
 
 /**
@@ -20,6 +22,8 @@ const CAPS: [RegExp, number][] = [
   // product stills (#195): phones get up to the 960 (#hd), under 150 KB
   [/\/prod-[^/]+_(480|640)\.(avif|webp)$/, 70],
   [/\/prod-[^/]+_960\.(avif|webp)$/, 150],
+  // the hero's scroll-sequence frames (#249, #264): one frame is never worth more than the LCP still
+  [/\/hero-seq_[^/]+\.(avif|webp)$/, 120],
   [/\/hero-loop_m\.avif$/, 60],
   [/\/hero-loop_[^/]+\.(avif|webp)$/, 120],
   // WebP fallbacks of three busy 1920 posters land over 350 KB at q 70, the quality floor (357 / 367 / 351 KB); browsers
@@ -80,4 +84,28 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       expect(full).toBeLessThanOrEqual(path === 'home' ? HOME_FULL : BUDGET[profile].full)
     })
   }
+}
+
+// the 2560 tier (#264): a retina desktop downloads the largest files the site serves, inside its own 40 MB budget
+for (const path of ['ocean', 'pond']) {
+  test(`weight retina 2560 ${path}`, async ({ browser }) => {
+    test.setTimeout(600_000)
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 })
+    const page = await ctx.newPage()
+    const cdp = await ctx.newCDPSession(page)
+    await cdp.send('Network.enable')
+    await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
+    let bytes = 0
+    cdp.on('Network.loadingFinished', (e) => (bytes += e.encodedDataLength))
+    cdp.on('Network.loadingFailed', () => {})
+    await page.goto(`/story#${path}`)
+    await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
+    await scrollThrough(page, false, 900)
+    await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { progress: number } }).__warmCache?.progress === 1, null, { timeout: 300_000 })
+    await page.waitForTimeout(3000)
+    const tier = await page.evaluate(() => document.querySelector<HTMLVideoElement>('video.stage__video')?.currentSrc ?? '')
+    await ctx.close()
+    console.log('retina', path, `full scroll ${MB(bytes)} MB`, tier.replace(/^.*\/media\//, ''))
+    expect(bytes).toBeLessThanOrEqual(RETINA_FULL)
+  })
 }

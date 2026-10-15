@@ -12,22 +12,26 @@ import './sequence.css'
  * This component owns the markup, the ScrollTrigger that turns scroll into a position, and the poster that stands in
  * until the first frame has painted (the poster alone with reduced motion).
  */
-export type FrameSet = 'desktop' | 'mobile'
+export type FrameSet = 1920 | 'm'
 
 export interface ScrollSequenceProps {
   src: (set: FrameSet, index: number) => string
   frames: Record<FrameSet, number>
+  /** resolved before the first frame URL is built (the hero waits for the AVIF probe) */
+  wait?: Promise<unknown>
+  /** the first frame as an image, shown until the canvas has painted and the only thing reduced motion gets */
+  poster: ReactNode
   length?: string
   className?: string
   sectionRef?: Ref<HTMLElement>
-  alt?: string
   children?: ReactNode
 }
 
-const PORTRAIT = '(orientation: portrait)'
-const pickSet = (): FrameSet => (matchMedia(PORTRAIT).matches ? 'mobile' : 'desktop')
+/** phones held upright get the 810×1440 portrait crop, as the clips do (src/config/hero.ts PORTRAIT) */
+const PORTRAIT = '(orientation: portrait) and (max-width: 819px), (orientation: portrait) and (pointer: coarse)'
+const pickSet = (): FrameSet => (matchMedia(PORTRAIT).matches ? 'm' : 1920)
 
-export function ScrollSequence({ src, frames, length = '300vh', className = '', sectionRef, alt = '', children }: ScrollSequenceProps) {
+export function ScrollSequence({ src, frames, wait, poster, length = '300vh', className = '', sectionRef, children }: ScrollSequenceProps) {
   const [set, setSet] = useState<FrameSet>(pickSet)
   const [painted, setPainted] = useState(false)
   const section = useRef<HTMLElement | null>(null)
@@ -45,7 +49,7 @@ export function ScrollSequence({ src, frames, length = '300vh', className = '', 
     if (still) return
     const el = section.current!
     const cv = canvas.current!
-    const seq = new Sequence({ id: `${className || 'seq'}-${set}`, frames: frames[set], url: (i) => src(set, i) })
+    let seq: Sequence | null = null
     const stage = createStage(cv)
     let at = 0
 
@@ -55,6 +59,7 @@ export function ScrollSequence({ src, frames, length = '300vh', className = '', 
 
     let first = true
     const stopTick = onTick(() => {
+      if (!seq) return
       const i = stage.draw({ seq, at })
       if (i < 0) return
       if (first) {
@@ -71,23 +76,31 @@ export function ScrollSequence({ src, frames, length = '300vh', className = '', 
       onUpdate: (self) => (at = self.progress),
     })
 
-    // the set starts loading as it comes near, from its first frame outwards
+    // the set starts loading as it comes near, from the frame on screen outwards
+    let near = false
+    const start = () => {
+      if (!near || seq) return
+      seq = new Sequence({ id: `${className || 'seq'}-${set}`, frames: frames[set], url: (i) => src(set, i) })
+      seq.pump(seq.index(at))
+    }
     const io = new IntersectionObserver(
       ([e]) => {
         if (!e.isIntersecting) return
         io.disconnect()
-        seq.pump(seq.index(at))
+        near = true
+        start()
       },
       { rootMargin: '100% 0px' },
     )
     io.observe(el)
+    void (wait ?? Promise.resolve()).then(start)
 
     return () => {
       io.disconnect()
       ro.disconnect()
       st.kill()
       stopTick()
-      seq.destroy()
+      seq?.destroy()
       setPainted(false)
     }
   }, [set, still])
@@ -101,7 +114,7 @@ export function ScrollSequence({ src, frames, length = '300vh', className = '', 
   return (
     <section ref={setRef} className={`seq ${className}`} style={{ height: still ? '100svh' : length }} data-set={set} data-painted={painted || undefined}>
       <div className="seq__stage">
-        <img className="seq__poster" src={src(set, 0)} alt={alt} width={set === 'mobile' ? 1080 : 1920} height={set === 'mobile' ? 1920 : 1080} decoding="async" />
+        {poster}
         {!still && <canvas className="seq__canvas" ref={canvas} aria-hidden="true" />}
         {children}
       </div>

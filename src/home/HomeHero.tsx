@@ -3,15 +3,29 @@ import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef, type RefObject } from 'react'
 import { exportsLine, start } from '../config/content'
+import { HERO_SEQ, heroFrameFile } from '../config/hero'
 import { env } from '../engine/env'
 import { useApp } from '../engine/store'
+import { HERO_POSTER, avifReady, mediaUrl } from '../film/segments'
 import { ScrollSequence, type FrameSet } from '../ui/ScrollSequence'
 import '../ui/hero.css'
 
 gsap.registerPlugin(SplitText)
 
-const FRAMES = { desktop: 60, mobile: 60 }
-export const heroFrame = (set: FrameSet, i: number) => `/sequence/hero/${set}/hero_${String(i + 1).padStart(3, '0')}.webp`
+/** AVIF where it decodes, else WebP; settled before the first frame URL is built (ScrollSequence `wait`) */
+let ext: 'avif' | 'webp' = 'webp'
+const ready = avifReady.then((ok) => (ext = ok ? 'avif' : 'webp'))
+export const heroFrame = (set: FrameSet, i: number) => mediaUrl(heroFrameFile(set, i, ext))
+
+/** the hero's first frame, the LCP image: the same <picture> and preloads the film's hero uses (config/hero.ts) */
+const Poster = () => (
+  <picture>
+    {HERO_POSTER.map((p) => (
+      <source key={p.type + p.media} type={p.type} media={p.media} srcSet={p.srcSet} sizes="100vw" />
+    ))}
+    <img className="seq__poster" src={mediaUrl('hero-loop_1280.webp')} alt="" fetchPriority="high" decoding="async" />
+  </picture>
+)
 const PATHS = ['ocean', 'pond'] as const
 
 export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | null> }) {
@@ -47,7 +61,7 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
   )
 
   return (
-    <ScrollSequence src={heroFrame} frames={FRAMES} length="300vh" className="home-hero" sectionRef={sectionRef}>
+    <ScrollSequence src={heroFrame} frames={HERO_SEQ} wait={ready} poster={<Poster />} length="300vh" className="home-hero" sectionRef={sectionRef}>
       <div className="hero" ref={root}>
         <div className="hero__media" />
         <div className="hero__copy">

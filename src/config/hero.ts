@@ -11,3 +11,12 @@ export const heroPoster = (url: (file: string) => string) =>
     { type: `image/${ext}`, media: PORTRAIT, srcSet: `${url(`hero-loop_m.${ext}`)} 810w` },
     { type: `image/${ext}`, media: OTHER, srcSet: [960, 1280, 1920].map((w) => `${url(`hero-loop_${w}.${ext}`)} ${w}w`).join(', ') },
   ])
+
+/**
+ * The hero's scroll sequence (#249, #264): frames per tier, from the same master as the hero loop. 1920×1080 on
+ * desktop, the 810×1440 portrait crop on phones held upright, both AVIF and WebP (scripts/make-frames.sh).
+ */
+export const HERO_SEQ = { 1920: 60, m: 48 } as const
+export type SeqTier = keyof typeof HERO_SEQ
+export const heroFrameFile = (tier: SeqTier, i: number, ext: 'avif' | 'webp') =>
+  `hero-seq_${tier}_${String(i + 1).padStart(3, '0')}.${ext}`

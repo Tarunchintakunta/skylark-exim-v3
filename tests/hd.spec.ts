@@ -14,9 +14,12 @@ const VIEWPORTS = {
   '390x844@3': { viewport: { width: 390, height: 844 }, dpr: 3, mobile: true },
 } as const
 const MIN = 0.95
-const PATH_MB = { desktop: 25, mobile: 12 }
+/** per tier (#264): the 2560 retina desktop 40 MB, the 1920 desktop 25 MB, the phone 12 MB */
+const PATH_MB = { retina: 40, desktop: 25, mobile: 12 }
 /** the masters are 1440 rows tall: the best a phone portrait clip or poster can reach at 844 css px × dpr 3 (0.57) */
 const MASTER_ROWS = 1440
+/** LCP: 2,300 ms is the target, 2,500 ms the hard limit (#264) */
+const LCP_TARGET_MS = 2300
 const LCP_MS = 2500
 /** LCP is taken over a throttled first load: Fast 4G, and 4× CPU on the phone (cache disabled) */
 const FAST_4G = { offline: false, latency: 150, downloadThroughput: (9 * 1024 * 1024) / 8, uploadThroughput: (1.5 * 1024 * 1024) / 8 }
@@ -176,11 +179,14 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
     console.table(rows.map(({ page, kind, src, source, css, ratio, min, ok }) => ({ page, kind, src, source, css, ratio, min, ok: ok ? '' : 'LOW' })))
     for (const where of ['/', '/story#ocean', '/story#pond']) {
       expect.soft(report[`${where} lcp`] as number, `${where} LCP`).toBeLessThanOrEqual(LCP_MS)
+      expect.soft(report[`${where} lcp`] as number, `${where} LCP target`).toBeLessThanOrEqual(LCP_TARGET_MS)
       expect.soft(report[`${where} cls`], `${where} CLS`).toBe(0)
       if (where === '/') continue
       expect.soft(report[`${where} p95FrameMs`] as number, `${where} p95 frame`).toBeLessThanOrEqual(FRAME_P95_MS)
       expect.soft(report[`${where} mediaDuringScroll`], `${where} media requests during the scroll`).toEqual([])
-      expect.soft((report[`${where} MB`] as { total: number }).total, `${where} path MB`).toBeLessThanOrEqual(PATH_MB[v.mobile ? 'mobile' : 'desktop'])
+      // the tier a viewport is served decides its budget: DPR 2 on a 1440 desktop asks for 2560
+      const tier = v.mobile ? 'mobile' : v.viewport.width * v.dpr * 0.9 > 1920 ? 'retina' : 'desktop'
+      expect.soft((report[`${where} MB`] as { total: number }).total, `${where} path MB (${tier})`).toBeLessThanOrEqual(PATH_MB[tier])
     }
     expect.soft(rows.filter((r) => !r.ok).map((r) => `${r.page} ${r.src} ${r.ratio} < ${r.min}`)).toEqual([])
   })
