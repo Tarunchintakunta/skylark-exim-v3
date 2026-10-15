@@ -35,7 +35,6 @@ export function startClock() {
 export function startEngine() {
   if (started) return
   started = true
-  history.scrollRestoration = 'manual'
   // Touch and reduced motion keep native scrolling.
   if (!env.coarse && !env.reduced) {
     lenis = new Lenis({ autoRaf: false, lerp: 0.1, wheelMultiplier: 1, smoothWheel: true, syncTouch: false })
