@@ -62,8 +62,12 @@ let hidden = false
 let isLight = false
 let isSoft = false
 let lastY = 0
-/** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
-const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
+/**
+ * Read by tests/video-smoothness.spec.ts and tests/terminal-mode.spec.ts: the clip that should be on screen, the time
+ * it should show, whether its decoder is the picture (`shown`) and whether the stage has a picture at all (`painted`:
+ * the clip, or the poster, still, gradient or globe layer under it). Plain writes, no DOM.
+ */
+const probe = { id: null as string | null, target: 0, shown: false, chapter: -1, painted: false }
 ;(globalThis as { __scrub?: typeof probe }).__scrub = probe
 // the decoder pool, for tests (navigator.webdriver) and ?debug only
 if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
@@ -269,6 +273,9 @@ function tick() {
   probe.id = want
   probe.chapter = seg.chapter
   probe.shown = shown !== null && shown === active
+  // something is on screen: the clip's decoder, or the layer under it (a poster, a still, a gradient or the globe)
+  const layer = posters[i]
+  probe.painted = probe.shown || (layer instanceof HTMLImageElement ? layer.complete && layer.naturalWidth > 0 : !!layer)
 
   // placeholders (stills and the port/sea gradients): slow push-in
   const m = seg.media

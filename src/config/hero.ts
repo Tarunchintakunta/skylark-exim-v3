@@ -9,7 +9,7 @@ const OTHER = '(orientation: landscape), (min-width: 820px) and (pointer: fine)'
 export const heroPoster = (url: (file: string) => string) =>
   (['avif', 'webp'] as const).flatMap((ext) => [
     { type: `image/${ext}`, media: PORTRAIT, srcSet: `${url(`hero-loop_m.${ext}`)} 810w` },
-    { type: `image/${ext}`, media: OTHER, srcSet: [960, 1280, 1920].map((w) => `${url(`hero-loop_${w}.${ext}`)} ${w}w`).join(', ') },
+    { type: `image/${ext}`, media: OTHER, srcSet: [960, 1280, 1920, 2560].map((w) => `${url(`hero-loop_${w}.${ext}`)} ${w}w`).join(', ') },
   ])
 
 /**

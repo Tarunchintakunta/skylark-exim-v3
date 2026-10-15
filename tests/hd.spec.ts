@@ -168,9 +168,12 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       for (const s of await walk(page, v.mobile)) {
         // a phone in portrait plays the portrait clips and shows the portrait posters (_m): full master height, never
         // scaled, so the master's rows are the ceiling (1440 for clips, 2160 for the documentation still)
-        const portrait = v.mobile && (s.kind === 'video' || s.src.includes('_m.'))
+        // nothing is ever upscaled and the clip masters are 2560×1440, so for anything cut from a clip the master's own
+        // rows are the ceiling: at 1440×900 DPR 2 the frame wants 1800 rows and the best a clip can give is 0.80. The
+        // documentation still comes from a 3840×2160 master (#hd, #264).
+        const fromClip = s.kind === 'video' || s.src.startsWith('blob:') || /_(m|960|1280|1920|2560)\.(avif|webp)$/.test(s.src)
         const masterRows = s.src.includes('ph-docs') ? 2160 : MASTER_ROWS
-        const min = portrait ? Math.min(MIN, +((0.99 * masterRows) / (+s.css.split('×')[1] * v.dpr)).toFixed(2)) : MIN
+        const min = fromClip ? Math.min(MIN, +((0.99 * masterRows) / (+s.css.split('×')[1] * v.dpr)).toFixed(2)) : MIN
         rows.push({ ...s, page: where, min, ok: s.ratio >= min })
       }
       await ctx.close()

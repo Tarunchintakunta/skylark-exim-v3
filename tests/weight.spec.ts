@@ -25,6 +25,8 @@ const CAPS: [RegExp, number][] = [
   // the hero's scroll-sequence frames (#249, #264): one frame is never worth more than the LCP still
   [/\/hero-seq_[^/]+\.(avif|webp)$/, 120],
   [/\/hero-loop_m\.avif$/, 60],
+  // the hero's own 2560 still, for a retina desktop: 1.78× the pixels of the 1920 one, so 1.6× its cap (#264)
+  [/\/hero-loop_2560\.(avif|webp)$/, 200],
   [/\/hero-loop_[^/]+\.(avif|webp)$/, 120],
   // WebP fallbacks of three busy 1920 posters land over 350 KB at q 70, the quality floor (357 / 367 / 351 KB); browsers
   // with AVIF get the AVIF (294 / 349 / 330 KB)
@@ -106,9 +108,12 @@ for (const path of ['ocean', 'pond']) {
     })
     await page.goto(`/story#${path}`)
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
-    await scrollThrough(page, false, 900)
+    // warm first, then scroll: with the cache disabled, a fast scroll before the warm cache is through downloads what
+    // the decoders need and the warm cache then fetches the same files again for its Blobs. In a browser that second
+    // fetch is a hit on an immutable file, so counting it here measures something no visitor pays for.
     await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 300_000 })
     await page.waitForTimeout(1500)
+    await scrollThrough(page, false, 900)
     const tier = await page.evaluate(() => document.querySelector<HTMLVideoElement>('video.stage__video')?.currentSrc ?? '')
     await ctx.close()
     console.log('retina', path, `full scroll ${MB(bytes)} MB`, tier.replace(/^.*\/media\//, ''))

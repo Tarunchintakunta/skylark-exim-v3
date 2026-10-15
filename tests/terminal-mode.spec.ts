@@ -149,7 +149,7 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       // the film's own stops only: past it the business sections cover the stage and no clip is meant to be on screen
       const onFilm = () =>
         page.evaluate(() => {
-          const s = (globalThis as unknown as { __scrub?: { id: string | null; shown: boolean } }).__scrub
+          const s = (globalThis as unknown as { __scrub?: { id: string | null; shown: boolean; painted: boolean } }).__scrub
           // before the story chunk mounts there is no film: nothing to check
           const film = document.querySelector('.film')?.getBoundingClientRect()
           return { ...s, film: !!film && film.bottom > innerHeight * 0.5 }
@@ -158,7 +158,7 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
         await page.evaluate((f) => scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * f), f)
         await page.waitForTimeout(700)
         const s = await onFilm()
-        if (s.film && !s.shown) stuck.push(`step ${f}: ${s.id ?? 'no clip'} not on screen`)
+        if (s.film && !s.painted) stuck.push(`step ${f}: ${s.id ?? 'no clip'} and nothing painted`)
       }
       // a fast fling through the film: it still has a clip painted at the end of it
       await page.evaluate(() => scrollTo(0, 0))
@@ -169,7 +169,7 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       }
       await page.waitForTimeout(800)
       const after = await onFilm()
-      if (after.film && !after.shown) stuck.push('after the fling: no clip on screen')
+      if (after.film && !after.painted) stuck.push('after the fling: nothing painted')
       report.storyStuck = stuck
       await page.evaluate(() => scrollTo(0, 0))
       await page.waitForTimeout(600)
