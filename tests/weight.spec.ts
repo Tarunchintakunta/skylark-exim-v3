@@ -77,12 +77,14 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
       await page.waitForTimeout(500)
       const initial = bytes
-      await scrollThrough(page, p.mobile, 900)
-      // the whole path (#hd): once the warm cache holds every clip, what a visitor who reads to the end has downloaded
+      // the whole path (#hd, #264): the warm cache first, then the scroll — in that order, each file is fetched once.
+      // Scrolling first with the cache disabled makes the decoders download what they need and the warm cache then
+      // fetch the same files again for its Blobs; in a browser that second fetch hits an immutable file for nothing.
       if (path !== 'home') {
         await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 300_000 })
         await page.waitForTimeout(1500)
       }
+      await scrollThrough(page, p.mobile, 900)
       const full = bytes
       await ctx.close()
       console.log(profile, path, `initial ${MB(initial)} MB · full scroll ${MB(full)} MB`)
