@@ -78,8 +78,9 @@ export function ScrollSequence({ src, frames, wait, poster, length = '300vh', cl
 
     // the set starts loading as it comes near, from the frame on screen outwards
     let near = false
+    let waited = !wait
     const start = () => {
-      if (!near || seq) return
+      if (!near || !waited || seq) return
       seq = new Sequence({ id: `${className || 'seq'}-${set}`, frames: frames[set], url: (i) => src(set, i) })
       seq.pump(seq.index(at))
     }
@@ -93,7 +94,10 @@ export function ScrollSequence({ src, frames, wait, poster, length = '300vh', cl
       { rootMargin: '100% 0px' },
     )
     io.observe(el)
-    void (wait ?? Promise.resolve()).then(start)
+    void (wait ?? Promise.resolve()).then(() => {
+      waited = true
+      start()
+    })
 
     return () => {
       io.disconnect()

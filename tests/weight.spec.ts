@@ -64,9 +64,13 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       const cdp = await ctx.newCDPSession(page)
       await cdp.send('Network.enable')
       await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
+      // Playwright's own request events, not CDP's: the hero's frames are fetched inside a Web Worker, which is a
+      // separate CDP target and so never shows up in the page's Network events (#264)
       let bytes = 0
-      cdp.on('Network.loadingFinished', (e) => (bytes += e.encodedDataLength))
-      cdp.on('Network.loadingFailed', () => {})
+      page.on('requestfinished', async (r) => {
+        const s = await r.sizes().catch(() => null)
+        if (s) bytes += s.responseBodySize + s.responseHeadersSize
+      })
       await page.goto(path === 'home' ? '/' : `/story#${path}`)
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
       await page.waitForTimeout(500)
@@ -96,8 +100,10 @@ for (const path of ['ocean', 'pond']) {
     await cdp.send('Network.enable')
     await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
     let bytes = 0
-    cdp.on('Network.loadingFinished', (e) => (bytes += e.encodedDataLength))
-    cdp.on('Network.loadingFailed', () => {})
+    page.on('requestfinished', async (r) => {
+      const s = await r.sizes().catch(() => null)
+      if (s) bytes += s.responseBodySize + s.responseHeadersSize
+    })
     await page.goto(`/story#${path}`)
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
     await scrollThrough(page, false, 900)

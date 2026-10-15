@@ -123,11 +123,13 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
       await cdp.send('Network.emulateNetworkConditions', FAST_4G)
       if (v.mobile) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
-      // bytes on the wire, split into /media (clips, posters, stills) and everything else
-      const urls = new Map<string, string>()
+      // bytes on the wire, split into /media (clips, frames, posters, stills) and everything else. Playwright's events,
+      // not CDP's: the hero's frames are fetched inside a Web Worker, a target the page's Network events never see (#264)
       const bytes = { media: 0, other: 0 }
-      cdp.on('Network.requestWillBeSent', (e) => urls.set(e.requestId, e.request.url))
-      cdp.on('Network.loadingFinished', (e) => (bytes[/\/media\//.test(urls.get(e.requestId) ?? '') ? 'media' : 'other'] += e.encodedDataLength))
+      page.on('requestfinished', async (r) => {
+        const s = await r.sizes().catch(() => null)
+        if (s) bytes[/\/media\//.test(r.url()) ? 'media' : 'other'] += s.responseBodySize + s.responseHeadersSize
+      })
       await page.goto(where)
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 60_000 })
       const vit = await vitals(page)

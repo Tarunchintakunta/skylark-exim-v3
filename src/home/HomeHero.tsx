@@ -5,7 +5,7 @@ import { useEffect, useRef, type RefObject } from 'react'
 import { exportsLine, start } from '../config/content'
 import { HERO_SEQ, heroFrameFile } from '../config/hero'
 import { env } from '../engine/env'
-import { useApp } from '../engine/store'
+import { store, useApp } from '../engine/store'
 import { HERO_POSTER, avifReady, mediaUrl } from '../film/segments'
 import { ScrollSequence, type FrameSet } from '../ui/ScrollSequence'
 import '../ui/hero.css'
@@ -14,7 +14,22 @@ gsap.registerPlugin(SplitText)
 
 /** AVIF where it decodes, else WebP; settled before the first frame URL is built (ScrollSequence `wait`) */
 let ext: 'avif' | 'webp' = 'webp'
-const ready = avifReady.then((ok) => (ext = ok ? 'avif' : 'webp'))
+
+/**
+ * The frame set waits for the intro to open and then for idle time (#264): the LCP image is the hero's own poster, and
+ * nothing of the sequence competes with the first screen. Terminal loads its frames the same way.
+ */
+const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 2000 }) : setTimeout(f, 300))
+const afterLcp = new Promise<void>((done) => {
+  const go = () => idle(done)
+  if (store.getState().revealed) return go()
+  const off = store.subscribe((s) => {
+    if (!s.revealed) return
+    off()
+    go()
+  })
+})
+const ready = Promise.all([avifReady.then((ok) => (ext = ok ? 'avif' : 'webp')), afterLcp])
 export const heroFrame = (set: FrameSet, i: number) => mediaUrl(heroFrameFile(set, i, ext))
 
 /** the hero's first frame, the LCP image: the same <picture> and preloads the film's hero uses (config/hero.ts) */
