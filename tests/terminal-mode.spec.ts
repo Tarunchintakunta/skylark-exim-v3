@@ -149,8 +149,9 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       const onFilm = () =>
         page.evaluate(() => {
           const s = (globalThis as unknown as { __scrub?: { id: string | null; shown: boolean } }).__scrub
-          const film = document.querySelector('.film')!.getBoundingClientRect()
-          return { ...s, film: film.bottom > innerHeight * 0.5 }
+          // before the story chunk mounts there is no film: nothing to check
+          const film = document.querySelector('.film')?.getBoundingClientRect()
+          return { ...s, film: !!film && film.bottom > innerHeight * 0.5 }
         })
       for (const f of [0.05, 0.12, 0.2, 0.3, 0.4, 0.5, 0.6]) {
         await page.evaluate((f) => scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * f), f)
