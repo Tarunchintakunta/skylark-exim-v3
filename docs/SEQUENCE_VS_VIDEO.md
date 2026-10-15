@@ -41,12 +41,42 @@ WebP q ≥ 70) is what makes it so.
 
 12 fps at the 1920 tier, AVIF q 60 — half the master's frame rate, the tier most desktops are served.
 
-<!-- seq-bench:1920:12 -->
+| Clip | Frames (12 fps) | Sequence, AVIF q60 | Sequence, WebP q78 | The clip as AV1 | Times the video |
+| --- | --- | --- | --- | --- | --- |
+| opening | 30 | 3.21 MB | 2.89 MB | 0.67 MB | 4.8× |
+| hf-depart | 36 | 8.94 MB | 7.13 MB | 1.00 MB | 9.0× |
+| hf-catch | 36 | 12.03 MB | 9.98 MB | 0.98 MB | 12.3× |
+| hf-ice | 36 | 16.24 MB | 12.88 MB | 1.00 MB | 16.3× |
+| hf-return | 36 | 10.27 MB | 8.47 MB | 1.03 MB | 10.0× |
+| hf-arrive | 36 | 11.55 MB | 9.44 MB | 0.83 MB | 13.9× |
+| hf-reverse | 36 | 13.60 MB | 11.22 MB | 0.81 MB | 16.9× |
+| hf-unload-fish | 36 | 4.57 MB | 3.98 MB | 0.97 MB | 4.7× |
+| hf-fish-intake | 36 | 10.07 MB | 8.42 MB | 1.03 MB | 9.8× |
+| hf-fish-wash | 36 | 11.39 MB | 9.55 MB | 1.03 MB | 11.1× |
+| hf-fish-cut | 36 | 7.51 MB | 6.40 MB | 1.02 MB | 7.3× |
+| hf-fish-freeze | 36 | 7.54 MB | 6.55 MB | 0.99 MB | 7.7× |
+| hf-store | 36 | 5.94 MB | 4.80 MB | 0.81 MB | 7.3× |
+| hf-stuff | 36 | 7.40 MB | 6.03 MB | 0.78 MB | 9.5× |
+| hf-cranes | 36 | 9.02 MB | 7.53 MB | 0.79 MB | 11.4× |
+| hf-ship | 36 | 16.68 MB | 13.76 MB | 0.79 MB | 21.0× |
+| hf-sail | 40 | 2.40 MB | 1.90 MB | 0.90 MB | 2.7× |
+| hf-ponds | 36 | 13.33 MB | 10.09 MB | 0.73 MB | 18.3× |
+| hf-sample | 36 | 13.44 MB | 11.19 MB | 0.69 MB | 19.4× |
+| hf-harvest | 36 | 17.25 MB | 14.55 MB | 0.83 MB | 20.8× |
+| hf-sort | 36 | 17.71 MB | 14.82 MB | 0.71 MB | 25.0× |
+| hf-unload-shrimp | 36 | 3.59 MB | 3.22 MB | 0.79 MB | 4.6× |
+| hf-intake | 36 | 5.65 MB | 4.68 MB | 0.80 MB | 7.0× |
+| hf-wash | 36 | 9.72 MB | 7.95 MB | 0.79 MB | 12.2× |
+| hf-peel | 36 | 2.34 MB | 2.23 MB | 0.78 MB | 3.0× |
+| hf-lab | 36 | 2.86 MB | 2.62 MB | 0.80 MB | 3.6× |
+| hf-iqf | 36 | 11.22 MB | 9.38 MB | 0.84 MB | 13.3× |
+| hf-pack | 36 | 2.34 MB | 2.31 MB | 0.78 MB | 3.0× |
+| hero-loop (homepage) | 72 | 7.91 MB | 7.07 MB | 0.97 MB | 8.2× |
 
 ## The decision
 
 - **`/story` chapters stay video.** The active path is 17 clips (wild catch) or 19 (farmed shrimp). At 12 fps and 1920
-  the sequences come to SEQ_OCEAN and SEQ_POND against 15.45 MB and 14.96 MB as AV1. The desktop budget for a whole
+  the sequences come to 158.4 MB and 169.3 MB against 15.42 MB and 14.93 MB as AV1 (10.3× and 11.3×). The desktop budget for a whole
   path is 25 MB at 1920 and 40 MB at 2560: no frame rate inside the quality floor fits, and thinning the density far
   enough to fit (about 3 fps) would be visibly worse than the video it replaced, not better.
 - **The homepage hero is a canvas sequence** (#249, kept and rebuilt on this engine). It is one 6-second shot scrubbed
