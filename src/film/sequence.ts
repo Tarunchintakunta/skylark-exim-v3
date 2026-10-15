@@ -20,6 +20,8 @@ import type { FromWorker, ToWorker } from './decode.worker'
 const LRU = env.mobile ? 10 : 24
 /** frames in flight at once (Terminal's concurrency: 6 desktop, 3 phone) */
 export const PARALLEL = env.mobile ? 3 : 6
+/** Save-Data, 2G and 3G: every second frame only, half the bytes for half the frame density */
+const DENSITY = env.saveData || env.slow ? 2 : 1
 /** frames either side of the one on screen that count as "something is loaded here" */
 const NEAR = 2
 /** device pixel ratio the canvas is sized at, capped: a 3× phone would cost 9× the pixels for no visible gain */
@@ -35,13 +37,16 @@ export interface SequenceSpec {
   url: (i: number) => string
 }
 
-/** Coarse-first order: every 32nd frame, then every 16th, …, then the rest. Each frame appears once. */
-export function loadOrder(frames: number): number[] {
+/**
+ * Coarse-first order: every 32nd frame, then every 16th, …, then the rest. Each frame appears once. `density` thins the
+ * set out: Save-Data and 2G/3G load every second frame and let `nearest` show the neighbour (#264).
+ */
+export function loadOrder(frames: number, density = DENSITY): number[] {
   const out: number[] = []
   const seen = new Set<number>()
   for (const stride of [32, 16, 8, 4, 2, 1])
     for (let i = 0; i < frames; i += stride)
-      if (!seen.has(i)) {
+      if (!seen.has(i) && (i % density === 0 || i === frames - 1)) {
         seen.add(i)
         out.push(i)
       }
@@ -73,15 +78,19 @@ export class Sequence {
   private queue: number[]
   private stopped = false
 
+  /** how many frames this device loads at all (the density thins the set on a slow link) */
+  private readonly wanted: number
+
   constructor(spec: SequenceSpec) {
     this.spec = spec
     this.queue = loadOrder(spec.frames)
+    this.wanted = this.queue.length
     sequences.set(spec.id, this)
   }
 
-  /** frames cached ÷ frames in the set: what a loading bar shows */
+  /** frames cached ÷ frames this device loads: what a loading bar shows */
   get progress() {
-    return this.cached.size / this.spec.frames
+    return this.wanted ? this.cached.size / this.wanted : 0
   }
   /** bytes fetched so far */
   get loaded() {
@@ -89,7 +98,7 @@ export class Sequence {
   }
   /** every frame's bytes are here: the scroll needs the network no more */
   get complete() {
-    return this.cached.size === this.spec.frames
+    return this.cached.size >= this.wanted
   }
 
   /** frame index for a position inside the sequence (0..1) */

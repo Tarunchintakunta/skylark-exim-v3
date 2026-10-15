@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import type { Gate } from './engine/preload'
 import { bindStoryPrefetch } from './home/prefetch'
 import { HomeHero } from './home/HomeHero'
 import { Loader } from './ui/Loader'
@@ -10,7 +9,10 @@ import './ui/chrome.css'
 const Sections = lazy(() => import('./home/Sections'))
 
 let mounted = () => {}
-const WAIT: Gate = { mounted: new Promise<void>((r) => (mounted = r)) }
+const MOUNTED = new Promise<void>((r) => {
+  const was = mounted
+  mounted = () => (was(), r())
+})
 
 /**
  * Homepage (#233): the scroll-scrubbed hero frame sequence, then a normal scrolling company page. The film, its engine and its clips
@@ -37,7 +39,7 @@ export default function Home() {
           <Sections onMount={mounted} />
         </Suspense>
       </main>
-      <Loader wait={WAIT} />
+      <Loader mounted={MOUNTED} />
     </>
   )
 }

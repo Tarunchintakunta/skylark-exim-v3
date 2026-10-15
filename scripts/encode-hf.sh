@@ -2,10 +2,11 @@
 # Encode one clip from its master into every scrub tier, codec and poster (HD pass; docs/HIGGSFIELD_STORYBOARD.md).
 #   scripts/encode-hf.sh <id>          master: masters/<id>/master.mp4 (2560×1440, 24 fps; gitignored, never public/media)
 # -> public/media/<id>_<tier>.av1.mp4 · .hevc.mp4 · .mp4 (H.264)   tiers m (810×1440 portrait crop), 960, 1280, 1920;
-#    AV1 and HEVC also at 2560, kept only where scripts/clip-manifest.ts `top` says the path fits (scripts/encode-all.sh)
+#    AV1 and HEVC also at 2560, inside the 2560 path budget and kept only where clip-manifest.ts `top` fits them
 #    public/media/<id>_<tier>.avif + .webp   first-frame posters, tiers m, 960, 1280, 1920 (+ 2560 when served)
 #    public/media/<id>_end_1280.avif + .webp     last-frame poster for scrolling back into a clip (desktop)
 # POSTERS=only: the posters alone (the solver counts their bytes); POSTERS=no: the clips alone.
+# TIERS="2560": those tiers alone (the 2560 decision is re-run on its own when the budget changes).
 # Quality first, capped by size: AV1 crf 30 / HEVC crf 22 / H.264 crf 18, HEVC and H.264 with maxrate at the solver's
 # cap for the tier (scripts/clip-manifest.ts caps). Where the cap still binds, the encode drops to a VBR at the cap; AV1
 # goes there directly (SVT-AV1's capped CRF starves busy frames: SSIM 0.83 vs 0.89 for VBR at fewer bytes on hf-catch).
@@ -61,14 +62,10 @@ caps=$(node --import tsx scripts/clip-manifest.ts caps "$id")
 cap(){ awk -v t="$1" '$1==t{print $2}' <<<"$caps"; }
 
 line="$id (crop x $x)"
-for t in m 960 1280 1920 2560; do
+for t in ${TIERS:-m 960 1280 1920 2560}; do
   for c in av1 hevc h264; do
     [ "$c" = h264 ] && [ "$t" = 2560 ] && continue
     o="$OUT/${id}_${t}$([ $c = h264 ] || echo ".$c").mp4"
-    if [ "$t" = 2560 ]; then
-      # target quality only: the solver keeps 2560 where it fits, never a starved 2560 (scripts/encode-all.sh)
-      enc $c $t "$o" crf 0; line="$line  $t.$c $(kb "$o")"; continue
-    fi
     c_b=$(cap $t); rate=$(awk -v b="$c_b" -v d="$dur" 'BEGIN{printf "%d", b*8/1000*0.97/d}')   # kbit/s, 3 % container headroom
     enc $c $t "$o" crf $rate
     if [ "$(bytes "$o")" -gt "$c_b" ]; then

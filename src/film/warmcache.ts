@@ -13,7 +13,8 @@ import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, posterFor, serv
  * of each chapter in story order, then the rest, so a fast scroll meets something cached everywhere early. Save-Data
  * and 2g/3g keep the distance prefetch only (scrub.ts), which stays the fallback for clips not cached yet.
  */
-const PARALLEL = env.mobile ? 2 : 4
+/** clips fetched at once (#264, Terminal's concurrency): 6 desktop, 3 phone */
+const PARALLEL = env.mobile ? 3 : 6
 /** ms since the last scroll that still counts as scrolling */
 const QUIET = 400
 /** chapters ahead of the one on screen that the scrub loads itself while the visitor scrolls */

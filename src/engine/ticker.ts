@@ -84,6 +84,12 @@ export function unlockScroll() {
   lenis?.start()
 }
 
+/**
+ * Re-measure the page for Lenis. It clamps a wheel to the height it last measured, and the lazy page content lands
+ * after it is created: without this the first wheel after the content mounts moves nothing (#264).
+ */
+export const resizeScroll = () => lenis?.resize()
+
 export function scrollToY(y: number, immediate = false) {
   // Lenis clamps to the page height it last measured (a debounced ResizeObserver): a jump right after the story mounts,
   // with the intro already seen this session, would land at 0. Measure first.

@@ -14,8 +14,11 @@ export const CODECS = ['av1', 'hevc', 'h264'] as const
 export type Codec = (typeof CODECS)[number]
 export const clipFile = (id: string, tier: Tier, codec: Codec) => `${id}_${tier}${codec === 'h264' ? '' : `.${codec}`}.mp4`
 
-/** TRD §13 budgets per /story path, and per file (tests/weight.spec.ts, tests/hd.spec.ts) */
-const BUDGET = { desktop: 25e6, mobile: 12e6 }
+/**
+ * Budgets per /story path and per file (TRD §13, #264; tests/weight.spec.ts, tests/hd.spec.ts). Per tier, because a
+ * device downloads one tier: a 2560 retina desktop is allowed 40 MB for a whole path, a 1920 desktop 25 MB, a phone 12 MB.
+ */
+const BUDGET: Record<Tier, number> = { m: 12e6, 960: 12e6, 1280: 25e6, 1920: 25e6, 2560: 40e6 }
 export const FILE_CAP = 2300 * 1024
 /**
  * What a /story path downloads besides /media (document, JS, CSS, fonts, globe placeholder and texture): the baseline
@@ -64,7 +67,7 @@ function overhead(path: (typeof PATHS)[number], t: Tier) {
 export function solveCaps(dur: Record<string, number>) {
   const caps: Record<string, Partial<Record<Tier, number>>> = { 'hero-loop': HERO_CAP }
   for (const t of TIERS) {
-    const left = Object.fromEntries(PATHS.map((p) => [p, BUDGET[profile(t)] - overhead(p, t)]))
+    const left = Object.fromEntries(PATHS.map((p) => [p, BUDGET[t] - overhead(p, t)]))
     const open = new Set(PATHS.flatMap(pathClips))
     while (open.size) {
       const rate = PATHS.map((p) => {
@@ -83,8 +86,8 @@ export function solveCaps(dur: Record<string, number>) {
 }
 
 /**
- * The 2560 tier is served only where it fits (#hd): every 2560 file of a codec, encoded at its target quality, under the
- * file cap, and each path's 2560 clips plus overhead under the desktop budget. Otherwise that codec tops out at 1920.
+ * The 2560 tier is served only where it fits (#hd, #264): every 2560 file of a codec under the file cap, and each path's
+ * 2560 clips plus overhead inside the 2560 budget. Otherwise that codec tops out at 1920.
  */
 export function topTier(codec: Codec, size: (f: string) => number | null) {
   if (codec === 'h264') return { top: 1920 as const, why: 'H.264 has no 2560 tier' }
@@ -93,8 +96,8 @@ export function topTier(codec: Codec, size: (f: string) => number | null) {
   const total = sizes.map((s, i) => (s as number[]).reduce((a, b) => a + b, 0) + overhead(PATHS[i], 2560))
   const over = (sizes.flat() as number[]).filter((s) => s > FILE_CAP).length
   const mb = total.map((b, i) => `${PATHS[i]} ${(b / 1e6).toFixed(1)} MB`).join(', ')
-  if (over || total.some((b) => b > BUDGET.desktop))
-    return { top: 1920 as const, why: `${codec} 2560 at target quality: ${mb}, ${over} files over 2,300 KB; budget 25 MB` }
+  if (over || total.some((b) => b > BUDGET[2560]))
+    return { top: 1920 as const, why: `${codec} 2560: ${mb}, ${over} files over 2,300 KB; budget ${BUDGET[2560] / 1e6} MB` }
   return { top: 2560 as const, why: `${codec} 2560 fits: ${mb}` }
 }
 

@@ -15,15 +15,15 @@ export const heroFrame = (set: FrameSet, i: number) => `/sequence/hero/${set}/he
 const PATHS = ['ocean', 'pond'] as const
 
 export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | null> }) {
-  const ready = useApp((s) => s.ready)
+  const revealed = useApp((s) => s.revealed)
   const root = useRef<HTMLDivElement>(null)
   const lead = start.title.replace(/ world\.$/, '')
 
   useEffect(() => {
-    if (!ready) return
+    if (!revealed) return
     root.current!.style.visibility = 'visible'
     root.current!.style.opacity = '1'
-  }, [ready])
+  }, [revealed])
 
   useGSAP(
     () => {
