@@ -40,6 +40,8 @@ let path: Path | null = null
 let abort: AbortController | null = null
 let total = 0
 let done = 0
+/** the whole routine is through: clips, posters, the page's lazy images and the globe. Tests wait for this (#264). */
+let warm = false
 const listeners = new Set<() => void>()
 /** decoded posters, held so the document's list of available images serves them to the stage without a request */
 const images: HTMLImageElement[] = []
@@ -47,7 +49,7 @@ const emit = () => listeners.forEach((f) => f())
 
 // what the cache holds, for tests (navigator.webdriver) and ?debug only
 if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
-  Object.defineProperty(globalThis, '__warmCache', { get: () => ({ path, ids: [...urls.keys()], progress: progress() }) })
+  Object.defineProperty(globalThis, '__warmCache', { get: () => ({ path, ids: [...urls.keys()], progress: progress(), warm }) })
 
 /** fetches in flight, by clip: a scroll cancels them (see below) */
 const loading = new Map<string, AbortController>()
@@ -71,6 +73,7 @@ export function order(clips: Clip[]) {
 const size = (c: Clip) => c.files[codec][served(W, codec)]?.bytes ?? 0
 
 async function run(p: Path) {
+  warm = false
   abort?.abort()
   const ctl = (abort = new AbortController())
   await Promise.all([codecReady, avifReady])
@@ -150,7 +153,11 @@ async function run(p: Path) {
   if (!ctl.signal.aborted) {
     void import('../three/Globe').catch(() => {})
     images.push(warmGlobePlaceholder(await avifReady))
-    void fetch(GLOBE_TEXTURE).then((r) => r.arrayBuffer()).catch(() => {})
+    await fetch(GLOBE_TEXTURE).then((r) => r.arrayBuffer()).catch(() => {})
+  }
+  if (!ctl.signal.aborted) {
+    warm = true
+    emit()
   }
 }
 

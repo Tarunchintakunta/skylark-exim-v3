@@ -139,8 +139,9 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       media = []
       await page.goto('/story#ocean')
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 60_000 })
-      await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { progress: number } }).__warmCache?.progress === 1, null, { timeout: 600_000 })
-      await page.waitForTimeout(4000)
+      // the whole warm routine, not just the clips: the posters, the page's lazy images and the globe come after them
+      await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 600_000 })
+      await page.waitForTimeout(1500)
       await page.evaluate(() => scrollTo(0, 0))
       await page.waitForTimeout(800)
       counting = true

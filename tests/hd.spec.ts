@@ -138,8 +138,8 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       report[`${where} cls`] = vit.cls
       if (where !== '/') {
         // warm cache first (#251), then a timed scroll: rAF p95, and nothing from /media over the network
-        await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { progress: number } }).__warmCache?.progress === 1, null, { timeout: 180_000 })
-        await page.waitForTimeout(8000)
+        await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 300_000 })
+        await page.waitForTimeout(2000)
         counting = true
         const frames = await page.evaluate(async (mobile) => {
           const max = document.documentElement.scrollHeight - innerHeight

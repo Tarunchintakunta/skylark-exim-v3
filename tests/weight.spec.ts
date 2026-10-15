@@ -78,8 +78,8 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       await scrollThrough(page, p.mobile, 900)
       // the whole path (#hd): once the warm cache holds every clip, what a visitor who reads to the end has downloaded
       if (path !== 'home') {
-        await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { progress: number } }).__warmCache?.progress === 1, null, { timeout: 120_000 })
-        await page.waitForTimeout(3000)
+        await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 300_000 })
+        await page.waitForTimeout(1500)
       }
       const full = bytes
       await ctx.close()
@@ -107,8 +107,8 @@ for (const path of ['ocean', 'pond']) {
     await page.goto(`/story#${path}`)
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
     await scrollThrough(page, false, 900)
-    await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { progress: number } }).__warmCache?.progress === 1, null, { timeout: 300_000 })
-    await page.waitForTimeout(3000)
+    await page.waitForFunction(() => (globalThis as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 300_000 })
+    await page.waitForTimeout(1500)
     const tier = await page.evaluate(() => document.querySelector<HTMLVideoElement>('video.stage__video')?.currentSrc ?? '')
     await ctx.close()
     console.log('retina', path, `full scroll ${MB(bytes)} MB`, tier.replace(/^.*\/media\//, ''))
