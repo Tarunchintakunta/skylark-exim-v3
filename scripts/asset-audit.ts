@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { chaptersFor } from '../src/config/chapters'
+import { HERO_SEQ } from '../src/config/hero'
 import { PRODUCT_W } from '../src/config/products'
 import { NEWS } from '../src/content/news'
 
@@ -112,6 +113,19 @@ for (const f of FILES.filter((f) => f.startsWith('prod-') && f.endsWith('_960.av
     asset: `${id}_{${PRODUCT_W.join(',')}}.{avif,webp}`,
     master: '**missing** (no 4K original on this Mac; 960 is the largest export)',
     served: PRODUCT_W.map((w) => `${w}: ${KB(size(media(`${id}_${w}.avif`)))} KB`).join(' · '),
+  })
+}
+
+// the hero's scroll sequence (#249, #264): one row per tier, not 108 rows of frames
+for (const [tier, n] of Object.entries(HERO_SEQ)) {
+  const files = FILES.filter((f) => f.startsWith(`hero-seq_${tier}_`))
+  const bytes = (ext: string) => files.filter((f) => f.endsWith(ext)).reduce((a, f) => a + (size(media(f)) ?? 0), 0)
+  rows.push({
+    page: '/',
+    what: `hero scroll sequence, ${tier === 'm' ? '810×1440 portrait' : `${tier}×1080`}`,
+    asset: `hero-seq_${tier}_NNN.{avif,webp}`,
+    master: hero?.label ?? '**missing**',
+    served: `${n} frames · avif ${(bytes('.avif') / 1e6).toFixed(2)} MB · webp ${(bytes('.webp') / 1e6).toFixed(2)} MB`,
   })
 }
 
