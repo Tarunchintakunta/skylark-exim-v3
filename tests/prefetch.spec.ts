@@ -18,6 +18,8 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Network.enable')
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
+  // clips the first screen already requested, before this CDP session attached: their first request is not observed (#264)
+  const early = new Set(await page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname)))
   const urls = new Map<string, string>()
   const firstAt = new Map<string, number>()
   const bytes = new Map<string, number>()
@@ -63,7 +65,7 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   for (const [f, t] of firstAt) {
     const id = f.replace(/^\/media\/|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/g, '')
     const ch = clipChapter[id]
-    if (!ch || id === 'opening') continue
+    if (!ch || id === 'opening' || early.has(f)) continue
     const entered = enteredAt.get(ch)
     if (entered && t > entered) late.push(`${id} requested ${t - entered} ms after ${ch} began`)
   }
