@@ -31,6 +31,9 @@ const CAPS: [RegExp, number][] = [
   // WebP fallbacks of three busy 1920 posters land over 350 KB at q 70, the quality floor (357 / 367 / 351 KB); browsers
   // with AVIF get the AVIF (294 / 349 / 330 KB)
   [/\/hf-(harvest|ship|sort)_1920\.webp$/, 370],
+  // a 2560 poster is 1.78× the pixels of a 1920 one, so it gets 1.8× the cap: at the quality floor (WebP q 70) the
+  // busiest frames land at 575 KB, and in AVIF, which every browser that plays these clips decodes, at 361 KB (#264)
+  [/_2560\.(avif|webp)$/, 630],
   [/\.(avif|webp)$/, 350],
   [/\.glb$/, 1536],
   [/\.woff2$/, 40],
