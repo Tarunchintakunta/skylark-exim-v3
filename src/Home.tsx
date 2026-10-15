@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { bindStoryPrefetch } from './home/prefetch'
+import { bindStoryPrefetch, warmHomeImages } from './home/prefetch'
 import { HomeHero } from './home/HomeHero'
 import { Loader } from './ui/Loader'
 import { PageHeader } from './ui/PageHeader'
@@ -28,6 +28,7 @@ export default function Home() {
     return () => io.disconnect()
   }, [])
   useEffect(bindStoryPrefetch, [])
+  useEffect(warmHomeImages, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>

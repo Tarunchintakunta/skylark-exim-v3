@@ -145,20 +145,29 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       await page.waitForTimeout(800)
       counting = true
       const stuck: string[] = []
-      for (const f of [0.08, 0.2, 0.32, 0.46, 0.6, 0.74, 0.88]) {
+      // the film's own stops only: past it the business sections cover the stage and no clip is meant to be on screen
+      const onFilm = () =>
+        page.evaluate(() => {
+          const s = (globalThis as unknown as { __scrub?: { id: string | null; shown: boolean } }).__scrub
+          const film = document.querySelector('.film')!.getBoundingClientRect()
+          return { ...s, film: film.bottom > innerHeight * 0.5 }
+        })
+      for (const f of [0.05, 0.12, 0.2, 0.3, 0.4, 0.5, 0.6]) {
         await page.evaluate((f) => scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * f), f)
         await page.waitForTimeout(700)
-        const s = await page.evaluate(() => (globalThis as unknown as { __scrub?: { id: string | null; shown: boolean } }).__scrub)
-        if (!s?.shown) stuck.push(`step ${f}: ${s?.id ?? 'no clip'} not on screen`)
+        const s = await onFilm()
+        if (s.film && !s.shown) stuck.push(`step ${f}: ${s.id ?? 'no clip'} not on screen`)
       }
-      // a fast fling: every stop still has a clip painted
+      // a fast fling through the film: it still has a clip painted at the end of it
+      await page.evaluate(() => scrollTo(0, 0))
+      await page.waitForTimeout(500)
       for (let i = 0; i < 8; i++) {
         await page.mouse.wheel(0, 1600)
         await page.waitForTimeout(150)
       }
       await page.waitForTimeout(800)
-      const after = await page.evaluate(() => (globalThis as unknown as { __scrub?: { shown: boolean } }).__scrub)
-      if (!after?.shown) stuck.push('after the fling: no clip on screen')
+      const after = await onFilm()
+      if (after.film && !after.shown) stuck.push('after the fling: no clip on screen')
       report.storyStuck = stuck
       await page.evaluate(() => scrollTo(0, 0))
       await page.waitForTimeout(600)

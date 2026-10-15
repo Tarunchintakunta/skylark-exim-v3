@@ -172,15 +172,6 @@ const videoId = (i: number) => {
   return m?.kind === 'video' ? m.id : null
 }
 
-/** A decoder holds `id` from the network, completely buffered: the warm cache (#251) needn't download it again. */
-export function fullyLoaded(id: string) {
-  return slots.some((s) => {
-    const v = s.v
-    if (s.id !== id || s.blob || !Number.isFinite(v.duration) || v.buffered.length !== 1) return false
-    return v.buffered.start(0) <= EPS && v.buffered.end(0) >= v.duration - EPS
-  })
-}
-
 /** A decoder is downloading `id` from the network right now: the warm cache leaves it alone until it's done. */
 export const downloading = (id: string) => slots.some((s) => s.id === id && !s.blob && s.v.networkState === s.v.NETWORK_LOADING)
 

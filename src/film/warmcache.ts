@@ -3,13 +3,16 @@ import { env } from '../engine/env'
 import { frame, store, type Path } from '../engine/store'
 import { GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
 import { CLIPS, type Clip } from './manifest'
-import { downloading, fullyLoaded } from './scrub'
+import { downloading } from './scrub'
 import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, posterFor, served } from './segments'
 
 /**
  * Warm cache (#251): once the first screen is up, one loader fetches every clip of the active path into Blobs, so the
  * stage's <video>s play from blob: URLs and a seek never touches the network. Only the active path, at the page's own
- * tier and in one codec (#hd: it waits for segments.ts to settle the codec). Coarse first: the first and the middle clip
+ * tier and in one codec (#hd: it waits for segments.ts to settle the codec). Every clip gets its own Blob, including
+ * one a decoder has already downloaded in full: without a Blob that clip is fetched again the next time a decoder takes
+ * it, which was the one request a warm scroll still made (#264; /media is immutable, so the refetch is a cache hit).
+ * Coarse first: the first and the middle clip
  * of each chapter in story order, then the rest, so a fast scroll meets something cached everywhere early. Save-Data
  * and 2g/3g keep the distance prefetch only (scrub.ts), which stays the fallback for clips not cached yet.
  */
@@ -94,11 +97,6 @@ async function run(p: Path) {
     return j < 0 ? null : queue.splice(j, 1)[0]
   }
   const fetchOne = async (c: Clip) => {
-    // a decoder already has the whole clip from the network: count it, don't download it twice
-    if (fullyLoaded(c.id)) {
-      done += size(c)
-      return emit()
-    }
     const stop = new AbortController()
     ctl.signal.addEventListener('abort', () => stop.abort())
     loading.set(c.id, stop)
@@ -123,13 +121,6 @@ async function run(p: Path) {
           continue
         }
         await new Promise((r) => setTimeout(r, QUIET))
-        // a clip a decoder finished downloading counts as cached
-        for (const q of [...queue])
-          if (fullyLoaded(q.id)) {
-            queue.splice(queue.indexOf(q), 1)
-            done += size(q)
-            emit()
-          }
       }
     }),
   )
