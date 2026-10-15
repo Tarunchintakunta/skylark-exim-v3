@@ -7,6 +7,7 @@
 #    public/media/<id>_end_1280.avif + .webp     last-frame poster for scrolling back into a clip (desktop)
 # POSTERS=only: the posters alone (the solver counts their bytes); POSTERS=no: the clips alone.
 # TIERS="2560": those tiers alone (the 2560 decision is re-run on its own when the budget changes).
+# CODECS="av1": those codecs alone, for re-encoding one codec's file without touching the others.
 # Quality first, capped by size: AV1 crf 30 / HEVC crf 22 / H.264 crf 18, HEVC and H.264 with maxrate at the solver's
 # cap for the tier (scripts/clip-manifest.ts caps). Where the cap still binds, the encode drops to a VBR at the cap; AV1
 # goes there directly (SVT-AV1's capped CRF starves busy frames: SSIM 0.83 vs 0.89 for VBR at fewer bytes on hf-catch).
@@ -63,7 +64,7 @@ cap(){ awk -v t="$1" '$1==t{print $2}' <<<"$caps"; }
 
 line="$id (crop x $x)"
 for t in ${TIERS:-m 960 1280 1920 2560}; do
-  for c in av1 hevc h264; do
+  for c in ${CODECS:-av1 hevc h264}; do
     [ "$c" = h264 ] && [ "$t" = 2560 ] && continue
     o="$OUT/${id}_${t}$([ $c = h264 ] || echo ".$c").mp4"
     c_b=$(cap $t); rate=$(awk -v b="$c_b" -v d="$dur" 'BEGIN{printf "%d", b*8/1000*0.97/d}')   # kbit/s, 3 % container headroom
