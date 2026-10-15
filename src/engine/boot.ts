@@ -1,3 +1,3 @@
-/** Resolves when the lazy story chunk has mounted; the loader waits for it before it hands over (#207). */
+/** Resolves when the page's own content has mounted: the lazy story chunk on /story, the sections on the homepage. */
 export let storyMounted = () => {}
 export const storyReady = new Promise<void>((r) => (storyMounted = r))

@@ -1,8 +1,9 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
 /**
- * Intro loader (#218): it paints before any JS, reveals within 3 s of navigation even on throttled 4G, is skipped on a
- * return visit in the same session, is short on a deep link, static with reduced motion, and never traps the visitor.
+ * Intro (#218, non-blocking since #264): it paints before any JS, opens within 3 s of navigation even on throttled 4G,
+ * never locks the scroll, opens at once on the first wheel, is skipped on a return visit in the same session, is short
+ * on a deep link, static with reduced motion, and never traps the visitor.
  */
 
 /** records when the loader handed over (data-ready on <html>) and when #boot left the DOM, in ms from navigation start */
@@ -43,12 +44,15 @@ for (const [name, viewport, mobile] of [
     await page.waitForSelector('#boot .loader__name', { state: 'attached' })
     await expect(page.locator('#boot')).toBeVisible()
     await expect(page.locator('#boot .loader__name')).toHaveText('Skylark Exim · Visakhapatnam')
+    // the page is live under the overlay: the scroll is never locked, not even while the intro plays (#264)
+    await expect(page.locator('html')).not.toHaveClass(/is-locked/)
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 15_000 })
     await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
     const t = await times(page)
     console.log(name, `ready at ${Math.round(t.ready)} ms, loader gone at ${Math.round(t.gone)} ms`)
-    expect(t.ready).toBeGreaterThanOrEqual(1200)
-    expect(t.ready).toBeLessThanOrEqual(3000 + 100) // one frame of slack for the timer
+    // nothing is gated on the intro: the site is live as soon as its script mounts, and the intro opens on its own clock
+    expect(t.ready).toBeLessThanOrEqual(3000 + 100)
+    expect(t.gone).toBeLessThanOrEqual(t.ready + 2000)
     // hand-off: scroll is unlocked and the static hero copy has given way to React's (same place, no shift)
     await expect(page.locator('html')).not.toHaveClass(/is-locked/)
     await expect(page.locator('#hero-static')).toHaveCount(0)
@@ -57,27 +61,40 @@ for (const [name, viewport, mobile] of [
   })
 }
 
-test('on fast 4G the gate completes before the cap, and progress is real: it moves while clips buffer', async ({ browser }) => {
+test('on fast 4G the intro opens on its own clock, and the real progress is the story bar hairline', async ({ browser }) => {
   const ctx = await browser.newContext()
   const page = await ctx.newPage()
   await page.addInitScript(TIMES)
   await throttle4g(ctx, page, 'fast')
-  await page.addInitScript(() => {
-    const seen: number[] = ((window as unknown as { __bar: number[] }).__bar = [])
-    new MutationObserver(() => {
-      const v = Number(document.getElementById('boot')?.getAttribute('aria-valuenow') ?? NaN)
-      if (Number.isFinite(v) && seen.at(-1) !== v) seen.push(v)
-    }).observe(document, { subtree: true, attributes: true, attributeFilter: ['aria-valuenow'] })
-  })
   await page.goto('/story')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 15_000 })
-  const bar = await page.evaluate(() => (window as unknown as { __bar: number[] }).__bar)
   const t = await times(page)
-  console.log(`fast 4G ready at ${Math.round(t.ready)} ms, progress`, bar.join(' → '))
+  console.log(`fast 4G ready at ${Math.round(t.ready)} ms`)
   expect(t.ready).toBeLessThan(2500)
-  expect(bar.length).toBeGreaterThan(3)
-  expect(bar).toEqual([...bar].sort((a, b) => a - b))
-  expect(bar.at(-1)).toBe(100)
+  // the intro claims no progress of its own any more (#264)
+  await expect(page.locator('#boot')).toHaveCount(0)
+  // the hairline under the story bar grows with the warm cache and reaches the end
+  const bar = page.locator('.cache-bar')
+  const scale = () => bar.evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).a)
+  await expect.poll(scale, { timeout: 60_000 }).toBeGreaterThan(0.05)
+  await expect.poll(scale, { timeout: 180_000 }).toBeGreaterThan(0.99)
+  await ctx.close()
+})
+
+test('the intro opens at once on the first wheel, and the page scrolls while it plays', async ({ browser }) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await page.addInitScript(TIMES)
+  await page.goto('/story')
+  // the page is mounted and the intro is still on screen: a wheel now both scrolls the page and opens the intro
+  await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
+  await expect(page.locator('#boot')).toBeVisible()
+  await page.mouse.move(700, 450)
+  await page.mouse.wheel(0, 600)
+  await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
+  const t = await times(page)
+  console.log(`wheel: intro gone at ${Math.round(t.gone)} ms`)
+  await expect.poll(() => page.evaluate(() => scrollY), { timeout: 5_000 }).toBeGreaterThan(0)
   await ctx.close()
 })
 
@@ -101,10 +118,12 @@ test('a deep link gets the short intro and lands on its path', async ({ page }) 
   await page.goto('/story#pond')
   await expect(page.locator('html')).toHaveClass(/intro-short/)
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
+  await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
   const t = await times(page)
-  console.log(`deep link ready at ${Math.round(t.ready)} ms`)
-  expect(t.ready).toBeGreaterThanOrEqual(800)
-  expect(t.ready).toBeLessThan(1200)
+  console.log(`deep link ready at ${Math.round(t.ready)} ms, intro gone at ${Math.round(t.gone)} ms`)
+  // the short intro: it opens 800 ms after navigation, or as soon as the script arrives if that is later
+  expect(t.gone).toBeGreaterThanOrEqual(800)
+  expect(t.gone).toBeLessThanOrEqual(t.ready + 1500)
   await expect.poll(() => page.evaluate(() => (window as unknown as { __scrub?: { id: string | null } }).__scrub?.id), { timeout: 10_000 }).toBe('hf-ponds')
 })
 

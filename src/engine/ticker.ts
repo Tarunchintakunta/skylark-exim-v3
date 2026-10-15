@@ -35,7 +35,6 @@ export function startClock() {
 export function startEngine() {
   if (started) return
   started = true
-  history.scrollRestoration = 'manual'
   // Touch and reduced motion keep native scrolling.
   if (!env.coarse && !env.reduced) {
     lenis = new Lenis({ autoRaf: false, lerp: 0.1, wheelMultiplier: 1, smoothWheel: true, syncTouch: false })
@@ -84,6 +83,12 @@ export function unlockScroll() {
   removeEventListener('touchmove', swallow)
   lenis?.start()
 }
+
+/**
+ * Re-measure the page for Lenis. It clamps a wheel to the height it last measured, and the lazy page content lands
+ * after it is created: without this the first wheel after the content mounts moves nothing (#264).
+ */
+export const resizeScroll = () => lenis?.resize()
 
 export function scrollToY(y: number, immediate = false) {
   // Lenis clamps to the page height it last measured (a debounced ResizeObserver): a jump right after the story mounts,

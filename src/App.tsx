@@ -2,21 +2,20 @@ import { lazy, Suspense, useEffect } from 'react'
 import { chaptersFor, firstClip } from './config/chapters'
 import { storyReady } from './engine/boot'
 import { bindPathHash } from './engine/path'
-import type { Gate } from './engine/preload'
 import { store, useApp } from './engine/store'
 import { scrollToY } from './engine/ticker'
 import { ScrubStage } from './film/ScrubStage'
 import { warm } from './film/scrub'
+import { startWarmCache } from './film/warmcache'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
 import { Hero } from './ui/Hero'
 
 const Story = lazy(() => import('./Story'))
 
-// the chosen path's first clip (#ocean / #pond, else wild catch)
+// the chosen path's first clip (#ocean / #pond, else wild catch): started at mount, with nothing waiting on it (#264)
 const clip = firstClip(store.getState().path)
 const first = clip ? [clip.id] : []
-const WAIT: Gate = { mounted: storyReady, clips: { n: first.length, start: () => warm(first) } }
 
 export default function App() {
   const path = useApp((s) => s.path)
@@ -42,6 +41,9 @@ export default function App() {
   }, [ready])
   // #ocean / #pond: the path anchors (#210); other section anchors (/#products from /quote) are handled above
   useEffect(bindPathHash, [])
+  // the first clip starts at mount: the intro gates nothing (#264)
+  useEffect(() => void warm(first), [])
+  useEffect(startWarmCache, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
@@ -54,7 +56,7 @@ export default function App() {
           <Story chapters={chapters} />
         </Suspense>
       </main>
-      <Loader wait={WAIT} />
+      <Loader mounted={storyReady} />
     </>
   )
 }

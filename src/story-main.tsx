@@ -11,6 +11,7 @@ import { env } from './engine/env'
 if (env.mobile) document.documentElement.classList.add('is-mobile')
 if (env.reduced) document.documentElement.classList.add('is-reduced')
 
+history.scrollRestoration = 'manual'
 startEngine()
 
 createRoot(document.getElementById('root')!).render(

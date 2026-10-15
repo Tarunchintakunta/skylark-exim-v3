@@ -11,7 +11,7 @@ import { HeroFrame, bindLoop } from './HeroFrame'
  * the first third of the start chapter, and the copy fades over its last 15%.
  */
 export function Hero() {
-  const ready = useApp((s) => s.ready)
+  const revealed = useApp((s) => s.revealed)
   const path = useApp((s) => s.path)
   const root = useRef<HTMLDivElement>(null)
   const video = useRef<HTMLVideoElement>(null)
@@ -37,7 +37,7 @@ export function Hero() {
   }, [])
 
   useEffect(() => {
-    if (!ready) return
+    if (!revealed) return
     const el = root.current!
     // no intro animation: the same copy is already on screen from the HTML (#207), above the loader
     gsap.set(el, { autoAlpha: 1 })
@@ -49,7 +49,7 @@ export function Hero() {
       el.style.opacity = String(o)
       el.style.visibility = o > 0 ? 'visible' : 'hidden'
     })
-  }, [ready])
+  }, [revealed])
 
   return (
     <HeroFrame

@@ -1,39 +1,87 @@
 #!/usr/bin/env bash
-# Encode a Higgsfield master into the scrub tiers + posters (docs/HIGGSFIELD_STORYBOARD.md).
-#   scripts/encode-hf.sh <master.mp4> <id>
-# -> public/media/<id>_{1920,1280,960,720}.mp4  H.264 High, two-pass, GOP 6, no B-frames, faststart, no audio, 24 fps
-#    public/media/<id>_{1920,1280,960}.webp + <id>_720.webp   first-frame posters (<= 120 KB, cwebp)
-#    public/media/<id>_end_1920.webp                          last-frame poster (reverse scroll)
-# Size caps per tier (KB): 1920 2200 · 1280 1400 · 960 850 · 720 550 (hard cap 2300 at 1920). The bitrate is derived
-# from the cap and the clip length; a tier that still lands over its cap is re-encoded at 90 % until it fits.
+# Encode one clip from its master into every scrub tier, codec and poster (HD pass; docs/HIGGSFIELD_STORYBOARD.md).
+#   scripts/encode-hf.sh <id>          master: masters/<id>/master.mp4 (2560×1440, 24 fps; gitignored, never public/media)
+# -> public/media/<id>_<tier>.av1.mp4 · .hevc.mp4 · .mp4 (H.264)   tiers m (810×1440 portrait crop), 960, 1280, 1920;
+#    AV1 and HEVC also at 2560, inside the 2560 path budget and kept only where clip-manifest.ts `top` fits them
+#    public/media/<id>_<tier>.avif + .webp   first-frame posters, tiers m, 960, 1280, 1920 (+ 2560 when served)
+#    public/media/<id>_end_1280.avif + .webp     last-frame poster for scrolling back into a clip (desktop)
+# POSTERS=only: the posters alone (the solver counts their bytes); POSTERS=no: the clips alone.
+# TIERS="2560": those tiers alone (the 2560 decision is re-run on its own when the budget changes).
+# Quality first, capped by size: AV1 crf 30 / HEVC crf 22 / H.264 crf 18, HEVC and H.264 with maxrate at the solver's
+# cap for the tier (scripts/clip-manifest.ts caps). Where the cap still binds, the encode drops to a VBR at the cap; AV1
+# goes there directly (SVT-AV1's capped CRF starves busy frames: SSIM 0.83 vs 0.89 for VBR at fewer bytes on hf-catch).
+# Every file ends ≤ its cap.
+# GOP: a keyframe every ${GOP:-6} frames (0.25 s), closed, no scene cuts, no B-frames. A 12-frame GOP (0.5 s) was tried
+# first: on the desktop ocean path (1920, AV1) presented fps fell to 36 and seek p95 rose to 48 ms (over a frame), stale
+# 42 %; at 6 frames: 55 fps, seek p95 22 ms, stale 0 % (tests/video-smoothness.spec.ts). No audio, faststart.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-in="$(cd "$(dirname "${1:?master}")" && pwd)/$(basename "$1")"; id="${2:?id}"; OUT="${OUT:-public/media}"; mkdir -p "$OUT"; OUT="$(cd "$OUT" && pwd)"
-tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-kb(){ echo $(( $(stat -f%z "$1" 2>/dev/null || stat -c%s "$1") / 1024 )); }
-cap(){ case "$1" in 1920) echo 2200;; 1280) echo 1400;; 960) echo 850;; *) echo 550;; esac; }
+id="${1:?id}"; in="$PWD/masters/$id/master.mp4"; OUT="$(cd "${OUT:-public/media}" && pwd)"; GOP="${GOP:-6}"
+[ -f "$in" ] || { echo "! $id: no master at $in, left unchanged"; exit 3; }
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/hf.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
+kb(){ echo $(( $(stat -f%z "$1") / 1024 )); }
+bytes(){ stat -f%z "$1"; }
 dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$in")
-# RATE_DUR: derive the bitrate from this length instead (a trimmed clip keeps the full clip's bitrate, so its quality)
-dur=${RATE_DUR:-$dur}
-X="-c:v libx264 -profile:v high -preset slower -tune film -g ${GOP:-6} -keyint_min ${GOP:-6} -sc_threshold 0 -bf 0 -pix_fmt yuv420p -r 24 -an"
-line="$id"
-for w in 1920 1280 960 720; do
-  o="$OUT/${id}_${w}.mp4"; c=$(cap "$w"); f=100
-  while :; do
-    br=$(awk -v c="$c" -v d="$dur" -v f="$f" 'BEGIN{printf "%d", c*8*1.024*0.97*f/100/d}')   # kbit/s, 3 % container headroom
-    ( cd "$tmp" && ffmpeg -v error -y -i "$in" -vf "scale=$w:-2:flags=lanczos" $X -b:v ${br}k -pass 1 -f null - &&
-      ffmpeg -v error -y -i "$in" -vf "scale=$w:-2:flags=lanczos" $X -b:v ${br}k -maxrate $((br*2))k -bufsize $((br*2))k -pass 2 -movflags +faststart "$o" )
-    [ "$(kb "$o")" -le "$c" ] && break; f=$((f-10))
+# the phone crop: 810×1440 around CROP_X (src/config/chapters.ts), never scaled up
+cx=$(node --import tsx --input-type=module -e "const { CROP_X } = await import('./src/config/chapters.ts'); console.log(CROP_X['$id'] ?? 0.5)")
+x=$(awk -v c="$cx" 'BEGIN{x=int(c*2560-405); if(x<0)x=0; if(x>1750)x=1750; print x - x%2}')
+vf(){ case "$1" in m) echo "crop=810:1440:$x:0";; 2560) echo "null";; *) echo "scale=$1:-2:flags=lanczos";; esac; }
+
+# enc <codec> <tier> <out> <crf|vbr> <kbit/s>
+enc(){
+  local c=$1 t=$2 o=$3 mode=$4 br=$5 rc
+  case $c in
+    av1) [ "$mode" = crf ] && rc="-crf 30" || rc="-b:v ${br}k"
+         ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" -an -pix_fmt yuv420p -r 24 -c:v libsvtav1 -preset 5 $rc -g "$GOP" \
+           -svtav1-params "$([ "$mode" = vbr ] && echo rc=1:)film-grain=0:scd=0:irefresh-type=2" -movflags +faststart "$o" 2>&1 | grep -v '^Svt' || true ;;
+    hevc) local p="keyint=$GOP:min-keyint=$GOP:scenecut=0:bframes=0:open-gop=0:log-level=error"
+         if [ "$mode" = crf ]; then
+           ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" -an -pix_fmt yuv420p -r 24 -c:v libx265 -preset slow -crf 22 -tag:v hvc1 -x265-params "$p$([ "$br" -gt 0 ] && echo ":vbv-maxrate=$br:vbv-bufsize=$((br*2))")" -movflags +faststart "$o"
+         else
+           ( cd "$tmp" && ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" -an -pix_fmt yuv420p -r 24 -c:v libx265 -preset slow -b:v ${br}k -tag:v hvc1 -x265-params "$p:pass=1" -f null - &&
+             ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" -an -pix_fmt yuv420p -r 24 -c:v libx265 -preset slow -b:v ${br}k -tag:v hvc1 -x265-params "$p:pass=2:vbv-maxrate=$((br*2)):vbv-bufsize=$((br*2))" -movflags +faststart "$o" )
+         fi ;;
+    h264) local X="-c:v libx264 -profile:v high -preset slower -tune film -g $GOP -keyint_min $GOP -sc_threshold 0 -bf 0 -pix_fmt yuv420p -r 24 -an"
+         if [ "$mode" = crf ]; then
+           ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" $X -crf 18 $([ "$br" -gt 0 ] && echo "-maxrate ${br}k -bufsize $((br*2))k") -movflags +faststart "$o"
+         else
+           ( cd "$tmp" && ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" $X -b:v ${br}k -pass 1 -f null - &&
+             ffmpeg -nostdin -v error -y -i "$in" -vf "$(vf $t)" $X -b:v ${br}k -maxrate $((br*2))k -bufsize $((br*2))k -pass 2 -movflags +faststart "$o" )
+         fi ;;
+  esac
+}
+
+posters(){
+  # first frame (and last, for scrolling back up on desktop) straight from the master, lossless until the encode
+  ffmpeg -nostdin -v error -y -i "$in" -frames:v 1 "$tmp/first.png"
+  ffmpeg -nostdin -v error -y -sseof -0.1 -i "$in" -update 1 -frames:v 1 "$tmp/last.png"
+  STILL="$tmp/first.png" LAST="$tmp/last.png" CX="$cx" ID="$id" OUT="$OUT" python3 scripts/stills.py
+}
+[ "${POSTERS:-}" = only ] && { posters; exit 0; }
+caps=$(node --import tsx scripts/clip-manifest.ts caps "$id")
+cap(){ awk -v t="$1" '$1==t{print $2}' <<<"$caps"; }
+
+line="$id (crop x $x)"
+for t in ${TIERS:-m 960 1280 1920 2560}; do
+  for c in av1 hevc h264; do
+    [ "$c" = h264 ] && [ "$t" = 2560 ] && continue
+    o="$OUT/${id}_${t}$([ $c = h264 ] || echo ".$c").mp4"
+    c_b=$(cap $t); rate=$(awk -v b="$c_b" -v d="$dur" 'BEGIN{printf "%d", b*8/1000*0.97/d}')   # kbit/s, 3 % container headroom
+    enc $c $t "$o" crf $rate
+    if [ "$(bytes "$o")" -gt "$c_b" ]; then
+      # over the cap: VBR at the cap, corrected by the miss until it lands in 92–100 % of the cap (single-pass AV1
+      # under- and overshoots); the largest result under the cap wins
+      r=$rate; have=0
+      for n in 1 2 3 4 5; do
+        enc $c $t "$o" vbr $r; s=$(bytes "$o")
+        if [ "$s" -le "$c_b" ]; then cp "$o" "$tmp/best.mp4"; have=1; [ "$s" -ge $(( c_b * 92 / 100 )) ] && break; fi
+        r=$(awk -v r="$r" -v b="$c_b" -v s="$s" 'BEGIN{f=0.97*b/s; if(f>1.25)f=1.25; printf "%d", r*f}')
+      done
+      [ $have = 1 ] && cp "$tmp/best.mp4" "$o"
+      [ "$(bytes "$o")" -gt "$c_b" ] && echo "  ! $o $(kb "$o") KB over its cap $((c_b/1024)) KB"
+    fi
+    line="$line  $t.$c $(kb "$o")/$((c_b/1024))"
   done
-  line="$line  $w: $(kb "$o") KB (${br}k)"
 done
-ffmpeg -v error -y -i "$in" -frames:v 1 "$tmp/first.png"
-ffmpeg -v error -y -sseof -0.1 -i "$in" -update 1 -frames:v 1 "$tmp/last.png"
-# caps match tests/weight.spec.ts (720 webp <= 40 KB, other webp <= 120 KB), with 1 KB headroom
-webp(){ local q cap=$4; for q in 78 70 62 54 46 38 30 24 18 12; do cwebp -quiet -m 6 -q $q -resize "$3" 0 "$1" -o "$2"; [ $(( $(wc -c < "$2") )) -le $(( (cap - 1) * 1024 )) ] && return 0; done
-  # busy frames (sunlit water) can miss the cap even at q 12: let cwebp search for the size instead
-  cwebp -quiet -m 6 -pass 10 -size $(( (cap - 1) * 1024 )) -resize "$3" 0 "$1" -o "$2"
-  [ $(( $(wc -c < "$2") )) -le $(( (cap - 1) * 1024 )) ] || echo "  ! $2 over $cap KB"; }
-for w in 1920 1280 960; do webp "$tmp/first.png" "$OUT/${id}_${w}.webp" $w 120; done
-webp "$tmp/first.png" "$OUT/${id}_720.webp" 720 40
-webp "$tmp/last.png" "$OUT/${id}_end_1920.webp" 1920 120
+echo "$line"
+[ "${POSTERS:-}" = no ] || posters

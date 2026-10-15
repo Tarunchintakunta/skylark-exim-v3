@@ -11,6 +11,7 @@ Copy the shape from `news.example.json`:
 | `title` | yes | The source headline. |
 | `summary` | yes | One or two sentences. The card clamps this to two lines. |
 | `image` | yes | A file under `public/`, for example `/media/news/name.webp`. |
+| `widths` | no | Widths the image is also exported at, for sharp images on high-density screens: `[640, 960, 1280, 1920]` means `name_640.webp` … `name_1920.webp` sit next to `name.webp`. Export from the original, never upscale past it. |
 | `body` | no | Longer text for the detail page. Omit it to show the summary. |
 | `source` | yes | The `https://skylarkexim.com/...` page this item comes from. |
 

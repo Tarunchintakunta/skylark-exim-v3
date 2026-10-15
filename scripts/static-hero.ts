@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import type { Plugin } from 'vite'
 import { exportsLine, start } from '../src/config/content'
+import { heroPoster } from '../src/config/hero'
+import { versioned } from './clip-manifest'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s*\n\s*/g, '')
@@ -22,7 +24,10 @@ export function staticHero(): Plugin {
 </div></div>`
   // after the loader markup (end of body), once the web fonts have set the copy (fallback metrics differ): is there
   // room above the copy for the mark? Only z-index changes, so the check can never shift the layout
-  const fit = `<script>document.fonts.ready.then(function(){var b=document.querySelector('.loader__track'),h=document.querySelector('#hero-static h1');if(b&&h&&h.getBoundingClientRect().top<b.getBoundingClientRect().bottom+24)document.documentElement.classList.add('hero-under-loader')})</script>`
+  // `font-display: block` paints no text until the faces are in, but the copy's box is laid out with the fallback's
+  // metrics and re-flows when they arrive: 0.04 CLS on Fast 4G (#264). The copy is held invisible until
+  // document.fonts.ready (it has nothing to show before that anyway) and the same callback does the mark-fit check.
+  const fit = `<script>document.fonts.ready.then(function(){document.documentElement.classList.add('fonts-in');var b=document.querySelector('.loader__track'),h=document.querySelector('#hero-static h1');if(b&&h&&h.getBoundingClientRect().top<b.getBoundingClientRect().bottom+24)document.documentElement.classList.add('hero-under-loader')})</script>`
   // tokens (vars + @font-face), the base rules the hero inherits from global.css, and hero.css itself
   const base =
     'body{color:var(--ice);font-family:var(--f-body);font-size:var(--fs-body);line-height:1.6;-webkit-font-smoothing:antialiased}' +
@@ -30,10 +35,18 @@ export function staticHero(): Plugin {
     'h1{font-family:var(--f-display);font-weight:400;letter-spacing:-0.01em;line-height:0.98;text-wrap:balance}h1 em{font-style:italic}' +
     '.mono{font-family:var(--f-body);font-size:var(--fs-small);letter-spacing:0.04em;line-height:1.45}' +
     // id selector: the bundled hero.css (.hero hidden until ready) loads after this style and must not win
-    '#hero-static{visibility:visible;opacity:1;z-index:101}#hero-static .hero__copy{pointer-events:none}' +
+    '#hero-static{visibility:visible;opacity:1;z-index:101}#hero-static .hero__copy{pointer-events:none;visibility:hidden}' +
+    '.fonts-in #hero-static .hero__copy{visibility:visible}' +
     // no room above the copy even for the small mark (360×640, landscape phones): the inline script measures it once the
     // fonts are in and only drops the copy under the loader (z-index, no layout change), as before #207
     '.hero-under-loader #hero-static{z-index:var(--z-copy)}'
+  // the hero poster (LCP image, #hd): AVIF preloads with the hero <picture>'s own sources, so the browser picks the same
+  // file for both; browsers without AVIF skip them (type) and load the WebP from the <picture>
+  const preload = () =>
+    heroPoster(versioned)
+      .filter((p) => p.type === 'image/avif')
+      .map((p) => `<link rel="preload" as="image" type="${p.type}" imagesrcset="${p.srcSet}" imagesizes="100vw" media="${p.media}" fetchpriority="high" />`)
+      .join('\n    ')
   return {
     name: 'static-hero',
     // the hero pages' own stylesheets are small: inline them so the first paint waits on no request (lazy CSS stays lazy)
@@ -57,6 +70,7 @@ export function staticHero(): Plugin {
         src
           .replace('/*static-hero-css*/', css('styles/tokens.css') + base + css('ui/hero.css'))
           .replace('<!--static-hero-->', html(ctx.path.startsWith('/story')))
+          .replace('<!--hero-preload-->', preload())
           .replace('</body>', `${fit}\n  </body>`),
     },
   }

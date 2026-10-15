@@ -6,6 +6,8 @@ export interface NewsPost {
   title: string
   summary: string
   image: string
+  /** widths the image is also exported at, as `<image name>_<w>.webp` next to it (NEWS.md): a DPR-aware srcset */
+  widths?: number[]
   body?: string
   source: string
 }
@@ -20,9 +22,13 @@ function isPost(value: unknown): value is NewsPost {
     typeof post.summary === 'string' &&
     typeof post.image === 'string' &&
     typeof post.source === 'string' &&
-    (post.body === undefined || typeof post.body === 'string')
+    (post.body === undefined || typeof post.body === 'string') &&
+    (post.widths === undefined || (Array.isArray(post.widths) && post.widths.every((w) => Number.isInteger(w))))
   )
 }
+
+/** `srcset` for a post's image from its `widths` (undefined without them) */
+export const newsSrcSet = (post: NewsPost) => post.widths?.map((w) => `${post.image.replace(/\.webp$/, '')}_${w}.webp ${w}w`).join(', ')
 
 /** Posts from src/content/news.json, newest first. Invalid rows are dropped. */
 export const NEWS: NewsPost[] = (raw as unknown[]).filter(isPost).sort((a, b) => b.date.localeCompare(a.date))

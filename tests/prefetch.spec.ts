@@ -18,11 +18,13 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Network.enable')
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
+  // clips the first screen already requested, before this CDP session attached: their first request is not observed (#264)
+  const early = new Set(await page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname)))
   const urls = new Map<string, string>()
   const firstAt = new Map<string, number>()
   const bytes = new Map<string, number>()
   cdp.on('Network.requestWillBeSent', (e) => {
-    if (!e.request.url.endsWith('.mp4')) return
+    if (!new URL(e.request.url).pathname.endsWith('.mp4')) return
     const f = new URL(e.request.url).pathname
     urls.set(e.requestId, f)
     if (!firstAt.has(f)) firstAt.set(f, Date.now())
@@ -61,9 +63,9 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
 
   const late: string[] = []
   for (const [f, t] of firstAt) {
-    const id = f.replace(/^\/media\/|_\d+\.mp4$/g, '')
+    const id = f.replace(/^\/media\/|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/g, '')
     const ch = clipChapter[id]
-    if (!ch || id === 'opening') continue
+    if (!ch || id === 'opening' || early.has(f)) continue
     const entered = enteredAt.get(ch)
     if (entered && t > entered) late.push(`${id} requested ${t - entered} ms after ${ch} began`)
   }
@@ -79,16 +81,15 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await ctx.close()
 })
 
-test('the first screen loads the hero loop first, then only the chosen path\'s first clip; the start beat waits for a scroll (#197, #218)', async ({ browser }) => {
+test('the first screen loads the hero loop first, then only the chosen path\'s first clip; the start beat loads in idle time after the reveal (#197, #218, #248)', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
-  await page.waitForTimeout(1500)
   const clips = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname).filter((n) => n.endsWith('.mp4')))
   const first = await clips()
   expect(first[0]).toContain('/hero-loop_')
-  expect(first.slice(1).map((c) => c.replace(/_\d+\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
-  // the start beat the loop dissolves into loads on the first scroll
-  await page.mouse.move(700, 450)
-  await page.mouse.wheel(0, 200)
-  await expect.poll(async () => (await clips()).some((c) => c.includes('/opening_')), { timeout: 5_000 }).toBe(true)
+  expect(first.slice(1).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
+  // the start beat the loop dissolves into loads once the loader has revealed the page, before any scroll
+  await page.waitForSelector('#boot', { state: 'detached' })
+  // (and from then on the warm cache, #251, fetches the rest of the path in idle time)
+  await expect.poll(async () => (await clips()).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hero-loop', '/media/hf-depart', '/media/opening']))
   await ctx.close()
 })

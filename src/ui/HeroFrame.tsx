@@ -4,7 +4,7 @@ import { exportsLine, start } from '../config/content'
 import type { Path } from '../engine/store'
 import { env } from '../engine/env'
 import { useApp } from '../engine/store'
-import { FILM_W, clipUrl, posterUrl } from '../film/segments'
+import { HERO_POSTER, clipUrl, mediaUrl } from '../film/segments'
 import { DUR, EASE, STAGGER } from '../motion/tokens'
 import './hero.css'
 
@@ -64,11 +64,17 @@ export function HeroFrame({
     <div className="hero" ref={root}>
       {/* looping coastal shot (not scrubbed); reduced motion gets the poster only */}
       <div className="hero__media" ref={media}>
+      {/* the first frame, under the video until it plays: the LCP image, preloaded with the same sources (static-hero.ts) */}
+      <picture>
+        {HERO_POSTER.map((p) => (
+          <source key={p.type + p.media} type={p.type} media={p.media} srcSet={p.srcSet} sizes="100vw" />
+        ))}
+        <img className="hero__poster" src={mediaUrl('hero-loop_1280.webp')} alt="" fetchPriority="high" decoding="async" />
+      </picture>
       <video
         ref={video}
         className="hero__video"
-        src={env.reduced ? undefined : clipUrl('hero-loop', FILM_W)}
-        poster={posterUrl('hero-loop')}
+        src={env.reduced ? undefined : clipUrl('hero-loop')}
         autoPlay={!env.reduced}
         muted
         loop

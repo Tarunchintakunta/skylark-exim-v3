@@ -1,6 +1,6 @@
 import { firstClip } from '../config/chapters'
-import type { Path } from '../engine/store'
-import { FILM_W, clipUrl, posterUrl } from '../film/segments'
+import { store, type Path } from '../engine/store'
+import { clipUrl, posterUrl } from '../film/segments'
 
 const hinted = new Set<string>()
 function hint(rel: 'modulepreload' | 'prefetch', href: string, as?: string) {
@@ -37,7 +37,7 @@ export function prefetchStory(path: Path) {
   const clip = firstClip(path)
   if (!clip) return
   hint('prefetch', posterUrl(clip.id), 'image')
-  hint('prefetch', clipUrl(clip.id, FILM_W), 'video')
+  hint('prefetch', clipUrl(clip.id), 'video')
 }
 
 /** Hover or keyboard focus on any story link (nav, hero fork, story cards) warms /story; nothing loads before that. */
@@ -52,4 +52,27 @@ export function bindStoryPrefetch() {
     document.removeEventListener('pointerover', on)
     document.removeEventListener('focusin', on)
   }
+}
+
+/**
+ * The homepage's own images, warmed once the intro has opened and the browser is idle (#264): every lazy image below the
+ * fold is switched to eager, so a scroll through the page fetches nothing. The hero's frame set loads on the same
+ * signal (home/HomeHero.tsx); this is everything under it: the story cards, the products, the plant and the globe still.
+ */
+export function warmHomeImages() {
+  const go = () => {
+    const warm = () => document.querySelectorAll<HTMLImageElement>('main img[loading="lazy"]').forEach((img) => (img.loading = 'eager'))
+    if ('requestIdleCallback' in window) requestIdleCallback(() => warm(), { timeout: 3000 })
+    else setTimeout(warm, 500)
+  }
+  if (store.getState().revealed) {
+    go()
+    return () => {}
+  }
+  const off = store.subscribe((s) => {
+    if (!s.revealed) return
+    off()
+    go()
+  })
+  return off
 }

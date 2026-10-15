@@ -4,6 +4,7 @@ import { setPath } from '../engine/path'
 import { frame, useApp, type Path } from '../engine/store'
 import { onTick } from '../engine/ticker'
 import { film } from '../film/controller'
+import { onCache, progress } from '../film/warmcache'
 import { Mark } from './Mark'
 import { SiteNav } from './SiteNav'
 import { bindScrolled } from './scrolled'
@@ -20,6 +21,17 @@ export function Header() {
   const root = useRef<HTMLElement>(null)
   const [open, setOpen] = useState(false)
   const path = useApp((s) => s.path)
+  const cache = useRef<HTMLSpanElement>(null)
+  // the warm cache's progress (#251): a hairline under the bar, transform only, gone once the path is cached
+  useEffect(
+    () =>
+      onCache(() => {
+        const p = progress()
+        cache.current!.style.transform = `scaleX(${p})`
+        cache.current!.classList.toggle('is-done', p >= 1)
+      }),
+    [],
+  )
   useEffect(() => bindScrolled((on) => root.current!.classList.toggle('is-scrolled', on)), [])
 
   useEffect(() => {
@@ -83,6 +95,7 @@ export function Header() {
       <a className="quote-cta" href="/quote">
         {start.cta} →
       </a>
+      <span className="cache-bar" ref={cache} aria-hidden="true" />
     </header>
   )
 }
