@@ -3,7 +3,7 @@ import { env } from '../engine/env'
 import { frame, store, type Path } from '../engine/store'
 import { GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
 import { CLIPS, type Clip } from './manifest'
-import { downloading } from './scrub'
+import { downloading, fullyLoaded } from './scrub'
 import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, posterFor, served } from './segments'
 
 /**
@@ -12,6 +12,7 @@ import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, posterFor, serv
  * tier and in one codec (#hd: it waits for segments.ts to settle the codec). Every clip gets its own Blob, including
  * one a decoder has already downloaded in full: without a Blob that clip is fetched again the next time a decoder takes
  * it, which was the one request a warm scroll still made (#264; /media is immutable, so the refetch is a cache hit).
+ * Those clips are fetched last, so a slow link spends its bandwidth on clips nothing holds yet.
  * Coarse first: the first and the middle clip
  * of each chapter in story order, then the rest, so a fast scroll meets something cached everywhere early. Save-Data
  * and 2g/3g keep the distance prefetch only (scrub.ts), which stays the fallback for clips not cached yet.
@@ -93,10 +94,12 @@ async function run(p: Path) {
   const near = (c: Clip) => c.chapter >= frame.index && c.chapter <= frame.index + NEAR
   const next = () => {
     if (scrolling()) return null
-    // not a clip a decoder is downloading right now (that would be a second download); the near window last
+    // not a clip a decoder is downloading right now (that would be a second download); then, in order: a clip no
+    // decoder holds and that is not in the near window, one of those two, and last a clip a decoder already has in
+    // full — that one only needs its Blob, and on a slow link the progressive loads want the bandwidth more (#264)
     const free = (c: Clip) => !downloading(c.id)
-    const k = queue.findIndex((c) => free(c) && !near(c))
-    const j = k >= 0 ? k : queue.findIndex(free)
+    const first = (test: (c: Clip) => boolean) => queue.findIndex((c) => free(c) && test(c))
+    const j = [(c: Clip) => !near(c) && !fullyLoaded(c.id), (c: Clip) => !fullyLoaded(c.id), () => true].map(first).find((k) => k >= 0) ?? -1
     return j < 0 ? null : queue.splice(j, 1)[0]
   }
   const fetchOne = async (c: Clip) => {
