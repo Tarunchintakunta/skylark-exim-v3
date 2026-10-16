@@ -446,7 +446,7 @@ def freeze_crew(C, rnd, crate_fn):
     for nm, gnd, sd, path in (('HUM_ColdW2', 'female', 541, [(880, (CX + 1.25, 69.2)), (1070, (CX + 1.25, 75.6))]),):
         w2 = H.person(nm, 'coldstore', gnd, coll=C, seed=sd)
         H.walk_cycle(w2, path[0][0], path[1][0], path, stride=0.46,
-                     base={'upperarm.L': (6, -22, 0), 'upperarm.R': (6, -22, 0), 'forearm.L': (18, 0, 0), 'forearm.R': (18, 0, 0)}, arms=False, step=2)
+                     base={'head': (4, 0, 28), 'neck': (0, 0, 10)}, arms=True, step=2)   # arms swinging, head to the racks: not the puller's stiff A-pose (#257)
         _lift(w2)
     w3 = H.person('HUM_ColdW3', 'coldstore', 'male', coll=C, seed=542)
     w3.location = (CX + 1.7, 77.2, DZ)
