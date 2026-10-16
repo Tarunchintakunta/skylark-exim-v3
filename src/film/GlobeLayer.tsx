@@ -2,7 +2,7 @@ import { lazy, startTransition, Suspense, useEffect, useState } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { PORTRAIT } from '../config/hero'
 import { useApp } from '../engine/store'
-import { GLOBE_PH, GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
+import { GLOBE_PH, warmGlobePlaceholder } from '../three/globeState'
 import { avifReady } from './segments'
 import '../sections/markets.css'
 
@@ -17,8 +17,7 @@ function prefetch() {
   fetched = true
   idle(() => {
     void avifReady.then(warmGlobePlaceholder)
-    void loadGlobe()
-    new Image().src = GLOBE_TEXTURE
+    void loadGlobe().then((g) => g.preloadGlobe())
   })
 }
 
