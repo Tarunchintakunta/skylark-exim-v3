@@ -110,17 +110,18 @@ def _handles(name, crate, C):
 def unload(C, R):
     """W1 (trolley A) and W2 (trolley B) lift the top crates out of the truck onto trolleys W5/W6 bring up."""
     tA, tB = bpy.data.objects['PL_WaitTrolley1'], bpy.data.objects['PL_WaitTrolley2']
-    for t, dest, f0, f1 in ((tA, (8.72, 1.35), 292, 306), (tB, (9.68, 1.4), 294, 308)):
+    DEST = {tA.name: (8.72, 1.5), tB.name: (9.68, 1.55)}     # frame_set() below re-poses the trolleys: the final deck spot is fixed here
+    for t, dest, f0, f1 in ((tA, (8.72, 1.5), 292, 306), (tB, (9.68, 1.55), 294, 308)):
         t.keyframe_insert('location', frame=f0)
         t.keyframe_insert('rotation_euler', frame=f0)
         t.location = (dest[0], dest[1], DZ)
-        t.rotation_euler = (0, 0, D(90))
+        t.rotation_euler = (0, 0, D(-90))             # push handle on the far side, away from the unloader
         t.keyframe_insert('location', frame=f1)
         t.keyframe_insert('rotation_euler', frame=f1)
     for nm, t, f0, f1 in (('HUM_DockW5', tA, 288, 308), ('HUM_DockW6', tB, 290, 310)):
         w = bpy.data.objects[nm]
         a = (w.location.x, w.location.y)
-        b = (t.location.x - 0.0, 2.75)
+        b = (t.location.x - 0.0, 2.85)
         w.animation_data_clear()
         relax = {'upperarm.L': (8, -26, 0), 'forearm.L': (14, 0, 0), 'upperarm.R': (10, -24, 0),
                  'forearm.R': (24, 0, 0), 'spine': (4, 0, 0), 'head': (8, 0, 0)}
@@ -149,12 +150,12 @@ def unload(C, R):
             c = bpy.data.objects['TRK_RigidReefer_Cargo%02d' % k]
             bpy.context.scene.frame_set(300)                       # truck docked
             cw = c.matrix_world.translation.copy()
-            tr = Vector((t.location.x, t.location.y))
+            tr = Vector(DEST[t.name])
             slot = Vector((0, (-0.24, 0.24, -0.24)[n]))
-            dest = Vector((tr.x + slot.y, tr.y, DZ + 0.33 + (1 if n == 2 else 0) * 0.3))
-            d_in = (cw.xy - tr).normalized()                      # trolley -> crate
+            dest = Vector((tr.x + slot.y, tr.y - 0.4, DZ + 0.33 + (1 if n == 2 else 0) * 0.3))
+            d_in = Vector((0, -1))                                # trolley -> truck, along the deck axis
             pick = cw.xy - d_in * 0.5                             # stand half a metre short of the crate
-            drop = tr + d_in * 0.62                               # stand in front of the trolley
+            drop = tr + d_in * 0.95                               # stand clear of the deck end: no limb crosses the rails (#246)
             t0 = start + n * 40
             w.location.z = DZ
             H.walk_cycle(w, t0, t0 + 12, [(t0, drop), (t0 + 12, pick)], stride=0.5, base={'spine': (8, 0, 0)},
@@ -175,7 +176,7 @@ def unload(C, R):
                 bpy.context.scene.frame_set(f)
                 wp = w.matrix_world.translation
                 fwd = Vector((_m.sin(w.rotation_euler.z), -_m.cos(w.rotation_euler.z)))
-                hold = (wp.x + fwd.x * 0.42, wp.y + fwd.y * 0.42, DZ + 0.82)
+                hold = (wp.x + fwd.x * 0.36, wp.y + fwd.y * 0.36, DZ + 0.8)
                 c.location = _key_world_to_truck(R, *hold)
                 c.keyframe_insert('location', frame=f)
             c.location = _key_world_to_truck(R, dest.x, dest.y, dest.z)
@@ -191,7 +192,10 @@ def unload(C, R):
         H.jitter(w, H.POSES['look'], start + 124, 1060, every=24, amp=4, seed=len(nm))
         grip_on(w, 'L', first[0], first[1], 0.75)            # fingers close on the first crate's rim
         grip_on(w, 'R', first[0], first[1], 0.75)
-        H.settle_reach(w, start, start + 122, step=2, iters=3, max_shift=0.35)
+        H.settle_reach(w, start, start + 122, step=2, iters=3, max_shift=0.08)
+        for fk in (start + 124, 1060):                  # rest in front of the deck end, clear of the rails (#246)
+            w.location = (drop.x, drop.y, DZ)
+            w.keyframe_insert('location', frame=fk)
 
 
 def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None):
