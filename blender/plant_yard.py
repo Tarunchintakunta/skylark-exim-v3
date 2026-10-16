@@ -137,7 +137,7 @@ def build(C, crate):
 
     # -- second forklift on the near apron (in the review frames): brings a pallet of iced crates in behind the truck
     fl2, car2 = forklift('YD_Forklift2', C, M)
-    fl2.location = (14.4, -7.3, 0)
+    fl2.location = (17.0, -7.3, 0)
     pal2 = S.pallet('YD_FL2Pallet', (0.75, 0, 0.05), M, C, 0.0)
     pal2.parent = car2
     k = 0
@@ -152,7 +152,7 @@ def build(C, crate):
     op2.location = (-0.55, 0, 0.38)
     op2.rotation_euler = (0, 0, D(-90))
     H.jitter(op2, sit, 1, 300, every=20, amp=3, seed=43)
-    _mover(fl2, 60, 190, [(14.4, -7.3), (13.5, -7.4), (12.6, -7.5)])
+    _mover(fl2, 60, 190, [(17.0, -7.3), (16.2, -7.4), (15.4, -7.5)])      # stops 5 m clear of the reefer's flank (#255)
     car2.keyframe_insert('location', frame=196)
     car2.location.z = 0.03
     car2.keyframe_insert('location', frame=226)
