@@ -44,7 +44,8 @@ test('a story entry card zooms its still on hover and settles back', async ({ pa
   const card = page.locator('#story-entry [data-card="farmed"]')
   await card.scrollIntoViewIfNeeded()
   const still = card.locator('.se-media__still')
-  const zoom = () => still.evaluate((el) => parseFloat(getComputedStyle(el).scale))
+  // computed `scale` is "none" until something sets it
+  const zoom = () => still.evaluate((el) => (getComputedStyle(el).scale === 'none' ? 1 : parseFloat(getComputedStyle(el).scale)))
   await expect.poll(zoom).toBe(1)
   await card.hover()
   await expect.poll(zoom).toBeGreaterThan(1.02)

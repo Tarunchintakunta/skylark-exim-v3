@@ -69,7 +69,11 @@ test('hovering a story link prefetches the story chunk and that path\'s first cl
   await page.goto('/')
   await ready(page)
   await expect(page.locator('link[rel="modulepreload"][href*="/assets/Story-"]')).toHaveCount(0)
-  await page.locator('#story-entry [data-card="farmed"]').hover()
+  // a real mouse moves: the card ignores a pointer that a scroll carries over it (StoryEntry.tsx `move`)
+  const farmed = page.locator('#story-entry [data-card="farmed"]')
+  await farmed.hover({ position: { x: 60, y: 60 } })
+  const b = (await farmed.boundingBox())!
+  await page.mouse.move(b.x + 90, b.y + 90, { steps: 4 })
   await expect(page.locator('link[rel="modulepreload"][href*="/assets/Story-"]')).toHaveCount(1)
   await expect(page.locator('link[rel="prefetch"][href*="/media/hf-ponds_"][href*=".mp4?v="]')).toHaveCount(1)
   await expect(page.locator('link[rel="prefetch"][href*="/media/hf-depart_"]')).toHaveCount(0)
