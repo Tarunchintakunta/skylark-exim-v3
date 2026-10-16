@@ -26,7 +26,10 @@ function instrument() {
   const g: G = { intro: -1, lcp: -1, enter: -1, live: -1, poster: false, long: [], frames: [] }
   ;(window as unknown as { __g: G }).__g = g
   new PerformanceObserver((l) => l.getEntries().forEach((e) => e.duration > 50 && g.long.push(Math.round(e.duration)))).observe({ type: 'longtask', buffered: true })
-  new PerformanceObserver((l) => l.getEntries().forEach((e) => (g.lcp = e.startTime))).observe({ type: 'largest-contentful-paint', buffered: true })
+  // LCP up to the first scroll (a scripted scroll is no user input, so the browser would keep counting)
+  let scrolled = false
+  addEventListener('scroll', () => (scrolled = true), { once: true, passive: true })
+  new PerformanceObserver((l) => l.getEntries().forEach((e) => !scrolled && (g.lcp = e.startTime))).observe({ type: 'largest-contentful-paint', buffered: true })
   let last = 0
   const poll = (t: number) => {
     const box = document.querySelector<HTMLElement>('[data-globe]')
