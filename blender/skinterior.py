@@ -988,7 +988,7 @@ def cold_store(C, M, rnd):
                 z = DZ + 0.26 + lv * 0.98
                 xc = xr + side * 0.6
                 wood.box((xc, yy, z + 0.07), (1.0, 1.2, 0.14))
-                h = rnd.choice((0.55, 0.65, 0.7, 0.75))
+                h = rnd.choice((0.5, 0.56, 0.62, 0.66))        # 0.66 tops out 6 cm under the next beam (#257: nothing clips the beams above)
                 cart.box((xc, yy, z + 0.14 + h / 2), (0.98, 1.16, h))
                 wrap.box((xc, yy, z + 0.14 + h / 2), (1.0, 1.18, h + 0.02))
     wood.make('IN_ColdPalletWood', M['galv'], None, coll=C)

@@ -195,7 +195,7 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
     if 'm' not in _LM:
         _LM['m'] = L.M()
         _LM['mesh'] = _steel_crate_mesh()
-        _LM['mat'] = P.plain('PL_SteelCrate', (0.66, 0.68, 0.7), 0.36, 0.8, bump=0.04, bump_scale=120, aniso=0.4)
+        _LM['mat'] = P.plain('PL_SteelCrate', (0.90, 0.92, 0.94), 0.13, 1.0, bump=0.02, bump_scale=240, aniso=0.7)   # brushed stainless: it reflects the room (#246)
         _LM['mesh'].materials.append(_LM['mat'])
     o = L.crate(name, 'blue', loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)
     o.data = _LM['mesh']
@@ -335,7 +335,7 @@ def build_truck_reverse(C_people):
         ik.pole_angle = D(-90)
         ik.chain_count = 2
         ik.use_tail = True
-        for f, v in ((1, 0.0), (f0 - 10, 0.0), (f0 - 2, 1.0), (310, 1.0)):     # holds the door open
+        for f, v in ((1, 0.0), (f0 - 10, 0.0), (f0 - 2, 1.0), (304, 1.0), (312, 0.0)):     # holds the door up, then lets go: no arms stuck overhead through the unloading (#246)
             ik.influence = v
             ik.keyframe_insert('influence', frame=f)
         w.location = (*p0, S.DZ)
@@ -359,14 +359,14 @@ def build_truck_reverse(C_people):
 
     opener('HUM_DockW1', 'male', R['door_r'], 'R', -1, (8.85, 0.85), (7.35, 1.6), 8, 40, 262, 280, 21)
     opener('HUM_DockW2', 'female', R['door_l'], 'L', 1, (9.6, 0.85), (11.05, 1.6), -8, -40, 266, 284, 22)
-    for nm, g, xy, rz, sd in (('HUM_DockW5', 'male', (7.0, 3.2), 200, 25), ('HUM_DockW6', 'female', (11.6, 3.3), 150, 26)):
+    for nm, g, xy, rz, sd in (('HUM_DockW5', 'male', (7.0, 3.5), 200, 25), ('HUM_DockW6', 'female', (11.6, 3.6), 150, 26)):
         w = H.person(nm, 'plant', g, coll=C_people, seed=sd)
         w.location = (*xy, S.DZ)
         w.rotation_euler = (0, 0, D(rz))
         H.jitter(w, {'upperarm.L': (8, -26, 0), 'forearm.L': (14, 0, 0), 'upperarm.R': (10, -24, 0),
                      'forearm.R': (24, 0, 0), 'spine': (4, 0, 0), 'head': (8, 0, 0)}, 1, 310, every=20, amp=3, seed=sd)
-    trolley('PL_WaitTrolley1', (7.55, 2.35, S.DZ), D(90), C_people)
-    trolley('PL_WaitTrolley2', (10.9, 2.45, S.DZ), D(95), C_people)
+    trolley('PL_WaitTrolley1', (7.55, 2.55, S.DZ), D(-90), C_people)
+    trolley('PL_WaitTrolley2', (10.9, 2.65, S.DZ), D(-85), C_people)
     w3 = H.person('HUM_DockW3', 'plant', 'male', coll=C_people, seed=23)
     tr = trolley('PL_PushTrolley', (0, 0, S.DZ), 0.0, C_people)
     tr.parent = w3
