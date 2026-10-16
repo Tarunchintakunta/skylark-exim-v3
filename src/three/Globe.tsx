@@ -15,8 +15,8 @@ const BRASS = new Color('#e08a5f')
 const ICE = new Color('#f6f2ea')
 const N = 64 // points per route
 const Z = new Vector3(0, 0, 1)
-/** texture pixels uploaded per idle slice (4 MB) */
-const STRIP_PX = 1 << 20
+/** texture pixels uploaded per idle slice (2 MB) */
+const STRIP_PX = 1 << 19
 const FOV = 35
 const TAN = Math.tan(MathUtils.degToRad(FOV / 2))
 const ease = (t: number) => t * t * (3 - 2 * t)
@@ -122,7 +122,7 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
     gl.domElement.closest('.stage__light, [data-globe]')?.classList.add('is-globe-live')
   })
 
-  // pre-warm ahead of time, in idle slices: the texture's storage, its mip chain strip by strip (≤ 4 MB per slice: the
+  // pre-warm ahead of time, in idle slices: the texture's storage, its mip chain strip by strip (≤ 2 MB per slice: the
   // whole 4096 upload plus mipmap generation was one ~110 ms task, #274), then the shader compile; only then does the
   // canvas render at all (frameloop 'never' until onWarm), so no frame uploads, compiles and draws in one task
   useEffect(() => {
