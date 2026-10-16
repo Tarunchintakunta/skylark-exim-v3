@@ -74,7 +74,7 @@ def truck_fittings(sid):
         b.inputs['Base Color'].default_value = (0.012, 0.012, 0.014, 1)
         b.inputs['Roughness'].default_value = 0.38
     for o in bpy.data.objects:
-        if o.type == 'MESH' and o.name.startswith('TRK_RigidReefer') and o.name.endswith(('_Mirrors', '_CabSeals', '_CabSeams', '_CabInterior')):
+        if o.type == 'MESH' and o.name.startswith('TRK_RigidReefer') and o.name.endswith(('_Mirrors', '_CabSeals', '_CabSeams', '_Arches', '_Mudguards', '_LampBezels')):
             o.data.materials.clear()
             o.data.materials.append(black)
     def flat(name, color, rough, metal=0.0):
@@ -87,6 +87,11 @@ def truck_fittings(sid):
             b.inputs['Roughness'].default_value = rough
             b.inputs['Metallic'].default_value = metal
         return m
+    dash = flat('STILL_CabTrim', (0.045, 0.045, 0.048), 0.6)            # cab interior: dark grey moulded plastic, not black card
+    for o in bpy.data.objects:
+        if o.type == 'MESH' and o.name.startswith('TRK_RigidReefer') and o.name.endswith(('_CabInterior', '_SteeringWheel')):
+            o.data.materials.clear()
+            o.data.materials.append(dash)
     tyre = flat('STILL_Tyre', (0.022, 0.022, 0.024), 0.72)               # road tyres: clean black rubber, no mud camouflage
     steel = flat('STILL_ChassisSteel', (0.06, 0.065, 0.07), 0.5, 0.55)    # chassis, flaps and bumper: dark painted steel
     for o in bpy.data.objects:
@@ -105,8 +110,8 @@ def truck_fittings(sid):
     if glass is not None and glass.node_tree:
         b = glass.node_tree.nodes.get('Principled BSDF')
         if b is not None:
-            b.inputs['Alpha'].default_value = 0.1
-            b.inputs['Coat Weight'].default_value = 0.35
+            b.inputs['Alpha'].default_value = 0.16           # still reads as glass: a faint sky reflection
+            b.inputs['Coat Weight'].default_value = 0.6
     if sid == '258':                      # the quay shot: the tugs stay out of it
         for o in bpy.data.objects:
             if o.name.startswith('TUG'):
