@@ -114,11 +114,15 @@ def _wheel_meshes(M):
     bm = bmesh.new()
     prof = []
     w = 0.30
-    for i in range(13):
-        a = math.pi * i / 12
-        prof.append((TR - 0.06 + 0.06 * math.sin(a), -w / 2 + w * (1 - math.cos(a)) / 2))
+    GROOVES = (-0.085, -0.03, 0.03, 0.085)             # a road tyre (#255): ribbed tread with circumferential grooves, no lugs
+    for i in range(25):
+        a = math.pi * i / 24
+        y = -w / 2 + w * (1 - math.cos(a)) / 2
+        crown = TR - 0.06 + 0.06 * math.sin(a)
+        groove = sum(0.012 * max(0.0, 1 - abs(y - g) / 0.011) for g in GROOVES) if 0.1 < a < math.pi - 0.1 else 0.0
+        prof.append((crown - groove, y))
     prof = [(0.33, -w / 2 + 0.02)] + prof + [(0.33, w / 2 - 0.02)]
-    seg = 40
+    seg = 64
     rings = []
     for k in range(seg):
         t = 2 * math.pi * k / seg
@@ -127,14 +131,6 @@ def _wheel_meshes(M):
         a, b = rings[k], rings[(k + 1) % seg]
         for i in range(len(prof) - 1):
             bm.faces.new((a[i], a[i + 1], b[i + 1], b[i]))
-    # tread blocks
-    for k in range(seg * 2):
-        t = 2 * math.pi * k / (seg * 2)
-        for yy in (-0.08, 0.08):
-            r = bmesh.ops.create_cube(bm, size=1)['verts']
-            m = Matrix.Rotation(-t, 4, 'Y') @ Matrix.Translation((TR - 0.002, yy + (0.03 if k % 2 else -0.03), 0)) @ \
-                Matrix.Diagonal((0.012, 0.08, 0.03, 1))
-            bmesh.ops.transform(bm, matrix=m, verts=r)
     me = bpy.data.meshes.new('TRK_TyreMesh')
     bm.to_mesh(me)
     bm.free()
@@ -509,16 +505,17 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
            coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.cyl((cx1 - 0.15, sy * W2, 2.62), (cx1 + 0.12, sy * (W2 + 0.5), 2.62), 0.02, 8)   # tube arms
-        p.cyl((cx1 - 0.15, sy * W2, 1.98), (cx1 + 0.12, sy * (W2 + 0.5), 2.0), 0.02, 8)
-        p.box((cx1 + 0.12, sy * (W2 + 0.52), 2.3), (0.09, 0.26, 0.56))        # big mirror head
-        p.box((cx1 + 0.06, sy * (W2 + 0.3), 2.85), (0.08, 0.18, 0.16))        # kerb mirror
+        for zb in (2.62, 2.0):                                                   # two tube arms, each bolted to the cab by a plate
+            p.box((cx1 - 0.02, sy * (W2 + 0.012), zb), (0.1, 0.03, 0.12))
+            p.cyl((cx1 - 0.02, sy * (W2 + 0.02), zb), (cx1 + 0.1, sy * (W2 + 0.36), zb), 0.018, 8)
+        p.box((cx1 + 0.1, sy * (W2 + 0.37), 2.31), (0.07, 0.2, 0.7), Euler((0, 0, sy * 0.1)))   # mirror head: tall and slim
+        p.box((cx1 + 0.04, sy * (W2 + 0.22), 2.88), (0.07, 0.15, 0.14))        # kerb mirror
         p.box((cx1 + 0.02, sy * 0.35, 1.84), (0.02, 0.6, 0.02), Euler((0.3 * sy, 0, 0)))  # wiper
     p.make(name + '_Mirrors', M['dark'], root, bevel=0.01, coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.box((cx1 + 0.17, sy * (W2 + 0.52), 2.3), (0.02, 0.22, 0.5))
-        p.box((cx1 + 0.11, sy * (W2 + 0.3), 2.85), (0.02, 0.15, 0.13))
+        p.box((cx1 + 0.14, sy * (W2 + 0.37), 2.31), (0.02, 0.17, 0.62), Euler((0, 0, sy * 0.1)))
+        p.box((cx1 + 0.085, sy * (W2 + 0.22), 2.88), (0.02, 0.12, 0.11))
     p.make(name + '_MirrorGlass', M['glass'], root, coll=coll)
     # driver door (right-hand drive -> the -Y side when facing +X)
     hn = name + '_CabDoorHinge'
