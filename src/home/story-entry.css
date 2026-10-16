@@ -93,7 +93,8 @@
   .se { padding: 24px; }
   .se-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; height: auto; min-height: 0; }
   .se-cell--wild, .se-cell--farmed, .se-cell--world { grid-column: auto; grid-row: auto; height: 45vh; height: 45svh; }
-  .se-cell--wild { height: 70vh; height: 70svh; }
+  /* the picture cards hold at least 72 % of the screen: the 810 px portrait crops serve a 342 px card at 3x only down to the master's own rows (hd.spec) */
+  .se-cell--wild, .se-cell--farmed { height: 72vh; height: 72svh; }
   .se-orbit { right: -30%; height: 110%; }
   .se-panel { display: flex; flex-direction: column; justify-content: flex-start; gap: 20px; overflow-y: auto; overscroll-behavior: contain; padding: 64px 24px calc(56px + env(safe-area-inset-bottom, 0px)); }
   .se-panel::before { content: ''; position: absolute; top: 10px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(246, 242, 234, 0.4); }
