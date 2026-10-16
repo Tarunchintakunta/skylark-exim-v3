@@ -207,3 +207,39 @@ Each beat's last frame is the next beat's start frame. Beat 1 has three generate
 Seams: beat 2 last frame vs beat 3 start, SSIM 1.000 (identical). Beat 3 first frame vs that start, 0.91. The engine's 3 % in-chapter crossfade covers both.
 
 Balance after this and the o2 retake: 299.75, so **1,611 used** of the 1,624 guard. That leaves 13, not enough for another image or a pair of videos.
+
+## 2026-10-16: the #258 port sequence, six chained shots (#284)
+
+`hf-cranes` is rebuilt as one continuous port beat: a truck arrives, turns under the crane, the container is lifted
+off its chassis, carried out over the ship, landed on the deck stack, and the loaded ship sails. Each shot starts from
+the previous shot's last frame, so the joins are straight cuts with no jump. Start frames: `gpt_image_2_5` 4K, graded
+to `~/Desktop/skylark-start-frames/258-port-a-4k.png`. Clips: `minimax_h3` 2K at 5 s, one generation each.
+
+Rules checked on the first, middle and last frame of every clip at 100 %: right-hand-drive cab, no logos, badges,
+lettering or number plates, full-size containers always supported, the ship the only vessel, light-grey steel cranes,
+nothing new appearing, no warping.
+
+| Shot | Kind | Job | Credits | Verdict | Notes |
+|---|---|---|---|---|---|
+| s1 start, take 1 | image, gpt_image_2_5 4k | 4396e359 | 4.25 | REJECT | left-hand drive, maker's emblem and lettering on the grille |
+| s1 start, take 2 | image, gpt_image_2_5 4k | 893ab751 | 4.25 | PASS | driver and wheel on the vehicle's right, plain grille, no plate, blank container |
+| s1 truck arrives | video, start = s1 start | 949bd189 | 10 | PASS | through the gate onto the quay road, straight and steady, RHD held in all three checked frames |
+| s2, first attempt | video, start = s1 f123 | b8d255af | 10 | REJECT | no right turn and no stop under the crane; a red transporter appeared at the crane leg |
+| s2 start, take 1 | image, gpt_image_2_5 4k | 15388b35 | 4.25 | REJECT | the spreader arrived already loaded, stacked on the truck's own container |
+| s2 start, take 2 | image, gpt_image_2_5 4k | b122e2cf | 4.25 | PASS | empty spreader on taut cables above the container, truck parked under the middle crane |
+| s2 right turn and stop | video, start = s1 f123, end = s2 start | a466c0df | 10 | PASS | finishes the turn, parks under the crane; the spreader's earlier load is gone by mid-clip |
+| s3 lift off the chassis | video, start = s2 f123 | a800c4ff | 10 | PASS | spreader lands on the box, locks, lifts it clear; the chassis ends empty, truck still |
+| s4, first attempt | video, start = s3 f123 | 75afc09f | 10 | REJECT | the container never lands: it ends mid-air, no unlock |
+| s4 end frame attempt | image, gpt_image_2_5 2k | b29425d7 | 4.25 | REJECT | the container vanished instead of landing on the stack |
+| s4a, take 1 | video, start = s3 f123 | b4ac390d | 10 | REJECT | a white wash band grew along the moored hull |
+| s4a, take 2 | video, same start | 909a54c5 | 10 | ACCEPTED | same small wash; kept under the 80 % rule. Traverse and hang are right |
+| s4b end frame | image, gpt_image_2_5 4k | 1be16c9d | 4.25 | PASS | the container flush on the deck stack, the empty spreader raised clear |
+| s4b land on the stack | video, start = s4a f123, end = s4b end frame | 87a21ada | 10 | PASS | lowers, seats flush, unlocks and lifts away; the container stays visible on the stack |
+| s5 the ship sails | video, start = s4b f123 | f171f752 | 10 | PASS | the loaded ship eases off the berth and clears the frame; quay, cranes and truck hold still |
+
+The bow foam: the small patch of white water at the moored ship's bulbous bow is part of the approved shot 1 and is
+kept in every shot. Extra foam is what the rule forbids; shot 4a carries a little of it and was accepted under the
+80 % rule rather than spent on again.
+
+Final master: six clips concatenated to `masters/hf-port-FINAL.mp4`, 2560x1440 at 24 fps, 745 frames, 31.04 s, then
+copied to `masters/hf-cranes/master.mp4` and encoded with `scripts/encode-hf.sh hf-cranes`.
