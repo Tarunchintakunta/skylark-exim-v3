@@ -330,3 +330,39 @@ for (const sc of SCREENS) {
     await ctx.close()
   })
 }
+
+// from the parallel phase-2 pass on this branch (ff0c71e, b47224e): Europe reads as a region, and the phone sheet
+// scrolls its last widget clear of the bottom safe area
+test('Europe is labelled as a region, not listed as a country', async ({ page }) => {
+  await page.goto('/')
+  await ready(page)
+  const world = card(page, 'world')
+  const text = await world.locator('.se-widgets').innerText()
+  expect(text).toContain('Europe (region)')
+  expect(text.split('·').map((s) => s.trim())).not.toContain('Europe')
+  await expect(world.locator('.se-heading')).toHaveText(/Trusted in 15 markets/)
+})
+
+test('phone: the open sheet scrolls all six widgets fully into view above the safe area', async ({ browser }) => {
+  const ctx = await phone(browser)
+  const page = await ctx.newPage()
+  await page.goto('/')
+  await ready(page)
+  for (const id of ['wild', 'farmed', 'world']) {
+    const c = card(page, id)
+    await c.scrollIntoViewIfNeeded()
+    await c.locator('.se-hit').tap()
+    const panel = c.locator('.se-panel')
+    await expect(panel).toBeVisible()
+    await settle(page)
+    const last = c.locator('.se-widget').last()
+    await last.evaluate((el) => el.scrollIntoView({ block: 'end' }))
+    await page.waitForTimeout(300)
+    await expect(last).toBeInViewport({ ratio: 1 })
+    const [w, p] = await Promise.all([last.boundingBox(), panel.boundingBox()])
+    expect(p!.y + p!.height - (w!.y + w!.height)).toBeGreaterThanOrEqual(24)
+    await c.locator('.se-close').tap()
+    await settle(page)
+  }
+  await ctx.close()
+})

@@ -95,7 +95,7 @@
   .se-cell--wild, .se-cell--farmed, .se-cell--world { grid-column: auto; grid-row: auto; height: 45vh; height: 45svh; }
   .se-cell--wild { height: 70vh; height: 70svh; }
   .se-orbit { right: -30%; height: 110%; }
-  .se-panel { display: flex; flex-direction: column; justify-content: flex-start; gap: 20px; overflow-y: auto; overscroll-behavior: contain; padding: 64px 24px 32px; }
+  .se-panel { display: flex; flex-direction: column; justify-content: flex-start; gap: 20px; overflow-y: auto; overscroll-behavior: contain; padding: 64px 24px calc(56px + env(safe-area-inset-bottom, 0px)); }
   .se-panel::before { content: ''; position: absolute; top: 10px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px; background: rgba(246, 242, 234, 0.4); }
   .se-center { justify-items: start; gap: 12px; text-align: left; }
   .se-heading { font-size: clamp(2.5rem, 11vw, 3.25rem); }
