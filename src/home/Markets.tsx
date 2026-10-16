@@ -1,7 +1,8 @@
 import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import { film } from '../config/content'
 import { MarketList } from '../sections/MarketList'
-import { GLOBE_POSTER } from '../three/globeState'
+import { store } from '../engine/store'
+import { GLOBE_POSTER, PHONE } from '../three/globeState'
 import { duringIntro } from '../ui/Loader'
 import * as m from 'motion/react-m'
 import { reveal, rise } from '../motion/tokens'
@@ -15,7 +16,23 @@ let warmed: Promise<unknown> | null = null
 const warmGlobe = () => (warmed ??= loadGlobe().then((g) => g.preloadGlobe('home')).catch(() => void (warmed = null)))
 
 /**
- * Markets: the region list and the live globe. Everything the globe needs loads during the intro (#274): its chunk and
+ * Phones (#280): the globe waits for the intro to open, by when the hero's LCP is long in, so the phone's first screen
+ * stays light; desktops load it during the intro.
+ */
+function afterReveal(fn: () => void) {
+  const go = () => ('requestIdleCallback' in window ? requestIdleCallback(() => fn(), { timeout: 400 }) : setTimeout(fn, 100))
+  if (store.getState().revealed) return go()
+  const off = store.subscribe((s) => {
+    if (!s.revealed) return
+    off()
+    go()
+  })
+}
+const startGlobe = PHONE ? afterReveal : duringIntro
+
+/**
+ * Markets: the region list and the live globe. Everything the globe needs loads during the intro (#274; on phones
+ * right after it, #280): its chunk and
  * its texture, decoded off the main thread, then the canvas mounts offscreen and uploads the texture and compiles its
  * shaders in idle slices (three/Globe.tsx); its first frame is drawn before the section is on screen. The poster (the
  * globe's exact first view) is only a silent fallback for a device that hasn't finished by then.
@@ -25,7 +42,7 @@ export function Markets() {
   const poster = useRef<HTMLImageElement>(null)
   useEffect(() => {
     let gone = false
-    duringIntro(() => {
+    startGlobe(() => {
       // the fallback first (43 KB): on a slow connection the globe's chunk and texture would otherwise starve it
       if (poster.current) poster.current.loading = 'eager'
       void warmGlobe().then(() => !gone && startTransition(() => setMounted(true)))
