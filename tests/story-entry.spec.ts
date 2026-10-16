@@ -159,8 +159,8 @@ test('phone: stacked cards, a tap opens the sheet with its facts in two columns,
   await settle(page)
   const cols = await page.locator('.se-panel:not([hidden]) .se-widgets').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)
   expect(cols).toBe(2)
-  // the phone tier: portrait stills
-  expect(await card(page, 'farmed').locator('img').evaluate((img: HTMLImageElement) => img.currentSrc)).toMatch(/hf-sample_m\./)
+  // the open sheet is portrait: the 9:16 crop (in the near-square grid card a landscape tier covers more pixels)
+  await expect.poll(() => card(page, 'farmed').locator('img').evaluate((img: HTMLImageElement) => img.currentSrc)).toMatch(/hf-sample-card_m\./)
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).tap()
   await settle(page)
   expect(await isOpen(page, 'farmed')).toBe(false)
@@ -243,7 +243,7 @@ for (const profile of ['desktop', 'mobile'] as const) {
     await ready(page)
     // the homepage warms its lazy images once the browser is idle (home/prefetch.ts): wait for that
     await page.waitForTimeout(4000)
-    const mine = files.filter(([u]) => /\/media\/hf-(catch-card|sample)_/.test(u))
+    const mine = files.filter(([u]) => /\/media\/hf-(catch-card|sample-card|sample)_/.test(u))
     const bytes = mine.reduce((a, [, b]) => a + b, 0)
     const v = await page.evaluate(() => (window as unknown as { __v: { lcp: number; cls: number } }).__v)
     console.log(profile, `story entry ${(bytes / 1e6).toFixed(2)} MB`, mine.map(([u, b]) => `${u.replace(/^.*\/media\//, '')} ${Math.round(b / 1024)} KB`).join(', '), `LCP ${Math.round(v.lcp)} ms CLS ${v.cls}`)

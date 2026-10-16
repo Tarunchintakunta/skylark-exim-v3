@@ -23,6 +23,8 @@ export interface EntryCard {
   start: { label: string; href: string }
   /** the clip whose first frame is the card's still and whose loop plays on hover (public/media/<id>_*) */
   clip?: string
+  /** the stills' own id when they are cut apart from the clip's posters (default: the clip's) */
+  still?: string
   /** the clip's largest tier when it is a crop with less than 2560 native pixels: nothing larger is ever asked for */
   top?: Exclude<Tier, 'm'>
   alt: string
@@ -64,6 +66,9 @@ export const ENTRY_CARDS: EntryCard[] = [
     start: { label: 'Start the story', href: '/story#pond' },
     // hf-sample, not hf-ponds: the ponds aerial has a truck mid-frame whose driving side can't be checked
     clip: 'hf-sample',
+    // the card's own stills of hf-sample's first frame, each under 250 KB (scripts/stills.py CAP_KB=250); the clip's
+    // 1920 poster is 326 KB
+    still: 'hf-sample-card',
     alt: 'A farm technician crouches on the pond bank reading a handheld water meter, aerators churning the pond behind him.',
     widgets: [
       { label: 'Species', value: 'Vannamei · Black Tiger', src: 55 },
