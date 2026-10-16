@@ -1,0 +1,86 @@
+import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from './markets'
+
+/**
+ * Story Entry (#268): the three bento cards after the homepage hero and the facts their expanded state floats in.
+ * Every widget line comes from docs/CONTENT.md (`src` is its line there); no figure appears that the file does not state.
+ */
+export interface Widget {
+  label: string
+  value: string
+  /** docs/CONTENT.md line */
+  src: number
+}
+
+export interface EntryCard {
+  id: 'wild' | 'farmed' | 'world'
+  tag: string
+  title: string
+  cta: string
+  /** expanded state */
+  heading: string
+  sub: string
+  start: { label: string; href: string }
+  /** the clip whose first frame is the card's still and whose loop plays on hover (public/media/<id>_*) */
+  clip?: string
+  alt: string
+  widgets: Widget[]
+}
+
+const MARKET_LIST = MARKET_COORDS.map((m) => m.name)
+
+export const ENTRY_CARDS: EntryCard[] = [
+  {
+    id: 'wild',
+    tag: 'Story · Wild catch',
+    title: 'Wild catch: from the sea to your table',
+    cta: 'Enter the story',
+    heading: 'Wild catch',
+    sub: 'Marine fish from the fishing vessels, through our plant at Anandapuram, to the port.',
+    start: { label: 'Start the story', href: '/story#ocean' },
+    clip: 'hf-catch',
+    alt: 'On deck, the crew haul a dripping net of silver fish aboard beside blue crates of ice.',
+    widgets: [
+      { label: 'Range', value: 'Marine fish', src: 53 },
+      { label: 'Species', value: 'Indian Mackerel · Tuna · Seer Fish · Squid', src: 53 },
+      { label: 'Sourcing', value: 'Directly from fishing vessels', src: 39 },
+      { label: 'States', value: 'Raw fresh · Chilled · Frozen', src: 67 },
+      { label: 'To the plant', value: 'Transported under chilled conditions', src: 40 },
+      { label: 'Processed at', value: 'Anandapuram, Visakhapatnam', src: 35 },
+    ],
+  },
+  {
+    id: 'farmed',
+    tag: 'Story · Farmed',
+    title: 'Farmed shrimp',
+    cta: 'Enter the story',
+    heading: 'Farmed shrimp',
+    sub: 'From partner farms, through our plant at Anandapuram, to the port.',
+    start: { label: 'Start the story', href: '/story#pond' },
+    clip: 'hf-ponds',
+    alt: 'Aerial view over a grid of shrimp ponds on a bright morning, aerators throwing white water.',
+    widgets: [
+      { label: 'Species', value: 'Vannamei · Black Tiger', src: 55 },
+      { label: 'Partners', value: 'Strategic partnerships with aquaculture farmers', src: 29 },
+      { label: 'Forms', value: 'Head-on · Headless · Peeled · Value-added', src: 41 },
+      { label: 'Freezing', value: 'IQF or block frozen', src: 44 },
+      { label: 'Cold storage', value: '−18 °C to −20 °C until dispatch', src: 46 },
+      { label: 'States', value: 'Raw fresh · Chilled · Frozen', src: 67 },
+    ],
+  },
+  {
+    id: 'world',
+    tag: 'Markets',
+    title: 'From Visakhapatnam to the world',
+    cta: 'Get a quote',
+    heading: `Trusted in ${MARKET_COUNT} markets`,
+    sub: `Based in ${ORIGIN.name}. Shipping in reefer containers keeps the cold chain to the destination.`,
+    start: { label: 'Get a quote', href: '/quote' },
+    alt: `Thin orbit lines from ${ORIGIN.name} to ${MARKET_COUNT} markets.`,
+    // one widget per region (client's groups, CONTENT.md line 74)
+    widgets: MARKETS_BY_REGION.map(({ region, markets }) => ({
+      label: region,
+      value: markets.map((i) => MARKET_LIST[i]).join(' · '),
+      src: 74,
+    })),
+  },
+]
