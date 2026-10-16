@@ -23,6 +23,23 @@ def apply():
                     sl.material = steel
 
 
+def crane_paint():
+    """#258: quay cranes are painted light-grey steel, not the library's rust-camouflage grime."""
+    paint = bpy.data.materials.get('STILL_CranePaint')
+    if paint is None:
+        paint = bpy.data.materials.new('STILL_CranePaint')
+        paint.use_nodes = True
+        b = paint.node_tree.nodes['Principled BSDF']
+        b.inputs['Base Color'].default_value = (0.62, 0.64, 0.66, 1)
+        b.inputs['Metallic'].default_value = 0.15
+        b.inputs['Roughness'].default_value = 0.42
+    for o in bpy.data.objects:
+        if o.type == 'MESH' and o.name.startswith('Crane_'):
+            for sl in o.material_slots:
+                if sl.material and 'CraneWhite' in sl.material.name:
+                    sl.material = paint
+
+
 def gowns():
     """Plain gowns (#256, #246): the library's white cotton coat and trousers are offset copies of the body, so they carry its
     chest and hips. A smooth over just those faces, with a small push outward so the skin does not show through, turns them
@@ -91,9 +108,9 @@ def truck_fittings(sid):
             if o.name.startswith('TUG'):
                 for c in [o] + list(o.children_recursive):
                     c.hide_render = c.hide_viewport = True
-    if sid in ('246', '246f', '256'):     # the waiting trolley worker at the right edge would be cut off by the frame
+    if sid in ('246', '246f') or sid.startswith('256'):   # (and the stiff standing supervisor, HUM_DockW5)     # the waiting trolley worker at the right edge would be cut off by the frame
         for o in bpy.data.objects:
-            if o.name.startswith('HUM_DockW6') or (sid == '256' and o.name.startswith('HUM_DockW5')):
+            if o.name.startswith(('HUM_DockW6', 'HUM_DockW5')):
                 for c in [o] + list(o.children_recursive):
                     c.hide_render = c.hide_viewport = True
     if sid == '255':
@@ -143,7 +160,7 @@ def leveler(sid):
 def props256(sid):
     """#256: a fuller bay: more stainless crates with crushed ice stacked by the dock wall, a pile of crushed ice on the mat
     and a wash-down hose coiled across the floor. Copies of the plant's own crates, so they match."""
-    if sid != '256':
+    if not sid.startswith('256'):
         return
     import math
     import random
@@ -163,8 +180,8 @@ def props256(sid):
         c.matrix_world = mw
         return c
     from mathutils import Matrix
-    for k, (x, y, z, rz) in enumerate(((12.9, 1.0, 1.2, 0.2), (12.9, 1.0, 1.5, 0.15), (13.0, 1.7, 1.2, -0.1), (6.0, 1.1, 1.2, 0.1),
-                                        (6.1, 1.0, 1.5, -0.12), (5.9, 1.8, 1.2, 0.2))):
+    for k, (x, y, z, rz) in enumerate(((7.0, 0.9, 1.2, 0.2), (7.0, 0.9, 1.5, 0.15), (7.1, 1.7, 1.2, 0.1), (11.4, 0.9, 1.2, -0.1),
+                                        (11.4, 0.9, 1.5, 0.1), (11.5, 1.7, 1.2, -0.2))):
         mw = Matrix.Translation((x, y, z)) @ Matrix.Rotation(rz + math.pi / 2, 4, 'Z')
         root = clone(src, mw)
         root.name = 'STILL_Crate%d' % k
@@ -176,7 +193,7 @@ def props256(sid):
     for i in range(70):
         a, r = random.uniform(0, 6.28), random.uniform(0, 0.55)
         bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=random.uniform(0.025, 0.06),
-                                              location=(11.4 + math.cos(a) * r, 0.8 + math.sin(a) * r * 0.7, 1.22 + random.uniform(0, 0.06)))
+                                              location=(10.6 + math.cos(a) * r, 3.0 + math.sin(a) * r * 0.7, 1.22 + random.uniform(0, 0.06)))
         o = bpy.context.active_object
         o.scale = (1, random.uniform(0.7, 1.2), random.uniform(0.6, 1.0))
         o.data.materials.append(ice)
@@ -185,8 +202,8 @@ def props256(sid):
     hose.dimensions = '3D'
     hose.bevel_depth, hose.bevel_resolution = 0.028, 4
     sp = hose.splines.new('POLY')
-    pts = [(13.6, 0.25, 1.4), (13.4, 0.5, 1.23), (12.4, 1.3, 1.23), (11.8, 2.1, 1.23), (11.0, 2.4, 1.23), (10.4, 2.0, 1.23),
-           (10.7, 1.4, 1.23), (11.5, 1.5, 1.23), (11.9, 2.7, 1.23), (12.8, 3.2, 1.23)]
+    pts = [(12.4, 0.2, 1.5), (12.2, 0.5, 1.23), (11.8, 1.6, 1.23), (11.9, 2.6, 1.23), (11.4, 3.5, 1.23), (10.4, 3.9, 1.23),
+           (9.6, 3.5, 1.23), (9.9, 2.9, 1.23), (10.8, 2.5, 1.23)]
     sp.points.add(len(pts) - 1)
     for p_, v in zip(sp.points, pts):
         p_.co = (*v, 1)
@@ -196,68 +213,65 @@ def props256(sid):
 
 
 def frost257(sid):
-    """#257: real frost on the cartons and pallets: procedural noise whitens the top faces and the edges, with a bump."""
-    if sid != '257':
+    """#257: plain white export cartons under a thin, even frost (no grey speckle), the floor frost decal removed, steel racks
+    kept, and two more workers in the aisle (copies of the cold-store checker, offset, so the motion is the plant's own)."""
+    if not sid.startswith('257'):
         return
-    for oname in ('IN_ColdStaged', 'IN_ColdStagedWood'):          # the staged pallets would fill the foreground: out of the frame
+    for oname in ('IN_ColdStaged', 'IN_ColdStagedWood', 'IN_ColdAisleFrost'):
         o = bpy.data.objects.get(oname)
         if o is not None:
             o.hide_render = o.hide_viewport = True
-    for oname in ('IN_ColdCartons', 'IN_ColdPalletWood'):
+    for oname, col, rough in (('IN_ColdCartons', (0.80, 0.78, 0.72), 0.62),):
         o = bpy.data.objects.get(oname)
         if o is None:
             continue
-        for sl in o.material_slots:
-            m = sl.material
-            if m is None or not m.use_nodes:
-                continue
-            m = m.copy()
-            sl.material = m
-            nt = m.node_tree
-            b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
-            geo = nt.nodes.new('ShaderNodeNewGeometry')
-            nz = nt.nodes.new('ShaderNodeSeparateXYZ')
-            nt.links.new(geo.outputs['Normal'], nz.inputs['Vector'])
-            noi = nt.nodes.new('ShaderNodeTexNoise')
-            noi.inputs['Scale'].default_value = 140.0
-            noi.inputs['Detail'].default_value = 8.0
-            noi.inputs['Roughness'].default_value = 0.65
-            tc = nt.nodes.new('ShaderNodeTexCoord')
-            nt.links.new(tc.outputs['Object'], noi.inputs['Vector'])
-            mulz = nt.nodes.new('ShaderNodeMath')           # frost builds on upward faces, a thin veil on the rest
-            mulz.operation = 'ADD'
-            mulz.inputs[1].default_value = 0.55
-            nt.links.new(nz.outputs['Z'], mulz.inputs[0])
-            prod = nt.nodes.new('ShaderNodeMath')
-            prod.operation = 'MULTIPLY'
-            nt.links.new(noi.outputs['Fac'], prod.inputs[0])
-            nt.links.new(mulz.outputs[0], prod.inputs[1])
-            ramp = nt.nodes.new('ShaderNodeValToRGB')
-            ramp.color_ramp.elements[0].position, ramp.color_ramp.elements[1].position = 0.28, 0.46
-            nt.links.new(prod.outputs[0], ramp.inputs['Fac'])
-            mix = nt.nodes.new('ShaderNodeMix')
-            mix.data_type = 'RGBA'
-            mix.inputs[7].default_value = (0.9, 0.95, 1.0, 1)
-            old = b.inputs['Base Color']
-            if old.links:
-                nt.links.new(old.links[0].from_socket, mix.inputs[6])
-            else:
-                mix.inputs[6].default_value = old.default_value
-            nt.links.new(ramp.outputs['Color'], mix.inputs['Factor'])
-            nt.links.new(mix.outputs[2], old)
-            rmix = nt.nodes.new('ShaderNodeMath')
-            rmix.operation = 'MAXIMUM'
-            nt.links.new(ramp.outputs['Color'], rmix.inputs[0])
-            rmix.inputs[1].default_value = 0.0
-            bump = nt.nodes.new('ShaderNodeBump')
-            bump.inputs['Strength'].default_value = 0.5
-            nt.links.new(noi.outputs['Fac'], bump.inputs['Height'])
-            nt.links.new(bump.outputs['Normal'], b.inputs['Normal'])
-            b.inputs['Roughness'].default_value = max(b.inputs['Roughness'].default_value, 0.5)
+        m = bpy.data.materials.new('STILL_FrostCarton')
+        m.use_nodes = True
+        nt = m.node_tree
+        b = nt.nodes['Principled BSDF']
+        b.inputs['Base Color'].default_value = (*col, 1)
+        b.inputs['Roughness'].default_value = rough
+        b.inputs['Metallic'].default_value = 0.0
+        noi = nt.nodes.new('ShaderNodeTexNoise')               # fine, even frost: small scale, low contrast
+        noi.inputs['Scale'].default_value = 260.0
+        noi.inputs['Detail'].default_value = 3.0
+        tc = nt.nodes.new('ShaderNodeTexCoord')
+        nt.links.new(tc.outputs['Object'], noi.inputs['Vector'])
+        mx = nt.nodes.new('ShaderNodeMix')
+        mx.data_type = 'RGBA'
+        mx.inputs[6].default_value = (*col, 1)
+        mx.inputs[7].default_value = (0.93, 0.96, 1.0, 1)
+        mx.inputs['Factor'].default_value = 0.32
+        nt.links.new(noi.outputs['Fac'], mx.inputs['Factor'])
+        nt.links.new(mx.outputs[2], b.inputs['Base Color'])
+        bump = nt.nodes.new('ShaderNodeBump')
+        bump.inputs['Strength'].default_value = 0.12
+        nt.links.new(noi.outputs['Fac'], bump.inputs['Height'])
+        nt.links.new(bump.outputs['Normal'], b.inputs['Normal'])
+        o.data.materials.clear()
+        o.data.materials.append(m)
+    # two more workers in the aisle
+    src = bpy.data.objects.get('HUM_ColdCheck')
+    if src is not None:
+        from mathutils import Vector
+        group = [src] + list(src.children_recursive)
+        for k, off in enumerate(((2.4, 4.0, 0.0), (1.2, 8.5, 0.0))):
+            bpy.ops.object.select_all(action='DESELECT')
+            for g in group:
+                g.select_set(True)
+            bpy.context.view_layer.objects.active = src
+            bpy.ops.object.duplicate(linked=False)
+            dup = [o for o in bpy.context.selected_objects]
+            root = next(o for o in dup if o.parent is None or o.parent not in dup)
+            em = bpy.data.objects.new('STILL_Off%d' % k, None)
+            bpy.context.scene.collection.objects.link(em)
+            em.location = Vector(off)
+            root.parent = em
 
 
 def apply_all(sid=''):
     apply()
+    crane_paint()
     gowns()
     truck_fittings(sid)
     leveler(sid)

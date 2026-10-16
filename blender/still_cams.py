@@ -16,9 +16,9 @@ CAMS = {
     # 256: eye level (1.65 m over the dock floor), a 3/4 view along the intake line
     '256': ((11.5, 3.8, 2.3), (9.0, 1.0, 2.0), 38),
     # 257: inside the cold store, past the staged pallets, looking down the aisle
-    '257': ((8.9, 70.0, 2.7), (8.7, 80.0, 2.5), 26),
+    '257': ((8.9, 79.0, 2.5), (8.7, 66.0, 2.3), 28),
     # 258: the whole quay crane, boom and spreader, from the quay a good way back
-    '258': ((60.0, -170.0, 52.0), (10.0, -12.0, 28.0), 40),
+    '258': ((165.0, -12.0, 8.0), (40.0, -6.0, 17.0), 36),
     # 246: beat 3 from inside the room, looking out through the open dock door at the truck's rear
         '246': ((13.2, 5.0, 2.75), (9.2, 0.4, 2.35), 36),
 }
@@ -62,6 +62,12 @@ CAMS.update({
     '258S': ((135.0, -26.0, 10.0), (30.0, -10.0, 20.0), 30),
     '258T': ((30.0, -75.0, 50.0), (30.0, -12.0, 20.0), 50),
     '258U': ((30.0, -105.0, 60.0), (30.0, -12.0, 22.0), 40),
+    '256H': ((9.2, 5.6, 2.4), (9.2, 1.0, 1.9), 42),
+    '256I': ((10.6, 5.4, 2.5), (9.0, 1.0, 1.9), 40),
+    '257H': ((8.9, 79.0, 2.5), (8.7, 66.0, 2.3), 28),
+    '258V': ((112.0, -12.0, 3.5), (40.0, -2.0, 14.0), 48),
+    '258W': ((105.0, -20.0, 5.0), (45.0, 0.0, 16.0), 44),
+    '258X': ((95.0, 85.0, 7.0), (55.0, 5.0, 24.0), 46),
     '255c': ((2.0, -12.5, 1.7), (9.2, -4.8, 1.95), 26),
     '256a': ((3.0, 3.4, 2.85), (9.2, 1.4, 2.3), 45),
     '256b': ((5.0, 6.2, 2.85), (9.4, 1.6, 2.3), 40),
@@ -120,6 +126,7 @@ def look(sid):
     sf = bpy.data.objects.get('LAND_BreakwaterSurf')
     if sf is not None:
         sf.hide_render = sf.hide_viewport = True
+    coast260()
     nt = s.world.node_tree
     sky = next(n for n in nt.nodes if n.type == 'TEX_SKY')
     for attr, v in (('aerosol_density', 6.0), ('dust_density', 5.0), ('air_density', 1.6)):
@@ -192,3 +199,106 @@ def look(sid):
     sun.data.color = (1.0, 0.64, 0.32)
     sun.data.energy = 3.4
     s.view_settings.exposure = -0.3
+
+
+def _tint(mat, col, name):
+    m = mat.copy()
+    m.name = name
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    bc = b.inputs['Base Color']
+    mx = nt.nodes.new('ShaderNodeMix')
+    mx.data_type, mx.blend_type = 'RGBA', 'MULTIPLY'
+    mx.inputs['Factor'].default_value = 1.0
+    mx.inputs[7].default_value = (*col, 1)
+    if bc.links:
+        nt.links.new(bc.links[0].from_socket, mx.inputs[6])
+    else:
+        mx.inputs[6].default_value = bc.default_value
+    nt.links.new(mx.outputs[2], bc)
+    return m
+
+
+def coast260():
+    """#260: varied coastal buildings (heights, gable and flat roofs, white / sand / terracotta / pale blue washes) instead of
+    one block city, and aerial perspective: bluer, hazier hills under a thin warm haze volume."""
+    import bmesh
+    import random
+    s = bpy.context.scene
+    rnd = random.Random(11)
+    city = bpy.data.objects.get('LAND_City')
+    if city is not None and city.data.materials:
+        base = city.data.materials[0]
+        tints = [(1.0, 1.0, 1.0), (1.0, 0.86, 0.68), (0.95, 0.62, 0.48), (0.78, 0.88, 0.95), (0.96, 0.93, 0.82)]
+        mats = [_tint(base, c, 'STILL_Bld%d' % i) for i, c in enumerate(tints)]
+        me = city.data
+        me.materials.clear()
+        for m in mats:
+            me.materials.append(m)
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        seen = set()
+        for v0 in bm.verts:
+            if v0.index in seen:
+                continue
+            stack, isl = [v0], []
+            seen.add(v0.index)
+            while stack:
+                v = stack.pop()
+                isl.append(v)
+                for e in v.link_edges:
+                    w = e.other_vert(v)
+                    if w.index not in seen:
+                        seen.add(w.index)
+                        stack.append(w)
+            zs = [v.co.z for v in isl]
+            top = max(zs)
+            tv = [v for v in isl if v.co.z > top - 0.01]
+            fcs = {f for v in isl for f in v.link_faces}
+            mi = rnd.randrange(len(mats))
+            for f in fcs:
+                f.material_index = mi
+            lift = rnd.choice((0.0, 0.0, 0.9, 1.6))                       # some blocks taller, some stay low
+            xs = [v.co.x for v in tv]
+            ys = [v.co.y for v in tv]
+            w_, d_ = max(xs) - min(xs), max(ys) - min(ys)
+            kind = rnd.random()
+            for v in tv:
+                v.co.z += lift
+            if len(tv) == 4 and kind < 0.5 and min(w_, d_) > 3:            # gable roof: lift the ridge pair
+                cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
+                along_x = w_ >= d_
+                for v in tv:
+                    if (abs(v.co.y - cy) if along_x else abs(v.co.x - cx)) < 1e-6:
+                        pass
+                ridge = sorted(tv, key=lambda v: (v.co.y if along_x else v.co.x))
+                for v in ridge[:2]:
+                    v.co.z += 0.0
+                for v in ridge[2:]:
+                    v.co.z += 0.0
+                # raise the middle: split by moving the pair nearest the centre line
+                mid = (min(v.co.y for v in tv) + max(v.co.y for v in tv)) / 2 if along_x else (min(v.co.x for v in tv) + max(v.co.x for v in tv)) / 2
+                for v in tv:
+                    key = v.co.y if along_x else v.co.x
+                    if key > mid:
+                        v.co.z += min(w_, d_) * 0.28
+        bm.to_mesh(me)
+        bm.free()
+    hills = bpy.data.objects.get('HERO_Hills')
+    if hills is not None and hills.data.materials:
+        hm = hills.data.materials[0].copy()
+        hm.name = 'STILL_HillsHaze'
+        nt = hm.node_tree
+        b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+        b.inputs['Base Color'].default_value = (0.33, 0.37, 0.40, 1)        # far hills read blue-grey
+        b.inputs['Roughness'].default_value = 0.95
+        hills.data.materials[0] = hm
+    w = s.world
+    nt = w.node_tree
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_WORLD')
+    vs = nt.nodes.new('ShaderNodeVolumeScatter')
+    vs.inputs['Color'].default_value = (1.0, 0.82, 0.62, 1)
+    vs.inputs['Density'].default_value = 0.00004
+    vs.inputs['Anisotropy'].default_value = 0.55
+    # nt.links.new(vs.outputs['Volume'], out.inputs['Volume'])
+

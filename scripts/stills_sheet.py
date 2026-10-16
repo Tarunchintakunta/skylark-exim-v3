@@ -26,7 +26,10 @@ md = ['# Composition stills, 3840x2160\n', 'Each rule is evaluated by `blender/s
 for i, (sid, title) in enumerate(SHOTS):
     im = Image.open(os.path.join(src, sid + '.png')).convert('RGB')
     assert im.size == (3840, 2160), im.size
-    im.save(os.path.join(out, sid + '.jpg'), quality=92, optimize=True)
+    for q in (92, 88, 84, 80, 76, 72, 68):                  # each still stays under 2300 KB
+        im.save(os.path.join(out, sid + '.jpg'), quality=q, optimize=True)
+        if os.path.getsize(os.path.join(out, sid + '.jpg')) <= 2300 * 1024:
+            break
     r = json.load(open(os.path.join(src, sid + '.rules.json')))
     x = PAD + (i % COLS) * (TW + PAD)
     y = PAD + (i // COLS) * (TH + HEAD + CHK + PAD)
