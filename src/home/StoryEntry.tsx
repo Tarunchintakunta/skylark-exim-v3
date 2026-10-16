@@ -111,17 +111,10 @@ function Card({ card, open, settled, onOpen, onClose }: { card: EntryCard; open:
   const box = useBox(root, open && !settled)
   const px = coverPx(box.w, box.h)
   const [hover, setHover] = useState(false)
-  const [inView, setInView] = useState(false)
   const path = card.id === 'wild' ? 'ocean' : card.id === 'farmed' ? 'pond' : null
   const loops = !!card.clip && !env.reduced
 
-  // touch has no hover: the loop plays while the card is half on screen
-  useEffect(() => {
-    if (!loops || env.fine) return
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), { threshold: 0.5 })
-    io.observe(root.current!)
-    return () => io.disconnect()
-  }, [loops])
+  // touch has no hover and scrolling fetches nothing: the card shows its still, and the loop plays once a tap opens it
 
   const warm = () => {
     setHover(true)
@@ -198,7 +191,7 @@ function Card({ card, open, settled, onOpen, onClose }: { card: EntryCard; open:
             <Still card={card} cssPx={px / (devicePixelRatio || 1)} />
             {/* one loop, one decoder: its tier follows the box (frozen mid-transition), so once the card has settled
                 full screen it switches to the tier that covers the screen, the still showing until that file's first frame */}
-            <Loop className="se-media__loop" src={loops && px ? clipUrl(card.clip, phone() ? 'm' : tierFor(px, Math.min(card.top ?? 2560, typeof W === 'number' ? W : 2560) as Desk)) : null} play={open ? settled : hover || inView} />
+            <Loop className="se-media__loop" src={loops && px ? clipUrl(card.clip, phone() ? 'm' : tierFor(px, Math.min(card.top ?? 2560, typeof W === 'number' ? W : 2560) as Desk)) : null} play={open ? settled : hover} />
           </>
         ) : (
           <Orbit className="se-orbit" />
