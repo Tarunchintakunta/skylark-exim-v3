@@ -5,7 +5,7 @@ import { useEffect, useRef, type RefObject } from 'react'
 import { exportsLine, start } from '../config/content'
 import { HERO_SEQ, heroFrameFile } from '../config/hero'
 import { env } from '../engine/env'
-import { store, useApp } from '../engine/store'
+import { useApp } from '../engine/store'
 import { HERO_POSTER, avifReady, mediaUrl } from '../film/segments'
 import { ScrollSequence, type FrameSet } from '../ui/ScrollSequence'
 import '../ui/hero.css'
@@ -16,19 +16,13 @@ gsap.registerPlugin(SplitText)
 let ext: 'avif' | 'webp' = 'webp'
 
 /**
- * The frame set waits for the intro to open and then for idle time (#264): the LCP image is the hero's own poster, and
- * nothing of the sequence competes with the first screen. Terminal loads its frames the same way.
+ * The frame set starts as soon as the page's own load has settled (the poster, the LCP image, is in) and the browser
+ * is idle (#270): that falls inside the intro's second, so the sequence is warm when the wipe opens onto it. Nothing of
+ * it competes with the first screen: no frame is requested before the poster has loaded.
  */
-const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 2000 }) : setTimeout(f, 300))
-const afterLcp = new Promise<void>((done) => {
-  const go = () => idle(done)
-  if (store.getState().revealed) return go()
-  const off = store.subscribe((s) => {
-    if (!s.revealed) return
-    off()
-    go()
-  })
-})
+const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 400 }) : setTimeout(f, 100))
+const posterIn = new Promise<void>((done) => (document.readyState === 'complete' ? done() : addEventListener('load', () => done(), { once: true })))
+const afterLcp = posterIn.then(() => new Promise<void>((done) => idle(done)))
 const ready = Promise.all([avifReady.then((ok) => (ext = ok ? 'avif' : 'webp')), afterLcp])
 export const heroFrame = (set: FrameSet, i: number) => mediaUrl(heroFrameFile(set, i, ext))
 
