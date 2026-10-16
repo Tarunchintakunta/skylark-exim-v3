@@ -38,13 +38,14 @@ export const ENTRY_CARDS: EntryCard[] = [
     sub: 'Marine fish from the fishing vessels, through our plant at Anandapuram, to the port.',
     start: { label: 'Start the story', href: '/story#ocean' },
     clip: 'hf-catch',
-    alt: 'On deck, the crew haul a dripping net of silver fish aboard beside blue crates of ice.',
+    // framed on the net and the crew (story-entry.css --se-zoom): the deck crates below stay out of frame
+    alt: 'On deck, the crew lean back and haul a dripping net of silver fish in over the rail, the open sea behind them.',
     widgets: [
       { label: 'Range', value: 'Marine fish', src: 53 },
       { label: 'Species', value: 'Indian Mackerel · Tuna · Seer Fish · Squid', src: 53 },
-      { label: 'Sourcing', value: 'Directly from fishing vessels', src: 39 },
+      { label: 'More species', value: 'Swordfish · Cuttlefish · Ribbon Fish · Leatherjacket', src: 53 },
       { label: 'States', value: 'Raw fresh · Chilled · Frozen', src: 67 },
-      { label: 'To the plant', value: 'Transported under chilled conditions', src: 40 },
+      { label: 'Cold chain', value: 'Reefer containers to the destination', src: 47 },
       { label: 'Processed at', value: 'Anandapuram, Visakhapatnam', src: 35 },
     ],
   },
@@ -56,8 +57,9 @@ export const ENTRY_CARDS: EntryCard[] = [
     heading: 'Farmed shrimp',
     sub: 'From partner farms, through our plant at Anandapuram, to the port.',
     start: { label: 'Start the story', href: '/story#pond' },
-    clip: 'hf-ponds',
-    alt: 'Aerial view over a grid of shrimp ponds on a bright morning, aerators throwing white water.',
+    // hf-sample, not hf-ponds: the ponds aerial has a truck mid-frame whose driving side can't be checked
+    clip: 'hf-sample',
+    alt: 'A farm technician crouches on the pond bank reading a handheld water meter, aerators churning the pond behind him.',
     widgets: [
       { label: 'Species', value: 'Vannamei · Black Tiger', src: 55 },
       { label: 'Partners', value: 'Strategic partnerships with aquaculture farmers', src: 29 },
