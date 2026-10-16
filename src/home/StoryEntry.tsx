@@ -74,7 +74,7 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
 
   // parallax: the widgets drift against the cursor, each by its own depth (transform only)
   const parallax = (e: PointerEvent) => {
-    if (!open || env.reduced || e.pointerType !== 'mouse') return
+    if (!open || env.reduced || e.pointerType !== 'mouse' || phone()) return
     const [dx, dy] = [e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5]
     panel.current!.querySelectorAll<HTMLElement>('.se-widget').forEach((w, i) => {
       const depth = 10 + (i % 3) * 8
@@ -143,6 +143,7 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
           <Orbit className="se-orbit" />
         )}
         <span className="se-media__scrim" />
+        <span className="se-media__veil" />
       </div>
 
       <button className="se-hit" type="button" aria-expanded={open} aria-controls={`se-${card.id}-panel`} onClick={(e) => onOpen(e.currentTarget)}>
@@ -252,8 +253,10 @@ export function StoryEntry({ initial }: { initial?: Id }) {
       tl.fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 })
     } else {
       tl.fromTo(el, { top: cell.top, left: cell.left, width: cell.width, height: cell.height, borderRadius: radius }, { top: 0, left: 0, width: innerWidth, height: innerHeight, borderRadius: 0, ...GROW })
-      tl.fromTo(el.querySelector('.se-center'), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'expo.out' }, 0.32)
-      tl.fromTo(items, { autoAlpha: 0, y: 28 }, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'expo.out', stagger: 0.06 }, 0.4)
+      // phones: the sheet's copy and facts fade in where they sit, no travel
+      const rise = phone() ? 0 : 1
+      tl.fromTo(el.querySelector('.se-center'), { autoAlpha: 0, y: 16 * rise }, { autoAlpha: 1, y: 0, duration: 0.5, ease: 'expo.out' }, 0.32)
+      tl.fromTo(items, { autoAlpha: 0, y: 28 * rise }, { autoAlpha: 1, y: 0, duration: 0.7, ease: 'expo.out', stagger: 0.06 }, 0.4)
       // opacity only: the close button takes focus at once
       tl.fromTo(el.querySelector('.se-close'), { opacity: 0 }, { opacity: 1, duration: 0.3 }, 0.45)
     }
