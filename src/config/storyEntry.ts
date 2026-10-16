@@ -1,4 +1,4 @@
-import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from './markets'
+import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN, marketLabel } from './markets'
 
 /**
  * Story Entry (#268): the three bento cards after the homepage hero and the facts their expanded state floats in.
@@ -26,7 +26,7 @@ export interface EntryCard {
   widgets: Widget[]
 }
 
-const MARKET_LIST = MARKET_COORDS.map((m) => m.name)
+const MARKET_LIST = MARKET_COORDS.map((m) => marketLabel(m.name))
 
 export const ENTRY_CARDS: EntryCard[] = [
   {
