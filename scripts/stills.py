@@ -70,7 +70,8 @@ def save(img: Image.Image, name: str, cap_avif: int, cap_webp: int) -> str:
 first = Image.open(os.environ['STILL']).convert('RGB')
 log = []
 for t in TIERS:
-    cap = 120 * KB if LCP else 350 * KB
+    # CAP_KB: a tighter cap for a page's own stills (the story entry's cards: 250 KB, #268)
+    cap = 120 * KB if LCP else int(os.environ.get('CAP_KB') or 350) * KB
     log.append(save(frame(first, t), f'{ID}_{t}', 60 * KB if LCP and t == 'm' else cap, cap))
 if os.environ.get('LAST'):
     log.append(save(frame(Image.open(os.environ['LAST']).convert('RGB'), 1280), f'{ID}_end_1280', 350 * KB, 350 * KB))
