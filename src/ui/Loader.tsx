@@ -13,6 +13,16 @@ const WIPE_S = 0.3
 const MAX_MS = 3000
 
 /**
+ * What must be ready when the intro opens (#274): `fn` runs once the page's own load has settled (the LCP poster is
+ * in), in the first idle slice, in parallel with the hero frames; so it never competes with the first screen.
+ */
+export function duringIntro(fn: () => void) {
+  const idle = () => ('requestIdleCallback' in window ? requestIdleCallback(() => fn(), { timeout: 400 }) : setTimeout(fn, 100))
+  if (document.readyState === 'complete') idle()
+  else addEventListener('load', idle, { once: true })
+}
+
+/**
  * Intro (STORY §0, #218, #270). Its markup and CSS are static in the page's HTML, so it paints before any JS; the intro
  * itself (the "Skylark Exim" wordmark, a hairline that fills, the first hero frame resolving behind it) is CSS. This component only ends it: the mark grows and a hole opens onto the page.
  *
