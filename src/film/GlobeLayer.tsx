@@ -17,7 +17,7 @@ function prefetch() {
   fetched = true
   idle(() => {
     void avifReady.then(warmGlobePlaceholder)
-    void loadGlobe().then((g) => g.preloadGlobe())
+    void loadGlobe().then((g) => g.preloadGlobe('film'))
   })
 }
 

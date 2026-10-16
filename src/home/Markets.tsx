@@ -12,7 +12,7 @@ const loadGlobe = () => import('../three/Globe')
 const GlobeCanvas = lazy(loadGlobe)
 let warmed: Promise<unknown> | null = null
 /** the globe's chunk and its decoded texture, once (#274) */
-const warmGlobe = () => (warmed ??= loadGlobe().then((g) => g.preloadGlobe()).catch(() => void (warmed = null)))
+const warmGlobe = () => (warmed ??= loadGlobe().then((g) => g.preloadGlobe('home')).catch(() => void (warmed = null)))
 
 const idle = (fn: () => void, timeout: number) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout }) : setTimeout(fn, 200))
 

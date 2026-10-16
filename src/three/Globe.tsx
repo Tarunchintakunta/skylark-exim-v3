@@ -8,7 +8,7 @@ import { env } from '../engine/env'
 import { frame } from '../engine/store'
 import { onTick, startClock } from '../engine/ticker'
 import { faceRotation, latLon, routePoints, toLatLon } from './geo'
-import { GLOBE_TEXTURE, globeUi } from './globeState'
+import { GLOBE_TEXTURE, globeUi, type GlobeKind } from './globeState'
 
 /** the world card's thin-line globe (#269): brass arcs and origin, ice market dots (tokens.css --brass, --ice) */
 const BRASS = new Color('#e08a5f')
@@ -80,7 +80,7 @@ export type GlobeLabels = { markets: (HTMLSpanElement | null)[]; origin: HTMLSpa
 
 const bitmapOptions = (l: ImageBitmapLoader) => void l.setOptions({ imageOrientation: 'flipY' })
 /** decodes the earth texture ahead of the mount (#274): an ImageBitmap is decoded off the main thread */
-export const preloadGlobe = () => GLOBE_TEXTURE.then((url) => useLoader.preload(ImageBitmapLoader, url, bitmapOptions))
+export const preloadGlobe = (kind: GlobeKind) => GLOBE_TEXTURE[kind].then((url) => useLoader.preload(ImageBitmapLoader, url, bitmapOptions))
 
 /**
  * Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11).
@@ -90,9 +90,9 @@ export const preloadGlobe = () => GLOBE_TEXTURE.then((url) => useLoader.preload(
  */
 function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; labels: RefObject<GlobeLabels>; live: boolean; onWarm: () => void }) {
   const standalone = worldIndex < 0
-  // 4096×2048 desktop, 2048×1024 phones (#274). An ImageBitmap is decoded off the main thread, so the upload below is a
+  // homepage: 4096×2048 desktop, 2048×1024 phones; film: 2048×1024 (#274). An ImageBitmap is decoded off the main thread, so the upload below is a
   // copy, not a decode; it runs in an idle slice (below), mipmapped, with the GPU's full anisotropy for the limb.
-  const bitmap = useLoader(ImageBitmapLoader, use(GLOBE_TEXTURE), bitmapOptions)
+  const bitmap = useLoader(ImageBitmapLoader, use(GLOBE_TEXTURE[standalone ? 'home' : 'film']), bitmapOptions)
   const { camera, invalidate, gl, scene, get } = useThree()
   const tex = useMemo(() => {
     // storage for the full mip chain, filled in idle slices (below)
