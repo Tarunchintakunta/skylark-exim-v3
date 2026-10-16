@@ -12,7 +12,7 @@ CAMS = {
     # truck backed straight into bay 2, rear on the bumpers; seen from the front-right so the driver shows through the
     # windscreen and the right-hand door window (the neighbouring parked trucks are hidden for this still)
     '255': ((9.2, 7.0, 2.35), (9.2, -1.0, 2.0), 30),
-    '255b': ((2.2, -17.5, 2.3), (9.3, -6.5, 2.1), 34),
+    '255b': ((4.5, -18.0, 2.3), (10.2, -6.5, 2.1), 34),      # ~29 deg off the nose: the driver reads through the windscreen
     # 256: eye level (1.65 m over the dock floor), a 3/4 view along the intake line
     '256': ((11.5, 3.8, 2.3), (9.0, 1.0, 2.0), 38),
     # 257: inside the cold store, past the staged pallets, looking down the aisle
