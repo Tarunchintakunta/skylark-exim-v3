@@ -146,7 +146,7 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
         <span className="se-media__veil" />
       </div>
 
-      <button className="se-hit" type="button" aria-expanded={open} aria-controls={`se-${card.id}-panel`} onClick={(e) => onOpen(e.currentTarget)}>
+      <button className="se-hit" type="button" aria-expanded={open} aria-controls={`se-${card.id}-panel`} onClick={(e) => (path && prefetchStory(path), onOpen(e.currentTarget))}>
         <span className="se-tag mono">{card.tag}</span>
         <span className="se-title display">{card.title}</span>
         {card.clip && (
@@ -208,7 +208,7 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
  * then its facts float in; Back, Esc, the close button or a click on its empty space shrink it back to the cell, and
  * the page is where it was. Reduced motion: a crossfade, no growth and no float.
  */
-export function StoryEntry({ initial }: { initial?: Id }) {
+export function StoryEntry() {
   const [open, setOpen] = useState<Id | null>(null)
   const from = useRef<{ trigger: HTMLElement | null; y: number }>({ trigger: null, y: 0 })
   const cards = useRef<HTMLUListElement>(null)
@@ -263,12 +263,6 @@ export function StoryEntry({ initial }: { initial?: Id }) {
     el.querySelector<HTMLElement>('.se-close')!.focus({ preventScroll: true })
     return () => void tl.kill()
   }, [open])
-
-  // design review: ?open=<id> starts with that card open
-  useEffect(() => {
-    if (initial) openCard(initial, null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <section id="story-entry" className="se" aria-labelledby="se-title">
