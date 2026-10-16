@@ -43,7 +43,7 @@ for (const [name, viewport, mobile] of [
     // static markup: on screen as soon as the document parses, with the intro and an empty progress line
     await page.waitForSelector('#boot .loader__name', { state: 'attached' })
     await expect(page.locator('#boot')).toBeVisible()
-    await expect(page.locator('#boot .loader__name')).toHaveText('Skylark Exim · Visakhapatnam')
+    await expect(page.locator('#boot .loader__name')).toHaveText('Skylark Exim')
     // the page is live under the overlay: the scroll is never locked, not even while the intro plays (#264)
     await expect(page.locator('html')).not.toHaveClass(/is-locked/)
     await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 15_000 })
@@ -113,34 +113,45 @@ test('a return visit in the same session skips the loader', async ({ page }) => 
   await expect(page.locator('html')).not.toHaveClass(/is-locked/)
 })
 
-test('a deep link gets the short intro and lands on its path', async ({ page }) => {
+test('a deep link gets the same 1 s intro and lands on its path', async ({ page }) => {
   await page.addInitScript(TIMES)
   await page.goto('/story#pond')
-  await expect(page.locator('html')).toHaveClass(/intro-short/)
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
   const t = await times(page)
   console.log(`deep link ready at ${Math.round(t.ready)} ms, intro gone at ${Math.round(t.gone)} ms`)
-  // the short intro: it opens 800 ms after navigation, or as soon as the script arrives if that is later
-  expect(t.gone).toBeGreaterThanOrEqual(800)
-  expect(t.gone).toBeLessThanOrEqual(t.ready + 1500)
+  expect(t.gone).toBeLessThanOrEqual(1200 + 400) // the hash scroll opens it at once: never later than the 1 s clock
   await expect.poll(() => page.evaluate(() => (window as unknown as { __scrub?: { id: string | null } }).__scrub?.id), { timeout: 10_000 }).toBe('hf-ponds')
 })
 
-test('reduced motion: a static mark and name, then a plain fade', async ({ browser }) => {
+test('the intro is about 1 s: wordmark and hairline, gone by 1.2 s, no layout shift, dark from the first paint (#270)', async ({ page }) => {
+  await page.addInitScript(() => {
+    ;(window as unknown as { __cls: number }).__cls = 0
+    new PerformanceObserver((l) => {
+      for (const e of l.getEntries() as unknown as { value: number; hadRecentInput: boolean }[]) if (!e.hadRecentInput) (window as unknown as { __cls: number }).__cls += e.value
+    }).observe({ type: 'layout-shift', buffered: true })
+  })
+  await page.addInitScript(TIMES)
+  await page.goto('/', { waitUntil: 'commit' })
+  await page.waitForSelector('#boot .loader__name', { state: 'attached' })
+  expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(7, 31, 38)')
+  await expect(page.locator('#boot .loader__line')).toHaveCount(1)
+  await expect(page.locator('#boot svg, #boot img')).toHaveCount(0) // a text wordmark, no logo
+  await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
+  const t = await times(page)
+  console.log(`intro gone at ${Math.round(t.gone)} ms`)
+  expect(t.gone).toBeGreaterThanOrEqual(700)
+  expect(t.gone).toBeLessThanOrEqual(1200 + 400) // 1.2 s cap; the 400 ms is the headless CI machine's script arrival
+  expect(await page.evaluate(() => (window as unknown as { __cls: number }).__cls)).toBe(0)
+})
+
+test('reduced motion: no intro at all', async ({ browser }) => {
   const ctx = await browser.newContext({ reducedMotion: 'reduce' })
   const page = await ctx.newPage()
-  await page.goto('/story', { waitUntil: 'commit' })
+  await page.goto('/', { waitUntil: 'commit' })
   await page.waitForSelector('#boot .loader__name', { state: 'attached' })
-  const still = await page.evaluate(() => ({
-    path: getComputedStyle(document.querySelector('#boot .loader__svg path')!).strokeDashoffset,
-    name: getComputedStyle(document.querySelector('#boot .loader__name')!).opacity,
-    anim: getComputedStyle(document.querySelector('#boot .loader__svg path')!).animationName,
-  }))
-  expect(still).toEqual({ path: '0px', name: '1', anim: 'none' })
+  await expect(page.locator('#boot')).toBeHidden() // display: none from the first paint
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
-  // the fade leaves the mark at its size (no grow-and-dissolve)
-  expect(await page.evaluate(() => document.querySelector<HTMLElement>('#boot .loader__mark')?.style.transform ?? '')).toBe('')
   await page.waitForSelector('#boot', { state: 'detached' })
   await ctx.close()
 })
