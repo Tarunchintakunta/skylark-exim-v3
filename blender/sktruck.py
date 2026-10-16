@@ -593,6 +593,24 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     R['wheels'] = wheels
     R['steer'] = steer
 
+    # wheel arches (#255): a painted half-shell over each front tyre and one over each rear twin, so the tyres sit in the body
+    p = Part()
+    for x, y0, wd in ((WB, 0.98, 0.34), (0.0, 0.82, 0.74)):
+        for sy in (-1, 1):
+            for k in range(11):
+                th = math.radians(14 + k * 15.2)
+                rr_ = TR + 0.09
+                p.box((x + rr_ * math.cos(th), sy * y0, TR + rr_ * math.sin(th)), (0.15, wd, 0.035),
+                      Euler((0, math.atan2(-math.cos(th), -math.sin(th)), 0)))
+    p.make(name + '_Arches', M['dark'], root, bevel=0.008, coll=coll)
+    p = Part()                                                               # bumper detail: bolt heads, slots, tow eyes
+    for k in range(-4, 5):
+        p.cyl((fx + 0.225, k * 0.23, 0.99), (fx + 0.245, k * 0.23, 0.99), 0.02, 10)
+    for sy in (-1, 1):
+        p.box((fx + 0.23, sy * 0.45, 0.8), (0.02, 0.38, 0.06))
+        p.cyl((fx + 0.12, sy * 0.35, 0.7), (fx + 0.34, sy * 0.35, 0.7), 0.03, 10)
+    p.make(name + '_BumperDetail', M['chrome'], root, smooth=True, coll=coll)
+
     # ---------------- cargo: iced crates stacked inside (seen when the doors open)
     R['cargo'] = []
     if load and crate_fn:
