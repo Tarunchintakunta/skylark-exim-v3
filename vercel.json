@@ -8,7 +8,8 @@
     { "source": "/story", "destination": "/story.html" },
     { "source": "/quote", "destination": "/quote.html" },
     { "source": "/news", "destination": "/news.html" },
-    { "source": "/news/:slug", "destination": "/news" }
+    { "source": "/news/:slug", "destination": "/news" },
+    { "source": "/design/story-entry", "destination": "/design/story-entry.html" }
   ],
   "headers": [
     {

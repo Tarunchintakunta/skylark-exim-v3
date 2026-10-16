@@ -15,6 +15,7 @@ function documentRoutes(): Plugin {
     if (path === '/story') file = '/story.html'
     else if (path === '/quote') file = '/quote.html'
     else if (path === '/news' || path.startsWith('/news/')) file = '/news.html'
+    else if (path === '/design/story-entry') file = '/design/story-entry.html'
     if (file) req.url = file + tail
   }
   // Register inside the hook so this runs before Vite's htmlFallback.
@@ -38,7 +39,8 @@ const page = (name: string) => resolve(import.meta.dirname, name)
 const INPUTS: Record<string, Record<string, string>> = {
   '': { main: page('index.html') },
   story: { story: page('story.html') },
-  documents: { quote: page('quote.html'), news: page('news.html') },
+  // design review for #268 (phase 1 only)
+  documents: { quote: page('quote.html'), news: page('news.html'), design: page('design/story-entry.html') },
 }
 
 export default defineConfig({
