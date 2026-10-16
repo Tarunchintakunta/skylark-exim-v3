@@ -3,7 +3,7 @@
 .pr-label, .pcard__meta { font-size: var(--fs-small); letter-spacing: 0.04em; color: var(--ink-2); }
 
 /* head: title + states */
-.pr-head { padding-bottom: clamp(48px, 8vh, 96px); }
+.pr-head { padding-bottom: clamp(32px, 4vw, 72px); }
 .pr-head__copy { display: grid; gap: clamp(16px, 2.4vh, 28px); }
 .pr-title { font-size: var(--fs-h1); }
 .pr-states { display: flex; flex-wrap: wrap; gap: 0 0.5em; font-size: var(--fs-h2); line-height: 1.05; }
