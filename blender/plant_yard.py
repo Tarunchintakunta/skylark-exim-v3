@@ -2,7 +2,7 @@
 plus road dust / tyre mud on every truck. Built into the shared plant set by plant_chain.build()."""
 import math
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Euler
 import skpbr as P
 import skplant as S
 import skhuman as H
@@ -58,6 +58,16 @@ def forklift(name, C, M):
     p.box((-0.75, 0, 1.25), (0.08, 0.5, 0.45))                       # seat back
     p.cyl((-0.05, 0, 1.05), (-0.25, 0, 1.35), 0.02, 8)               # steering column
     p.make(name + '_Guard', S.MATS()['dark'], root, bevel=0.005, coll=C)
+    p = Part()                                                        # steering wheel on the raked column (#255), floor pedals
+    wc = (-0.29, 0, 1.37)
+    for k in range(16):
+        a0, a1 = k * math.tau / 16, (k + 1) * math.tau / 16
+        p.cyl((wc[0] + 0.05 * math.sin(a0) * 0.0 + 0.0, wc[1] + 0.17 * math.cos(a0), wc[2] + 0.17 * math.sin(a0) * 0.8),
+              (wc[0], wc[1] + 0.17 * math.cos(a1), wc[2] + 0.17 * math.sin(a1) * 0.8), 0.014, 6)
+    p.cyl((-0.05, 0, 1.05), (wc[0], 0, wc[2]), 0.02, 8)
+    for sy in (-0.1, 0.1):
+        p.box((0.12, sy, 0.99), (0.08, 0.07, 0.015), Euler((0, 0.5, 0)))   # pedals on the floor board
+    p.make(name + '_Wheel', S.MATS()['dark'], root, smooth=True, coll=C)
     p = Part()
     for sy in (-0.36, 0.36):                                          # mast
         p.box((0.42, sy, 1.25), (0.09, 0.07, 2.3))
@@ -80,6 +90,17 @@ def forklift(name, C, M):
             p.cyl((sx, sy - w / 2, r), (sx, sy + w / 2, r), r, 18)
     p.make(name + '_Tyres', S.MATS()['rubber'], root, smooth=True, coll=C)
     return root, car
+
+
+def _hands_on_wheel(op, fl, C):
+    """Both hands on the steering wheel rim: IK targets on the wheel, parented to the forklift."""
+    for sd, sy in (('L', 0.15), ('R', -0.15)):
+        h = bpy.data.objects.new('%s_Wheel%s' % (op.name, sd), None)
+        C.objects.link(h)
+        h.parent = fl
+        h.location = (-0.29, sy, 1.37)
+        c = op.pose.bones['forearm.' + sd].constraints.new('IK')
+        c.target, c.chain_count, c.use_tail = h, 2, True
 
 
 def pallet_jack(name, C, parent):
@@ -126,10 +147,10 @@ def build(C, crate):
     op = H.person('HUM_ForkliftOp', 'driver', 'male', coll=C, seed=33)
     op.parent = fl
     op.location = (-0.55, 0, 0.38)
-    op.rotation_euler = (0, 0, D(-90))
-    sit = {'thigh': (88, 6, 0), 'shin': (-85, 0, 0), 'spine': (4, 0, 0), 'upperarm': (35, -10, 0),
-           'forearm': (55, 0, 0), 'head': (6, 0, 0)}
-    H.jitter(op, sit, 1, 300, every=20, amp=3, seed=33)
+    op.rotation_euler = (0, 0, D(90))                                  # facing the mast and forks
+    sit = {'thigh': (88, 6, 0), 'shin': (-85, 0, 0), 'spine': (4, 0, 0), 'head': (6, 0, 0)}
+    H.jitter(op, sit, 1, 300, every=20, amp=3, seed=33, arms=False)
+    _hands_on_wheel(op, fl, C)
     _mover(fl, 30, 230, [(-18.0, -10.5), (-9.0, -9.2), (-5.6, -7.6), (-4.6, -5.4), (-4.6, -2.6)])
     car.keyframe_insert('location', frame=190)
     car.location.z = 0.03
@@ -150,8 +171,9 @@ def build(C, crate):
     op2 = H.person('HUM_ForkliftOp2', 'driver', 'female', coll=C, seed=43)
     op2.parent = fl2
     op2.location = (-0.55, 0, 0.38)
-    op2.rotation_euler = (0, 0, D(-90))
-    H.jitter(op2, sit, 1, 300, every=20, amp=3, seed=43)
+    op2.rotation_euler = (0, 0, D(90))
+    H.jitter(op2, sit, 1, 300, every=20, amp=3, seed=43, arms=False)
+    _hands_on_wheel(op2, fl2, C)
     _mover(fl2, 60, 190, [(17.0, -7.3), (16.2, -7.4), (15.4, -7.5)])      # stops 5 m clear of the reefer's flank (#255)
     car2.keyframe_insert('location', frame=196)
     car2.location.z = 0.03

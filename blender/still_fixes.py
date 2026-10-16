@@ -97,6 +97,10 @@ def truck_fittings(sid):
         if mat is not None:
             o.data.materials.clear()
             o.data.materials.append(mat)
+    for o in bpy.data.objects:                        # forklift tyres: black rubber too, not the grimy library rubber
+        if o.type == 'MESH' and o.name.startswith('YD_Forklift') and o.name.endswith('_Tyres'):
+            o.data.materials.clear()
+            o.data.materials.append(tyre)
     glass = bpy.data.materials.get('TRK_Glass')       # clearer glass: the driver reads through the windscreen and the door window
     if glass is not None and glass.node_tree:
         b = glass.node_tree.nodes.get('Principled BSDF')
@@ -115,7 +119,7 @@ def truck_fittings(sid):
                     c.hide_render = c.hide_viewport = True
     if sid == '255':
         for o in bpy.data.objects:
-            if o.name.startswith(('TRK_Parked', 'YD_Forklift', 'HUM_YardW', 'HUM_Banksman', 'HUM_Carrier', 'HUM_JackPusher', 'HUM_GateGuard')):
+            if o.name.startswith(('TRK_Parked', 'HUM_YardW', 'HUM_Banksman', 'HUM_JackPusher', 'HUM_GateGuard')):
                 for c in [o] + list(o.children_recursive):
                     c.hide_render = c.hide_viewport = True
         if full == '255':                    # the rear view: an empty dock, doors up, leveller down, truck outside
@@ -250,23 +254,6 @@ def frost257(sid):
         nt.links.new(bump.outputs['Normal'], b.inputs['Normal'])
         o.data.materials.clear()
         o.data.materials.append(m)
-    # two more workers in the aisle
-    src = bpy.data.objects.get('HUM_ColdCheck')
-    if src is not None:
-        from mathutils import Vector
-        group = [src] + list(src.children_recursive)
-        for k, off in enumerate(((2.4, 4.0, 0.0), (1.2, 8.5, 0.0))):
-            bpy.ops.object.select_all(action='DESELECT')
-            for g in group:
-                g.select_set(True)
-            bpy.context.view_layer.objects.active = src
-            bpy.ops.object.duplicate(linked=False)
-            dup = [o for o in bpy.context.selected_objects]
-            root = next(o for o in dup if o.parent is None or o.parent not in dup)
-            em = bpy.data.objects.new('STILL_Off%d' % k, None)
-            bpy.context.scene.collection.objects.link(em)
-            em.location = Vector(off)
-            root.parent = em
 
 
 def apply_all(sid=''):

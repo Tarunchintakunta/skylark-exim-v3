@@ -5,6 +5,7 @@ Each scene file holds the same set and animation shifted so its own frames run 1
 Usage: Blender -b --python blender/plant_chain.py -- <scene> [out.blend]
 """
 import math
+import re
 import os
 import random
 import sys
@@ -188,9 +189,9 @@ def _steel_crate_mesh(w=0.6, d=0.4, h=0.3, t=0.012):
         for z in (0.1, 0.18):
             bar((cx, cy, z), (sx * 0.96 if sx > sy else 0.006, sy * 0.96 if sy > sx else 0.006, 0.012))   # beads
     for sy in (-1, 1):                                                  # outside grab bars the gloves wrap (#256)
-        bar((0, sy * (d / 2 + 0.038), 0.25), (0.22, 0.02, 0.02))
-        for sx in (-0.1, 0.1):
-            bar((sx, sy * (d / 2 + 0.019), 0.25), (0.02, 0.04, 0.02))
+        bar((0, sy * (d / 2 + 0.058), 0.25), (0.24, 0.022, 0.022))        # 4.7 cm stand-off: fingers fit behind the bar
+        for sx in (-0.11, 0.11):
+            bar((sx, sy * (d / 2 + 0.029), 0.25), (0.022, 0.06, 0.022))
     return L.bm_to_mesh(bm, 'PL_SteelCrate')
 
 
@@ -212,6 +213,11 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
             if ch.name.startswith(name + '_'):
                 if ch.name.endswith(('_ice', '_icech')):
                     ch.hide_render = ch.hide_viewport = True
+                elif re.match(re.escape(name) + r'_s\d+$', ch.name):      # shrimp: whole animals lying on their sides, half-buried
+                    r_ = random.Random(hash(ch.name) & 0xffff)
+                    ch.rotation_euler = (math.pi / 2 + r_.uniform(-0.12, 0.12), r_.uniform(-0.1, 0.1), r_.uniform(0, 6.28))
+                    ch.scale = (1.35, 1.35, 1.35)
+                    ch.location.z = 0.283 - r_.uniform(0.0, 0.006)
                 else:
                     ch.location.z += 0.05
         fl = bpy.data.objects.new(name + '_flake', _LM['flake'])

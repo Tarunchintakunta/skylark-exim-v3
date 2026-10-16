@@ -12,7 +12,7 @@ CAMS = {
     # truck backed straight into bay 2, rear on the bumpers; seen from the front-right so the driver shows through the
     # windscreen and the right-hand door window (the neighbouring parked trucks are hidden for this still)
     '255': ((9.2, 7.0, 2.35), (9.2, -1.0, 2.0), 30),
-    '255b': ((6.8, -17.0, 2.6), (9.1, -4.2, 2.4), 30),
+    '255b': ((2.2, -17.5, 2.3), (9.3, -6.5, 2.1), 34),
     # 256: eye level (1.65 m over the dock floor), a 3/4 view along the intake line
     '256': ((11.5, 3.8, 2.3), (9.0, 1.0, 2.0), 38),
     # 257: inside the cold store, past the staged pallets, looking down the aisle
@@ -68,6 +68,8 @@ CAMS.update({
     '258V': ((112.0, -12.0, 3.5), (40.0, -2.0, 14.0), 48),
     '258W': ((105.0, -20.0, 5.0), (45.0, 0.0, 16.0), 44),
     '258X': ((95.0, 85.0, 7.0), (55.0, 5.0, 24.0), 46),
+    'FKS': ((17.0, -13.0, 1.9), (17.0, -7.3, 1.6), 38),
+    'FKF': ((12.5, -3.0, 2.6), (16.5, -7.3, 1.6), 34),
     '255c': ((2.0, -12.5, 1.7), (9.2, -4.8, 1.95), 26),
     '256a': ((3.0, 3.4, 2.85), (9.2, 1.4, 2.3), 45),
     '256b': ((5.0, 6.2, 2.85), (9.4, 1.6, 2.3), 40),
@@ -238,52 +240,99 @@ def coast260():
         bm = bmesh.new()
         bm.from_mesh(me)
         seen = set()
-        for v0 in bm.verts:
-            if v0.index in seen:
+        extra = []
+        for v0 in list(bm.verts):                                  # snapshot: new roof verts are not new islands
+            if v0 in seen:
                 continue
             stack, isl = [v0], []
-            seen.add(v0.index)
+            seen.add(v0)
             while stack:
                 v = stack.pop()
                 isl.append(v)
                 for e in v.link_edges:
                     w = e.other_vert(v)
-                    if w.index not in seen:
-                        seen.add(w.index)
+                    if w not in seen:
+                        seen.add(w)
                         stack.append(w)
             zs = [v.co.z for v in isl]
-            top = max(zs)
-            tv = [v for v in isl if v.co.z > top - 0.01]
+            z0, top = min(zs), max(zs)
             fcs = {f for v in isl for f in v.link_faces}
             mi = rnd.randrange(len(mats))
             for f in fcs:
                 f.material_index = mi
-            lift = rnd.choice((0.0, 0.0, 0.9, 1.6))                       # some blocks taller, some stay low
-            xs = [v.co.x for v in tv]
-            ys = [v.co.y for v in tv]
+            k = rnd.choice((0.5, 0.65, 0.8, 1.0, 1.0, 1.25, 1.6))             # heights differ block to block
+            for v in isl:
+                v.co.z = z0 + (v.co.z - z0) * k
+            xs = [v.co.x for v in isl]
+            ys = [v.co.y for v in isl]
+            zt = max(v.co.z for v in isl)
             w_, d_ = max(xs) - min(xs), max(ys) - min(ys)
-            kind = rnd.random()
-            for v in tv:
-                v.co.z += lift
-            if len(tv) == 4 and kind < 0.5 and min(w_, d_) > 3:            # gable roof: lift the ridge pair
-                cx, cy = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2
-                along_x = w_ >= d_
-                for v in tv:
-                    if (abs(v.co.y - cy) if along_x else abs(v.co.x - cx)) < 1e-6:
-                        pass
-                ridge = sorted(tv, key=lambda v: (v.co.y if along_x else v.co.x))
-                for v in ridge[:2]:
-                    v.co.z += 0.0
-                for v in ridge[2:]:
-                    v.co.z += 0.0
-                # raise the middle: split by moving the pair nearest the centre line
-                mid = (min(v.co.y for v in tv) + max(v.co.y for v in tv)) / 2 if along_x else (min(v.co.x for v in tv) + max(v.co.x for v in tv)) / 2
-                for v in tv:
-                    key = v.co.y if along_x else v.co.x
-                    if key > mid:
-                        v.co.z += min(w_, d_) * 0.28
+            if min(w_, d_) < 3.0 or w_ > 60 or d_ > 60 or z0 > 2.0 or zt - z0 < 5.0:     # real buildings only: nothing perched on roofs
+                continue
+            extra.append((rnd.random(), min(xs), max(xs), min(ys), max(ys), zt, mi))
         bm.to_mesh(me)
         bm.free()
+        # roofs and upper storeys as separate small meshes on top of the blocks (no edits to the big city mesh)
+        eb = bmesh.new()
+        for kind, x0, x1, y0, y1, zt, mi in extra:
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            w_, d_ = x1 - x0, y1 - y0
+
+            def quad(a, b, c, d):
+                eb.faces.new([eb.verts.new(p_) for p_ in (a, b, c, d)]).material_index = mi + 5
+            if kind < 0.40:                                            # gable roof, ridge along the long side
+                h = min(w_, d_) * (0.28 + 0.3 * rnd.random())
+                if w_ >= d_:
+                    r0, r1 = (x0, cy, zt + h), (x1, cy, zt + h)
+                    quad((x0, y0, zt), (x1, y0, zt), r1, r0)
+                    quad((x1, y1, zt), (x0, y1, zt), r0, r1)
+                    for xx in (x0, x1):
+                        eb.faces.new([eb.verts.new(p_) for p_ in ((xx, y0, zt), (xx, y1, zt), (xx, cy, zt + h))]).material_index = mi + 5
+                else:
+                    r0, r1 = (cx, y0, zt + h), (cx, y1, zt + h)
+                    quad((x0, y0, zt), (x0, y1, zt), r1, r0)
+                    quad((x1, y1, zt), (x1, y0, zt), r0, r1)
+                    for yy in (y0, y1):
+                        eb.faces.new([eb.verts.new(p_) for p_ in ((x0, yy, zt), (x1, yy, zt), (cx, yy, zt + h))]).material_index = mi + 5
+            elif kind < 0.65:                                          # set-back upper storey
+                ix, iy = w_ * 0.26, d_ * 0.26
+                hh = 3.2 + 6.0 * rnd.random()
+                bx0, bx1, by0, by1 = x0 + ix, x1 - ix, y0 + iy, y1 - iy
+                p8 = [(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)]
+                for k in range(4):
+                    a_, b_ = p8[k], p8[(k + 1) % 4]
+                    quad((a_[0], a_[1], zt), (b_[0], b_[1], zt), (b_[0], b_[1], zt + hh), (a_[0], a_[1], zt + hh))
+                quad((bx0, by0, zt + hh), (bx1, by0, zt + hh), (bx1, by1, zt + hh), (bx0, by1, zt + hh))
+            elif kind < 0.80:                                          # slim lift tower
+                tw = min(w_, d_) * 0.22
+                hh = 5 + 9 * rnd.random()
+                tx0, tx1, ty0, ty1 = cx - tw, cx + tw, cy - tw, cy + tw
+                for a_, b_ in (((tx0, ty0), (tx1, ty0)), ((tx1, ty0), (tx1, ty1)), ((tx1, ty1), (tx0, ty1)), ((tx0, ty1), (tx0, ty0))):
+                    quad((a_[0], a_[1], zt), (b_[0], b_[1], zt), (b_[0], b_[1], zt + hh), (a_[0], a_[1], zt + hh))
+                quad((tx0, ty0, zt + hh), (tx1, ty0, zt + hh), (tx1, ty1, zt + hh), (tx0, ty1, zt + hh))
+        for f in eb.faces:
+            f.normal_update()
+        em = bpy.data.meshes.new('STILL_BldExtra')
+        eb.to_mesh(em)
+        eb.free()
+        roof_cols = [(0.60, 0.26, 0.17), (0.72, 0.70, 0.66), (0.52, 0.30, 0.22), (0.40, 0.44, 0.48), (0.66, 0.52, 0.34)]
+        for i_, col in enumerate(tints):
+            mat = bpy.data.materials.new('STILL_Roof%d' % i_)
+            mat.use_nodes = True
+            mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*roof_cols[i_ % len(roof_cols)], 1)
+            mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.75
+            em.materials.clear() if i_ == 0 else None
+        em.materials.clear()
+        for m in mats:
+            em.materials.append(m)
+        for i_ in range(len(tints)):
+            mat = bpy.data.materials.new('STILL_RoofM%d' % i_)
+            mat.use_nodes = True
+            mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*roof_cols[i_], 1)
+            mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.75
+            em.materials.append(mat)
+        eo = bpy.data.objects.new('STILL_BldExtra', em)
+        s.collection.objects.link(eo)
     hills = bpy.data.objects.get('HERO_Hills')
     if hills is not None and hills.data.materials:
         hm = hills.data.materials[0].copy()
@@ -293,6 +342,21 @@ def coast260():
         b.inputs['Base Color'].default_value = (0.33, 0.37, 0.40, 1)        # far hills read blue-grey
         b.inputs['Roughness'].default_value = 0.95
         hills.data.materials[0] = hm
+    if hills is not None:                                               # layered ridges: each further one lighter and bluer
+        fwd = s.camera.matrix_world.to_quaternion() @ Vector((0, 0, -1)) if s.camera else Vector((0, 1, 0))
+        fwd.z = 0
+        fwd.normalize()
+        for k, (dist, sz, col) in enumerate(((500.0, 0.75, (0.43, 0.49, 0.55)), (1100.0, 1.35, (0.56, 0.62, 0.70)))):
+            h2 = hills.copy()
+            h2.data = hills.data.copy()
+            s.collection.objects.link(h2)
+            h2.location = hills.location + fwd * dist
+            h2.scale = (1.0, 1.0, sz)
+            m2 = hills.data.materials[0].copy()
+            m2.name = 'STILL_HillsFar%d' % k
+            b2 = next(n for n in m2.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+            b2.inputs['Base Color'].default_value = (*col, 1)
+            h2.data.materials[0] = m2
     w = s.world
     nt = w.node_tree
     out = next(n for n in nt.nodes if n.type == 'OUTPUT_WORLD')

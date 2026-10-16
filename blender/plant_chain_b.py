@@ -88,7 +88,7 @@ def apply_holds():
             continue
         s.frame_set(frame)
         try:
-            H.grip(w, side, target=ms, curl=1.0)
+            H.grip(w, side, target=ms, curl=0.6)
         except Exception as e:                       # never lose a build to one hand
             print('HOLD fallback', w.name, side, target.name, e)
             H.grip(w, side, curl=curl)
@@ -102,7 +102,7 @@ def _handles(name, crate, C):
         h = bpy.data.objects.new('%s_H%d' % (name, s > 0), None)
         C.objects.link(h)
         h.parent = crate
-        h.location = (0, s * 0.238, 0.25)
+        h.location = (0, s * 0.262, 0.25)
         hs.append(h)
     return hs
 
@@ -155,7 +155,7 @@ def unload(C, R):
             dest = Vector((tr.x + slot.y, tr.y - 0.4, DZ + 0.33 + (1 if n == 2 else 0) * 0.3))
             d_in = Vector((0, -1))                                # trolley -> truck, along the deck axis
             pick = cw.xy - d_in * 0.5                             # stand half a metre short of the crate
-            drop = tr + d_in * 0.95                               # stand clear of the deck end: no limb crosses the rails (#246)
+            drop = tr + d_in * 1.1                               # stand clear of the deck end: no limb crosses the rails (#246)
             t0 = start + n * 40
             w.location.z = DZ
             H.walk_cycle(w, t0, t0 + 12, [(t0, drop), (t0 + 12, pick)], stride=0.5, base={'spine': (8, 0, 0)},
@@ -176,7 +176,7 @@ def unload(C, R):
                 bpy.context.scene.frame_set(f)
                 wp = w.matrix_world.translation
                 fwd = Vector((_m.sin(w.rotation_euler.z), -_m.cos(w.rotation_euler.z)))
-                hold = (wp.x + fwd.x * 0.36, wp.y + fwd.y * 0.36, DZ + 0.8)
+                hold = (wp.x + fwd.x * 0.52, wp.y + fwd.y * 0.52, DZ + 0.8)
                 c.location = _key_world_to_truck(R, *hold)
                 c.keyframe_insert('location', frame=f)
             c.location = _key_world_to_truck(R, dest.x, dest.y, dest.z)
@@ -381,7 +381,7 @@ def freeze_crew(C, rnd, crate_fn):
     pt = bpy.data.objects.new('IN_ColdPalletJack', None)
     C.objects.link(pt)
     pt.parent = cs
-    pt.location = (-0.22, 0.85, 0)                               # behind him, on his right: arm reaches back-down
+    pt.location = (-0.5, 0.25, 0)                                # beside him on his right: the raked handle ends in his hand in front of the hip, clear of the body
     from sktruck import Part
     M = S.MATS()
     p = Part()
@@ -449,6 +449,17 @@ def freeze_crew(C, rnd, crate_fn):
     H.walk_cycle(ck, 880, 1070, [(880, (CX - 1.15, 72.6)), (1070, (CX - 1.15, 70.9))], stride=0.4,
                  base={'head': (6, 0, -25)}, arms=True, step=2)
     _lift(ck)
+    # two more different figures in the aisle: a woman walking toward the store door, a man reading labels at the right racks
+    for nm, gnd, sd, path in (('HUM_ColdW2', 'female', 541, [(880, (CX + 1.25, 69.2)), (1070, (CX + 1.25, 75.6))]),):
+        w2 = H.person(nm, 'coldstore', gnd, coll=C, seed=sd)
+        H.walk_cycle(w2, path[0][0], path[1][0], path, stride=0.46,
+                     base={'upperarm.L': (6, -22, 0), 'upperarm.R': (6, -22, 0), 'forearm.L': (18, 0, 0), 'forearm.R': (18, 0, 0)}, arms=False, step=2)
+        _lift(w2)
+    w3 = H.person('HUM_ColdW3', 'coldstore', 'male', coll=C, seed=542)
+    w3.location = (CX + 1.7, 77.2, DZ)
+    w3.rotation_euler = (0, 0, D(-20))
+    H.jitter(w3, {'spine': (6, 0, 0), 'head': (14, 0, 0), 'upperarm.L': (36, -14, 0), 'forearm.L': (70, 0, 0), 'upperarm.R': (10, -16, 0),
+                  'forearm.R': (18, 0, 0), 'thigh.L': (6, 2, 0), 'thigh.R': (-4, 2, 0)}, 880, 1070, every=30, amp=2, seed=70)
     return out
 
 
