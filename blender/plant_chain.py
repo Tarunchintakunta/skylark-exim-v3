@@ -296,7 +296,9 @@ def key_hide(o, seq):
 
 def build_truck_reverse(C_people):
     """Truck arrival + reverse + driver + dock workers + doors (global frames 1..~300)."""
-    R = T.reefer_truck('TRK_RigidReefer', crate_fn=lambda n, c, l, r, par, fill, s: crate(n, c, l, r, par, fill, s))
+    # SK_FISH=1 (#246): the wild path's load, whole fish on ice in the top layer of the truck, instead of shrimp
+    top = 'fish' if os.environ.get('SK_FISH') else 'shrimp'
+    R = T.reefer_truck('TRK_RigidReefer', crate_fn=lambda n, c, l, r, par, fill, s: crate(n, c, l, r, par, top if fill == 'shrimp' else fill, s))
     T.drive(R, truck_state, 1, 300)
     T.set_reverse(R, [(1, False), (R_START - 4, True), (R_END + 6, False)])
     # rear doors (#255): a swing door would open 0.96 m into the plant through the sealed dock, so the doors roll up
