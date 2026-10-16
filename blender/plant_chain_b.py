@@ -96,13 +96,13 @@ def apply_holds():
     HOLDS.clear()
 
 
-def _handles(name, crate, C):
+def _handles(name, crate, C, dx=0.0):
     hs = []
     for s in (-1, 1):
         h = bpy.data.objects.new('%s_H%d' % (name, s > 0), None)
         C.objects.link(h)
         h.parent = crate
-        h.location = (0, s * 0.262, 0.25)
+        h.location = (dx, s * 0.262, 0.25)
         hs.append(h)
     return hs
 
@@ -143,6 +143,12 @@ def unload(C, R):
                 if fc.data_path in ('location', 'rotation_euler'):
                     for kp in [kp for kp in fc.keyframe_points if kp.co.x > 300]:
                         fc.keyframe_points.remove(kp)
+        poles = {}
+        for sd, sx in (('L', 1), ('R', -1)):          # elbows out to the side: forearms run outside the crate walls (#246)
+            poles[sd] = bpy.data.objects.new('%s_CarryPole%s' % (nm, sd), None)
+            C.objects.link(poles[sd])
+            poles[sd].parent = next(o for o in w.children if o.type == 'MESH')   # grip() takes the rig's first child as its mesh
+            poles[sd].location = (sx * 1.0, -0.3, 1.2)
         bpy.context.scene.frame_set(300)
         w.keyframe_insert('location', frame=300)          # hold the opener's end pose until the unloading starts
         w.keyframe_insert('rotation_euler', frame=300)
@@ -176,26 +182,38 @@ def unload(C, R):
 
             def near(a):                                      # the crate is symmetric under a half turn: least spin
                 return a + _m.pi * round((rz - a) / _m.pi)
+            flip = None
             for f in range(t0 + 19, t0 + 33, 2):
                 bpy.context.scene.frame_set(f)
                 wp = w.matrix_world.translation
                 fwd = Vector((_m.sin(w.rotation_euler.z), -_m.cos(w.rotation_euler.z)))
                 hold = (wp.x + fwd.x * 0.52, wp.y + fwd.y * 0.52, DZ + 0.8)
                 c.location = _key_world_to_truck(R, *hold)
-                rz = near(w.matrix_world.to_euler().z + _m.pi / 2 - pyaw)   # grab bars at the hands, not fore and aft (#246)
+                ex = w.matrix_world.to_euler().z + _m.pi / 2 - pyaw   # grab bars at the hands, not fore and aft (#246)
+                rz = near(ex)
+                if flip is None:                              # a half turn from exact: each hand takes the other bar
+                    flip = round((rz - ex) / _m.pi) % 2 == 1
                 c.rotation_euler = (0, 0, rz)
                 c.keyframe_insert('location', frame=f)
                 c.keyframe_insert('rotation_euler', frame=f)
+            bpy.context.scene.frame_set(t0 + 35)                     # set down square to the unloader, same hands on the same bars
+            ex = w.matrix_world.to_euler().z + _m.pi / 2 - pyaw + (_m.pi if flip else 0)
             c.location = _key_world_to_truck(R, dest.x, dest.y, dest.z)
-            c.rotation_euler = (0, 0, near(_m.pi / 2 - pyaw))          # long side along the deck, bars facing the unloader
+            c.rotation_euler = (0, 0, ex + 2 * _m.pi * round((rz - ex) / (2 * _m.pi)))
             c.keyframe_insert('location', frame=t0 + 35)
             c.keyframe_insert('rotation_euler', frame=t0 + 35)
-            hs = _handles(c.name, c, C)
+            hs = _handles(c.name, c, C, -0.06 if flip else 0.06)[::-1 if flip else 1]   # near end of the bar: in reach
             seq = [(t0 + 11, 0.0), (t0 + 14, 1.0), (t0 + 35, 1.0), (t0 + 38, 0.0)]
-            _ik(w, 'L', hs[0], seq)
-            _ik(w, 'R', hs[1], seq)
+            _ik(w, 'L', hs[0], seq, poles['L'])
+            _ik(w, 'R', hs[1], seq, poles['R'])
             if n == 0:
                 first = (c, t0 + 26)
+        for sd in 'LR':                 # the door opener's spent IK goes last: first in the stack it bends the carry arm away
+            cs = w.pose.bones['forearm.' + sd].constraints
+            for i, q in enumerate(cs):
+                if q.type == 'IK' and q.target is not None and q.target.name.endswith('_Handle'):
+                    cs.move(i, len(cs) - 1)
+                    break
         H.jitter(w, H.POSES['look'], start + 124, 1060, every=24, amp=4, seed=len(nm))
         grip_on(w, 'L', first[0], first[1], 0.75)            # fingers close on the first crate's rim
         grip_on(w, 'R', first[0], first[1], 0.75)
