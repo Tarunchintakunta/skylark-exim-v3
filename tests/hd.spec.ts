@@ -173,7 +173,9 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
         const fromClip = s.kind === 'video' || s.src.startsWith('blob:') || /_(m|960|1280|1920|2560)\.(avif|webp)$/.test(s.src)
         // the documentation still comes from a 3840×2160 master, but it is exported into the same tier ladder as the
         // clips and so tops out at 2560×1440 like them
-        const masterRows = MASTER_ROWS
+        // the story entry's crate-free wild card (#268) is a native crop of the hf-catch master: 1080 rows on the desktop
+        // tiers, 1192 on the phone crop, and nothing larger exists, so its own rows are its ceiling
+        const masterRows = /hf-catch-card_m[._]/.test(s.src) ? 1192 : s.src.includes('hf-catch-card_') ? 1080 : MASTER_ROWS
         const min = fromClip ? Math.min(MIN, +((0.99 * masterRows) / (+s.css.split('×')[1] * v.dpr)).toFixed(2)) : MIN
         rows.push({ ...s, page: where, min, ok: s.ratio >= min })
       }
