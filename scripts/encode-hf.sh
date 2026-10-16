@@ -8,6 +8,9 @@
 # POSTERS=only: the posters alone (the solver counts their bytes); POSTERS=no: the clips alone.
 # TIERS="2560": those tiers alone (the 2560 decision is re-run on its own when the budget changes).
 # CODECS="av1": those codecs alone, for re-encoding one codec's file without touching the others.
+# A cut of another clip (#268, the story entry's crate-free wild card): MASTER_ID=<clip whose master to read>,
+# CAPS_ID=<clip whose size caps to use>, SRC_CROP=w:h:x:y cropped from the master before every desktop tier (never scaled
+# up: list only TIERS up to its width), M_CROP=w:h:x:y the phone tier's own crop, kept at its native size.
 # Quality first, capped by size: AV1 crf 30 / HEVC crf 22 / H.264 crf 18, HEVC and H.264 with maxrate at the solver's
 # cap for the tier (scripts/clip-manifest.ts caps). Where the cap still binds, the encode drops to a VBR at the cap; AV1
 # goes there directly (SVT-AV1's capped CRF starves busy frames: SSIM 0.83 vs 0.89 for VBR at fewer bytes on hf-catch).
@@ -17,7 +20,7 @@
 # 42 %; at 6 frames: 55 fps, seek p95 22 ms, stale 0 % (tests/video-smoothness.spec.ts). No audio, faststart.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-id="${1:?id}"; in="$PWD/masters/$id/master.mp4"; OUT="$(cd "${OUT:-public/media}" && pwd)"; GOP="${GOP:-6}"
+id="${1:?id}"; in="$PWD/masters/${MASTER_ID:-$id}/master.mp4"; OUT="$(cd "${OUT:-public/media}" && pwd)"; GOP="${GOP:-6}"
 [ -f "$in" ] || { echo "! $id: no master at $in, left unchanged"; exit 3; }
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/hf.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
 kb(){ echo $(( $(stat -f%z "$1") / 1024 )); }
@@ -26,7 +29,7 @@ dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$in")
 # the phone crop: 810×1440 around CROP_X (src/config/chapters.ts), never scaled up
 cx=$(node --import tsx --input-type=module -e "const { CROP_X } = await import('./src/config/chapters.ts'); console.log(CROP_X['$id'] ?? 0.5)")
 x=$(awk -v c="$cx" 'BEGIN{x=int(c*2560-405); if(x<0)x=0; if(x>1750)x=1750; print x - x%2}')
-vf(){ case "$1" in m) echo "crop=810:1440:$x:0";; 2560) echo "null";; *) echo "scale=$1:-2:flags=lanczos";; esac; }
+vf(){ case "$1" in m) echo "crop=${M_CROP:-810:1440:$x:0}";; 2560) echo "${SRC_CROP:+crop=$SRC_CROP,}null";; *) echo "${SRC_CROP:+crop=$SRC_CROP,}scale=$1:-2:flags=lanczos";; esac; }
 
 # enc <codec> <tier> <out> <crf|vbr> <kbit/s>
 enc(){
@@ -54,12 +57,14 @@ enc(){
 
 posters(){
   # first frame (and last, for scrolling back up on desktop) straight from the master, lossless until the encode
-  ffmpeg -nostdin -v error -y -i "$in" -frames:v 1 "$tmp/first.png"
-  ffmpeg -nostdin -v error -y -sseof -0.1 -i "$in" -update 1 -frames:v 1 "$tmp/last.png"
-  STILL="$tmp/first.png" LAST="$tmp/last.png" CX="$cx" ID="$id" OUT="$OUT" python3 scripts/stills.py
+  local crop="${SRC_CROP:+-vf crop=$SRC_CROP}" still_m=""
+  ffmpeg -nostdin -v error -y -i "$in" $crop -frames:v 1 "$tmp/first.png"
+  ffmpeg -nostdin -v error -y -sseof -0.1 -i "$in" $crop -update 1 -frames:v 1 "$tmp/last.png"
+  if [ -n "${M_CROP:-}" ]; then ffmpeg -nostdin -v error -y -i "$in" -vf "crop=$M_CROP" -frames:v 1 "$tmp/first_m.png"; still_m="$tmp/first_m.png"; fi
+  STILL="$tmp/first.png" LAST="$tmp/last.png" STILL_M="$still_m" CX="$cx" ID="$id" OUT="$OUT" python3 scripts/stills.py
 }
 [ "${POSTERS:-}" = only ] && { posters; exit 0; }
-caps=$(node --import tsx scripts/clip-manifest.ts caps "$id")
+caps=$(node --import tsx scripts/clip-manifest.ts caps "${CAPS_ID:-$id}")
 cap(){ awk -v t="$1" '$1==t{print $2}' <<<"$caps"; }
 
 line="$id (crop x $x)"

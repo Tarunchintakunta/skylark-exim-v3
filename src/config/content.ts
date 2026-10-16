@@ -1,6 +1,6 @@
 // Every line here comes from docs/CONTENT.md ("Use on site" column) or docs/STORY.md.
 // Headlines are editorial and make no factual claim. Do not add facts here that are not in CONTENT.md.
-import { MARKET_COORDS, MARKET_COUNT } from './markets'
+import { MARKET_COORDS, MARKET_COUNT, marketLabel } from './markets'
 
 export interface CaptionCopy {
   eyebrow?: string
@@ -16,7 +16,7 @@ export const SHRIMPS = ['Vannamei', 'Black Tiger Shrimp', 'Sea White Shrimp', 'P
 export const SHRIMP_CHIPS = ['Vannamei', 'Black Tiger', 'Sea White', 'Pink / Brown', 'Sea Tiger']
 export const STATES = ['Raw fresh', 'Chilled', 'Frozen']
 
-export const MARKETS = MARKET_COORDS.map((m) => m.name)
+export const MARKETS = MARKET_COORDS.map((m) => marketLabel(m.name))
 
 export const start = {
   eyebrow: 'Visakhapatnam · Andhra Pradesh',

@@ -25,7 +25,10 @@ KB = 1024
 
 
 def frame(img: Image.Image, tier) -> Image.Image:
-    if tier == 'm':
+    if tier == 'm' and os.environ.get('STILL_M'):
+        # a cut with its own phone crop (encode-hf.sh M_CROP), already at its native size
+        out = Image.open(os.environ['STILL_M']).convert('RGB')
+    elif tier == 'm':
         # the master's full height at 810:1440, never scaled (810×1440 from a 2560×1440 clip)
         w = round(img.height * 810 / 1440 / 2) * 2
         # the same left edge as the _m clip's crop (encode-hf.sh)
