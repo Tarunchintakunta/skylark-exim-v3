@@ -6,15 +6,15 @@ import { resizeScroll } from '../engine/ticker'
 
 /** sessionStorage key: set at the first reveal; index.html and story.html skip the intro on later loads in the same tab session */
 const SEEN = 'skylark-intro'
-/** how long the intro plays, from navigation start (reduced motion and deep links: SHORT_MS) */
-const INTRO_MS = 1200
-const SHORT_MS = 800
+/** the intro holds its wordmark and filling hairline until INTRO_MS, then wipes away in WIPE_S: about 1.0 s in all (#270; the hard cap is 1.2 s) */
+const INTRO_MS = 700
+const WIPE_S = 0.3
 /** the cap the CSS failsafe in each page's own HTML uses too */
 const MAX_MS = 3000
 
 /**
- * Intro (STORY §0, #218). Its markup and CSS are static in the page's HTML, so it paints before any JS; the intro
- * itself (mark, name, wave line) is CSS. This component only ends it: the mark grows and a hole opens onto the page.
+ * Intro (STORY §0, #218, #270). Its markup and CSS are static in the page's HTML, so it paints before any JS; the intro
+ * itself (the "Skylark Exim" wordmark, a hairline that fills, the first hero frame resolving behind it) is CSS. This component only ends it: the mark grows and a hole opens onto the page.
  *
  * Nothing is gated on it any more (#264, Terminal's pattern): no fonts, no clips, no scroll lock. The hero's first
  * frame and its headline paint under the overlay, the page scrolls from the first frame, and the real load progress is
@@ -50,15 +50,13 @@ export function Loader({ mounted }: { mounted: Promise<void> }) {
         store.setState({ revealed: true })
       })
     }
-    if (!root || html.classList.contains('intro-skip') || performance.now() >= MAX_MS) {
+    if (!root || html.classList.contains('intro-skip') || env.reduced || performance.now() >= MAX_MS) {
       remember()
       handOff()
       return
     }
-    // from here on this script owns the timing: stop the CSS failsafe fade
-    root.style.animation = 'none'
-    const mark = root.querySelector<HTMLElement>('.loader__mark')!
-    const short = html.classList.contains('intro-short') || env.reduced
+    // from here on this script owns the timing: drop the CSS failsafe fade, keep the thinning overlay running
+    root.style.animationName = 'loader-thin'
     let tl: gsap.core.Timeline | null = null
     let cancelled = false
 
@@ -72,19 +70,14 @@ export function Loader({ mounted }: { mounted: Promise<void> }) {
       if (cancelled || tl) return
       off()
       remember()
-      if (env.reduced) {
-        tl = gsap.timeline({ onComplete: handOff }).to(root, { autoAlpha: 0, duration: 0.3 })
-        return
-      }
-      // the mark grows and dissolves while a circular hole opens from the centre onto the page
-      mark.style.animation = 'none' // the CSS pulse animates opacity, which would win over the fade below
+      // the wordmark lifts away while a circular hole opens from the centre onto the hero
       tl = gsap.timeline({ onComplete: handOff })
-      tl.to(root!.querySelector('.loader__side'), { autoAlpha: 0, duration: 0.25 }, 0)
-      tl.to(mark, { scale: 7, autoAlpha: 0, duration: 0.8, ease: 'power3.in' }, 0)
-      tl.to(root, { '--r': `${Math.hypot(innerWidth, innerHeight) / 2 + 2}px`, duration: 0.8, ease: 'power3.inOut' }, 0.1)
+      tl.to(root!.querySelector('.loader__name'), { autoAlpha: 0, y: -6, duration: 0.2, ease: 'power2.in' }, 0)
+      tl.to(root!.querySelector('.loader__line'), { autoAlpha: 0, duration: 0.2 }, 0)
+      tl.to(root, { '--r': `${Math.hypot(innerWidth, innerHeight) / 2 + 2}px`, duration: WIPE_S, ease: 'power3.inOut' }, 0)
     }
     for (const e of MOVES) addEventListener(e, open, { passive: true })
-    const timer = window.setTimeout(open, Math.max(0, (short ? SHORT_MS : INTRO_MS) - performance.now()))
+    const timer = window.setTimeout(open, Math.max(0, INTRO_MS - performance.now()))
     return () => {
       cancelled = true
       off()
