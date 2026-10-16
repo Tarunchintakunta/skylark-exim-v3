@@ -380,12 +380,12 @@ def coast260():
         assert float(np.max(co.max(1) - co.min(1))) < 300, 'LAND_City is not plot boxes'
         lo, hi = co.min(1), co.max(1)
         tall = (hi[:, 2] - lo[:, 2]) > 1.0
-        co[tall, :, 2] = lo[tall, None, 2]                            # old boxes flattened to their plots
+        co[:, :, 2] = float(lo[:, 2].min())                             # old boxes (and stray roof plates) flattened to plots
         me.vertices.foreach_set('co', co.ravel())
         me.update()
         mw = city.matrix_world
         for (x0, y0, z0), (x1, y1, _z1), t in zip(lo.tolist(), hi.tolist(), tall.tolist()):
-            if not t or y1 < -2500:
+            if not t or y1 < -2500 or z0 > 4.0:                      # (skip parts stacked on other boxes)
                 continue
             p = w2c(s, s.camera, mw @ Vector(((x0 + x1) / 2, (y0 + y1) / 2, z0)))
             if p.z <= 0 or not (-0.05 < p.x < 1.05 and -0.05 < p.y < 1.2):
@@ -435,11 +435,13 @@ def coast260():
                 w, d = rnd.uniform(8, 12), rnd.uniform(7, 11)
                 zb = 2.0 + 3.0 * math.floor((zh - 3.0) / 3.0)
                 _building(g, rnd, x - w / 2, x + w / 2, y - d / 2, y + d / 2, zb, rnd.randint(1, 3),
-                          rnd.choices(range(len(walls)), WEIGHTS)[0], False)
+                          8 + rnd.choices(range(len(walls)), WEIGHTS)[0], False)   # hazed: 3-4 km off
     me = bpy.data.meshes.new('STILL_City')
     me.from_pydata(g.v, [], g.f)
     me.polygons.foreach_set('material_index', g.m)
-    for m in mats + [tk]:
+    haze = [_facade('STILL_FacadeHaze%d' % i, tuple(c_ * 0.45 + h_ * 0.55 for c_, h_ in zip(c, (0.42, 0.46, 0.52))))
+            for i, c in enumerate(walls)]
+    for m in mats + [tk] + haze:
         me.materials.append(m)
     me.update()
     o = bpy.data.objects.new('STILL_City', me)
