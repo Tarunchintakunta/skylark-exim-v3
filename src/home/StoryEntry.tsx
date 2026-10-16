@@ -1,5 +1,5 @@
 import gsap from 'gsap'
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { ENTRY_CARDS, type EntryCard } from '../config/storyEntry'
 import { env } from '../engine/env'
@@ -54,6 +54,19 @@ function useBox(ref: React.RefObject<HTMLElement | null>, frozen: boolean) {
   return box
 }
 const FOCUSABLE = 'a[href], button:not([disabled])'
+
+/**
+ * Touch has no hover, so a loop plays while its card is in view, but only once the page has been still for 300 ms:
+ * fetching and decoding a clip mid-fling cost the homepage scroll its frame rate on a 4× throttled phone (#268).
+ */
+const IDLE_MS = 300
+let still = true
+let quiet = 0
+const idleSubs = new Set<() => void>()
+const setStill = (v: boolean) => v !== still && ((still = v), idleSubs.forEach((f) => f()))
+if (typeof addEventListener === 'function')
+  addEventListener('scroll', () => (setStill(false), clearTimeout(quiet), (quiet = window.setTimeout(() => setStill(true), IDLE_MS))), { passive: true })
+const useStill = () => useSyncExternalStore((f) => (idleSubs.add(f), () => idleSubs.delete(f)), () => still)
 
 /** The card's still: the clip's first frame, the portrait crop on phones. Lazy: nothing loads before the section is near. */
 function Still({ card, cssPx }: { card: EntryCard; cssPx: number }) {
@@ -112,6 +125,7 @@ function Card({ card, open, settled, onOpen, onClose }: { card: EntryCard; open:
   const px = coverPx(box.w, box.h)
   const [hover, setHover] = useState(false)
   const [inView, setInView] = useState(false)
+  const pageStill = useStill()
   const path = card.id === 'wild' ? 'ocean' : card.id === 'farmed' ? 'pond' : null
   const loops = !!card.clip && !env.reduced
 
@@ -198,7 +212,7 @@ function Card({ card, open, settled, onOpen, onClose }: { card: EntryCard; open:
             <Still card={card} cssPx={px / (devicePixelRatio || 1)} />
             {/* one loop, one decoder: its tier follows the box (frozen mid-transition), so once the card has settled
                 full screen it switches to the tier that covers the screen, the still showing until that file's first frame */}
-            <Loop className="se-media__loop" src={loops && px ? clipUrl(card.clip, phone() ? 'm' : tierFor(px, Math.min(card.top ?? 2560, typeof W === 'number' ? W : 2560) as Desk)) : null} play={open ? settled : hover || inView} />
+            <Loop className="se-media__loop" src={loops && px ? clipUrl(card.clip, phone() ? 'm' : tierFor(px, Math.min(card.top ?? 2560, typeof W === 'number' ? W : 2560) as Desk)) : null} play={open ? settled : hover || (inView && pageStill)} />
           </>
         ) : (
           <Orbit className="se-orbit" />
