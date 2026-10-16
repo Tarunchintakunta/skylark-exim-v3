@@ -241,5 +241,17 @@ The bow foam: the small patch of white water at the moored ship's bulbous bow is
 kept in every shot. Extra foam is what the rule forbids; shot 4a carries a little of it and was accepted under the
 80 % rule rather than spent on again.
 
-Final master: six clips concatenated to `masters/hf-port-FINAL.mp4`, 2560x1440 at 24 fps, 745 frames, 31.04 s, then
-copied to `masters/hf-cranes/master.mp4` and encoded with `scripts/encode-hf.sh hf-cranes`.
+Final master: six clips concatenated to `masters/hf-port-FINAL.mp4`, 2560x1440 at 24 fps, 745 frames, 31.04 s.
+
+The `/story` port beat is not that stitch. `FILE_CAP` (2,300 KB per file) and `BUDGET[1920]` (25 MB per path) are
+fixed byte budgets with no allowance for duration, so 31 s encodes at about 590 kbit/s and measures mean SSIM 0.689
+at 1920 against its master, where a three-second clip measures 0.877. `masters/hf-cranes/master.mp4` is therefore
+the lock-on and lift from shot 3, cut to 3.0 s to match every other clip master: `solveCaps` splits a path's budget
+in proportion to clip length, and at 5.167 s the beat drew 1.72x a normal share and put the ocean path at 25.67 MB
+against 25 MB. Its posters use `CAP_KB=230`, because this frame is detail-dense enough that the default 350 KB cap
+left the path at 25.08 MB.
+
+Playwright, local, unsandboxed: 19 failed / 183 passed on the branch against 18 failed / 184 passed at the base
+commit `ee54ad4`. The one extra name is `story-stuck` "globe: long tasks entering world, pond fling", which fails
+on the base commit too when that spec is run on its own (4 of 4 globe profiles fail there), so it is the known
+globe flake and not the port beat. Desktop ocean weight 24.94 MB, pond 24.31 MB, both inside the 25 MB budget.

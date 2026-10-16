@@ -50,10 +50,17 @@ same shot, or a balance that would fall below 1500 credits, stops the run for a 
 
    The full 31 s stitch cannot be the `/story` master. `FILE_CAP` is 2,300 KB per file and `BUDGET[1920]` is
    25 MB for a whole path, both fixed byte budgets with no allowance for duration, so 31 s lands at about
-   590 kbit/s: mean SSIM 0.689 at 1920 against the master, where the five-second clips sit near 0.89. At a
+   590 kbit/s: mean SSIM 0.689 at 1920 against the master, where a three-second clip sits near 0.88. At a
    usable bitrate the clip alone would want roughly 14 MB at 1920, over half the path budget. So `/story`
-   gets shot 3 on its own — the spreader locking on and lifting the container, which is the #258 beat — and
-   `masters/hf-port-FINAL.mp4` stays the full-sequence deliverable.
+   gets the lock-on and lift from shot 3, cut to 3.0 s, and `masters/hf-port-FINAL.mp4` stays the
+   full-sequence deliverable.
+
+   The 3.0 s length is not cosmetic. Every other clip master is exactly 3.0 s, and `solveCaps` splits each
+   path's budget in proportion to clip length, so a 5.167 s port beat drew 1.72x a normal share: the other
+   clips' committed files were encoded when the port beat was 3 s too, and the ocean path came to 25.67 MB
+   against its 25 MB budget (`tests/weight.spec.ts`, `tests/hd.spec.ts`). At 3.0 s the share is back in line.
+   This frame is also detail-dense, so its posters are encoded with `CAP_KB=230` instead of the default
+   350 KB: at 350 KB the 1920 poster alone put the ocean path at 25.08 MB.
 3. Micro commits on `feat/hf-port`, then a PR into `feat/higgsfield-story`.
 4. Report: the final file, the PR link, and credits per shot and in total.
 
