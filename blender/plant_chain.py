@@ -218,6 +218,8 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
                     ch.rotation_euler = (math.pi / 2 + r_.uniform(-0.12, 0.12), r_.uniform(-0.1, 0.1), r_.uniform(0, 6.28))
                     ch.scale = (1.35, 1.35, 1.35)
                     ch.location.z = 0.283 - r_.uniform(0.0, 0.006)
+                    ch.location.x *= 0.9                                    # whole body inside the walls (#256)
+                    ch.location.y *= 0.75
                 else:
                     ch.location.z += 0.05
         fl = bpy.data.objects.new(name + '_flake', _LM['flake'])
