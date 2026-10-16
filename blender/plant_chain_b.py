@@ -393,6 +393,7 @@ def freeze_crew(C, rnd, crate_fn):
     for sx in (-0.07, 0.07):                                          # loop grip, at hand height (was 0.84: out of reach,
         p.cyl((sx, -0.38, 0.92), (sx, -0.48, 0.98), 0.014, 8)        # the hand hung down through the bar)
     p.cyl((-0.07, -0.48, 0.98), (0.07, -0.48, 0.98), 0.016, 8)
+    p.cyl((-0.07, -0.38, 0.92), (0.07, -0.38, 0.92), 0.016, 8)       # loop foot bar: the shaft meets the loop
     p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.006, coll=C)
     q = Part()
     for sx in (-0.12, 0.12):                                          # steer wheels + load rollers
