@@ -1,6 +1,10 @@
 /* Homepage below the hero (#233). Sections reuse sections.css; this adds the bands that only the homepage has. */
 /* section anchors clear the fixed bar */
 main section[id] { scroll-margin-top: 68px; }
+/* the intro is a short band: its own smaller step, and the section after it opens with the same space, so the
+   hairline between them sits evenly (#275) */
+.section.home-intro { padding-block: var(--space-intro); }
+.home-intro + .section { padding-top: var(--space-intro); }
 .home-intro__body { max-width: 52ch; color: var(--ink-2); font-size: var(--fs-lead); line-height: 1.45; }
 
 /* the two stories */
