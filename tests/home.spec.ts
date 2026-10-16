@@ -24,7 +24,7 @@ test('the homepage has no film and requests nothing of the story, even scrolled 
   await page.goto('/')
   await ready(page)
   await expect(page.locator('.stage, [data-chapter], video.stage__video, .path-toggle')).toHaveCount(0)
-  await expect(page.locator('video')).toHaveCount(0) // the hero is a frame sequence on a canvas
+  await expect(page.locator('video[src]')).toHaveCount(0) // the hero is a frame sequence on a canvas; the story cards' loops get a src only on hover
   await expect(page.locator('.home-hero canvas.seq__canvas')).toHaveCount(1)
   await scrollThrough(page, false, 3000)
   expect(story).toEqual([])
@@ -34,10 +34,10 @@ test('homepage sections come in order', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   const order = await page.locator('main > .home-hero, main > section').evaluateAll((els) => els.map((el) => el.id || el.className.split(' ').pop()))
-  expect(order).toEqual(['home-hero', 'intro', 'products', 'markets', 'plant', 'why', 'about', 'close', 'contact'])
+  expect(order).toEqual(['home-hero', 'intro', 'story-entry', 'products', 'markets', 'plant', 'why', 'about', 'close', 'contact'])
   await expect(page.locator('#products .pcard')).toHaveCount(8) // marine fish; the shrimp tab has the other 5
-  await expect(page.locator('#intro .story-card a').first()).toHaveAttribute('href', '/story#ocean')
-  await expect(page.locator('#intro .story-card a').nth(1)).toHaveAttribute('href', '/story#pond')
+  await expect(page.locator('#story-entry [data-card="wild"] .se-btn--primary')).toHaveAttribute('href', '/story#ocean')
+  await expect(page.locator('#story-entry [data-card="farmed"] .se-btn--primary')).toHaveAttribute('href', '/story#pond')
 })
 
 for (const [label, path, first, other] of [
@@ -66,7 +66,7 @@ test('hovering a story link prefetches the story chunk and that path\'s first cl
   await page.goto('/')
   await ready(page)
   await expect(page.locator('link[rel="modulepreload"][href*="/assets/Story-"]')).toHaveCount(0)
-  await page.locator('#intro .story-card a').nth(1).hover()
+  await page.locator('#story-entry [data-card="farmed"]').hover()
   await expect(page.locator('link[rel="modulepreload"][href*="/assets/Story-"]')).toHaveCount(1)
   await expect(page.locator('link[rel="prefetch"][href*="/media/hf-ponds_"][href*=".mp4?v="]')).toHaveCount(1)
   await expect(page.locator('link[rel="prefetch"][href*="/media/hf-depart_"]')).toHaveCount(0)

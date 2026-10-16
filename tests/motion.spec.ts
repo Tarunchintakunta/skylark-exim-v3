@@ -38,18 +38,18 @@ test('a product card lifts 4 px on hover and its still zooms 1.03', async ({ pag
   await expect.poll(async () => (await style(card.locator('.pcard__shadow'))).opacity).toBe(1)
 })
 
-test('a story card poster drifts with the mouse and settles back', async ({ page }) => {
+test('a story entry card zooms its still on hover and settles back', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  const link = page.locator('#intro .story-card__link').first()
-  await link.scrollIntoViewIfNeeded()
-  const img = link.locator('.story-card__img')
-  const box = (await link.boundingBox())!
-  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.2)
-  await page.mouse.move(box.x + box.width * 0.95, box.y + box.height * 0.1, { steps: 4 })
-  await expect.poll(async () => (await style(img)).transform).not.toBe('none')
+  const card = page.locator('#story-entry [data-card="farmed"]')
+  await card.scrollIntoViewIfNeeded()
+  const still = card.locator('.se-media__still')
+  const zoom = () => still.evaluate((el) => parseFloat(getComputedStyle(el).scale))
+  await expect.poll(zoom).toBe(1)
+  await card.hover()
+  await expect.poll(zoom).toBeGreaterThan(1.02)
   await page.mouse.move(0, 0)
-  await expect.poll(async () => (await style(img)).transform, { timeout: 5000 }).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/)
+  await expect.poll(zoom, { timeout: 5000 }).toBe(1)
 })
 
 test('/quote and /news: the h1 (LCP) is visible from the first frame; the content below rises in', async ({ page }) => {

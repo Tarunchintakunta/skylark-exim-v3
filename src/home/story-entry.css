@@ -8,6 +8,7 @@
 .se-cell--world { grid-column: 8 / 13; grid-row: 2; }
 
 .se-card { position: absolute; inset: 0; overflow: hidden; isolation: isolate; border-radius: inherit; background: var(--deep); color: var(--ice); }
+.se:has(.is-open) { z-index: calc(var(--z-chrome) + 10); }   /* the sheet covers the header while it is open */
 .se-card.is-open { position: fixed; z-index: 60; border-radius: 0; }
 
 /* media: the still, its loop over it once playing, a scrim for the grid copy and a lighter veil for the open state */

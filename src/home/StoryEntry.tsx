@@ -17,6 +17,10 @@ const phone = () => matchMedia(PHONE).matches
 const GROW = { duration: 0.65, ease: 'expo.out' } as const
 const SIZES: Record<Id, string> = { wild: '58vw', farmed: '41vw', world: '41vw' }
 const FOCUSABLE = 'a[href], button:not([disabled])'
+/** a card scrolling under a still cursor is not intent: hover warms the path only once the page has been still for a moment */
+let lastScroll = 0
+if (typeof addEventListener === 'function') addEventListener('scroll', () => void (lastScroll = performance.now()), { passive: true })
+const DWELL = 160
 
 /** The card's still: the clip's first frame, the portrait crop on phones. Lazy: nothing loads before the section is near. */
 function Still({ card, open }: { card: EntryCard; open: boolean }) {
@@ -67,10 +71,16 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
     return () => io.disconnect()
   }, [loops])
 
+  const dwell = useRef(0)
   const warm = () => {
-    setHover(true)
-    if (path) prefetchStory(path)
+    clearTimeout(dwell.current)
+    dwell.current = window.setTimeout(() => {
+      if (performance.now() - lastScroll < DWELL) return warm()
+      setHover(true)
+      if (path) prefetchStory(path)
+    }, DWELL)
   }
+  const cool = () => (clearTimeout(dwell.current), setHover(false))
 
   // parallax: the widgets drift against the cursor, each by its own depth (transform only)
   const parallax = (e: PointerEvent) => {
@@ -127,7 +137,7 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
       className={`se-card se-card--${card.id}${open ? ' is-open' : ''}${card.clip ? '' : ' se-card--dark'}`}
       data-card={card.id}
       onPointerEnter={(e) => e.pointerType === 'mouse' && warm()}
-      onPointerLeave={() => setHover(false)}
+      onPointerLeave={cool}
       onFocus={() => path && prefetchStory(path)}
       onPointerMove={parallax}
     >
@@ -204,11 +214,11 @@ function Card({ card, open, onOpen, onClose }: { card: EntryCard; open: boolean;
 }
 
 /**
- * Story Entry (#268): three bento cards after the hero. A card grows from its cell to the full viewport (GSAP, ~650 ms),
+ * Story Entry (#268): three bento cards after the hero's intro. A card grows from its cell to the full viewport (GSAP, ~650 ms),
  * then its facts float in; Back, Esc, the close button or a click on its empty space shrink it back to the cell, and
  * the page is where it was. Reduced motion: a crossfade, no growth and no float.
  */
-export function StoryEntry({ initial }: { initial?: Id }) {
+export function StoryEntry() {
   const [open, setOpen] = useState<Id | null>(null)
   const from = useRef<{ trigger: HTMLElement | null; y: number }>({ trigger: null, y: 0 })
   const cards = useRef<HTMLUListElement>(null)
@@ -263,12 +273,6 @@ export function StoryEntry({ initial }: { initial?: Id }) {
     el.querySelector<HTMLElement>('.se-close')!.focus({ preventScroll: true })
     return () => void tl.kill()
   }, [open])
-
-  // design review: ?open=<id> starts with that card open
-  useEffect(() => {
-    if (initial) openCard(initial, null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   return (
     <section id="story-entry" className="se" aria-labelledby="se-title">

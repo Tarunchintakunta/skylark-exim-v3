@@ -8,6 +8,7 @@ import { Company } from './Company'
 import { Intro } from './Intro'
 import { Markets } from './Markets'
 import { Plant } from './Plant'
+import { StoryEntry } from './StoryEntry'
 import './home.css'
 
 /** /#products and the other section anchors (from the nav on other pages) land once the loader has handed over. */
@@ -25,6 +26,7 @@ export default function Sections({ onMount }: { onMount: () => void }) {
   return (
     <>
       <Intro />
+      <StoryEntry />
       <Products />
       <Markets />
       <Plant />

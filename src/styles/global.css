@@ -51,10 +51,10 @@ h1 em, h2 em, h3 em, .display em { font-style: italic; }
 
 /* tap feedback on buttons and button-like links: scale 0.97 while pressed. The `scale` property and a keyframe, so it
    composes with each element's own transform and never fights its `transition` list */
-:is(.btn, .hero__contact, .hero__fork-btn, .quote-cta, .pcard__cta, .pr-switch__btn, .menu-btn, .nav__link, .contact-band__cta, .close__updates, .story-card__link, .news-card, .markets__item):active { animation: press 0.15s var(--ease-out) forwards; }
+:is(.btn, .hero__contact, .hero__fork-btn, .quote-cta, .pcard__cta, .pr-switch__btn, .menu-btn, .nav__link, .contact-band__cta, .close__updates, .news-card, .markets__item):active { animation: press 0.15s var(--ease-out) forwards; }
 .nav__link, .hero__contact, .hero__fork-btn, .pcard__cta, .close__updates { display: inline-block; }
 @keyframes press { to { scale: 0.97; } }
-@media (prefers-reduced-motion: reduce) { :is(.btn, .hero__contact, .hero__fork-btn, .quote-cta, .pcard__cta, .pr-switch__btn, .menu-btn, .nav__link, .contact-band__cta, .close__updates, .story-card__link, .news-card, .markets__item):active { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :is(.btn, .hero__contact, .hero__fork-btn, .quote-cta, .pcard__cta, .pr-switch__btn, .menu-btn, .nav__link, .contact-band__cta, .close__updates, .news-card, .markets__item):active { animation: none; } }
 
 .sr-only {
   position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
