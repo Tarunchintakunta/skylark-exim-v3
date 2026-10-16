@@ -102,7 +102,7 @@ def _handles(name, crate, C):
         h = bpy.data.objects.new('%s_H%d' % (name, s > 0), None)
         C.objects.link(h)
         h.parent = crate
-        h.location = (0, s * 0.22, 0.24)
+        h.location = (0, s * 0.245, 0.26)
         hs.append(h)
     return hs
 
