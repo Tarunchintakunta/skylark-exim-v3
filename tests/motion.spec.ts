@@ -38,15 +38,22 @@ test('a product card lifts 4 px on hover and its still zooms 1.03', async ({ pag
   await expect.poll(async () => (await style(card.locator('.pcard__shadow'))).opacity).toBe(1)
 })
 
+/** a real mouse move inside the box: the card ignores the still pointer a scroll leaves under it */
+const centre = async (loc: import('@playwright/test').Locator, dx = 0) => {
+  const b = (await loc.boundingBox())!
+  return [b.x + b.width / 2 + dx, b.y + b.height / 2] as const
+}
+
 test('a story entry card zooms its still on hover and settles back', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   const card = page.locator('#story-entry [data-card="farmed"]')
   await card.scrollIntoViewIfNeeded()
   const still = card.locator('.se-media__still')
-  const zoom = () => still.evaluate((el) => parseFloat(getComputedStyle(el).scale))
+  const zoom = () => still.evaluate((el) => parseFloat(getComputedStyle(el).scale) || 1)
   await expect.poll(zoom).toBe(1)
   await card.hover()
+  await page.mouse.move(...(await centre(card, 6)))
   await expect.poll(zoom).toBeGreaterThan(1.02)
   await page.mouse.move(0, 0)
   await expect.poll(zoom, { timeout: 5000 }).toBe(1)
