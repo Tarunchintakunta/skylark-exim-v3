@@ -1,6 +1,7 @@
 import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import { film } from '../config/content'
 import { MarketList } from '../sections/MarketList'
+import { calm } from '../three/calm'
 import { GLOBE_POSTER } from '../three/globeState'
 import { duringIntro } from '../ui/Loader'
 import * as m from 'motion/react-m'
@@ -28,7 +29,7 @@ export function Markets() {
     duringIntro(() => {
       // the fallback first (43 KB): on a slow connection the globe's chunk and texture would otherwise starve it
       if (poster.current) poster.current.loading = 'eager'
-      void warmGlobe().then(() => !gone && startTransition(() => setMounted(true)))
+      void warmGlobe().then(calm).then(() => !gone && startTransition(() => setMounted(true)))
     })
     return () => void (gone = true)
   }, [])

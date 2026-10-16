@@ -8,6 +8,7 @@ import { env } from '../engine/env'
 import { frame } from '../engine/store'
 import { onTick, startClock } from '../engine/ticker'
 import { faceRotation, latLon, routePoints, toLatLon } from './geo'
+import { calm } from './calm'
 import { GLOBE_TEXTURE, globeUi, type GlobeKind } from './globeState'
 
 /** the world card's thin-line globe (#269): brass arcs and origin, ice market dots (tokens.css --brass, --ice) */
@@ -80,7 +81,12 @@ export type GlobeLabels = { markets: (HTMLSpanElement | null)[]; origin: HTMLSpa
 
 const bitmapOptions = (l: ImageBitmapLoader) => void l.setOptions({ imageOrientation: 'flipY' })
 /** decodes the earth texture ahead of the mount (#274): an ImageBitmap is decoded off the main thread */
-export const preloadGlobe = (kind: GlobeKind) => GLOBE_TEXTURE[kind].then((url) => useLoader.preload(ImageBitmapLoader, url, bitmapOptions))
+export const preloadGlobe = (kind: GlobeKind) =>
+  GLOBE_TEXTURE[kind].then(async (url) => {
+    // a low-priority fetch first, so the texture queues behind everything the page is still loading; the loader then reads it from the cache
+    await fetch(url, { priority: 'low' } as RequestInit).then((r) => r.arrayBuffer()).catch(() => {})
+    return useLoader.preload(ImageBitmapLoader, url, bitmapOptions)
+  })
 
 /**
  * Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11).
@@ -127,7 +133,9 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
   // canvas render at all (frameloop 'never' until onWarm), so no frame uploads, compiles and draws in one task
   useEffect(() => {
     let stop = false
-    const idle = () => new Promise<void>((done) => ('requestIdleCallback' in window ? requestIdleCallback(() => done(), { timeout: 300 }) : setTimeout(done, 50)))
+    const slice = () => new Promise<void>((done) => ('requestIdleCallback' in window ? requestIdleCallback(() => done(), { timeout: 300 }) : setTimeout(done, 50)))
+    // the homepage globe also waits for a still page (three/calm.ts); the film's globe keeps its own timing
+    const idle = () => slice().then(standalone ? calm : undefined)
     const at = new Vector2()
     void (async () => {
       await idle()
@@ -153,7 +161,7 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
       if (!stop) onWarm()
     })()
     return () => void (stop = true)
-  }, [gl, scene, camera, tex, bitmap, onWarm])
+  }, [gl, scene, camera, tex, bitmap, onWarm, standalone])
   useEffect(() => void (live && invalidate()), [live, invalidate])
 
   const origin = useMemo(() => latLon(ORIGIN.lat, ORIGIN.lon, 1.002), [])
