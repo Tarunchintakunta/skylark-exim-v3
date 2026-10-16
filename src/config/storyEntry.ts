@@ -1,3 +1,4 @@
+import type { Tier } from '../film/manifest'
 import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from './markets'
 
 /**
@@ -22,6 +23,8 @@ export interface EntryCard {
   start: { label: string; href: string }
   /** the clip whose first frame is the card's still and whose loop plays on hover (public/media/<id>_*) */
   clip?: string
+  /** the clip's largest tier when it is a crop with less than 2560 native pixels: nothing larger is ever asked for */
+  top?: Exclude<Tier, 'm'>
   alt: string
   widgets: Widget[]
 }
@@ -37,8 +40,10 @@ export const ENTRY_CARDS: EntryCard[] = [
     heading: 'Wild catch',
     sub: 'Marine fish from the fishing vessels, through our plant at Anandapuram, to the port.',
     start: { label: 'Start the story', href: '/story#ocean' },
-    clip: 'hf-catch',
-    // framed on the net and the crew (story-entry.css --se-zoom): the deck crates below stay out of frame
+    // hf-catch-card: a crop of the hf-catch master at its native pixels (scripts/encode-hf.sh SRC_CROP 1920:1080:640:0,
+    // phone M_CROP 670:1192:1200:0) that leaves out the deck crates and the bin at the left edge in every frame
+    clip: 'hf-catch-card',
+    top: 1920,
     alt: 'On deck, the crew lean back and haul a dripping net of silver fish in over the rail, the open sea behind them.',
     widgets: [
       { label: 'Range', value: 'Marine fish', src: 53 },

@@ -1,5 +1,7 @@
 /* Story Entry (#268): three bento cards after the hero; a card grows to the viewport and its facts float in. */
 .se { --se-pad: clamp(20px, 2.4vw, 40px); position: relative; z-index: var(--z-content); padding: var(--gutter); background: var(--deep-2); color: var(--ice); }
+/* an open card covers the fixed header too: the section's own stacking context goes above the chrome while it is open */
+.se.is-open { z-index: 60; }
 .se-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: clamp(12px, 1.25vw, 24px); height: 88vh; min-height: 560px; }
 /* the card's corner lives on its cell: StoryEntry reads it back to shrink the open card into it */
 .se-cell { position: relative; border-radius: var(--radius-card); }
@@ -11,13 +13,11 @@
 .se-card.is-open { position: fixed; z-index: 60; border-radius: 0; }
 
 /* media: the still, its loop over it once playing, a scrim for the grid copy and a lighter veil for the open state */
-.se-media { --se-zoom: 1; position: absolute; inset: 0; z-index: -1; }
-/* hf-catch: framed on the net and the crew; its deck crates sit below 62 % of the frame in every frame of the loop */
-.se-card--wild .se-media { --se-zoom: 1.6; }
-.se-media__still, .se-media__loop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform-origin: 50% 0; scale: var(--se-zoom); transition: scale 1.4s var(--ease-out); }
+.se-media { position: absolute; inset: 0; z-index: -1; }
+.se-media__still, .se-media__loop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: scale 1.4s var(--ease-out); }
 .se-media__loop { opacity: 0; transition: opacity 0.6s var(--ease-out), scale 1.4s var(--ease-out); }
 .se-media__loop.is-on { opacity: 1; }
-.se-card:not(.is-open):hover :is(.se-media__still, .se-media__loop) { scale: calc(var(--se-zoom) * 1.035); }
+.se-card:not(.is-open):hover :is(.se-media__still, .se-media__loop) { scale: 1.035; }
 .se-media__scrim, .se-media__veil { position: absolute; inset: 0; transition: opacity 0.6s var(--ease-out); }
 .se-media__scrim { background: linear-gradient(to top, rgba(7, 31, 38, 0.9) 0%, rgba(7, 31, 38, 0.45) 42%, rgba(7, 31, 38, 0) 68%), linear-gradient(to bottom, rgba(7, 31, 38, 0.45), rgba(7, 31, 38, 0) 28%); }
 /* open: the photo stays bright; only the copy's centre and the widget rails at the edges darken */
@@ -110,7 +110,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .se-media__still, .se-media__loop, .se-orbit, .se-cta span { transition: none; }
-  .se-card:not(.is-open):hover :is(.se-media__still, .se-media__loop) { scale: var(--se-zoom); }
+  .se-card:not(.is-open):hover :is(.se-media__still, .se-media__loop) { scale: none; }
   .orbit__pulse, .se-card--dark:not(.is-open):hover .orbit__arc, .se-card.is-open .orbit__arc { animation: none; }
   .se-widget { will-change: auto; }
 }
