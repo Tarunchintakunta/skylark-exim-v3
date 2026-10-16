@@ -9,7 +9,7 @@ import os
 from mathutils import Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import still_fixes
-still_fixes.apply()
+still_fixes.apply_all()
 
 sid, frame, out = sys.argv[sys.argv.index('--') + 1:][:3]
 s = bpy.context.scene

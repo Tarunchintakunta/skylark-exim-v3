@@ -11,7 +11,7 @@ for a, v in (('use_raytracing', True), ('use_shadows', True), ('use_gtao', True)
 r.image_settings.file_format = 'PNG'; r.image_settings.color_mode = 'RGB'; r.image_settings.color_depth = '8'; r.image_settings.compression = 15
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import still_fixes
-still_fixes.apply()
+still_fixes.apply_all(os.environ.get('STILL_ID', ''))
 import still_cams
 still_cams.apply(os.environ.get('STILL_ID', ''))
 still_cams.look(os.environ.get('STILL_ID', ''))
