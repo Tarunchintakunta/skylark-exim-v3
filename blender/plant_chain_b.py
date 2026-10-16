@@ -171,16 +171,23 @@ def unload(C, R):
             # crate: still until gripped, then held in front of the chest, set down on the trolley
             c.keyframe_insert('location', frame=t0 + 15)
             c.keyframe_insert('rotation_euler', frame=t0 + 15)
-            rz0 = c.rotation_euler.z
+            rz = c.rotation_euler.z
+            pyaw = c.parent.matrix_world.to_euler().z
+
+            def near(a):                                      # the crate is symmetric under a half turn: least spin
+                return a + _m.pi * round((rz - a) / _m.pi)
             for f in range(t0 + 19, t0 + 33, 2):
                 bpy.context.scene.frame_set(f)
                 wp = w.matrix_world.translation
                 fwd = Vector((_m.sin(w.rotation_euler.z), -_m.cos(w.rotation_euler.z)))
                 hold = (wp.x + fwd.x * 0.52, wp.y + fwd.y * 0.52, DZ + 0.8)
                 c.location = _key_world_to_truck(R, *hold)
+                rz = near(w.matrix_world.to_euler().z + _m.pi / 2 - pyaw)   # grab bars at the hands, not fore and aft (#246)
+                c.rotation_euler = (0, 0, rz)
                 c.keyframe_insert('location', frame=f)
+                c.keyframe_insert('rotation_euler', frame=f)
             c.location = _key_world_to_truck(R, dest.x, dest.y, dest.z)
-            c.rotation_euler = (0, 0, rz0)
+            c.rotation_euler = (0, 0, near(_m.pi / 2 - pyaw))          # long side along the deck, bars facing the unloader
             c.keyframe_insert('location', frame=t0 + 35)
             c.keyframe_insert('rotation_euler', frame=t0 + 35)
             hs = _handles(c.name, c, C)
