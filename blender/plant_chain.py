@@ -187,6 +187,10 @@ def _steel_crate_mesh(w=0.6, d=0.4, h=0.3, t=0.012):
         bar((cx, cy, h - 0.008), (sx, sy, 0.016))                       # rolled rim
         for z in (0.1, 0.18):
             bar((cx, cy, z), (sx * 0.96 if sx > sy else 0.006, sy * 0.96 if sy > sx else 0.006, 0.012))   # beads
+    for sy in (-1, 1):                                                  # outside grab bars the gloves wrap (#256)
+        bar((0, sy * (d / 2 + 0.038), 0.25), (0.22, 0.02, 0.02))
+        for sx in (-0.1, 0.1):
+            bar((sx, sy * (d / 2 + 0.019), 0.25), (0.02, 0.04, 0.02))
     return L.bm_to_mesh(bm, 'PL_SteelCrate')
 
 
@@ -195,19 +199,41 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
     if 'm' not in _LM:
         _LM['m'] = L.M()
         _LM['mesh'] = _steel_crate_mesh()
-        _LM['mat'] = P.plain('PL_SteelCrate', (0.90, 0.92, 0.94), 0.13, 1.0, bump=0.02, bump_scale=240, aniso=0.7)   # brushed stainless: it reflects the room (#246)
+        _LM['mat'] = P.plain('PL_SteelCrate', (0.82, 0.84, 0.86), 0.30, 1.0, bump=0.04, bump_scale=300, aniso=0.8)   # brushed stainless: it reflects the room (#246)
         _LM['mesh'].materials.append(_LM['mat'])
     o = L.crate(name, 'blue', loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)
     o.data = _LM['mesh']
     o.material_slots[0].link = 'OBJECT'
     o.material_slots[0].material = _LM['mat']
-    if fill:                                    # packed full: product and crushed ice heaped to the rim, readable
-        for ch in o.children:                   # from a standing eye line (the library bed sits 10 cm down)
+    if fill:                                    # packed: flake ice level with the rim, product half-buried in it (#256 #246)
+        if 'flake' not in _LM:
+            _LM['flake'] = _flake_ice_mesh()
+        for ch in list(o.children):
             if ch.name.startswith(name + '_'):
-                ch.location.z += 0.075
-                if ch.name.endswith('_ice'):
-                    ch.scale.z *= 1.8
+                if ch.name.endswith(('_ice', '_icech')):
+                    ch.hide_render = ch.hide_viewport = True
+                else:
+                    ch.location.z += 0.05
+        fl = bpy.data.objects.new(name + '_flake', _LM['flake'])
+        o.users_collection[0].objects.link(fl)
+        fl.parent = o
     return o
+
+
+def _flake_ice_mesh():
+    """A bed of flake ice: a gently lumpy slab just under the rim, with a frosted translucent look."""
+    import bmesh
+    rnd = random.Random(3)
+    bm = bmesh.new()
+    bmesh.ops.create_grid(bm, x_segments=26, y_segments=18, size=1.0)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * 0.28, v.co.y * 0.18, 0.285 + rnd.uniform(-0.012, 0.014)))
+    for f in bm.faces:
+        f.normal_update()
+    m = L.bm_to_mesh(bm, 'PL_FlakeIce')
+    mat = P.plain('PL_FlakeIceMat', (0.86, 0.92, 0.97), 0.28, 0.0, bump=0.5, bump_scale=420)
+    m.materials.append(mat)
+    return m
 
 
 def white_coats():
