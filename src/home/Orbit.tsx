@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { MARKET_COORDS, ORIGIN } from '../config/markets'
 
 /**
@@ -51,14 +52,17 @@ export function Orbit({ className }: { className?: string }) {
       <ellipse rx={R * 1.22} ry={R * 0.34} transform="rotate(-18)" className="orbit__ring" />
       <ellipse rx={R * 1.12} ry={R * 0.5} transform="rotate(24)" className="orbit__ring" />
       {GRATICULE.map((d, i) => d && <path key={i} d={d} className="orbit__grid" />)}
-      {MARKERS.map((m) => (
-        <path key={m.name} d={m.arc} pathLength={1} className="orbit__arc" />
+      {MARKERS.map((m, i) => (
+        <path key={m.name} d={m.arc} pathLength={1} className="orbit__arc" style={{ '--i': i } as CSSProperties} />
       ))}
       {MARKERS.map((m) => (
         <circle key={m.name} cx={m.x} cy={m.y} r={1.6} className="orbit__dot" />
       ))}
       <circle cx={ox} cy={oy} r={3} className="orbit__origin" />
       <circle cx={ox} cy={oy} r={7} className="orbit__pulse" />
+      <text x={ox} y={oy + 15} textAnchor="middle" className="orbit__label">
+        {ORIGIN.name}
+      </text>
     </svg>
   )
 }
