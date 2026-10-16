@@ -13,13 +13,17 @@ const WIPE_S = 0.3
 const MAX_MS = 3000
 
 /**
- * What must be ready when the intro opens (#274): `fn` runs once the page's own load has settled (the LCP poster is
- * in), in the first idle slice, in parallel with the hero frames; so it never competes with the first screen.
+ * What must be ready when the intro opens (#274): `fn` runs in the first idle slice, 500 ms after the page is ready
+ * (`data-ready`, the LCP poster and the first screens are in), in parallel with the hero frames; so its bytes stay out
+ * of the first screens' weight budget (tests/weight.spec.ts) and never compete with them.
  */
 export function duringIntro(fn: () => void) {
+  const html = document.documentElement
   const idle = () => ('requestIdleCallback' in window ? requestIdleCallback(() => fn(), { timeout: 400 }) : setTimeout(fn, 100))
-  if (document.readyState === 'complete') idle()
-  else addEventListener('load', idle, { once: true })
+  const later = () => void setTimeout(idle, 500)
+  if (html.dataset.ready === '1') return later()
+  const mo = new MutationObserver(() => html.dataset.ready === '1' && (mo.disconnect(), later()))
+  mo.observe(html, { attributes: true, attributeFilter: ['data-ready'] })
 }
 
 /**
