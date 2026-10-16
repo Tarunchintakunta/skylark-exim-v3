@@ -26,10 +26,13 @@ type Desk = (typeof TIERS)[number]
 const coverPx = (w: number, h: number) => Math.ceil(Math.max(w, (h * 16) / 9) * (devicePixelRatio || 1))
 const tierFor = (px: number, top: Desk = 2560): Desk => TIERS.find((t) => t >= px && t <= top) ?? top
 
-/** the still's srcset over every tier the clip has, up to its `top` */
-const stillSet = (id: string, ext: 'avif' | 'webp', top: Desk = 2560) =>
+/**
+ * The still's srcset over every tier up to its `top`. A card's own stills (`still`) stop at 1920; its 2560 entry is the
+ * clip's own poster, which only a large screen ever picks.
+ */
+const stillSet = (id: string, clip: string, ext: 'avif' | 'webp', top: Desk = 2560) =>
   TIERS.filter((t) => t <= top)
-    .map((t) => `${mediaUrl(`${id}_${t}.${ext}`)} ${t}w`)
+    .map((t) => `${mediaUrl(`${t === 2560 ? clip : id}_${t}.${ext}`)} ${t}w`)
     .join(', ')
 
 /**
@@ -69,19 +72,21 @@ if (typeof addEventListener === 'function')
 const useStill = () => useSyncExternalStore((f) => (idleSubs.add(f), () => idleSubs.delete(f)), () => still)
 
 /** The card's still: the clip's first frame, the portrait crop on phones. Lazy: nothing loads before the section is near. */
-function Still({ card, cssPx }: { card: EntryCard; cssPx: number }) {
-  const id = card.clip!
+function Still({ card, cssPx, portrait }: { card: EntryCard; cssPx: number; portrait: boolean }) {
+  const id = card.still ?? card.clip!
+  // a phone's landscape card stops at 1920: the 2560 files are for large screens
+  const top = Math.min(card.top ?? 2560, phone() ? 1920 : 2560) as Desk
   // the cover width in CSS px: the browser multiplies by the device pixel ratio when it picks from the srcset
   const sizes = `${Math.max(1, Math.round(cssPx))}px`
   return (
     <picture>
-      <source media={PHONE} type="image/avif" srcSet={mediaUrl(`${id}_m.avif`)} />
-      <source media={PHONE} type="image/webp" srcSet={mediaUrl(`${id}_m.webp`)} />
-      <source type="image/avif" srcSet={stillSet(id, 'avif', card.top)} sizes={sizes} />
+      {portrait && <source type="image/avif" srcSet={mediaUrl(`${id}_m.avif`)} />}
+      {portrait && <source type="image/webp" srcSet={mediaUrl(`${id}_m.webp`)} />}
+      <source type="image/avif" srcSet={stillSet(id, card.clip!, 'avif', top)} sizes={sizes} />
       <img
         className="se-media__still"
         src={mediaUrl(`${id}_960.webp`)}
-        srcSet={stillSet(id, 'webp', card.top)}
+        srcSet={stillSet(id, card.clip!, 'webp', top)}
         sizes={sizes}
         alt=""
         loading="lazy"
@@ -123,6 +128,9 @@ function Card({ card, open, settled, onOpen, onClose }: { card: EntryCard; open:
   const panel = useRef<HTMLDivElement>(null)
   const box = useBox(root, open && !settled)
   const px = coverPx(box.w, box.h)
+  // the portrait crop (_m, 9:16) only for a box about that shape: a phone card near square is wider than 9:16, and
+  // the landscape tiers cover it with more pixels across (hd.spec.ts)
+  const portrait = phone() && box.h > 0 && box.w / box.h < 0.8
   const [hover, setHover] = useState(false)
   const [inView, setInView] = useState(false)
   const pageStill = useStill()
@@ -209,10 +217,10 @@ function Card({ card, open, settled, onOpen, onClose }: { card: EntryCard; open:
       <div className="se-media" aria-hidden="true">
         {card.clip ? (
           <>
-            <Still card={card} cssPx={px / (devicePixelRatio || 1)} />
+            <Still card={card} cssPx={px / (devicePixelRatio || 1)} portrait={portrait} />
             {/* one loop, one decoder: its tier follows the box (frozen mid-transition), so once the card has settled
                 full screen it switches to the tier that covers the screen, the still showing until that file's first frame */}
-            <Loop className="se-media__loop" src={loops && px ? clipUrl(card.clip, phone() ? 'm' : tierFor(px, Math.min(card.top ?? 2560, typeof W === 'number' ? W : 2560) as Desk)) : null} play={open ? settled : hover || (inView && pageStill)} />
+            <Loop className="se-media__loop" src={loops && px ? clipUrl(card.clip, portrait ? 'm' : tierFor(px, Math.min(card.top ?? 2560, phone() ? 1920 : typeof W === 'number' ? W : 2560) as Desk)) : null} play={open ? settled : hover || (inView && pageStill)} />
           </>
         ) : (
           <Orbit className="se-orbit" />
