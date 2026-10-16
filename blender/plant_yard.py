@@ -56,15 +56,11 @@ def forklift(name, C, M):
         p.box((-0.9 + k * 0.22, 0, 2.21), (0.04, 0.98, 0.04))
     p.box((-0.55, 0, 0.98), (0.45, 0.5, 0.08))                       # seat base
     p.box((-0.75, 0, 1.25), (0.08, 0.5, 0.45))                       # seat back
-    p.cyl((-0.05, 0, 1.05), (-0.25, 0, 1.35), 0.02, 8)               # steering column
     p.make(name + '_Guard', S.MATS()['dark'], root, bevel=0.005, coll=C)
     p = Part()                                                        # steering wheel on the raked column (#255), floor pedals
-    wc = (-0.29, 0, 1.37)
-    for k in range(16):
-        a0, a1 = k * math.tau / 16, (k + 1) * math.tau / 16
-        p.cyl((wc[0] + 0.05 * math.sin(a0) * 0.0 + 0.0, wc[1] + 0.17 * math.cos(a0), wc[2] + 0.17 * math.sin(a0) * 0.8),
-              (wc[0], wc[1] + 0.17 * math.cos(a1), wc[2] + 0.17 * math.sin(a1) * 0.8), 0.014, 6)
-    p.cyl((-0.05, 0, 1.05), (wc[0], 0, wc[2]), 0.02, 8)
+    for k in range(20):                                               # rim tilted 40 deg off flat, above and ahead of the knees
+        p.cyl(_rim(k * math.tau / 20), _rim((k + 1) * math.tau / 20), 0.014, 6)
+    p.cyl((-0.05, 0, 1.05), WHEEL_C, 0.02, 8)
     for sy in (-0.1, 0.1):
         p.box((0.12, sy, 0.99), (0.08, 0.07, 0.015), Euler((0, 0.5, 0)))   # pedals on the floor board
     p.make(name + '_Wheel', S.MATS()['dark'], root, smooth=True, coll=C)
@@ -92,15 +88,25 @@ def forklift(name, C, M):
     return root, car
 
 
+WHEEL_C, WHEEL_R, WHEEL_TILT = Vector((-0.17, 0, 1.52)), 0.16, math.radians(50)
+WHEEL_V = Vector((math.sin(WHEEL_TILT), 0, math.cos(WHEEL_TILT)))     # rim "up" axis, top leaning toward the mast
+
+
+def _rim(a, off=0.0):
+    """Point on the steering wheel rim at angle a (0 = the driver's left, +Y), pushed `off` outward."""
+    r = Vector((0, math.cos(a), 0)) + WHEEL_V * math.sin(a)
+    return WHEEL_C + r * (WHEEL_R + off)
+
+
 def _hands_on_wheel(op, fl, C):
-    """Both hands on the steering wheel rim: IK targets on the wheel, parented to the forklift."""
-    for sd, sy in (('L', 0.15), ('R', -0.15)):
-        h = bpy.data.objects.new('%s_Wheel%s' % (op.name, sd), None)
-        C.objects.link(h)
-        h.parent = fl
-        h.location = (-0.29, sy, 1.37)
-        c = op.pose.bones['forearm.' + sd].constraints.new('IK')
-        c.target, c.chain_count, c.use_tail = h, 2, True
+    """Both hands over the top of the rim at ten to two, fingers closing round it (#255): no wrist inside the rim."""
+    import plant_chain_b as B
+    wheel = bpy.data.objects[fl.name + '_Wheel']
+    away = Vector((0, 1, 0)).cross(WHEEL_V)                          # wheel normal, away from the driver
+    for sd, a in (('L', math.radians(35)), ('R', math.radians(145))):
+        rh = (_rim(a) - WHEEL_C).normalized()
+        H.wrap_hand(op, sd, fl, _rim(a, 0.032) - away * 0.012, away, -rh, [(1, 1.0)], C)
+        B.grip_on(op, sd, wheel, 232)
 
 
 def pallet_jack(name, C, parent):
