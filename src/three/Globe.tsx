@@ -565,7 +565,7 @@ export default function GlobeCanvas({ worldIndex }: { worldIndex: number }) {
         frameloop={live ? 'demand' : 'never'}
         // no scroll tracking (#274): react-use-measure debounces the canvas's first measure on every scroll event, so
         // under a smooth scroll the scene never mounted until the page stopped; the globe reads its own box for input
-        resize={{ scroll: false }}
+        resize={{ scroll: worldIndex >= 0 }}
         gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
         onCreated={({ gl }) => {
