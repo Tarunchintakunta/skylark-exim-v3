@@ -1,4 +1,4 @@
-import { lazy, startTransition, Suspense, useEffect, useState } from 'react'
+import { lazy, startTransition, Suspense, useEffect, useRef, useState } from 'react'
 import { film } from '../config/content'
 import { MarketList } from '../sections/MarketList'
 import { GLOBE_POSTER } from '../three/globeState'
@@ -22,9 +22,14 @@ const warmGlobe = () => (warmed ??= loadGlobe().then((g) => g.preloadGlobe('home
  */
 export function Markets() {
   const [mounted, setMounted] = useState(false)
+  const poster = useRef<HTMLImageElement>(null)
   useEffect(() => {
     let gone = false
-    duringIntro(() => void warmGlobe().then(() => !gone && startTransition(() => setMounted(true))))
+    duringIntro(() => {
+      // the fallback first (43 KB): on a slow connection the globe's chunk and texture would otherwise starve it
+      if (poster.current) poster.current.loading = 'eager'
+      void warmGlobe().then(() => !gone && startTransition(() => setMounted(true)))
+    })
     return () => void (gone = true)
   }, [])
   const world = film.world[0]
@@ -39,7 +44,7 @@ export function Markets() {
         {/* the live globe's first view: a fallback, shown only if the globe hasn't drawn by the time it's on screen (#274) */}
         <picture>
           <source type="image/avif" srcSet={GLOBE_POSTER('avif')} sizes={POSTER_SIZES} />
-          <img className="globe-ph" srcSet={GLOBE_POSTER('webp')} sizes={POSTER_SIZES} src="/textures/globe-home_1280.webp" alt="" width={2560} height={2560} loading="lazy" decoding="async" />
+          <img ref={poster} className="globe-ph" srcSet={GLOBE_POSTER('webp')} sizes={POSTER_SIZES} src="/textures/globe-home_1280.webp" alt="" width={2560} height={2560} loading="lazy" decoding="async" />
         </picture>
         {mounted && (
           <Suspense fallback={null}>
