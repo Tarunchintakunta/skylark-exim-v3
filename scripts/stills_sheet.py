@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 src, out = sys.argv[1:3]
 os.makedirs(out, exist_ok=True)
-SHOTS = [('255', '#255 Truck backed to the dock, outside'), ('256', '#256 Intake, steel crates'), ('257', '#257 Cold storage, steel racks'),
+SHOTS = [('255', '#255 Truck doors open on the dock leveller, outside'), ('255b', '#255 Truck from the front, driver on the right'), ('256', '#256 Intake, steel crates'), ('257', '#257 Cold storage, steel racks'),
          ('258', '#258 Quay crane lifting a container from the ship'), ('258a', '#258 sequence 1: spreader lowers onto the deck'), ('258b', '#258 sequence 2: second crane grips and lifts'), ('258c', '#258 sequence 3: container set down'), ('259', '#259 Ship alone at sea'), ('260', '#260 Dawn hero'), ('246', '#246 Beat 3 unload, truck outside (shrimp)'), ('246f', '#246 Beat 3 unload, truck outside (fish)')]
 TW, TH, PAD, HEAD = 1280, 720, 24, 70
 COLS = 2

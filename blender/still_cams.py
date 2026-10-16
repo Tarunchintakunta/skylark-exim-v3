@@ -11,19 +11,20 @@ DOLLY_260 = 380.0
 CAMS = {
     # truck backed straight into bay 2, rear on the bumpers; seen from the front-right so the driver shows through the
     # windscreen and the right-hand door window (the neighbouring parked trucks are hidden for this still)
-    '255': ((6.8, -17.0, 2.6), (9.1, -4.2, 2.4), 30),
+    '255': ((9.2, 7.0, 2.35), (9.2, -1.0, 2.0), 30),
+    '255b': ((6.8, -17.0, 2.6), (9.1, -4.2, 2.4), 30),
     # 256: eye level (1.65 m over the dock floor), a 3/4 view along the intake line
     '256': ((11.5, 3.8, 2.3), (9.0, 1.0, 2.0), 38),
     # 257: inside the cold store, past the staged pallets, looking down the aisle
-    '257': ((8.9, 70.0, 2.85), (8.7, 80.0, 2.7), 26),
+    '257': ((8.9, 70.0, 2.7), (8.7, 80.0, 2.5), 26),
     # 258: the whole quay crane, boom and spreader, from the quay a good way back
-    '258': ((75.0, -185.0, 48.0), (-12.0, -10.0, 34.0), 40),
+    '258': ((60.0, -170.0, 52.0), (10.0, -12.0, 28.0), 40),
     # 246: beat 3 from inside the room, looking out through the open dock door at the truck's rear
         '246': ((13.2, 5.0, 2.75), (9.2, 0.4, 2.35), 36),
 }
 CAMS.update({
     '255a': ((4.2, -14.0, 1.8), (9.2, -4.5, 1.9), 30),
-    '255b': ((6.5, -15.5, 1.6), (9.2, -5.0, 1.9), 28),
+    '255b0': ((6.5, -15.5, 1.6), (9.2, -5.0, 1.9), 28),
     '255d': ((2.0, -12.5, 3.9), (9.2, -4.0, 1.9), 28),
     '255e': ((3.0, -6.0, 4.2), (9.2, -4.2, 1.7), 22),
     '255f': ((1.0, -10.0, 3.0), (9.2, -3.5, 1.8), 24),
@@ -47,6 +48,20 @@ CAMS.update({
     '255t': ((6.8, -17.0, 2.6), (9.1, -4.2, 2.4), 30),
     '256f': ((8.0, 4.3, 2.4), (9.2, 0.9, 2.0), 40),
     '256g': ((11.5, 3.8, 2.3), (9.0, 1.0, 2.0), 38),
+    '255A': ((3.8, -3.6, 2.0), (9.4, -1.4, 2.1), 36),
+    '255B': ((2.4, -7.5, 2.2), (9.4, -2.0, 2.1), 34),
+    '257A': ((8.9, 67.8, 2.3), (8.7, 80.0, 2.4), 30),
+    '255C': ((7.0, 3.4, 2.5), (9.2, -0.9, 2.0), 42),
+    '255D': ((11.5, 3.4, 2.5), (9.2, -0.9, 2.0), 42),
+    '257B': ((8.9, 70.0, 2.7), (8.7, 80.0, 2.5), 26),
+    '255E': ((9.2, 7.5, 2.3), (9.2, -1.0, 2.0), 30),
+    '255F': ((6.0, 6.5, 2.3), (9.2, -1.0, 2.0), 30),
+    '258P': ((150.0, -14.0, 12.0), (10.0, -12.0, 16.0), 30),
+    '258Q': ((70.0, 120.0, 75.0), (20.0, -12.0, 14.0), 36),
+    '258R': ((135.0, 40.0, 30.0), (20.0, -12.0, 14.0), 34),
+    '258S': ((135.0, -26.0, 10.0), (30.0, -10.0, 20.0), 30),
+    '258T': ((30.0, -75.0, 50.0), (30.0, -12.0, 20.0), 50),
+    '258U': ((30.0, -105.0, 60.0), (30.0, -12.0, 22.0), 40),
     '255c': ((2.0, -12.5, 1.7), (9.2, -4.8, 1.95), 26),
     '256a': ((3.0, 3.4, 2.85), (9.2, 1.4, 2.3), 45),
     '256b': ((5.0, 6.2, 2.85), (9.4, 1.6, 2.3), 40),
@@ -99,6 +114,12 @@ def look(sid):
         if o.name.startswith(('BASIN_Ship', 'FARSHIP', 'TUG')):
             for c in [o] + list(o.children_recursive):
                 c.hide_render = c.hide_viewport = True
+    bw = bpy.data.objects.get('LAND_Breakwaters')
+    if bw is not None:                       # the rock blocks sit into the water: no floating foam line along their base
+        bw.location.z -= 0.35
+    sf = bpy.data.objects.get('LAND_BreakwaterSurf')
+    if sf is not None:
+        sf.hide_render = sf.hide_viewport = True
     nt = s.world.node_tree
     sky = next(n for n in nt.nodes if n.type == 'TEX_SKY')
     for attr, v in (('aerosol_density', 6.0), ('dust_density', 5.0), ('air_density', 1.6)):
