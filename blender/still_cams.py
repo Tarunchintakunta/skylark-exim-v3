@@ -203,136 +203,248 @@ def look(sid):
     s.view_settings.exposure = -0.3
 
 
-def _tint(mat, col, name):
-    m = mat.copy()
-    m.name = name
+def _facade(name, wall):
+    """Concrete facade with storeys and window rows by world position (3 m floors, 3.2 m bays from z = 2), glass with
+    curtains, a few warm lit windows at dawn, slab lines, sunshade shadows, grime, and a flat grey roof on top faces."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
     nt = m.node_tree
-    b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
-    bc = b.inputs['Base Color']
-    mx = nt.nodes.new('ShaderNodeMix')
-    mx.data_type, mx.blend_type = 'RGBA', 'MULTIPLY'
-    mx.inputs['Factor'].default_value = 1.0
-    mx.inputs[7].default_value = (*col, 1)
-    if bc.links:
-        nt.links.new(bc.links[0].from_socket, mx.inputs[6])
-    else:
-        mx.inputs[6].default_value = bc.default_value
-    nt.links.new(mx.outputs[2], bc)
+    N, L = nt.nodes, nt.links
+    bsdf = N['Principled BSDF']
+    geo = N.new('ShaderNodeNewGeometry')
+    sp, sn = N.new('ShaderNodeSeparateXYZ'), N.new('ShaderNodeSeparateXYZ')
+    L.new(geo.outputs['Position'], sp.inputs[0])
+    L.new(geo.outputs['Normal'], sn.inputs[0])
+
+    def op(o, a, b=None):
+        n = N.new('ShaderNodeMath')
+        n.operation = o
+        for i, x in enumerate((a, b)):
+            if x is None:
+                continue
+            if isinstance(x, (int, float)):
+                n.inputs[i].default_value = x
+            else:
+                L.new(x, n.inputs[i])
+        return n.outputs[0]
+
+    def mix(f, a, b, rgba=True):
+        n = N.new('ShaderNodeMix')
+        n.data_type = 'RGBA' if rgba else 'FLOAT'
+        ins = (n.inputs[6], n.inputs[7]) if rgba else (n.inputs[2], n.inputs[3])
+        L.new(f, n.inputs[0]) if not isinstance(f, (int, float)) else None
+        for sock, x in zip(ins, (a, b)):
+            if isinstance(x, tuple):
+                sock.default_value = (*x, 1) if rgba else x
+            elif isinstance(x, (int, float)):
+                sock.default_value = x
+            else:
+                L.new(x, sock)
+        return n.outputs[2] if rgba else n.outputs[0]
+
+    x, y, z = sp.outputs[0], sp.outputs[1], op('SUBTRACT', sp.outputs[2], 2.0)
+    side = op('GREATER_THAN', op('ABSOLUTE', sn.outputs[0]), op('ABSOLUTE', sn.outputs[1]))   # faces +-X: runs along Y
+    u = op('ADD', x, op('MULTIPLY', side, op('SUBTRACT', y, x)))
+    v = op('ADD', y, op('MULTIPLY', side, op('SUBTRACT', x, y)))
+    cu, cz = op('DIVIDE', u, 3.2), op('DIVIDE', z, 3.0)
+    fu, fz = op('FRACT', cu), op('FRACT', cz)
+    wall_ = op('LESS_THAN', op('ABSOLUTE', sn.outputs[2]), 0.5)
+    win = op('MULTIPLY', op('MULTIPLY', op('GREATER_THAN', fu, 0.2), op('LESS_THAN', fu, 0.8)),
+             op('MULTIPLY', op('GREATER_THAN', fz, 0.36), op('LESS_THAN', fz, 0.82)))
+    win = op('MULTIPLY', win, op('MULTIPLY', wall_, op('GREATER_THAN', z, 3.0)))
+    cc = N.new('ShaderNodeCombineXYZ')
+    L.new(op('FLOOR', cu), cc.inputs[0])
+    L.new(op('FLOOR', cz), cc.inputs[1])
+    L.new(op('FLOOR', op('MULTIPLY', v, 0.5)), cc.inputs[2])
+    wn = N.new('ShaderNodeTexWhiteNoise')
+    wn.noise_dimensions = '3D'
+    L.new(cc.outputs[0], wn.inputs['Vector'])
+    r = wn.outputs['Value']
+    lit = op('MULTIPLY', win, op('GREATER_THAN', r, 0.988))
+    glass = mix(r, (0.02, 0.025, 0.03), (0.16, 0.14, 0.11))                 # dark glass to drawn curtains
+    dn = N.new('ShaderNodeTexNoise')
+    dn.inputs['Scale'].default_value = 0.09
+    L.new(geo.outputs['Position'], dn.inputs['Vector'])
+    grime = op('MULTIPLY', op('SUBTRACT', dn.outputs['Fac'], 0.35), 1.6)
+    wallc = mix(grime, wall, (wall[0] * 0.55, wall[1] * 0.5, wall[2] * 0.45))   # monsoon staining
+    shade = op('MULTIPLY', op('GREATER_THAN', fz, 0.82), op('LESS_THAN', fz, 0.9))  # sunshade shadow over the windows
+    wallc = mix(shade, wallc, (wall[0] * 0.5, wall[1] * 0.5, wall[2] * 0.5))
+    slab = op('LESS_THAN', fz, 0.06)
+    wallc = mix(slab, wallc, (min(1, wall[0] * 1.15), min(1, wall[1] * 1.15), min(1, wall[2] * 1.15)))
+    col = mix(win, wallc, glass)
+    col = mix(op('SUBTRACT', 1.0, wall_), col, (0.36, 0.34, 0.31))           # flat concrete roofs
+    L.new(col, bsdf.inputs['Base Color'])
+    L.new(mix(win, 0.85, 0.12, rgba=False), bsdf.inputs['Roughness'])
+    bsdf.inputs['Emission Color'].default_value = (1.0, 0.62, 0.3, 1)
+    L.new(op('MULTIPLY', lit, 3.5), bsdf.inputs['Emission Strength'])
     return m
 
 
-def coast260():
-    """#260: varied coastal buildings (heights, gable and flat roofs, white / sand / terracotta / pale blue washes) instead of
-    one block city, and aerial perspective: bluer, hazier hills under a thin warm haze volume."""
-    import bmesh
-    import random
-    s = bpy.context.scene
-    rnd = random.Random(11)
-    city = bpy.data.objects.get('LAND_City')
-    if city is not None and city.data.materials:
-        base = city.data.materials[0]
-        tints = [(1.0, 1.0, 1.0), (1.0, 0.86, 0.68), (0.95, 0.62, 0.48), (0.78, 0.88, 0.95), (0.96, 0.93, 0.82)]
-        mats = [_tint(base, c, 'STILL_Bld%d' % i) for i, c in enumerate(tints)]
-        me = city.data
-        me.materials.clear()
-        for m in mats:
-            me.materials.append(m)
-        bm = bmesh.new()
-        bm.from_mesh(me)
-        seen = set()
-        extra = []
-        for v0 in list(bm.verts):                                  # snapshot: new roof verts are not new islands
-            if v0 in seen:
-                continue
-            stack, isl = [v0], []
-            seen.add(v0)
-            while stack:
-                v = stack.pop()
-                isl.append(v)
-                for e in v.link_edges:
-                    w = e.other_vert(v)
-                    if w not in seen:
-                        seen.add(w)
-                        stack.append(w)
-            zs = [v.co.z for v in isl]
-            z0, top = min(zs), max(zs)
-            fcs = {f for v in isl for f in v.link_faces}
-            mi = rnd.randrange(len(mats))
-            for f in fcs:
-                f.material_index = mi
-            k = rnd.choice((0.5, 0.65, 0.8, 1.0, 1.0, 1.25, 1.6))             # heights differ block to block
-            for v in isl:
-                v.co.z = z0 + (v.co.z - z0) * k
-            xs = [v.co.x for v in isl]
-            ys = [v.co.y for v in isl]
-            zt = max(v.co.z for v in isl)
-            w_, d_ = max(xs) - min(xs), max(ys) - min(ys)
-            if min(w_, d_) < 3.0 or w_ > 60 or d_ > 60 or z0 > 2.0 or zt - z0 < 5.0:     # real buildings only: nothing perched on roofs
-                continue
-            extra.append((rnd.random(), min(xs), max(xs), min(ys), max(ys), zt, mi))
-        bm.to_mesh(me)
-        bm.free()
-        # roofs and upper storeys as separate small meshes on top of the blocks (no edits to the big city mesh)
-        eb = bmesh.new()
-        for kind, x0, x1, y0, y1, zt, mi in extra:
-            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-            w_, d_ = x1 - x0, y1 - y0
+class _Geo:
+    def __init__(self):
+        self.v, self.f, self.m = [], [], []
 
-            def quad(a, b, c, d):
-                eb.faces.new([eb.verts.new(p_) for p_ in (a, b, c, d)]).material_index = mi + 5
-            if kind < 0.40:                                            # gable roof, ridge along the long side
-                h = min(w_, d_) * (0.28 + 0.3 * rnd.random())
-                if w_ >= d_:
-                    r0, r1 = (x0, cy, zt + h), (x1, cy, zt + h)
-                    quad((x0, y0, zt), (x1, y0, zt), r1, r0)
-                    quad((x1, y1, zt), (x0, y1, zt), r0, r1)
-                    for xx in (x0, x1):
-                        eb.faces.new([eb.verts.new(p_) for p_ in ((xx, y0, zt), (xx, y1, zt), (xx, cy, zt + h))]).material_index = mi + 5
-                else:
-                    r0, r1 = (cx, y0, zt + h), (cx, y1, zt + h)
-                    quad((x0, y0, zt), (x0, y1, zt), r1, r0)
-                    quad((x1, y1, zt), (x1, y0, zt), r0, r1)
-                    for yy in (y0, y1):
-                        eb.faces.new([eb.verts.new(p_) for p_ in ((x0, yy, zt), (x1, yy, zt), (cx, yy, zt + h))]).material_index = mi + 5
-            elif kind < 0.65:                                          # set-back upper storey
-                ix, iy = w_ * 0.26, d_ * 0.26
-                hh = 3.2 + 6.0 * rnd.random()
-                bx0, bx1, by0, by1 = x0 + ix, x1 - ix, y0 + iy, y1 - iy
-                p8 = [(bx0, by0), (bx1, by0), (bx1, by1), (bx0, by1)]
-                for k in range(4):
-                    a_, b_ = p8[k], p8[(k + 1) % 4]
-                    quad((a_[0], a_[1], zt), (b_[0], b_[1], zt), (b_[0], b_[1], zt + hh), (a_[0], a_[1], zt + hh))
-                quad((bx0, by0, zt + hh), (bx1, by0, zt + hh), (bx1, by1, zt + hh), (bx0, by1, zt + hh))
-            elif kind < 0.80:                                          # slim lift tower
-                tw = min(w_, d_) * 0.22
-                hh = 5 + 9 * rnd.random()
-                tx0, tx1, ty0, ty1 = cx - tw, cx + tw, cy - tw, cy + tw
-                for a_, b_ in (((tx0, ty0), (tx1, ty0)), ((tx1, ty0), (tx1, ty1)), ((tx1, ty1), (tx0, ty1)), ((tx0, ty1), (tx0, ty0))):
-                    quad((a_[0], a_[1], zt), (b_[0], b_[1], zt), (b_[0], b_[1], zt + hh), (a_[0], a_[1], zt + hh))
-                quad((tx0, ty0, zt + hh), (tx1, ty0, zt + hh), (tx1, ty1, zt + hh), (tx0, ty1, zt + hh))
-        for f in eb.faces:
-            f.normal_update()
-        em = bpy.data.meshes.new('STILL_BldExtra')
-        eb.to_mesh(em)
-        eb.free()
-        roof_cols = [(0.60, 0.26, 0.17), (0.72, 0.70, 0.66), (0.52, 0.30, 0.22), (0.40, 0.44, 0.48), (0.66, 0.52, 0.34)]
-        for i_, col in enumerate(tints):
-            mat = bpy.data.materials.new('STILL_Roof%d' % i_)
-            mat.use_nodes = True
-            mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*roof_cols[i_ % len(roof_cols)], 1)
-            mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.75
-            em.materials.clear() if i_ == 0 else None
-        em.materials.clear()
-        for m in mats:
-            em.materials.append(m)
-        for i_ in range(len(tints)):
-            mat = bpy.data.materials.new('STILL_RoofM%d' % i_)
-            mat.use_nodes = True
-            mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (*roof_cols[i_], 1)
-            mat.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.75
-            em.materials.append(mat)
-        eo = bpy.data.objects.new('STILL_BldExtra', em)
-        s.collection.objects.link(eo)
+    def box(self, x0, x1, y0, y1, z0, z1, mi):
+        b = len(self.v)
+        self.v += [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+        for f in ((0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)):
+            self.f.append(tuple(b + i for i in f))
+            self.m.append(mi)
+
+    def cyl(self, cx, cy, r, z0, z1, mi, n=8):
+        import math
+        b = len(self.v)
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            self.v += [(cx + r * math.cos(a), cy + r * math.sin(a), z0), (cx + r * math.cos(a), cy + r * math.sin(a), z1)]
+        for k in range(n):
+            k2 = (k + 1) % n
+            self.f.append((b + 2 * k, b + 2 * k2, b + 2 * k2 + 1, b + 2 * k + 1))
+            self.m.append(mi)
+        self.f.append(tuple(b + 2 * k + 1 for k in range(n)))
+        self.m.append(mi)
+
+
+def _building(g, rnd, x0, x1, y0, y1, zb, floors, mi, near):
+    """One Indian RC-frame building: storeys, parapet, stair headroom, black water tanks; sometimes a set-back top
+    floor or a lower wing, and sea-facing balconies on the near blocks."""
+    TANK = 7
+    top = zb + 3.0 * floors
+    w, d = x1 - x0, y1 - y0
+    k = rnd.random()
+    if k < 0.22 and floors >= 3:                                  # lower wing along one side
+        if w >= d:
+            xs = x0 + w * rnd.uniform(0.45, 0.65)
+            lo = max(1, floors - rnd.randint(1, 3))
+            g.box(x0, xs, y0, y1, zb, top, mi)
+            g.box(xs, x1, y0, y1, zb, zb + 3.0 * lo, mi)
+            g.box(xs, x1, y0, y0 + 0.2, zb + 3.0 * lo, zb + 3.0 * lo + 0.95, mi)
+            x1 = xs
+        else:
+            ys = y0 + d * rnd.uniform(0.35, 0.55)
+            lo = max(1, floors - rnd.randint(1, 3))
+            g.box(x0, x1, y0, ys, zb, zb + 3.0 * lo, mi)
+            g.box(x0, x1, y0, y0 + 0.2, zb + 3.0 * lo, zb + 3.0 * lo + 0.95, mi)
+            g.box(x0, x1, ys, y1, zb, top, mi)
+            y0 = ys
+    else:
+        g.box(x0, x1, y0, y1, zb, top, mi)
+    if near and floors >= 3:                                      # balconies on the sea (+Y) face
+        bw = (x1 - x0) * rnd.uniform(0.35, 0.7)
+        bx = rnd.uniform(x0, x1 - bw)
+        for f in range(1, floors):
+            g.box(bx, bx + bw, y1, y1 + 1.3, zb + 3.0 * f - 0.15, zb + 3.0 * f + 1.0, mi)
+    if k > 0.78 and floors >= 3 and min(x1 - x0, y1 - y0) > 9:     # set-back top storey
+        ix, iy = (x1 - x0) * 0.22, (y1 - y0) * 0.22
+        g.box(x0 + ix, x1 - ix, y0 + iy, y1 - iy, top, top + 3.0, mi)
+    for (a0, a1, b0, b1) in ((x0, x1, y0, y0 + 0.22), (x0, x1, y1 - 0.22, y1), (x0, x0 + 0.22, y0, y1), (x1 - 0.22, x1, y0, y1)):
+        g.box(a0, a1, b0, b1, top, top + 0.95, mi)               # roof parapet
+    hx, hy = rnd.uniform(x0 + 1, max(x0 + 1.1, x1 - 4.5)), rnd.uniform(y0 + 1, max(y0 + 1.1, y1 - 4))
+    g.box(hx, hx + 3.2, hy, hy + 3.0, top, top + 2.7, mi)        # stair / lift headroom
+    g.cyl(hx + 1.6, hy + 1.5, rnd.uniform(0.7, 1.0), top + 2.7, top + 4.2, TANK)   # tank on the headroom
+    for _ in range(rnd.randint(0, 2)):
+        tx, ty = rnd.uniform(x0 + 1.5, x1 - 1.5), rnd.uniform(y0 + 1.5, y1 - 1.5)
+        g.cyl(tx, ty, rnd.uniform(0.6, 0.9), top, top + rnd.uniform(1.3, 1.8), TANK)
+
+
+def coast260():
+    """#260: a real coastal city seen from the sea at dawn instead of boxes. The port's city blocks are kept only as
+    plots: each is split into 1-4 buildings with setbacks, G+1 to G+9 RC-frame blocks (taller along the beach road, a few
+    towers), parapets, stair headrooms, black water tanks, balconies, window rows and a few lit windows; houses thin out
+    up the lower hill slopes. Plus aerial perspective: bluer, hazier hills."""
+    import math
+    import random
+    import numpy as np
+    from bpy_extras.object_utils import world_to_camera_view as w2c
+    s = bpy.context.scene
+    rnd = random.Random(260)
+    city = bpy.data.objects.get('LAND_City')
+    tanks = bpy.data.objects.get('LAND_RoofTanks')
+    if tanks is not None:                                             # they sat on the old box roofs
+        tanks.hide_render = tanks.hide_viewport = True
+    hills = bpy.data.objects.get('HERO_Hills')
+    walls = [(0.62, 0.60, 0.56), (0.64, 0.56, 0.42), (0.62, 0.46, 0.37), (0.46, 0.52, 0.56), (0.62, 0.56, 0.34),
+             (0.40, 0.39, 0.37), (0.48, 0.53, 0.42)]
+    mats = [_facade('STILL_Facade%d' % i, c) for i, c in enumerate(walls)]
+    tk = bpy.data.materials.new('STILL_WaterTank')
+    tk.use_nodes = True
+    tk.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.03, 0.03, 0.032, 1)
+    tk.node_tree.nodes['Principled BSDF'].inputs['Roughness'].default_value = 0.5
+    WEIGHTS = (5, 3, 2, 2, 1, 3, 1)
+    g = _Geo()
+    if city is not None:
+        me = city.data
+        co = np.empty(len(me.vertices) * 3, dtype=np.float32)
+        me.vertices.foreach_get('co', co)
+        co = co.reshape(-1, 8, 3)                                     # the city mesh is one 8-vertex box per plot
+        assert float(np.max(co.max(1) - co.min(1))) < 300, 'LAND_City is not plot boxes'
+        lo, hi = co.min(1), co.max(1)
+        tall = (hi[:, 2] - lo[:, 2]) > 1.0
+        co[tall, :, 2] = lo[tall, None, 2]                            # old boxes flattened to their plots
+        me.vertices.foreach_set('co', co.ravel())
+        me.update()
+        mw = city.matrix_world
+        for (x0, y0, z0), (x1, y1, _z1), t in zip(lo.tolist(), hi.tolist(), tall.tolist()):
+            if not t or y1 < -2500:
+                continue
+            p = w2c(s, s.camera, mw @ Vector(((x0 + x1) / 2, (y0 + y1) / 2, z0)))
+            if p.z <= 0 or not (-0.05 < p.x < 1.05 and -0.05 < p.y < 1.2):
+                continue
+            (x0, y0, z0), (x1, y1) = mw @ Vector((x0, y0, z0)), (mw @ Vector((x1, y1, 0)))[:2]
+            dist = -(y0 + y1) / 2                                     # inland from the beach road
+            zb = 2.0 + 3.0 * round((z0 - 2.0) / 3.0)
+            nx = 2 if x1 - x0 > 30 else 1
+            ny = 2 if y1 - y0 > 30 else 1
+            for i in range(nx):
+                for j in range(ny):
+                    a0, a1 = x0 + (x1 - x0) * i / nx, x0 + (x1 - x0) * (i + 1) / nx
+                    b0, b1 = y0 + (y1 - y0) * j / ny, y0 + (y1 - y0) * (j + 1) / ny
+                    sb = rnd.uniform(1.0, 2.6)                        # setbacks from the plot edge
+                    a0, a1, b0, b1 = a0 + sb, a1 - rnd.uniform(1.0, 2.6), b0 + rnd.uniform(1.0, 2.6), b1 - sb
+                    if a1 - a0 < 6 or b1 - b0 < 6:
+                        continue
+                    q = rnd.random()
+                    if dist < 450:
+                        floors = rnd.randint(11, 22) if q < 0.12 else rnd.randint(4, 10)
+                    elif dist < 1300:
+                        floors = rnd.randint(9, 15) if q < 0.04 else rnd.randint(2, 6)
+                    else:
+                        floors = rnd.randint(6, 9) if q < 0.01 else rnd.randint(1, 4)
+                    if floors >= 11:                                  # slim tower on the plot
+                        cx, cy = (a0 + a1) / 2, (b0 + b1) / 2
+                        hw, hd = min(11.0, (a1 - a0) / 2), min(11.0, (b1 - b0) / 2)
+                        a0, a1, b0, b1 = cx - hw, cx + hw, cy - hd, cy + hd
+                    mi = rnd.choices(range(len(walls)), WEIGHTS)[0]
+                    _building(g, rnd, a0, a1, b0, b1, zb, floors, mi, dist < 900)
+    if hills is not None:                                             # houses thinning out up the hill slopes
+        dg = bpy.context.evaluated_depsgraph_get()
+        hw_ = hills.matrix_world.inverted()
+        for yy in range(-2500, -4400, -13):
+            for xx in range(-4000, 6000, 13):
+                x, y = xx + rnd.uniform(-4, 4), yy + rnd.uniform(-4, 4)
+                o_ = hw_ @ Vector((x, y, 2000.0))
+                hit, loc, _n, _i = hills.ray_cast(o_, Vector((0, 0, -1)))
+                if not hit:
+                    continue
+                zh = (hills.matrix_world @ loc).z
+                if zh < 3 or zh > 130 or rnd.random() > 0.95 * min(1.0, (130 - zh) / 80) ** 1.5:
+                    continue
+                p = w2c(s, s.camera, Vector((x, y, zh)))
+                if p.z <= 0 or not (-0.05 < p.x < 1.05 and -0.05 < p.y < 1.2):
+                    continue
+                w, d = rnd.uniform(8, 12), rnd.uniform(7, 11)
+                zb = 2.0 + 3.0 * math.floor((zh - 3.0) / 3.0)
+                _building(g, rnd, x - w / 2, x + w / 2, y - d / 2, y + d / 2, zb, rnd.randint(1, 3),
+                          rnd.choices(range(len(walls)), WEIGHTS)[0], False)
+    me = bpy.data.meshes.new('STILL_City')
+    me.from_pydata(g.v, [], g.f)
+    me.polygons.foreach_set('material_index', g.m)
+    for m in mats + [tk]:
+        me.materials.append(m)
+    me.update()
+    o = bpy.data.objects.new('STILL_City', me)
+    s.collection.objects.link(o)
+    print('STILL coast260: %d faces' % len(g.f))
     hills = bpy.data.objects.get('HERO_Hills')
     if hills is not None and hills.data.materials:
         hm = hills.data.materials[0].copy()
