@@ -18,7 +18,7 @@ function prefetch() {
   idle(() => {
     void avifReady.then(warmGlobePlaceholder)
     void loadGlobe()
-    new Image().src = GLOBE_TEXTURE
+    void GLOBE_TEXTURE.film.then((url) => fetch(url)).catch(() => {})
   })
 }
 
