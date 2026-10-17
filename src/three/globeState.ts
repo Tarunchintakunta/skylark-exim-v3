@@ -2,13 +2,15 @@ import { PORTRAIT } from '../config/hero'
 import { env } from '../engine/env'
 import { avifReady } from '../film/segments'
 
+/** phones for the homepage globe (#280): a coarse pointer or 768 px wide at most */
+export const PHONE = env.coarse || (typeof matchMedia !== 'undefined' && matchMedia('(max-width: 768px)').matches)
 const earth = (w: number) => avifReady.then((avif) => `/textures/earth_day_${w}.${avif ? 'avif' : 'webp'}`)
 /**
  * Earth albedo, AVIF (281 / 92 KB) or WebP where AVIF doesn't decode (scripts/globe-texture.sh); no other maps (#D).
  * The homepage globe (#274): 4096×2048 on desktop, so the full globe at DPR 2 is drawn from texels, not upscaled;
- * 2048×1024 on phones. The film keeps 2048×1024 everywhere, inside its 25 MB path budget.
+ * 2048×1024 on phones (#280). The film keeps 2048×1024 everywhere, inside its 25 MB path budget.
  */
-export const GLOBE_TEXTURE = { home: earth(env.mobile ? 2048 : 4096), film: earth(2048) }
+export const GLOBE_TEXTURE = { home: earth(PHONE ? 2048 : 4096), film: earth(2048) }
 export type GlobeKind = keyof typeof GLOBE_TEXTURE
 
 /**
