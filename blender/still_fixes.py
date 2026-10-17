@@ -261,6 +261,48 @@ def frost257(sid):
         o.data.materials.append(m)
 
 
+def crew257(sid):
+    """#257: different faces and white cartons. The four cold-store workers in frame each get their own skin (fixed tone
+    from dark to medium-light brown, beard or clean-shaven, one older man with greying stubble and brows) and a broader or
+    narrower head / jaw / nose, so they read as four different Visakhapatnam workers."""
+    if not sid.startswith('257'):
+        return
+    # name: (tone 0 dark .. 1 medium brown, older, head xyz, jaw, nose); tone value also picks stubble / beard in the shader
+    crew = {'HUM_ColdW3': (0.78, False, (1.04, 1.0, 0.97), 1.06, 1.16),      # medium brown, short beard, broad jaw
+            'HUM_ColdW2': (0.93, False, (0.95, 0.98, 1.03), 0.95, 1.02),     # lighter brown woman, narrow face
+            'HUM_Cold': (0.12, True, (1.02, 1.03, 1.0), 1.0, 1.20),          # dark, older: greying stubble and brows
+            'HUM_ColdCheck': (0.45, False, (0.97, 1.02, 1.05), 1.03, 1.08)}  # mid brown, long face
+    for nm, (tone, old, hs, jaw, nose) in crew.items():
+        w = bpy.data.objects.get(nm)
+        if w is None:
+            continue
+        for mo in [c for c in w.children if c.type == 'MESH']:
+            for sl in mo.material_slots:
+                if not (sl.material and sl.material.name.startswith('HUM_Skin')):
+                    continue
+                m = sl.material.copy()
+                m.name = 'STILL_Skin_' + nm
+                nt = m.node_tree
+                v = nt.nodes.new('ShaderNodeValue')
+                v.outputs[0].default_value = tone
+                for oi in [n for n in nt.nodes if n.type == 'OBJECT_INFO']:
+                    for lk in list(oi.outputs['Random'].links):
+                        nt.links.new(v.outputs[0], lk.to_socket)
+                if old:
+                    for n in nt.nodes:
+                        if n.type == 'MIX' and n.data_type == 'RGBA' and not n.inputs[7].is_linked and \
+                                max(n.inputs[7].default_value[:3]) < 0.02:
+                            n.inputs[7].default_value = (0.30, 0.29, 0.28, 1)
+                sl.link = 'OBJECT'
+                sl.material = m
+        pb = w.pose.bones
+        if 'head' in pb:
+            pb['head'].scale = hs
+        if 'jaw' in pb:
+            pb['jaw'].scale = (jaw, 1.0, pb['jaw'].scale[2])
+        if 'nose' in pb:
+            pb['nose'].scale = (nose, pb['nose'].scale[1], pb['nose'].scale[2])
+
 def _fcurves(act):
     if act is None:
         return []
@@ -335,4 +377,5 @@ def apply_all(sid=''):
     leveler(sid)
     props256(sid)
     frost257(sid)
+    crew257(sid)
     carry246(sid)
