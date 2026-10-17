@@ -406,7 +406,7 @@ def freeze_crew(C, rnd, crate_fn):
     pt = bpy.data.objects.new('IN_ColdPalletJack', None)
     C.objects.link(pt)
     pt.parent = cs
-    pt.location = (-0.5, 0.25, 0)                                # beside him on his right: the raked handle ends in his hand in front of the hip, clear of the body
+    pt.location = (-0.38, 0.25, 0)                               # beside him on his right, close enough that the grip is within arm's reach
     from sktruck import Part
     M = S.MATS()
     p = Part()
@@ -414,10 +414,11 @@ def freeze_crew(C, rnd, crate_fn):
         p.box((sx, 0.72, 0.055), (0.16, 1.15, 0.05))                    # forks under the pallet
     p.box((0, 0.05, 0.16), (0.56, 0.16, 0.12))                        # fork yoke
     p.cyl((0, 0.0, 0.2), (0, 0.0, 0.55), 0.06, 14)                   # pump cylinder
-    p.cyl((0, -0.02, 0.55), (0, -0.4, 0.78), 0.018, 8)               # handle shaft raked back to his hand
-    for sx in (-0.07, 0.07):                                          # loop grip
-        p.cyl((sx, -0.4, 0.78), (sx, -0.5, 0.84), 0.014, 8)
-    p.cyl((-0.07, -0.5, 0.84), (0.07, -0.5, 0.84), 0.016, 8)
+    p.cyl((0, -0.02, 0.55), (0, -0.38, 0.92), 0.018, 8)              # handle shaft raked back to his hand
+    for sx in (-0.07, 0.07):                                          # loop grip, at hand height (was 0.84: out of reach,
+        p.cyl((sx, -0.38, 0.92), (sx, -0.48, 0.98), 0.014, 8)        # the hand hung down through the bar)
+    p.cyl((-0.07, -0.48, 0.98), (0.07, -0.48, 0.98), 0.016, 8)
+    p.cyl((-0.07, -0.38, 0.92), (0.07, -0.38, 0.92), 0.016, 8)       # loop foot bar: the shaft meets the loop
     p.make('IN_ColdJackBody', S.MATS()['yellow'], pt, bevel=0.006, coll=C)
     q = Part()
     for sx in (-0.12, 0.12):                                          # steer wheels + load rollers
@@ -429,14 +430,7 @@ def freeze_crew(C, rnd, crate_fn):
              cartons=3).parent = pt                                   # steel pallet of steel boxes (#257)
     H.walk_cycle(cs, 880, 1070, [(880, (CX + 0.4, 66.0)), (1070, (CX + 0.4, 74.0))], stride=0.5,   # stops ~4 m short of the store camera
                  base={'upperarm.L': (4, -24, 0), 'forearm.L': (16, 0, 0)}, arms=False, step=2)
-    th = bpy.data.objects.new('HUM_Cold_Tow', None)
-    C.objects.link(th)
-    th.parent = pt
-    th.location = (0, -0.5, 0.84)
-    c = cs.pose.bones['forearm.R'].constraints.new('IK')
-    c.target = th
-    c.chain_count = 2
-    c.use_tail = True
+    H.wrap_hand(cs, 'R', pt, (0, -0.468, 1.012), (0, -1, 0), (0, 0, -1), [(880, 1.0)], C)   # palm over the cross bar
     grip_on(cs, 'R', bpy.data.objects['IN_ColdJackBody'], 960, 0.85)     # closes on the jack's loop grip
     _lift(cs)
     cs.rotation_euler = (0, 0, D(180))
@@ -478,7 +472,7 @@ def freeze_crew(C, rnd, crate_fn):
     for nm, gnd, sd, path in (('HUM_ColdW2', 'female', 541, [(880, (CX + 1.25, 69.2)), (1070, (CX + 1.25, 75.6))]),):
         w2 = H.person(nm, 'coldstore', gnd, coll=C, seed=sd)
         H.walk_cycle(w2, path[0][0], path[1][0], path, stride=0.46,
-                     base={'upperarm.L': (6, -22, 0), 'upperarm.R': (6, -22, 0), 'forearm.L': (18, 0, 0), 'forearm.R': (18, 0, 0)}, arms=False, step=2)
+                     base={'head': (4, 0, 28), 'neck': (0, 0, 10)}, arms=True, step=2)   # arms swinging, head to the racks: not the puller's stiff A-pose (#257)
         _lift(w2)
     w3 = H.person('HUM_ColdW3', 'coldstore', 'male', coll=C, seed=542)
     w3.location = (CX + 1.7, 77.2, DZ)
