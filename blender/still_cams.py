@@ -427,7 +427,7 @@ def coast260():
                 if not hit:
                     continue
                 zh = (hills.matrix_world @ loc).z
-                if zh < 3 or zh > 130 or rnd.random() > 0.95 * min(1.0, (130 - zh) / 80) ** 1.5:
+                if zh < 3 or zh > 45 or rnd.random() > 0.9 * min(1.0, (45 - zh) / 30) ** 1.5:   # lower slopes only: higher up they read as floating confetti
                     continue
                 p = w2c(s, s.camera, Vector((x, y, zh)))
                 if p.z <= 0 or not (-0.05 < p.x < 1.05 and -0.05 < p.y < 1.2):
