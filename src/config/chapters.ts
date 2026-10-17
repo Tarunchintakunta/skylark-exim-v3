@@ -51,10 +51,10 @@ export const CROP_X: Record<string, number> = {
   'hero-loop': 0.5, opening: 0.5,
   'hf-depart': 0.6, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
-  'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.5, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.45, 'hf-fish-intake': 0.45,
+  'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
-  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.55, 'hf-fish-freeze': 0.45,
-  'hf-load': 0.52, 'hf-ship': 0.62, 'hf-sail': 0.55,
+  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.45, 'hf-fish-freeze': 0.45,
+  'hf-load': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
 }
@@ -119,7 +119,7 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
       { kind: 'video', id: 'hf-unload-shrimp', alt: 'The rear doors open into the dock and cold vapour rolls out; workers in white coats, hairnets and gloves roll out insulated crates of shrimp on ice and probe one crate\'s temperature.' },
-      { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving dock, masked workers in coveralls and caps slide crates of shrimp on ice onto steel trolleys.' },
+      { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving bay, a masked worker in a white coat carries a steel crate of shrimp on ice toward the steel trolleys beside the truck, while a second worker walks back to the dock door.' },
     ],
     captions: caps('intake', [[0.1, 0.92]]),
   },
@@ -138,7 +138,7 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
       { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
       { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
-      { kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' },
+      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between frosted steel racks of white cartons; one pulls a pallet jack of cartons by its handle.' },
     ],
     captions: caps('coldchain', [[0.02, 0.25], [0.25, 0.5], [0.5, 0.75], [0.75, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
   },
@@ -147,11 +147,12 @@ const PLANT_POND: ChapterDef[] = [
 /** The wild-catch path's plant (#219): whole fish and tuna loins through the same plant, never a shrimp on screen or in the copy. */
 const PLANT_OCEAN: ChapterDef[] = [
   {
-    id: 'intake', path: 'ocean', label: 'Intake', vh: 360, joinNext: 'crossfade',
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 480, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
-      { kind: 'video', id: 'hf-unload-fish', alt: 'The rear doors open into the dock and cold vapour rolls out; workers in white coats, hairnets and gloves roll out insulated crates of whole fish on ice and probe one crate\'s temperature.' },
+      { kind: 'video', id: 'hf-unload-fish', alt: 'A refrigerated truck stands backed into the dock seal with its rear doors open; cold vapour drifts out past three steel bins of whole fish on ice, with empty steel trolleys waiting on either side.' },
+      { kind: 'video', id: 'hf-unload-crew', alt: 'Two workers in white coats, hairnets and gloves lift a steel crate of whole fish on ice out of the open truck together and set it on a steel trolley at the dock.' },
       { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, crates of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
     ],
     captions: caps('intake.ocean', [[0.1, 0.92]]),
@@ -168,7 +169,7 @@ const PLANT_OCEAN: ChapterDef[] = [
     id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-fish-freeze', alt: 'A rack of whole fish and tuna loins is wheeled into the freezer while a packer lays glazed frozen fish into a plain carton.' },
-      { kind: 'video', id: 'hf-store', alt: 'A worker in a blue freezer jacket walks down a cold-store aisle between racks of plain cartons.' },
+      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between frosted steel racks of white cartons; one pulls a pallet jack of cartons by its handle.' },
     ],
     captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
   },
@@ -184,7 +185,7 @@ const ENDING: ChapterDef[] = [
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      { kind: 'video', id: 'hf-load', alt: 'At the plant\'s loading dock, a worker in white protective gear wheels two shrink-wrapped pallets of plain white cartons into the refrigerated truck backed up to the dock; its doors are shut and latched, and the truck pulls slowly away.' },
+      { kind: 'video', id: 'hf-load', alt: 'At the plant\'s loading dock, a worker in white protective gear wheels two pallets of white cartons on a hand pallet jack into the refrigerated truck backed into the dock seal, while a dock operator works the control box and a checker stands at a staged pallet; the truck\'s roll-up door comes down and latches.' },
       // #258: one continuous camera move, cut into five segments that share their boundary frames
       { kind: 'video', id: 'hf-port-1', alt: 'A red truck carrying a white refrigerated container drives through the port gate under its canopy, and the camera rises over the canopy roof.' },
       { kind: 'video', id: 'hf-port-2', alt: 'The truck turns right onto the quay beside the moored container ship and brakes under a ship-to-shore crane.' },
@@ -198,7 +199,7 @@ const ENDING: ChapterDef[] = [
     id: 'sea', path: 'shared', label: 'At sea', vh: 180, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the loaded container ship pulls away from the quay behind a tug, its wake spreading.' },
-      { kind: 'video', id: 'hf-sail', alt: 'Seen from high above, the loaded container ship sails out across deep blue water with a tug alongside, trailing a white wake.' },
+      { kind: 'video', id: 'hf-sail', alt: 'Seen from straight above, the loaded container ship sails alone across deep blue water, trailing a white wake.' },
     ],
     captions: caps('sea', [[0.1, 0.85]]),
   },
