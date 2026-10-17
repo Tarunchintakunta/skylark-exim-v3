@@ -54,9 +54,9 @@ export const CROP_X: Record<string, number> = {
   'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.5, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.45, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.55, 'hf-fish-freeze': 0.45,
-  'hf-load': 0.52, 'hf-ship': 0.62, 'hf-sail': 0.55,
+  'hf-load': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.55,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
-  'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
+  'hf-port-1': 0.5, 'hf-port-2': 0.5, 'hf-port-3': 0.5, 'hf-port-4': 0.5, 'hf-port-5': 0.5,
 }
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
@@ -184,13 +184,13 @@ const ENDING: ChapterDef[] = [
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      { kind: 'video', id: 'hf-load', alt: 'At the plant\'s loading dock, a worker in white protective gear wheels two shrink-wrapped pallets of plain white cartons into the refrigerated truck backed up to the dock; its doors are shut and latched, and the truck pulls slowly away.' },
+      { kind: 'video', id: 'hf-load', alt: 'At the plant\'s loading dock, a worker in white protective gear wheels two pallets of white cartons on a hand pallet jack into the refrigerated truck backed into the dock seal, while a dock operator works the control box and a checker stands at a staged pallet; the truck\'s roll-up door comes down and latches.' },
       // #258: one continuous camera move, cut into five segments that share their boundary frames
-      { kind: 'video', id: 'hf-port-1', alt: 'A red truck carrying a white refrigerated container drives through the port gate under its canopy, and the camera rises over the canopy roof.' },
-      { kind: 'video', id: 'hf-port-2', alt: 'The truck turns right onto the quay beside the moored container ship and brakes under a ship-to-shore crane.' },
-      { kind: 'video', id: 'hf-port-3', alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
-      { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
-      { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },
+      { kind: 'video', id: 'hf-port-1', alt: 'The camera runs beside the gate canopy as a red truck carrying a white refrigerated container drives through the port gate.' },
+      { kind: 'video', id: 'hf-port-2', alt: 'The truck turns onto the quay beside the moored container ship and stops under a ship-to-shore crane; hi-vis crew in hard hats stand facing their work.' },
+      { kind: 'video', id: 'hf-port-3', alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it; hi-vis crew in hard hats stand facing their work.' },
+      { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck and sets it down on the stack on the ship\'s deck; hi-vis crew in hard hats stand facing their work.' },
+      { kind: 'video', id: 'hf-port-5', alt: 'The loaded container ship sails out past the breakwater into open sea while the camera pulls back to follow.' },
     ],
     captions: caps('port', [[0.1, 0.92]]),
   },
