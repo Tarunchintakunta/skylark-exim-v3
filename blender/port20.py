@@ -215,7 +215,7 @@ def relayout():
     for o in OB:
         if o.parent is None and o.name.startswith(('MOOR_', 'BANKSMAN0')):
             shift_x(o, DX)
-    shift_x(OB['AHEAD1'], 40.0)       # the truck ahead on the outer lane is already past the hero's turn
+    kill(['AHEAD1'])                  # no empty chassis parked beside the hero: nothing in the lane but the hero truck
     sea = OB['SeaFull']
     sea.location.z = -0.05            # water surface at z 0, the hulls' waterline (the ocean patch is gone)
     # 60 km of water ends 30 km out, which is well inside the 113 km horizon from the top of the climb and showed as a
@@ -539,22 +539,36 @@ def crane_and_box(f_stop, m_tr, m_slot):
 
 # ---------------------------------------------------------------------------------------------------- 5. ship + wake
 def depart(f_dep):
-    """The ship leaves on its own: bow and stern thrusters walk it off the berth (+Y), the screw takes it ahead (+X),
-    and it comes a few degrees to port. Keys from the base file are dropped after f_dep and the move is baked."""
+    """The ship leaves on its own and sails out: it walks off the berth, gathers way east along the basin, turns north-east
+    and passes through the breakwater opening (between the north arm's end, about (220, 750), and the east arm's spur,
+    about (550, 400)) into open sea. The film is 20 s, so the passage is compressed: the ship covers the basin in the last
+    6 s. Position follows a monotone curve through the keys, eased in from rest; the bow follows the track."""
     ship = OB['SHIP']
     s = bpy.context.scene
     s.frame_set(F0)
     p0 = ship.location.copy()
     frames = list(range(F0, F1 + 1))
     ship.animation_data_clear()
+    pts = [Vector((p0.x, p0.y)), Vector((p0.x + 60.0, p0.y + 10.0)), Vector((150.0, 70.0)), Vector((290.0, 330.0)),
+           Vector((385.0, 575.0)), Vector((550.0, 735.0))]
+    cum = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        cum.append(cum[-1] + (b - a).length)
+    fx, fy = pchip(cum, [q.x for q in pts]), pchip(cum, [q.y for q in pts])
+    L = cum[-1]
     locs, rots = [], []
     for f in frames:
-        u = max(0.0, (f - f_dep) / FPS)
-        lat = 4.0 * (u - 1.6 * (1 - math.exp(-u / 1.6)))            # thrusters: ~4 m/s off the berth after 3 s
-        fwd = 2.2 * (u * u / 2) / (1 + u / 6.0)                     # screw: gathering way, ~10 m/s by the end
-        yaw = math.radians(5.0) * smoothstep(0.0, 7.0, u)
-        locs.append((p0.x + fwd, p0.y + lat, p0.z))
+        t = min(1.0, max(0.0, (f - f_dep) / float(F1 - f_dep)))
+        d = L * (t * t * (3 - 2 * t) * 0.35 + t * t * 0.65)       # from rest, still under way at the end
+        q, q2 = Vector((fx(d), fy(d))), Vector((fx(min(L, d + 2.0)), fy(min(L, d + 2.0))))
+        yaw = math.atan2(q2.y - q.y, q2.x - q.x) if d > 0.05 else 0.0
+        locs.append((q.x, q.y, p0.z))
         rots.append((0.0, 0.0, yaw))
+    for k in range(1, len(rots)):                                   # unwrap
+        while rots[k][2] - rots[k - 1][2] > math.pi:
+            rots[k] = (0.0, 0.0, rots[k][2] - 2 * math.pi)
+        while rots[k][2] - rots[k - 1][2] < -math.pi:
+            rots[k] = (0.0, 0.0, rots[k][2] + 2 * math.pi)
     bake(ship, 'location', locs, frames)
     bake(ship, 'rotation_euler', rots, frames)
     return locs, rots
@@ -751,6 +765,131 @@ def antitile(m, seed_attr=None):
     m['p20_antitile'] = True
 
 
+def lamps():
+    """Tail, marker and work lamps glow like real bulbs behind lenses (strength 20 lit the asphalt pink around every
+    trailer): a deep red lens with a modest glow, and no light thrown on the ground."""
+    for name, base, k in (('MAT_LampRed', (0.22, 0.01, 0.01), 0.8), ('MAT_LampAmber', (0.4, 0.17, 0.02), 0.8),
+                          ('MAT_LampWhite', (0.8, 0.8, 0.78), 1.0)):
+        m = bpy.data.materials.get(name)
+        if m is None or not m.node_tree:
+            continue
+        for n in m.node_tree.nodes:
+            if n.type == 'BSDF_PRINCIPLED':
+                n.inputs['Base Color'].default_value = (*base, 1)
+                n.inputs['Emission Strength'].default_value = k
+                n.inputs['Roughness'].default_value = 0.15
+                n.inputs['Coat Weight'].default_value = 1.0               # a glossy lens over the bulb
+            elif n.type == 'EMISSION':
+                n.inputs['Strength'].default_value = k
+        if name == 'MAT_LampRed':                                       # the lens does not light the asphalt pink
+            for o in OB:
+                if o.type == 'MESH' and any(sl.material == m for sl in o.material_slots):
+                    o.visible_diffuse = False
+
+
+def hull():
+    """Painted steel hull with a waterline: dark navy topsides, a black boot-top band astride the waterline and red
+    antifouling below it, banded by world height (the ship floats at z 0 and never heels). Plate seams and a light,
+    even weathering in the paint; no wood-like streaks."""
+    m = bpy.data.materials.get('MAT_ShipHull')
+    if m is None:
+        return
+    nt = m.node_tree
+    nt.nodes.clear()
+    N, L = nt.nodes, nt.links
+    out = N.new('ShaderNodeOutputMaterial')
+    p = N.new('ShaderNodeBsdfPrincipled')
+    L.new(p.outputs[0], out.inputs[0])
+    geo = N.new('ShaderNodeNewGeometry')
+    sep = N.new('ShaderNodeSeparateXYZ')
+    L.new(geo.outputs['Position'], sep.inputs[0])
+    ramp = N.new('ShaderNodeValToRGB')
+    mr = N.new('ShaderNodeMapRange')
+    mr.inputs['From Min'].default_value, mr.inputs['From Max'].default_value = -3.0, 3.0
+    L.new(sep.outputs['Z'], mr.inputs['Value'])
+    L.new(mr.outputs[0], ramp.inputs[0])
+    cr = ramp.color_ramp
+    cr.interpolation = 'CONSTANT'
+    cr.elements[0].position, cr.elements[0].color = 0.0, (0.26, 0.05, 0.04, 1)       # antifouling red, below z -0.6
+    cr.elements[1].position, cr.elements[1].color = 0.4, (0.022, 0.022, 0.025, 1)    # boot-top black, z -0.6 .. 1.2
+    e = cr.elements.new(0.7)
+    e.color = (0.035, 0.06, 0.11, 1)                                                  # navy topsides, above z 1.2
+    nz = N.new('ShaderNodeTexNoise')
+    nz.inputs['Scale'].default_value = 0.35
+    nz.inputs['Detail'].default_value = 8.0
+    L.new(geo.outputs['Position'], nz.inputs['Vector'])
+    var = N.new('ShaderNodeMapRange')
+    var.inputs['To Min'].default_value, var.inputs['To Max'].default_value = 0.85, 1.12
+    L.new(nz.outputs['Fac'], var.inputs['Value'])
+    mul = N.new('ShaderNodeMix')
+    mul.data_type, mul.blend_type = 'RGBA', 'MULTIPLY'
+    mul.inputs[0].default_value = 1.0
+    L.new(ramp.outputs['Color'], mul.inputs[6])
+    cmb = N.new('ShaderNodeCombineXYZ')
+    for k in range(3):
+        L.new(var.outputs[0], cmb.inputs[k])
+    L.new(cmb.outputs[0], mul.inputs[7])
+    L.new(mul.outputs[2], p.inputs['Base Color'])
+    rg = N.new('ShaderNodeMapRange')
+    rg.inputs['To Min'].default_value, rg.inputs['To Max'].default_value = 0.32, 0.55
+    L.new(nz.outputs['Fac'], rg.inputs['Value'])
+    L.new(rg.outputs[0], p.inputs['Roughness'])
+    p.inputs['Metallic'].default_value = 0.0
+    seams = N.new('ShaderNodeTexWave')                                # welded plate strakes, 2.4 m apart
+    seams.wave_type, seams.bands_direction = 'BANDS', 'Z'
+    seams.inputs['Scale'].default_value = 0.42
+    seams.inputs['Distortion'].default_value = 0.0
+    L.new(geo.outputs['Position'], seams.inputs['Vector'])
+    sh = N.new('ShaderNodeMapRange')
+    sh.inputs['From Min'].default_value, sh.inputs['From Max'].default_value = 0.96, 1.0
+    L.new(seams.outputs['Fac'], sh.inputs['Value'])
+    bump = N.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 0.15
+    L.new(sh.outputs[0], bump.inputs['Height'])
+    L.new(bump.outputs[0], p.inputs['Normal'])
+
+
+def crew_at_work():
+    """Quay crew near the hero stand at their work instead of strolling past it: each stops on its spot on the walkway
+    and faces what it is watching (the box under crane 2), soles flat, with small working movements. Two more yard
+    hands in hi-vis and hard hats stand off the truck's flank. Lashers on the quay edge keep their own work."""
+    import skhuman as H
+    s = bpy.context.scene
+    tgt = Vector((CRANE_X, QUAY_Y, 0.0))
+    near = [o for o in OB if o.type == 'ARMATURE' and o.parent is None and o.name.startswith(('BANKSMAN0', 'WORKER2',
+                                                                                             'WORKER3', 'YARDCREW0'))]
+    src = OB.get('YARDCREW0')
+    for name, xy in (('YARDHAND0', (-24.5, -8.6)), ('YARDHAND1', (-5.5, -8.9))):
+        if src is None or name in OB:
+            continue
+        a = src.copy()
+        a.name = name
+        a.animation_data_clear()
+        s.collection.objects.link(a)
+        for c in src.children:
+            m = c.copy()
+            m.name = name + '_mesh'
+            m.parent = a
+            for md in m.modifiers:
+                if md.type == 'ARMATURE':
+                    md.object = a
+            s.collection.objects.link(m)
+        a.location = (xy[0], xy[1], 3.0)
+        near.append(a)
+    for k, a in enumerate(near):
+        s.frame_set(225)
+        spot = a.matrix_world.translation.copy()
+        a.animation_data_clear()
+        if spot.y < QUAY_Y + 3.6:                       # never stand in the truck lane
+            spot.y = QUAY_Y + 3.6
+        a.location = (spot.x, spot.y, 3.0)
+        d = tgt - spot
+        a.rotation_mode = 'XYZ'
+        a.rotation_euler = (0.0, 0.0, math.atan2(d.x, -d.y))     # rigs face local -Y
+        H.jitter(a, H.POSES['look'], F0, F1, every=16, amp=3, seed=31 + k)
+    return [a.name for a in near]
+
+
 def look():
     s = bpy.context.scene
     from sklib import pbr
@@ -913,19 +1052,24 @@ def camera(per, cr, f_dep):
         return Vector((p.x + math.cos(h) * fwd - math.sin(h) * side, p.y + math.sin(h) * fwd + math.cos(h) * side, 3.0 + z))
     fl, fr = cr['f_land'], cr['f_rel']
     slot = (OB['SHIP'].matrix_world @ cr['m_slot']).translation
+
+    def sp(f):                                        # the ship's origin at frame f (its sail-out is already baked)
+        s.frame_set(f)
+        return OB['SHIP'].matrix_world.translation.copy()
     K = [
-        # behind the box in the gate lane, holding the lane the truck drives
-        (F0, Vector((-35.4, -70.0, 14.0)), tr(F0, 2.0, 0.0, 1.0)),
-        (20, Vector((-35.2, -66.0, 14.2)), tr(20, 2.0, 0.0, 1.2)),
-        (36, Vector((-35.4, -62.0, 14.6)), tr(36, 2.0, 0.0, 1.6)),
-        # the canopy (x -48.1..-26.9, y -54.1..-39.9, roof z 10.8) is crested, not driven under: the camera climbs to
-        # 6 m over the roof before its south edge and comes down past the north one. Going round it is not open —
-        # YARD_Block56 stands 0.3 m off the east line and crane 2's landside leg is in the way at z 12.
-        (50, Vector((-35.3, -58.0, 15.4)), tr(50, 3.0, 0.0, 2.2)),
-        (62, Vector((-35.3, -54.2, 16.4)), tr(62, 7.0, 0.0, 2.2)),
-        (78, Vector((-35.3, -48.0, 17.0)), tr(78, 9.0, 0.0, 2.2)),
-        (90, Vector((-35.4, -41.5, 16.2)), tr(90, 8.0, 0.0, 2.2)),
-        (100, Vector((-36.4, -36.5, 14.2)), tr(100, 6.0, 0.0, 2.2)),
+        # beside the gate canopy, never over or under it: the camera runs up its west side (edge x -48.1, roof z 10.8)
+        # at 7.5-8.5 m, 10 m clear of the edge and its posts, looking across the open side at the truck in the lane, and only swings
+        # in behind the truck once it is past the canopy's north edge (y -39.9)
+        (F0, Vector((-50.0, -80.0, 8.5)), tr(F0, 4.0, 0.0, 0.8)),
+        (20, Vector((-55.0, -71.0, 8.0)), tr(20, 4.0, 0.0, 0.8)),
+        (36, Vector((-58.0, -62.0, 7.6)), tr(36, 4.0, 0.0, 0.8)),
+        (50, Vector((-59.0, -54.0, 7.6)), tr(50, 4.0, 0.0, 0.8)),
+        (62, Vector((-58.0, -47.0, 8.0)), tr(62, 5.0, 0.0, 1.0)),
+        # off the canopy's north-west corner the camera swings east and up toward the lane, clear of crane 1's frame
+        # (its landside sill passes x -50, y -34 at z 10) and high enough that the trailer never fills the frame
+        (78, Vector((-53.0, -42.5, 9.0)), tr(78, 6.0, 0.0, 1.2)),
+        (90, Vector((-47.0, -39.0, 11.0)), tr(90, 8.0, 0.0, 1.4)),
+        (100, Vector((-43.0, -35.0, 13.0)), tr(100, 10.0, 0.0, 1.6)),
         (118, Vector((-41.0, -27.0, 12.2)), tr(118, 6.0, 0.0, 2.0)),
         (140, Vector((-39.0, -21.5, 11.6)), tr(140, 6.0, 0.0, 2.0)),
         (175, Vector((-30.5, -20.5, 10.6)), tr(175, 4.0, 0.0, 2.5)),
@@ -936,13 +1080,12 @@ def camera(per, cr, f_dep):
         (fl + 55, Vector((-34.0, -11.0, 30.0)), Vector((CRANE_X, slot.y - 6.0, 30.0))),
         (fr, Vector((-38.0, -2.0, 40.0)), Vector((CRANE_X, slot.y, slot.z + 1.5))),
         (fr + 30, Vector((-37.0, -26.0, 80.0)), Vector((CRANE_X + 10.0, 26.0, 8.0))),   # between cranes 1 and 2
-        (380, Vector((-36.0, -100.0, 200.0)), Vector((0.0, 40.0, 0.0))),
-        # the ship is the subject at the end: the camera pulls back over the yard, rising, and settles high behind the
-        # quay with the ship pulling off the berth, the cranes beside it and open sea out to the horizon
-        (412, Vector((-20.0, -260.0, 214.0)), Vector((4.0, 520.0, 0.0))),
-        (442, Vector((0.0, -420.0, 212.0)), Vector((12.0, 1000.0, 0.0))),
-        (464, Vector((8.0, -496.0, 211.0)), Vector((16.0, 1150.0, 0.0))),
-        (F1, Vector((12.0, -520.0, 210.0)), Vector((18.0, 1200.0, 0.0))),
+        # the ship sails out: the camera pulls back and climbs behind it and follows it through the breakwater opening
+        *[(f, sp(f) + off, sp(f) + la) for f, off, la in (
+            (380, Vector((-70.0, -180.0, 190.0)), Vector((30.0, 60.0, 0.0))),
+            (420, Vector((-160.0, -330.0, 225.0)), Vector((40.0, 120.0, 0.0))),
+            (455, Vector((-230.0, -400.0, 240.0)), Vector((60.0, 150.0, 0.0))),
+            (F1, Vector((-260.0, -430.0, 245.0)), Vector((70.0, 170.0, 0.0))))],
     ]
     K.sort(key=lambda k: k[0])
     frames = list(range(F0, F1 + 1))
@@ -1089,6 +1232,9 @@ def build(out):
     cr = crane_and_box(f_stop, m_tr, m_slot)
     wake(locs, rots, f_dep)
     look()
+    lamps()
+    hull()
+    print('P20 crew at work', crew_at_work())
     pos, tgt = camera(per, cr, f_dep)
     # the mist depth has to outrun the view: at 1 km up the horizon is 113 km away, and a 7 km depth painted everything
     # past it one flat grey band across the last frames
