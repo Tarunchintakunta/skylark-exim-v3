@@ -52,9 +52,11 @@ export const CROP_X: Record<string, number> = {
   'hf-depart': 0.6, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
   'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.5, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.45, 'hf-fish-intake': 0.45,
+  // the #258 port run: one crop for all six shots, so the phone joins line up too
+  'hf-port-gate': 0.45, 'hf-port-turn': 0.45, 'hf-cranes': 0.45, 'hf-port-trolley': 0.45, 'hf-port-land': 0.45, 'hf-port-sail': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.55, 'hf-fish-freeze': 0.45,
-  'hf-stuff': 0.62, 'hf-cranes': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.55,
+  'hf-stuff': 0.62, 'hf-ship': 0.62, 'hf-sail': 0.55,
 }
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
@@ -180,10 +182,17 @@ const ENDING: ChapterDef[] = [
     captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
-    id: 'port', path: 'shared', label: 'The port', vh: 180, joinNext: 'crossfade', scrim: 'soft',
+    // the #258 port run (#284): six chained shots, each starting on the previous one's last frame, so the cross-fades
+    // between them join matching frames
+    id: 'port', path: 'shared', label: 'The port', vh: 630, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-stuff', alt: 'At the plant loading bays, a forklift carries a pallet of plain cartons toward a white refrigerated trailer.' },
-      { kind: 'video', id: 'hf-cranes', alt: 'On the container quay, a white reefer container on its trailer waits under a ship-to-shore crane beside the loaded ship.' },
+      { kind: 'video', id: 'hf-port-gate', alt: 'A white truck carrying a red container rolls along the quay road past the gatehouse, ship-to-shore cranes and a loaded container ship behind it.' },
+      { kind: 'video', id: 'hf-port-turn', alt: 'The truck turns along the quay and stops under a ship-to-shore crane, its container lined up beneath the spreader.' },
+      { kind: 'video', id: 'hf-cranes', alt: 'The crane\'s spreader comes down on its cables, locks onto the red container and lifts it straight up off the truck.' },
+      { kind: 'video', id: 'hf-port-trolley', alt: 'The crane\'s trolley carries the hanging container out along the boom over the moored container ship.' },
+      { kind: 'video', id: 'hf-port-land', alt: 'The container is lowered onto the stack on the ship\'s deck and set down flush; the spreader lets go and rises clear.' },
+      { kind: 'video', id: 'hf-port-sail', alt: 'The loaded container ship pulls away from the quay and heads out to open sea, the cranes and the empty truck left behind.' },
     ],
     captions: caps('port', [[0.1, 0.92]]),
   },
