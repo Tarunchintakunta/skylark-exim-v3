@@ -230,7 +230,7 @@ def frost257(sid):
         o = bpy.data.objects.get(oname)
         if o is not None:
             o.hide_render = o.hide_viewport = True
-    for oname, col, rough in (('IN_ColdCartons', (0.80, 0.78, 0.72), 0.62),):
+    for oname, col, rough in (('IN_ColdCartons', (0.88, 0.88, 0.86), 0.62),):     # white, not beige (#257)
         o = bpy.data.objects.get(oname)
         if o is None:
             continue
@@ -264,7 +264,7 @@ def frost257(sid):
 def crew257(sid):
     """#257: different faces and white cartons. The four cold-store workers in frame each get their own skin (fixed tone
     from dark to medium-light brown, beard or clean-shaven, one older man with greying stubble and brows) and a broader or
-    narrower head / jaw / nose, so they read as four different Visakhapatnam workers."""
+    narrower head / jaw / nose, so they read as four different Visakhapatnam workers; every carton in frame is white."""
     if not sid.startswith('257'):
         return
     # name: (tone 0 dark .. 1 medium brown, older, head xyz, jaw, nose); tone value also picks stubble / beard in the shader
@@ -302,6 +302,16 @@ def crew257(sid):
             pb['jaw'].scale = (jaw, 1.0, pb['jaw'].scale[2])
         if 'nose' in pb:
             pb['nose'].scale = (nose, pb['nose'].scale[1], pb['nose'].scale[2])
+    white = _mat('STILL_WhiteCarton', (0.88, 0.88, 0.86), 0.6)
+    for o in bpy.data.objects:
+        if o.type == 'MESH' and o.name.startswith('IN_Cold') and 'Carton' in o.name and o.name != 'IN_ColdCartons':
+            for sl in o.material_slots:
+                sl.link = 'OBJECT'
+                sl.material = white
+    seams = bpy.data.objects.get('IN_ColdBoxSeams')      # its seam / underside slabs read as dark boxes on the shelves
+    if seams is not None:
+        seams.hide_render = seams.hide_viewport = True
+
 
 def _fcurves(act):
     if act is None:
