@@ -12,6 +12,7 @@
 # still fits 40 MB and is served), posters at CAP_KB=60. Phone tiers take the solver's caps (~100 KB).
 #   Run 1 (2026-10-17): master 577 frames, cuts 0 97 217 337 457 576.
 #   Run 2 (2026-10-17, photoreal): SPLIT=1 scripts/port-film.sh masters/hf-port-REAL.mp4 0 97 193 289 385 480
+#   Run 3 (2026-10-17, v3 scene): SPLIT=1 scripts/port-film.sh masters/hf-port-v3.mp4 0 83 179 275 371 466
 set -euo pipefail
 cd "$(dirname "$0")/.."
 in="${1:?master}"; shift; B=("$@"); [ ${#B[@]} = 6 ] || { echo "6 boundaries"; exit 2; }
