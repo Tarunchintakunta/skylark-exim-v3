@@ -390,6 +390,12 @@ def white_gear(sid):
             if n.type == 'VALTORGB':
                 for e in n.color_ramp.elements:
                     e.color = white
+    bt = bpy.data.materials.get('HUM_WhiteBoot')       # clean white gumboots: no ground grime or dark sole reading black
+    if bt is not None:
+        pb = next(n for n in bt.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+        for lk in list(pb.inputs['Base Color'].links):
+            bt.node_tree.links.remove(lk)
+        pb.inputs['Base Color'].default_value = (0.78, 0.79, 0.78, 1)
 
 
 def apply_all(sid=''):
