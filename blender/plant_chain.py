@@ -200,7 +200,7 @@ def crate(name, color, loc, rot, parent, fill, seed, C=None):
     if 'm' not in _LM:
         _LM['m'] = L.M()
         _LM['mesh'] = _steel_crate_mesh()
-        _LM['mat'] = P.plain('PL_SteelCrate', (0.82, 0.84, 0.86), 0.30, 1.0, bump=0.04, bump_scale=300, aniso=0.8)   # brushed stainless: it reflects the room (#246)
+        _LM['mat'] = P.plain('PL_SteelCrate', (0.82, 0.84, 0.86), 0.55, 1.0, bump=0.04, bump_scale=300, aniso=0.8)   # brushed stainless, rough enough that a glove's reflection doesn't read as a hand inside the crate (#246)
         _LM['mesh'].materials.append(_LM['mat'])
     o = L.crate(name, 'blue', loc, rot, fill=fill, parent=parent, mats=_LM['m'], seed=seed)
     o.data = _LM['mesh']
