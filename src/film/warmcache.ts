@@ -156,7 +156,7 @@ async function run(p: Path) {
   if (!ctl.signal.aborted) {
     void import('../three/Globe').catch(() => {})
     images.push(warmGlobePlaceholder(await avifReady))
-    await fetch(GLOBE_TEXTURE).then((r) => r.arrayBuffer()).catch(() => {})
+    await fetch(await GLOBE_TEXTURE.film).then((r) => r.arrayBuffer()).catch(() => {})
   }
   if (!ctl.signal.aborted) {
     warm = true

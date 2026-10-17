@@ -154,9 +154,9 @@ for (const p of ['ocean', 'pond'] as const) {
         rows.push({
           page: `/story#${p}`,
           what: `${ch.id} · ${ch.label} — globe texture`,
-          asset: 'textures/earth_day_{1024,2048}.webp',
+          asset: 'textures/earth_day_{2048,4096}.{avif,webp}',
           master: stillMaster('assets-src/textures/earth_day_5400.jpg')?.label ?? '**missing**',
-          served: [1024, 2048].map((w) => `${w}: ${KB(size(`public/textures/earth_day_${w}.webp`))} KB`).join(' · '),
+          served: [2048, 4096].map((w) => `${w}: ${KB(size(`public/textures/earth_day_${w}.avif`))} KB`).join(' · '),
         })
       }
     }

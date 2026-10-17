@@ -1,18 +1,23 @@
 import { Line } from '@react-three/drei'
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { Suspense, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, ImageBitmapLoader, MathUtils, SRGBColorSpace, Texture, Vector3, type Mesh } from 'three'
+import { Suspense, use, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { ACESFilmicToneMapping, AdditiveBlending, BackSide, Color, Group, ImageBitmapLoader, MathUtils, Quaternion, SRGBColorSpace, Texture, Vector2, Vector3, type Mesh, type Object3D } from 'three'
 import type { Line2 } from 'three-stdlib'
 import { MARKET_COORDS, MARKET_COUNT, MARKETS_BY_REGION, ORIGIN } from '../config/markets'
 import { env } from '../engine/env'
 import { frame } from '../engine/store'
 import { onTick, startClock } from '../engine/ticker'
 import { faceRotation, latLon, routePoints, toLatLon } from './geo'
-import { GLOBE_TEXTURE, globeUi } from './globeState'
+import { calm } from './calm'
+import { GLOBE_TEXTURE, globeUi, type GlobeKind } from './globeState'
 
+/** the world card's thin-line globe (#269): brass arcs and origin, ice market dots (tokens.css --brass, --ice) */
 const BRASS = new Color('#e08a5f')
-const MARIGOLD = new Color('#eaa221')
+const ICE = new Color('#f6f2ea')
 const N = 64 // points per route
+const Z = new Vector3(0, 0, 1)
+/** texture pixels uploaded per idle slice (2 MB): more in one frame stalls the GPU process (~20–30 ms on Metal) */
+const STRIP_PX = 1 << 19
 const FOV = 35
 const TAN = Math.tan(MathUtils.degToRad(FOV / 2))
 const ease = (t: number) => t * t * (3 - 2 * t)
@@ -30,7 +35,7 @@ const HIT = 22
 /** route widths in px (resting, highlighted) and opacities (resting, highlighted, dimmed) */
 const LINE_W = env.mobile ? 1 : 1.25
 const LINE_HL = 2
-const OP = 0.5
+const OP = 0.75
 const OP_HL = 0.95
 const OP_DIM = 0.2
 /** routes draw one by one between these scroll progresses of the world chapter */
@@ -74,33 +79,45 @@ const haze = {
 
 export type GlobeLabels = { markets: (HTMLSpanElement | null)[]; origin: HTMLSpanElement | null }
 
-/** seconds the standalone globe takes for the pull-back and the routes, once it first comes on screen */
-const INTRO_S = 3.2
+const bitmapOptions = (l: ImageBitmapLoader) => void l.setOptions({ imageOrientation: 'flipY' })
+/** decodes the earth texture ahead of the mount (#274): an ImageBitmap is decoded off the main thread */
+export const preloadGlobe = (kind: GlobeKind) =>
+  GLOBE_TEXTURE[kind].then(async (url) => {
+    // a low-priority fetch first, so the texture queues behind everything the page is still loading; the loader then reads it from the cache
+    await fetch(url, { priority: 'low' } as RequestInit).then((r) => r.arrayBuffer()).catch(() => {})
+    return useLoader.preload(ImageBitmapLoader, url, bitmapOptions)
+  })
 
 /**
  * Scroll-driven globe: camera pulls back from the sea off Visakhapatnam, routes draw one by one (STORY §11).
  * `worldIndex` is the world chapter in the film; -1 is the standalone globe (homepage Markets, in a [data-globe] box):
- * no film, always live while on screen, and the pull-back plays once over INTRO_S instead of following the scroll.
+ * no film, always live while on screen, and it opens on the settled full view with every route drawn, the view its
+ * poster shows (#274), so poster and live globe crossfade without a jump.
  */
 function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; labels: RefObject<GlobeLabels>; live: boolean; onWarm: () => void }) {
   const standalone = worldIndex < 0
-  // 2048×1024 desktop, 1024×512 phones (CLAUDE_PROMPT §13: not 4K); a 4K upload is a long task on weaker GPUs.
-  // An ImageBitmap is decoded off the main thread, so the upload below is a copy, not a decode.
-  const bitmap = useLoader(ImageBitmapLoader, GLOBE_TEXTURE, (l) => void l.setOptions({ imageOrientation: 'flipY' }))
+  // homepage: 4096×2048 desktop, 2048×1024 phones; film: 2048×1024 (#274). An ImageBitmap is decoded off the main thread, so the upload below is a
+  // copy, not a decode; it runs in an idle slice (below), mipmapped, with the GPU's full anisotropy for the limb.
+  const bitmap = useLoader(ImageBitmapLoader, use(GLOBE_TEXTURE[standalone ? 'home' : 'film']), bitmapOptions)
+  const { camera, invalidate, gl, scene, get } = useThree()
   const tex = useMemo(() => {
-    const t = new Texture(bitmap)
+    // storage for the full mip chain, filled in idle slices (below)
+    const t = new Texture({ width: bitmap.width, height: bitmap.height })
+    const levels = Math.log2(Math.max(bitmap.width, bitmap.height)) + 1
+    t.mipmaps = Array.from({ length: levels }, (_, i) => ({ width: Math.max(1, bitmap.width >> i), height: Math.max(1, bitmap.height >> i) })) as unknown as Texture['mipmaps']
+    t.source.dataReady = false
+    t.generateMipmaps = false
     t.flipY = false
     t.colorSpace = SRGBColorSpace
-    t.anisotropy = 4
+    t.anisotropy = gl.capabilities.getMaxAnisotropy()
     t.needsUpdate = true
     return t
-  }, [bitmap])
+  }, [bitmap, gl])
   const seg = env.mobile ? 64 : 128
   const group = useRef<Group>(null)
   const lines = useRef<(Line2 | null)[]>([])
-  const dots = useRef<(Mesh | null)[]>([])
+  const dots = useRef<(Object3D | null)[]>([])
   const originDot = useRef<Mesh>(null)
-  const { camera, invalidate, gl, scene, get } = useThree()
 
   // the first frame with the earth drawn: a mark for tests/globe-load.spec.ts and the cue for the placeholder to fade
   const drawn = useRef(false)
@@ -111,16 +128,43 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
     gl.domElement.closest('.stage__light, [data-globe]')?.classList.add('is-globe-live')
   })
 
-  // pre-warm two chapters early, in separate idle slices: GPU texture upload, then shader compile; only then does the
-  // canvas render at all (frameloop 'never' until onWarm), so the first frame doesn't upload, compile and draw in one task
+  // pre-warm ahead of time, in idle slices: the texture's storage, its mip chain strip by strip (≤ 2 MB per slice: the
+  // whole 4096 upload plus mipmap generation was one ~110 ms task, #274; the small levels share a slice), then the shader
+  // compile; only then does the canvas render at all (frameloop 'never' until onWarm), so no frame uploads, compiles and
+  // draws in one task
   useEffect(() => {
-    const idle = (fn: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 200))
-    idle(() => {
+    let stop = false
+    let budget = 0
+    const slice = () => new Promise<void>((done) => ('requestIdleCallback' in window ? requestIdleCallback(() => done(), { timeout: 300 }) : setTimeout(done, 50)))
+    // the homepage globe also waits for a still page (three/calm.ts); the film's globe keeps its own timing
+    const idle = () => slice().then(standalone ? calm : undefined).then(() => void (budget = STRIP_PX))
+    const at = new Vector2()
+    void (async () => {
+      await idle()
+      if (stop) return
       gl.initTexture(tex)
+      for (const [level, { width, height }] of tex.mipmaps.entries()) {
+        // the smaller levels are resized off the main thread, at better quality than the GPU's box filter
+        const img = level ? await createImageBitmap(bitmap, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' }) : bitmap
+        const rows = Math.min(height, Math.max(1, STRIP_PX / width))
+        for (let y = 0; y < height && !stop; y += rows) {
+          const strip = rows < height ? await createImageBitmap(img, 0, y, width, Math.min(rows, height - y)) : img
+          if (budget <= 0) await idle()
+          budget -= strip.width * strip.height
+          if (!stop) gl.copyTextureToTexture(new Texture(strip), tex, null, at.set(0, y), 0, level)
+          if (strip !== bitmap) strip.close()
+        }
+        if (img !== bitmap) img.close()
+        if (stop) return
+      }
+      await idle()
       // compileAsync uses KHR_parallel_shader_compile: no main-thread wait on link status
-      idle(() => void gl.compileAsync(scene, camera).then(() => idle(onWarm)))
-    })
-  }, [gl, scene, camera, tex, onWarm])
+      if (!stop) await gl.compileAsync(scene, camera)
+      await idle()
+      if (!stop) onWarm()
+    })()
+    return () => void (stop = true)
+  }, [gl, scene, camera, tex, bitmap, onWarm, standalone])
   useEffect(() => void (live && invalidate()), [live, invalidate])
 
   const origin = useMemo(() => latLon(ORIGIN.lat, ORIGIN.lon, 1.002), [])
@@ -129,7 +173,8 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
       const to = latLon(m.lat, m.lon, 1.002)
       // varied heights (a golden-ratio spread per market) so the routes don't bundle into one fan
       // face: the middle of the arc, which the globe turns to when this market is clicked (market and route in front)
-      return { to, points: routePoints(origin, to, N, 0.12 + 0.26 * ((j * 0.618) % 1)), face: toLatLon(origin.clone().add(to)) }
+      const q = new Quaternion().setFromUnitVectors(Z, to.clone().normalize())
+      return { to, q, points: routePoints(origin, to, N, 0.12 + 0.26 * ((j * 0.618) % 1)), face: toLatLon(origin.clone().add(to)) }
     }),
     [origin],
   )
@@ -295,7 +340,6 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
     let clock = 0
     let sway = 0
     let lastFocus = -2
-    let shownFor = 0
     const screen: [number, number, boolean][] = routes.map(() => [0, 0, false])
     const placed = new Set<HTMLElement>()
 
@@ -317,8 +361,7 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
       }
       if (!nearWorld || past || !onScreen || document.hidden || !group.current) return
       const g = group.current
-      if (standalone) shownFor += dt
-      const p = standalone ? (env.reduced ? 1 : Math.min(1, shownFor / INTRO_S)) : i === worldIndex ? frame.local : 0
+      const p = standalone ? 1 : i === worldIndex ? frame.local : 0
       const { width: vw, height: vh } = get().size
       if (dirty || (sinceMeasure += dt) > 1) {
         measure(vw, vh)
@@ -476,10 +519,10 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
         <sphereGeometry args={[1, 64, 32]} />
         <shaderMaterial args={[atmosphere]} side={BackSide} transparent depthWrite={false} />
       </mesh>
-      {/* origin pin: marigold, a touch larger than the market dots */}
+      {/* origin pin: brass, a touch larger than the market dots */}
       <mesh position={origin} ref={originDot}>
         <sphereGeometry args={[0.016, 12, 8]} />
-        <meshBasicMaterial color={MARIGOLD} />
+        <meshBasicMaterial color={BRASS} toneMapped={false} />
       </mesh>
       {routes.map((r, j) => (
         <group key={MARKET_COORDS[j].name}>
@@ -495,10 +538,17 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
             transparent
             depthWrite={false}
           />
-          <mesh position={r.to} scale={0} ref={(m) => void (dots.current[j] = m)}>
-            <sphereGeometry args={[0.009, 10, 8]} />
-            <meshBasicMaterial color={BRASS} />
-          </mesh>
+          {/* an ice dot on a brass disc lying on the surface, legible on sea and sand */}
+          <group position={r.to} quaternion={r.q} scale={0} ref={(g) => void (dots.current[j] = g)}>
+            <mesh>
+              <circleGeometry args={[0.013, 24]} />
+              <meshBasicMaterial color={BRASS} toneMapped={false} />
+            </mesh>
+            <mesh>
+              <sphereGeometry args={[0.008, 12, 8]} />
+              <meshBasicMaterial color={ICE} toneMapped={false} />
+            </mesh>
+          </group>
         </group>
       ))}
     </group>
@@ -521,9 +571,12 @@ export default function GlobeCanvas({ worldIndex }: { worldIndex: number }) {
         aria-label={`Globe of the ${MARKET_COUNT} export markets. Drag or use the arrow keys to turn it.`}
         tabIndex={-1}
         style={{ pointerEvents: 'none' }}
-        // capped at 1.5× everywhere (#D): fill rate on phones; the halo's soft edge keeps the silhouette smooth
-        dpr={[1, 1.5]}
+        // capped at 2× (#274): sharp on retina screens; one sphere and a few lines, so the fill rate holds on phones
+        dpr={[1, 2]}
         frameloop={live ? 'demand' : 'never'}
+        // no scroll tracking (#274): react-use-measure debounces the canvas's first measure on every scroll event, so
+        // under a smooth scroll the scene never mounted until the page stopped; the globe reads its own box for input
+        resize={{ scroll: worldIndex >= 0 }}
         gl={{ antialias: false, alpha: true, powerPreference: 'high-performance' }}
         camera={{ fov: FOV, near: 0.01, far: 20, position: [0, 0, 3.2] }}
         onCreated={({ gl }) => {
