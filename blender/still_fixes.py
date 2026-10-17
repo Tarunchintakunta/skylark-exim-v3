@@ -421,6 +421,36 @@ def bin286(sid):
         h = (1 - 0.6 * max(abs(u), abs(v))) * (top - bot - 0.1)
         SI._rest_on(o, bot + 0.012 + rb.uniform(0, h))
 
+def spray286(sid):
+    """#286 wash tanks: water only from a visible pipe into the tank. The built spray bar's feed stubs ran off sideways
+    and ended in the air, its posts stood 0.75 m off the bar: it is replaced by one clean stainless manifold per tank,
+    straight over the nozzle line, carried on two posts from the tank's end walls, with the nine nozzles under it
+    (the four running streams stay as built)."""
+    if not sid.startswith('286'):
+        return
+    import skinterior as SI
+    from sktruck import Part
+    st = bpy.data.materials.get('PL_Stainless')
+    DZ = 1.2
+    for t, x in enumerate((SI.CX - 2.6, SI.CX + 2.6)):
+        old = bpy.data.objects.get('IN_SprayBar%d' % t)
+        if old is None:
+            continue
+        old.hide_render = old.hide_viewport = True
+        y = 15.6
+        p = Part()
+        p.cyl((x - 1.62, y, DZ + 1.75), (x + 1.62, y, DZ + 1.75), 0.03, 12)          # manifold
+        for sx in (-1.6, 1.6):
+            p.cyl((x + sx, y, DZ + 1.1), (x + sx, y, DZ + 1.78), 0.025, 10)          # posts on the end walls
+            p.box((x + sx, y, DZ + 1.11), (0.1, 0.1, 0.02))                            # base plates
+        for k in range(9):
+            p.cyl((x - 1.4 + k * 0.35, y, DZ + 1.75), (x - 1.4 + k * 0.35, y, DZ + 1.68), 0.012, 8)   # nozzles
+        p.make('STILL_SprayManifold%d' % t, st, None, smooth=False, coll=bpy.context.scene.collection)
+        fo = bpy.data.objects.get('IN_StreamFoam%d' % t)   # its mottled foam disc read as a black-and-white blotch
+        if fo is not None:
+            fo.hide_render = fo.hide_viewport = True
+
+
 def apply_all(sid=''):
     apply()
     crane_paint()
@@ -433,3 +463,4 @@ def apply_all(sid=''):
     carry246(sid)
     white_gear(sid)
     bin286(sid)
+    spray286(sid)
