@@ -65,11 +65,13 @@ function overhead(path: (typeof PATHS)[number], t: Tier) {
  * other path goes to its own clips), never above the 2,300 KB file cap. Every tier gets the whole budget: a device
  * downloads one tier and one codec, so the tier on screen gets all of it.
  */
-export function solveCaps(dur: Record<string, number>) {
+export function solveCaps(dur: Record<string, number>, fixed: Record<string, Partial<Record<Tier, number>>> = {}) {
   const caps: Record<string, Partial<Record<Tier, number>>> = { 'hero-loop': HERO_CAP }
   for (const t of TIERS) {
     const left = Object.fromEntries(PATHS.map((p) => [p, BUDGET[t] - overhead(p, t)]))
-    const open = new Set(PATHS.flatMap(pathClips))
+    // clips kept as encoded take their bytes off the top; the rest share what is left
+    for (const [id, b] of Object.entries(fixed)) for (const p of PATHS) if (pathClips(p).includes(id)) left[p] -= b[t] ?? 0
+    const open = new Set(PATHS.flatMap(pathClips).filter((id) => !(id in fixed)))
     while (open.size) {
       const rate = PATHS.map((p) => {
         const ids = pathClips(p).filter((id) => open.has(id))
@@ -185,8 +187,15 @@ if (process.argv[1]?.endsWith('clip-manifest.ts')) {
   if (cmd === 'caps') {
     const probe = (id: string) =>
       +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', `masters/${id}/master.mp4`], { encoding: 'utf8' })
-    const dur = Object.fromEntries([...new Set(PATHS.flatMap(pathClips))].map((id) => [id, probe(id)]))
-    const caps = solveCaps(dur)[arg]
+    const all = [...new Set(PATHS.flatMap(pathClips))]
+    // SOLVE="<ids>": only those clips are being encoded; every other clip keeps its files on disk, counted at its
+    // largest codec per tier (a device downloads one)
+    const solve = process.env.SOLVE?.split(/\s+/).filter(Boolean)
+    const fixed = Object.fromEntries(
+      all.filter((id) => solve && !solve.includes(id)).map((id) => [id, Object.fromEntries(TIERS.map((t) => [t, Math.max(...CODECS.map((c) => fileSize(clipFile(id, t, c))))]))]),
+    )
+    const dur = Object.fromEntries(all.filter((id) => !(id in fixed)).map((id) => [id, probe(id)]))
+    const caps = solveCaps(dur, fixed)[arg]
     if (!caps) throw new Error(`clip-manifest: ${arg} is on no path`)
     for (const t of TIERS) console.log(t, caps[t])
   } else if (cmd === 'top') {
