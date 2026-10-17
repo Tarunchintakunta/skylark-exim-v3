@@ -54,7 +54,7 @@ export const CROP_X: Record<string, number> = {
   'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.5, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.45, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.55, 'hf-fish-freeze': 0.45,
-  'hf-stuff': 0.62, 'hf-ship': 0.62, 'hf-sail': 0.55,
+  'hf-load': 0.52, 'hf-ship': 0.62, 'hf-sail': 0.55,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
 }
@@ -184,7 +184,7 @@ const ENDING: ChapterDef[] = [
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      { kind: 'video', id: 'hf-stuff', alt: 'At the plant loading bays, a forklift carries a pallet of plain cartons toward a white refrigerated trailer.' },
+      { kind: 'video', id: 'hf-load', alt: 'At the plant\'s loading dock, a worker in white protective gear wheels two shrink-wrapped pallets of plain white cartons into the refrigerated truck backed up to the dock; its doors are shut and latched, and the truck pulls slowly away.' },
       // #258: one continuous camera move, cut into five segments that share their boundary frames
       { kind: 'video', id: 'hf-port-1', alt: 'A red truck carrying a white refrigerated container drives through the port gate under its canopy, and the camera rises over the canopy roof.' },
       { kind: 'video', id: 'hf-port-2', alt: 'The truck turns right onto the quay beside the moored container ship and brakes under a ship-to-shore crane.' },
