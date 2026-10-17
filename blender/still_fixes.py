@@ -379,6 +379,42 @@ def carry246(sid, frame=62):
             H.grip(bpy.data.objects[nm], sd, target=[crate], curl=1.0)
 
 
+def jack257(sid, frame=335):
+    """#257: the pallet-jack puller stands with both boots flat on the floor (no mid-stride tiptoe), hand on the tow
+    loop, glove closed on it, white gumboots; the loaded pallet of white cartons stays on the jack's forks (it is parented to the jack, forks under it)."""
+    if not sid.startswith('257'):
+        return
+    import skhuman as H
+    s = bpy.context.scene
+    s.frame_set(frame)
+    w = bpy.data.objects.get('HUM_Cold')
+    if w is None:
+        return
+    legs = {'hips': (0, 0, 0), 'spine': (6, 0, 0), 'thigh.L': (2, -4, 0), 'shin.L': (-3, 0, 0), 'foot.L': (1, 0, 0),
+            'thigh.R': (4, -4, 4), 'shin.R': (-6, 0, 0), 'foot.R': (2, 0, 0)}
+    for fc in _fcurves(w.animation_data.action if w.animation_data else None):
+        if fc.data_path in ('location', 'rotation_euler') or any('"%s"' % b in fc.data_path for b in legs):
+            fc.mute = True
+    for b, v in legs.items():
+        H._rot(w.pose.bones[b], *v, b.split('.')[-1] if '.' in b else '')
+    bpy.context.view_layer.update()
+    mo = next(c for c in w.children if c.type == 'MESH')
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = mo.evaluated_get(dg).to_mesh()
+    zmin = min((mo.matrix_world @ v.co).z for v in me.vertices)
+    mo.evaluated_get(dg).to_mesh_clear()
+    w.location.z += 1.2 - zmin                       # soles on the cold-store floor (z = 1.2)
+    s.frame_set(frame)
+    body = bpy.data.objects.get('IN_ColdJackBody')
+    H.grip(w, 'R', curl=1.0, target=[body] if body else None)   # glove closed round the tow loop
+    bt = bpy.data.materials.get('HUM_WhiteBoot')       # white gumboots, not grime-grey
+    if bt is not None:
+        pb = next(n for n in bt.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+        for lk in list(pb.inputs['Base Color'].links):
+            bt.node_tree.links.remove(lk)
+        pb.inputs['Base Color'].default_value = (0.78, 0.79, 0.78, 1)
+
+
 def apply_all(sid=''):
     apply()
     crane_paint()
@@ -388,4 +424,5 @@ def apply_all(sid=''):
     props256(sid)
     frost257(sid)
     crew257(sid)
+    jack257(sid)
     carry246(sid)
