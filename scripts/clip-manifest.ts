@@ -16,9 +16,10 @@ export const clipFile = (id: string, tier: Tier, codec: Codec) => `${id}_${tier}
 
 /**
  * Budgets per /story path and per file (TRD §13, #264; tests/weight.spec.ts, tests/hd.spec.ts). Per tier, because a
- * device downloads one tier: a 2560 retina desktop is allowed 40 MB for a whole path, a 1920 desktop 25 MB, a phone 12 MB.
+ * device downloads one tier: a 2560 retina desktop is allowed 40 MB for a whole path, a 1920 desktop 28 MB, a phone 12 MB.
+ * 1280 follows 1920 (#284): both are the one desktop profile the weight test holds to a single budget.
  */
-const BUDGET: Record<Tier, number> = { m: 12e6, 960: 12e6, 1280: 25e6, 1920: 25e6, 2560: 40e6 }
+const BUDGET: Record<Tier, number> = { m: 12e6, 960: 12e6, 1280: 28e6, 1920: 28e6, 2560: 40e6 }
 export const FILE_CAP = 2300 * 1024
 /**
  * What a /story path downloads besides /media (document, JS, CSS, fonts, globe placeholder and texture): the baseline
