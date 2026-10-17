@@ -75,7 +75,7 @@ for (const path of ['ocean', 'pond'] as const) {
 
 type Cache = { path: string; ids: string[]; progress: number }
 const cache = (page: Page) => page.evaluate(() => (window as unknown as { __warmCache: Cache }).__warmCache)
-const OCEAN_ONLY = ['hf-depart', 'hf-catch', 'hf-ice', 'hf-return', 'hf-unload-fish', 'hf-fish-intake', 'hf-fish-wash', 'hf-fish-cut', 'hf-fish-freeze']
+const OCEAN_ONLY = ['hf-depart', 'hf-catch', 'hf-ice', 'hf-return', 'hf-unload-fish', 'hf-unload-crew', 'hf-fish-intake', 'hf-fish-wash', 'hf-fish-cut', 'hf-fish-freeze']
 const POND_ONLY = ['hf-ponds', 'hf-sample', 'hf-harvest', 'hf-unload-shrimp', 'hf-intake', 'hf-wash', 'hf-peel', 'hf-lab', 'hf-iqf', 'hf-pack']
 
 test('only the active path is fetched; decoders play from blob: URLs or hold their clip whole; a path switch drops the other path’s clips', async ({ page }) => {

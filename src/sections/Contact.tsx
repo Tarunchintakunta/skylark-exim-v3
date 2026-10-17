@@ -44,10 +44,6 @@ export function Contact() {
       <footer className="contact-band__foot mono">
         <span>© {new Date().getFullYear()} Skylark Exim</span>
         <span>Visakhapatnam, Andhra Pradesh</span>
-        <span className="contact-band__credit">
-          3D fish scans: <a href="https://sketchfab.com/ffishAsia-and-floraZia">ffish.asia / floraZia</a>,{' '}
-          <a href="https://sketchfab.com/aniljaco">aniljaco</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)
-        </span>
       </footer>
     </m.section>
   )

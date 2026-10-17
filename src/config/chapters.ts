@@ -51,7 +51,7 @@ export const CROP_X: Record<string, number> = {
   'hero-loop': 0.5, opening: 0.5,
   'hf-depart': 0.6, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
-  'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.53, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
+  'hf-arrive': 0.55, 'hf-reverse': 0.45, 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.45, 'hf-fish-freeze': 0.45,
   'hf-load': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.57,
@@ -147,11 +147,12 @@ const PLANT_POND: ChapterDef[] = [
 /** The wild-catch path's plant (#219): whole fish and tuna loins through the same plant, never a shrimp on screen or in the copy. */
 const PLANT_OCEAN: ChapterDef[] = [
   {
-    id: 'intake', path: 'ocean', label: 'Intake', vh: 360, joinNext: 'crossfade',
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 450, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
       { kind: 'video', id: 'hf-unload-fish', alt: 'A refrigerated truck stands backed into the dock seal with its rear doors open; cold vapour drifts out past three steel bins of whole fish on ice, with empty steel trolleys waiting on either side.' },
+      { kind: 'video', id: 'hf-unload-crew', alt: 'Two workers in white coats, hairnets and gloves lift a steel crate of whole fish on ice out of the open truck together and set it on a steel trolley at the dock.' },
       { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, crates of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
     ],
     captions: caps('intake.ocean', [[0.1, 0.92]]),
