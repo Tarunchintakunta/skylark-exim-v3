@@ -218,6 +218,9 @@ def relayout():
     shift_x(OB['AHEAD1'], 40.0)       # the truck ahead on the outer lane is already past the hero's turn
     sea = OB['SeaFull']
     sea.location.z = -0.05            # water surface at z 0, the hulls' waterline (the ocean patch is gone)
+    # 60 km of water ends 30 km out, which is well inside the 113 km horizon from the top of the climb and showed as a
+    # grey band across the last frames: 300 km puts the plane's edge beyond the horizon at every height the camera sees
+    sea.scale = (5.0, 5.0, 1.0)
 
 
 def open_waterside():
@@ -770,7 +773,7 @@ def look():
     sun = OB['Sun']
     sun.rotation_mode = 'QUATERNION'
     sun.rotation_quaternion = (-d).to_track_quat('-Z', 'Y')
-    sun.data.energy = 4.2
+    sun.data.energy = 4.6
     sun.data.color = (1.0, 0.70, 0.46)
     sun.data.angle = math.radians(1.6)
     w = bpy.data.worlds.new('P20_World')
@@ -786,7 +789,7 @@ def look():
         if hasattr(sky, attr):
             setattr(sky, attr, v)
     bg = nt.nodes['Background']
-    bg.inputs['Strength'].default_value = 0.24
+    bg.inputs['Strength'].default_value = 0.2
     nt.links.new(sky.outputs['Color'], bg.inputs['Color'])
     s.world = w
     w.mist_settings.falloff = 'LINEAR'
@@ -807,6 +810,51 @@ def water():
             dr = n.inputs['W'].driver_add('default_value')
             rate = 0.5 * min(2.0, 1.25 * math.sqrt(n.inputs['Scale'].default_value))    # small ripples change fastest
             dr.driver.expression = 'frame/24*%.4f' % rate
+    # seen from the air a real sea is never one flat tone: wind patches and slicks a few hundred metres across shift its
+    # brightness and its gloss
+    nt = m.node_tree
+    N, L = nt.nodes, nt.links
+    p = next(n for n in N if n.type == 'BSDF_PRINCIPLED')
+    tc = N.new('ShaderNodeTexCoord')
+    nz = N.new('ShaderNodeTexNoise')
+    nz.noise_dimensions = '4D'
+    nz.inputs['Scale'].default_value = 0.0022
+    nz.inputs['Detail'].default_value = 6.0
+    nz.inputs['Roughness'].default_value = 0.6
+    nz.inputs['Distortion'].default_value = 0.4
+    L.new(tc.outputs['Object'], nz.inputs['Vector'])
+    nz.inputs['W'].driver_add('default_value').driver.expression = 'frame/24*0.01'
+    sl = N.new('ShaderNodeMapRange')
+    sl.inputs['From Min'].default_value, sl.inputs['From Max'].default_value = 0.35, 0.65
+    sl.inputs['To Min'].default_value, sl.inputs['To Max'].default_value = 0.8, 1.2
+    L.new(nz.outputs['Fac'], sl.inputs['Value'])
+    bc = p.inputs['Base Color']
+    mul = N.new('ShaderNodeMix')
+    mul.data_type = 'RGBA'
+    mul.blend_type = 'MULTIPLY'
+    mul.inputs[0].default_value = 1.0
+    if bc.links:
+        L.new(bc.links[0].from_socket, mul.inputs[6])
+    else:
+        mul.inputs[6].default_value = bc.default_value
+    cmb = N.new('ShaderNodeCombineXYZ')
+    for k in range(3):
+        L.new(sl.outputs[0], cmb.inputs[k])
+    L.new(cmb.outputs[0], mul.inputs[7])
+    L.new(mul.outputs[2], bc)
+    rg = p.inputs['Roughness']
+    rr = N.new('ShaderNodeMath')
+    rr.operation = 'MULTIPLY'
+    if rg.links:
+        L.new(rg.links[0].from_socket, rr.inputs[0])
+    else:
+        rr.inputs[0].default_value = rg.default_value
+    inv = N.new('ShaderNodeMapRange')
+    inv.inputs['From Min'].default_value, inv.inputs['From Max'].default_value = 0.35, 0.65
+    inv.inputs['To Min'].default_value, inv.inputs['To Max'].default_value = 1.6, 0.6     # slicks are glossier
+    L.new(nz.outputs['Fac'], inv.inputs['Value'])
+    L.new(inv.outputs[0], rr.inputs[1])
+    L.new(rr.outputs[0], rg)
 
 
 def haze_grade(mist_keys):
@@ -840,7 +888,7 @@ def haze_grade(mist_keys):
     print('P20 colour balance inputs', [(i.name, i.type) for i in cb.inputs])
     for i in cb.inputs:                                   # lift / gamma / gain: warm highlights, a touch cooler shadows
         if i.type == 'RGBA' and i.name == 'Gain':
-            i.default_value = (1.025, 1.0, 0.965, 1)
+            i.default_value = (1.06, 1.0, 0.9, 1)
         elif i.type == 'RGBA' and i.name == 'Lift':
             i.default_value = (0.99, 1.0, 1.02, 1)
     L.new(next(o for o in cb.outputs if o.type == 'RGBA'), out.inputs['Image'])
@@ -866,28 +914,35 @@ def camera(per, cr, f_dep):
     fl, fr = cr['f_land'], cr['f_rel']
     slot = (OB['SHIP'].matrix_world @ cr['m_slot']).translation
     K = [
-        # through the gate lane behind the box, under the canopy (lamps at z 9.4), rising only once past it
-        (F0, Vector((-35.4, -70.0, 7.4)), tr(F0, 2.0, 0.0, 2.2)),
-        (20, Vector((-35.4, -66.0, 7.5)), tr(20, 2.0, 0.0, 2.2)),
-        (36, Vector((-35.4, -62.0, 7.6)), tr(36, 2.0, 0.0, 2.2)),
-        (50, Vector((-35.3, -58.0, 7.7)), tr(50, 2.5, 0.0, 2.2)),
-        (62, Vector((-35.3, -54.5, 7.7)), tr(62, 3.0, 0.0, 2.2)),
-        (78, Vector((-35.3, -48.0, 7.7)), tr(78, 4.0, 0.0, 2.2)),        # lane between the islands: x -37.0..-33.5
-        (90, Vector((-35.4, -41.5, 7.9)), tr(90, 5.0, 0.0, 2.2)),
-        (100, Vector((-37.0, -36.5, 9.2)), tr(100, 6.0, 0.0, 2.2)),
-        (118, Vector((-42.0, -27.0, 11.2)), tr(118, 6.0, 0.0, 2.0)),
+        # behind the box in the gate lane, holding the lane the truck drives
+        (F0, Vector((-35.4, -70.0, 14.0)), tr(F0, 2.0, 0.0, 1.0)),
+        (20, Vector((-35.2, -66.0, 14.2)), tr(20, 2.0, 0.0, 1.2)),
+        (36, Vector((-35.4, -62.0, 14.6)), tr(36, 2.0, 0.0, 1.6)),
+        # the canopy (x -48.1..-26.9, y -54.1..-39.9, roof z 10.8) is crested, not driven under: the camera climbs to
+        # 6 m over the roof before its south edge and comes down past the north one. Going round it is not open —
+        # YARD_Block56 stands 0.3 m off the east line and crane 2's landside leg is in the way at z 12.
+        (50, Vector((-35.3, -58.0, 15.4)), tr(50, 3.0, 0.0, 2.2)),
+        (62, Vector((-35.3, -54.2, 16.4)), tr(62, 7.0, 0.0, 2.2)),
+        (78, Vector((-35.3, -48.0, 17.0)), tr(78, 9.0, 0.0, 2.2)),
+        (90, Vector((-35.4, -41.5, 16.2)), tr(90, 8.0, 0.0, 2.2)),
+        (100, Vector((-36.4, -36.5, 14.2)), tr(100, 6.0, 0.0, 2.2)),
+        (118, Vector((-41.0, -27.0, 12.2)), tr(118, 6.0, 0.0, 2.0)),
         (140, Vector((-39.0, -21.5, 11.6)), tr(140, 6.0, 0.0, 2.0)),
-        (175, Vector((-33.5, -19.5, 10.4)), tr(175, 4.0, 0.0, 2.5)),
+        (175, Vector((-30.5, -20.5, 10.6)), tr(175, 4.0, 0.0, 2.5)),
         (fl - 20, Vector((-31.0, -20.0, 9.0)), tr(fl - 20, -2.0, 0.0, 3.5)),
         (fl + 4, Vector((-31.5, -21.0, 8.4)), Vector((CRANE_X, QUAY_Y, 11.0))),
-        (fl + 30, Vector((-36.0, -19.0, 14.0)), Vector((CRANE_X, QUAY_Y + 4.0, 20.0))),
-        (fl + 55, Vector((-42.0, -13.0, 26.0)), Vector((CRANE_X, slot.y - 6.0, 30.0))),
-        (fr, Vector((-46.0, -6.0, 37.0)), Vector((CRANE_X, slot.y, slot.z + 1.5))),
-        (fr + 28, Vector((-38.0, -28.0, 72.0)), Vector((CRANE_X + 10.0, 26.0, 8.0))),   # between cranes 1 and 2
+        # climbing on the west side of crane 2, outside its frame, over the sill beam by the time the box crosses it
+        (fl + 30, Vector((-33.0, -19.0, 15.0)), Vector((CRANE_X, QUAY_Y + 4.0, 20.0))),
+        (fl + 55, Vector((-34.0, -11.0, 30.0)), Vector((CRANE_X, slot.y - 6.0, 30.0))),
+        (fr, Vector((-38.0, -2.0, 40.0)), Vector((CRANE_X, slot.y, slot.z + 1.5))),
+        (fr + 30, Vector((-37.0, -26.0, 80.0)), Vector((CRANE_X + 10.0, 26.0, 8.0))),   # between cranes 1 and 2
         (380, Vector((-36.0, -100.0, 200.0)), Vector((0.0, 40.0, 0.0))),
-        (412, Vector((-20.0, -115.0, 470.0)), Vector((0.0, 10.0, 0.0))),
-        (442, Vector((0.0, -45.0, 850.0)), Vector((0.0, -25.0, 0.0))),
-        (F1, Vector((0.0, 460.0, 1100.0)), Vector((0.0, 1560.0, 0.0))),
+        # the ship is the subject at the end: the camera pulls back over the yard, rising, and settles high behind the
+        # quay with the ship pulling off the berth, the cranes beside it and open sea out to the horizon
+        (412, Vector((-20.0, -260.0, 214.0)), Vector((4.0, 520.0, 0.0))),
+        (442, Vector((0.0, -420.0, 212.0)), Vector((12.0, 1000.0, 0.0))),
+        (464, Vector((8.0, -496.0, 211.0)), Vector((16.0, 1150.0, 0.0))),
+        (F1, Vector((12.0, -520.0, 210.0)), Vector((18.0, 1200.0, 0.0))),
     ]
     K.sort(key=lambda k: k[0])
     frames = list(range(F0, F1 + 1))
@@ -904,13 +959,19 @@ def camera(per, cr, f_dep):
             tgt[i] = tgt[i].lerp(bc, w)
     sig = [5.0 + 9.0 * smoothstep(fr - 10, fr + 40, f) for f in frames]     # wider easing once airborne
     pos = vgauss(pos, sig)
-    tgt = vgauss(tgt, [x + 2.0 for x in sig])
+    # the look-at eases harder through the right turn and the climb off the deck, keeping pans under ~35 deg/s
+    tsig = [x + 2.0 + 9.0 * (smoothstep(70, 92, f) * (1 - smoothstep(122, 145, f))) +
+            8.0 * (smoothstep(fr - 4, fr + 8, f) * (1 - smoothstep(fr + 30, fr + 50, f))) for f, x in zip(frames, sig)]
+    tgt = vgauss(tgt, tsig)
+    pos, tgt = gauss(pos, 2.0), gauss(tgt, 2.0)     # removes the mm ripple a varying kernel leaves
     cam = OB.get('Camera')
     cam.animation_data_clear()
     for c in list(cam.constraints):
         cam.constraints.remove(c)
     cam.data.lens = 28.0
-    cam.data.clip_start, cam.data.clip_end = 0.1, 20000.0
+    # the far clip has to reach past the horizon: at 1 km up it is 113 km away, and a 20 km clip cut the water short
+    # and left bare world background as a grey band under the horizon in the last frames
+    cam.data.clip_start, cam.data.clip_end = 0.1, 400000.0
     cam.data.dof.use_dof = False
     cam.data.sensor_width = 36.0
     cam.rotation_mode = 'QUATERNION'
@@ -977,6 +1038,40 @@ def lod():
             d.show_viewport = False                 # render only: scripted frame changes stay fast
 
 
+def far_cull(pos, z_hi=300.0):
+    """Top of the climb: a kilometre up, a figure, a bollard or a rail is well under one pixel, so every prop smaller
+    than 6 m is switched off from the frame the camera passes z_hi. That is what keeps the end aerial inside GPU
+    memory (Metal ran out at f385 with everything resident). Keyed CONSTANT, and only where nothing of them can
+    resolve, so there is no pop."""
+    KEEP = ('SHIP', 'Crane_', 'HERO', 'SeaFull', 'LAND_', 'P20_Wake', 'Harbour', 'QUAY', 'Quay')
+
+    def kept(o):
+        while o is not None:
+            if o.name.startswith(KEEP):
+                return True
+            o = o.parent
+        return False
+    f_cut = next((f for f, p in zip(range(F0, F1 + 1), pos) if p.z > z_hi), None)
+    if f_cut is None:
+        return 0
+    n = 0
+    for o in OB:
+        if o.type != 'MESH' or kept(o) or max(o.dimensions) > 6.0:
+            continue
+        o.hide_render = False
+        o.keyframe_insert('hide_render', frame=f_cut - 1)
+        o.hide_render = True
+        o.keyframe_insert('hide_render', frame=f_cut)
+        o['p20_farcull'] = True
+        for fc in fcurves(o):
+            if fc.data_path == 'hide_render':
+                for k in fc.keyframe_points:
+                    k.interpolation = 'CONSTANT'
+        n += 1
+    print('P20 far cull: %d props off from f%d (camera above %.0f m)' % (n, f_cut, z_hi))
+    return n
+
+
 def build(out):
     s = bpy.context.scene
     cleanup()
@@ -995,9 +1090,12 @@ def build(out):
     wake(locs, rots, f_dep)
     look()
     pos, tgt = camera(per, cr, f_dep)
-    haze_grade([(F0, 120.0, 2200.0), (f_dep, 160.0, 2600.0), (420, 700.0, 5200.0), (F1, 1000.0, 7000.0)])
+    # the mist depth has to outrun the view: at 1 km up the horizon is 113 km away, and a 7 km depth painted everything
+    # past it one flat grey band across the last frames
+    haze_grade([(F0, 120.0, 2200.0), (f_dep, 160.0, 2600.0), (420, 2000.0, 120000.0), (F1, 4000.0, 220000.0)])
     cycles()
     lod()
+    far_cull(pos)
     s['p20'] = {'f_stop': f_stop, 'f_land': cr['f_land'], 'f_lock': cr['f_lock'], 'f_rel': cr['f_rel'], 'f_dep': f_dep}
     print('P20 beats', dict(s['p20']))
     s.frame_set(F0)
@@ -1010,6 +1108,9 @@ def render_frames(outdir, frames, samples, pct=100, mblur=True):
     cycles(samples, pct, mblur)
     s.render.use_overwrite = True
     s.render.use_placeholder = False
+    # the frames rendered here are far apart in the move, so there is nothing to reuse between them and holding the
+    # last frame's data resident is what pushed the end aerial over Metal's memory ceiling
+    s.render.use_persistent_data = False
     os.makedirs(outdir, exist_ok=True)
     import time
     for f in frames:
@@ -1174,7 +1275,7 @@ def check(outdir):
     fonts = [o.name for o in OB if o.type == 'FONT']
     logos = [i.name for i in bpy.data.images if any(k in i.name.lower() for k in ('logo', 'text', 'brand', 'plate', 'sign'))]
     pops = [(o.name, fc.data_path) for o in OB for fc in fcurves(o) if fc.data_path.startswith(('hide_', 'scale'))
-            and o.name != 'P20_Wake']
+            and o.name != 'P20_Wake' and not o.get('p20_farcull')]   # the far cull is off screen, checked separately
     # camera dynamics
     v = [(cps[i + 1] - cps[i]) * FPS for i in range(len(cps) - 1)]
     a = [(v[i + 1] - v[i]) * FPS for i in range(len(v) - 1)]
