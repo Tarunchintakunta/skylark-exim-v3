@@ -66,7 +66,7 @@ async function visit(page: Page, mobile: boolean, afterIntro: boolean): Promise<
           let last = performance.now()
           const step = (t: number) => {
             const left = (document.querySelector('[data-globe]') as HTMLElement).getBoundingClientRect().top - innerHeight * 0.15
-            if (left <= 0) return done()
+            if (left <= 1) return done() // a sub-pixel scrollBy may not move the page at a fractional DPR
             scrollBy(0, Math.min(left, ((t - last) / 1000) * v))
             last = t
             requestAnimationFrame(step)
