@@ -4,9 +4,9 @@ import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 
 // TRD §13 / ASSETS_SPEC budgets (#264). Transferred bytes from CDP, initial (the page ready) and after a full scroll.
 // /story per path, counted once the warm cache has the whole path. Per tier, because a device downloads one tier: a
-// 2560 retina desktop 40 MB, a 1920 desktop 25 MB, a phone 12 MB. The homepage carries the hero's frame set, so it has
+// 2560 retina desktop 40 MB, a 1920 desktop 28 MB (#284: the six-shot port run), a phone 12 MB. The homepage carries the hero's frame set, so it has
 // its own 8 MB full-scroll budget.
-const BUDGET = { desktop: { initial: 3e6, full: 25e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
+const BUDGET = { desktop: { initial: 3e6, full: 28e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
 const RETINA_FULL = 40e6
 const HOME_FULL = 8e6
 const MB = (b: number) => +(b / 1e6).toFixed(2)
