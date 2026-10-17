@@ -398,6 +398,29 @@ def white_gear(sid):
         pb.inputs['Base Color'].default_value = (0.78, 0.79, 0.78, 1)
 
 
+def bin286(sid):
+    """#286: product collected in the stainless bin at the belt's discharge end, a shallow heap (the p-proc blend was
+    built before skinterior.grading() put it there): the plant's shrimp mesh, laid along the bin, resting on it."""
+    if not sid.startswith('286') or bpy.data.objects.get('IN_BinShrimp00'):
+        return
+    import math
+    import random
+    import skinterior as SI
+    me = next((m for m in bpy.data.meshes if m.name.startswith(('FARM_ShrimpMesh', 'SCAN_Shrimp')) and m.users), None)
+    if me is None:                                     # (the belt shrimp were joined into IN_ShrimpZone meshes)
+        return
+    rb = random.Random(286)
+    bx, by, bot, top = SI.CX, 31.84, 1.2 + 0.46, 1.2 + 0.84
+    for m in range(150):                               # a heap, highest under the drop, below the rim
+        u, v = rb.uniform(-1, 1), rb.uniform(-1, 1)
+        o = bpy.data.objects.new('IN_BinShrimp%02d' % m, me)
+        bpy.context.scene.collection.objects.link(o)
+        o.location = (bx + u * 0.07, by + v * 0.1, bot)                # antennae stay inside the walls
+        o.rotation_euler = (math.pi / 2 + rb.uniform(-0.3, 0.3), rb.uniform(-0.3, 0.3),
+                            rb.choice((0, math.pi)) + rb.uniform(-0.1, 0.1))   # along the bin: antennae inside
+        h = (1 - 0.6 * max(abs(u), abs(v))) * (top - bot - 0.1)
+        SI._rest_on(o, bot + 0.012 + rb.uniform(0, h))
+
 def apply_all(sid=''):
     apply()
     crane_paint()
@@ -409,3 +432,4 @@ def apply_all(sid=''):
     crew257(sid)
     carry246(sid)
     white_gear(sid)
+    bin286(sid)
