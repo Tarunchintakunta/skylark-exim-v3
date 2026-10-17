@@ -1,7 +1,7 @@
 /* business sections: sand, normal scroll, above the fixed stage */
 .section {
   position: relative; z-index: var(--z-content);
-  padding: clamp(96px, 14vh, 176px) var(--gutter);
+  padding: var(--space-section) var(--gutter);
   border-top: 1px solid var(--hairline-ink);
 }
 /* the first business section rises over the globe as a sand panel (story → business, redesign §6) */

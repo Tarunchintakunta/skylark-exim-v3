@@ -25,7 +25,10 @@ KB = 1024
 
 
 def frame(img: Image.Image, tier) -> Image.Image:
-    if tier == 'm':
+    if tier == 'm' and os.environ.get('STILL_M'):
+        # a cut with its own phone crop (encode-hf.sh M_CROP), already at its native size
+        out = Image.open(os.environ['STILL_M']).convert('RGB')
+    elif tier == 'm':
         # the master's full height at 810:1440, never scaled (810×1440 from a 2560×1440 clip)
         w = round(img.height * 810 / 1440 / 2) * 2
         # the same left edge as the _m clip's crop (encode-hf.sh)
@@ -67,7 +70,8 @@ def save(img: Image.Image, name: str, cap_avif: int, cap_webp: int) -> str:
 first = Image.open(os.environ['STILL']).convert('RGB')
 log = []
 for t in TIERS:
-    cap = 120 * KB if LCP else 350 * KB
+    # CAP_KB: a tighter cap for a page's own stills (the story entry's cards: 250 KB, #268)
+    cap = 120 * KB if LCP else int(os.environ.get('CAP_KB') or 350) * KB
     log.append(save(frame(first, t), f'{ID}_{t}', 60 * KB if LCP and t == 'm' else cap, cap))
 if os.environ.get('LAST'):
     log.append(save(frame(Image.open(os.environ['LAST']).convert('RGB'), 1280), f'{ID}_end_1280', 350 * KB, 350 * KB))

@@ -44,7 +44,12 @@
   --fs-mono: var(--fs-small);
 
   --gutter: clamp(20px, 4vw, 64px);
+  /* vertical rhythm (#275): one fluid scale on the viewport width, so a tall screen adds no empty band */
+  --space-section: clamp(64px, 8vw, 120px);
+  --space-intro: clamp(48px, 6vw, 88px);
   --radius: 4px;
+  /* the homepage story entry's bento cards only (#268) */
+  --radius-card: 16px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   /* the CSS side of src/motion/tokens.ts: keep the two in step */
   --dur-fast: 0.35s;
