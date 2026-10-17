@@ -2,7 +2,7 @@
 composition and not wherever the animated move happens to be. Coordinates are the plant set's (dock wall y = 0, the
 truck bay at x = 9.2, the dock floor 1.2 m up, the hall behind the wall at y > 0)."""
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Vector
 
 # 256: eye level, 1.65 m over the dock floor, square on to the open door, a steel-crate trolley each side
 DOLLY_260 = 380.0
@@ -128,6 +128,7 @@ def look(sid):
     sf = bpy.data.objects.get('LAND_BreakwaterSurf')
     if sf is not None:
         sf.hide_render = sf.hide_viewport = True
+    rocks260()
     coast260()
     nt = s.world.node_tree
     sky = next(n for n in nt.nodes if n.type == 'TEX_SKY')
@@ -201,6 +202,115 @@ def look(sid):
     sun.data.color = (1.0, 0.64, 0.32)
     sun.data.energy = 3.4
     s.view_settings.exposure = -0.3
+
+
+def _rock_mat():
+    """Quarry stone: grey-brown, mottled stone to stone, wet and dark (glossy) in a band up to ~2 m over the waterline (splash zone)."""
+    m = bpy.data.materials.new('STILL_ArmourRock')
+    m.use_nodes = True
+    nt = m.node_tree
+    N, L = nt.nodes, nt.links
+    b = N['Principled BSDF']
+    geo, oi = N.new('ShaderNodeNewGeometry'), N.new('ShaderNodeObjectInfo')
+    sp = N.new('ShaderNodeSeparateXYZ')
+    L.new(geo.outputs['Position'], sp.inputs[0])
+    ns = N.new('ShaderNodeTexNoise')
+    ns.inputs['Scale'].default_value = 0.6
+    ns.inputs['Detail'].default_value = 6.0
+    L.new(geo.outputs['Position'], ns.inputs['Vector'])
+    vr = N.new('ShaderNodeTexVoronoi')                     # one tone per stone (cells about a stone across)
+    vr.inputs['Scale'].default_value = 0.35
+    L.new(geo.outputs['Position'], vr.inputs['Vector'])
+    ramp = N.new('ShaderNodeValToRGB')
+    cr = ramp.color_ramp
+    cr.elements[0].color = (0.075, 0.073, 0.068, 1)          # dark grey-brown
+    cr.elements[1].color = (0.24, 0.23, 0.21, 1)            # weathered pale granite
+    cr.elements.new(0.5).color = (0.15, 0.14, 0.125, 1)
+    mixf = N.new('ShaderNodeMix')
+    mixf.inputs['Factor'].default_value = 0.45
+    L.new(vr.outputs['Distance'], mixf.inputs[2])
+    L.new(ns.outputs['Fac'], mixf.inputs[3])
+    L.new(mixf.outputs[0], ramp.inputs['Fac'])
+    wet = N.new('ShaderNodeMapRange')                       # 1 at/below the waterline .. 0 at 1.6 m above it
+    wet.inputs['From Min'].default_value, wet.inputs['From Max'].default_value = 0.2, 1.9
+    wet.inputs['To Min'].default_value, wet.inputs['To Max'].default_value = 1.0, 0.0
+    L.new(sp.outputs['Z'], wet.inputs['Value'])
+    dk = N.new('ShaderNodeMix')
+    dk.data_type = 'RGBA'
+    L.new(wet.outputs['Result'], dk.inputs['Factor'])
+    L.new(ramp.outputs['Color'], dk.inputs[6])
+    dk.inputs[7].default_value = (0.025, 0.024, 0.022, 1)
+    L.new(dk.outputs[2], b.inputs['Base Color'])
+    rg = N.new('ShaderNodeMapRange')
+    rg.inputs['To Min'].default_value, rg.inputs['To Max'].default_value = 0.85, 0.22
+    L.new(wet.outputs['Result'], rg.inputs['Value'])
+    L.new(rg.outputs['Result'], b.inputs['Roughness'])
+    bump = N.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 0.35
+    L.new(ns.outputs['Fac'], bump.inputs['Height'])
+    L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    return m
+
+
+def rocks260():
+    """#260: a rock-armour breakwater instead of the boxy blocks. Each old block (an 8-vertex box, ~10 m) becomes a
+    piece of a trapezoid rubble mound: 22-28 irregular faceted quarry stones / armour rocks of 2.5-6 m, wider and
+    lower at the toe, a narrower crest, sitting into the water and dark-wet at the waterline. The old mesh (blocks and
+    the concrete crest planks) is hidden."""
+    import math
+    import random
+    import bmesh
+    import numpy as np
+    bw = bpy.data.objects.get('LAND_Breakwaters')
+    if bw is None:
+        return
+    me = bw.data
+    co = np.empty(len(me.vertices) * 3, dtype=np.float32)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    blocks, drop = [], set()
+    for p in me.polygons:
+        if p.material_index == 0:
+            drop.update(p.vertices)
+    vi = sorted(drop)
+    for k in range(0, len(vi), 8):                      # the blocks are consecutive 8-vertex boxes
+        c = co[vi[k:k + 8]]
+        blocks.append((c.mean(0), c.max(0) - c.min(0)))
+    bw.hide_render = bw.hide_viewport = True           # its concrete crest planks read as boards between the rocks
+    rnd = random.Random(2600)
+    mw = bw.matrix_world
+    WL = -0.3                                          # sea surface
+    ico = bmesh.new()                                   # one unit stone template, copied per rock (bmesh ops on a
+    bmesh.ops.create_icosphere(ico, subdivisions=2, radius=1.0)   # growing mesh are quadratic)
+    tv = [v.co.copy() for v in ico.verts]
+    ico.verts.index_update()
+    tf = [[v.index for v in f.verts] for f in ico.faces]
+    ico.free()
+    V, F = [], []
+    for c, ext in blocks:
+        c = mw @ Vector(c.tolist())
+        r = max(3.0, float(min(ext[0], ext[1])) * 0.5)
+        top = c.z + float(ext[2]) * 0.5
+        for _ in range(rnd.randint(22, 28)):
+            a, d = rnd.uniform(0, 2 * math.pi), rnd.uniform(0, 1) ** 1.3
+            h = 1.0 - d                                   # trapezoid: low at the toe, high on the crest line
+            px, py = c.x + math.cos(a) * d * r * 1.9, c.y + math.sin(a) * d * r * 1.9
+            pz = WL - 0.8 + h * (max(top, WL + 3.0) - WL) + rnd.uniform(-0.8, 0.3)
+            sz = rnd.uniform(2.5, 5.5) * (0.8 + 0.4 * h)
+            sx, sy, sz_ = rnd.uniform(0.7, 1.3), rnd.uniform(0.7, 1.3), rnd.uniform(0.5, 0.9)   # flatter than wide
+            rot = Euler((rnd.uniform(-0.4, 0.4), rnd.uniform(-0.4, 0.4), rnd.uniform(0, 6.3))).to_matrix()
+            base = len(V)
+            for v in tv:                                  # faceted, irregular: every vertex pushed in or out
+                q = Vector((v.x * sx, v.y * sy, v.z * sz_)) * (1.0 + rnd.uniform(-0.18, 0.18))
+                V.append(tuple(Vector((px, py, pz)) + (rot @ q) * sz * 0.5))
+            F += [[base + i for i in f] for f in tf]
+    rk = bpy.data.meshes.new('STILL_ArmourRocks')
+    rk.from_pydata(V, [], F)
+    rk.update()
+    rk.materials.append(_rock_mat())
+    o = bpy.data.objects.new('STILL_ArmourRocks', rk)
+    bpy.context.scene.collection.objects.link(o)
+    print('STILL rocks260: %d blocks -> %d rocks' % (len(blocks), len(rk.vertices) // len(tv)))
 
 
 def _facade(name, wall):
