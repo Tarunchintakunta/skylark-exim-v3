@@ -223,14 +223,14 @@ def unload(C, R):
             w.keyframe_insert('location', frame=fk)
 
 
-def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None):
+def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None, flip=True, ztop=0.0):
     """Both hands work ON the surface in front of the person (table, belt, tray): IK targets found by casting down
     onto the set, moving in small picking loops. No hands hovering or held up in the air. Returns True if placed."""
     s = bpy.context.scene
     dg = bpy.context.evaluated_depsgraph_get()
     base = Vector((w.location.x, w.location.y, DZ))
     tries = [(rz, rr, sp) for rr, sp in ((reach, spread), (reach + 0.08, spread * 0.6), (reach - 0.06, spread * 0.6))
-             for rz in (w.rotation_euler.z, w.rotation_euler.z + math.pi)]
+             for rz in ((w.rotation_euler.z, w.rotation_euler.z + math.pi) if flip else (w.rotation_euler.z,))]
     for rz, rr, sp in tries:
         fwd = Vector((math.sin(rz), -math.cos(rz), 0))
         side = Vector((math.cos(rz), math.sin(rz), 0))
@@ -238,7 +238,7 @@ def hands_on_work(w, rnd, f0=1, f1=1060, reach=0.36, spread=0.15, C=None):
         for sd, sg in (('L', 1), ('R', -1)):
             xy = base + fwd * rr - side * sg * sp
             hit, loc, _n, _i, ob, _m = s.ray_cast(dg, Vector((xy.x, xy.y, DZ + 1.5)), Vector((0, 0, -1)), distance=1.3)
-            if hit and DZ + 0.7 < loc.z < DZ + 1.02 and not (ob and ob.name.startswith('HUM_')):
+            if hit and DZ + 0.7 < loc.z < DZ + (ztop or 1.02) and not (ob and ob.name.startswith('HUM_')):
                 placed.append((sd, loc))
         if len(placed) == 2:
             w.rotation_euler.z = rz                       # face the work surface
@@ -297,12 +297,12 @@ def tank_crew(C, rnd, crate_fn):
         grip_on(w, 'R', c, 320, 0.8)
         H.jitter(w, {'spine': (14, 0, 0), 'upperarm': (55, -8, 0)}, 1, 1060, every=20, amp=4, seed=k)
         out.append(w)
-    for k, (x, y, rz) in enumerate(((CX - 4.4, 14.6, 180), (CX + 4.5, 16.6, 0), (CX - 2.4, 16.7, 0), (CX + 2.8, 14.5, 180))):
+    for k, (x, y, rz) in enumerate(((CX - 3.6, 14.6, 180), (CX + 3.6, 16.6, 0), (CX - 2.4, 16.7, 0), (CX + 2.8, 14.5, 180))):
         w = H.person('HUM_Wash%d' % k, 'plant', 'male' if k % 2 else 'female', coll=C, seed=310 + k, lod='lo')
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz))
         bpy.context.view_layer.update()
-        if not hands_on_work(w, rnd, C=C):
+        if not hands_on_work(w, rnd, C=C, flip=False, reach=0.45):    # over the tank they stand at, never turned away (#286)
             H.jitter(w, {'spine': (28, 0, 0), 'chest': (8, 0, 0), 'upperarm': (55, -8, 0), 'forearm': (45, 0, 0),
                          'head': (10, 0, 0)}, 1, 1060, every=10, amp=7, seed=20 + k)
         else:
@@ -314,24 +314,26 @@ def tank_crew(C, rnd, crate_fn):
 def proc_crew(C, rnd):
     """Mid-shift from the first frame: graders at the belt/grader, peelers at all four tables, fish cleaners,
     a supervisor in a white coat walking the aisle."""
-    work = {'spine': (16, 0, 0), 'chest': (10, 0, 0), 'neck': (12, 0, 0), 'head': (14, 0, 0),
+    work = {'spine': (16, 0, 0), 'chest': (10, 0, 0), 'neck': (14, 0, 0), 'head': (22, 0, 0),   # eyes down on the work
             'upperarm': (30, -12, 0), 'forearm': (78, 0, 0), 'hand': (-10, 0, 0)}
     n = 0
     spots = []
-    for k in range(4):                                         # belt sorters
-        spots.append((CX + (1.0 if k % 2 else -1.0), 21.5 + (k // 2) * 2.4, 90 if k % 2 else -90, 'lo'))
-    for k in range(4):                                         # graders beside the chutes
-        spots.append((CX + (1.95 if k % 2 else -1.95), 25.4 + (k // 2) * 1.5, 90 if k % 2 else -90, 'lo'))
+    # (x, y, x of the work each one faces, lod): everyone turns to their own belt or table, never away (#286)
+    for k in range(4):                                         # belt sorters, at the rail, hands over the belt
+        spots.append((CX + (0.8 if k % 2 else -0.8), 21.5 + (k // 2) * 2.4, CX, 'lo'))
+    for k in range(4):                                         # graders beside the chutes, facing their trays
+        spots.append((CX + (1.95 if k % 2 else -1.95), 25.4 + (k // 2) * 1.5, CX + (1.45 if k % 2 else -1.45), 'lo'))
     for t, x in enumerate((CX - 6.4, CX - 3.2, CX + 3.2, CX + 6.4)):
         near = t in (1, 2)
         for sx in (-1, 1):
             cnt = 4 if near else 3
             for j in range(cnt):
                 y = 33.6 + j * (9.0 / (cnt - 1)) + rnd.uniform(-0.3, 0.3)
-                spots.append((x + sx * 0.78, y, -90 if sx < 0 else 90, 'lo'))
+                spots.append((x + sx * 0.78, y, x, 'lo'))
     for j in range(2):                                         # fish table
-        spots.append((SI.XR - 2.4, 35.5 + j * 4.0, -90, 'lo'))
-    for x, y, rz, lod in spots:
+        spots.append((SI.XR - 2.4, 35.5 + j * 4.0, SI.XR - 1.6, 'lo'))
+    for x, y, tx, lod in spots:
+        rz = 90 if tx > x else -90                             # forward is (sin rz, -cos rz): +X at 90
         g = 'female' if rnd.random() < 0.45 else 'male'
         w = H.person('HUM_Proc%02d' % n, 'plant', g, coll=C, seed=400 + n, lod=lod)
         h = rnd.uniform(0.93, 1.06) * (0.95 if g == 'female' else 1.0)    # varied height and build
@@ -341,7 +343,8 @@ def proc_crew(C, rnd):
         w.location = (x, y, DZ)
         w.rotation_euler = (0, 0, D(rz + rnd.uniform(-8, 8)))
         bpy.context.view_layer.update()
-        if hands_on_work(w, rnd, C=C):
+        belt = n < 4
+        if hands_on_work(w, rnd, C=C, flip=False, reach=0.5 if belt else 0.36, ztop=1.1 if belt else 0.0):
             wk = dict(work, spine=(28, 0, 0), chest=(12, 0, 0)) if 4 <= n < 8 else work   # graders lean to low trays
             H.jitter(w, {k: v for k, v in wk.items() if k in ('spine', 'chest', 'neck', 'head')}, 1, 1060,
                      every=8 + n % 5, amp=5, seed=n, arms=False)
