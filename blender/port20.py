@@ -32,7 +32,7 @@ DX = CRANE_X - 0.0
 STOP_X = CRANE_X + 5.5                   # tractor rear-axle origin with the box centred under the spreader
 LOCK = 1.175                             # headblock origin above the container roof with the twistlocks seated
 CH = 2.59
-SUN_EL, SUN_AZ = math.radians(15.0), math.radians(200.0)   # low evening sun from the south-south-west (land side)
+SUN_EL, SUN_AZ = math.radians(12.5), math.radians(200.0)   # low evening sun from the south-south-west (land side)
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 OB = bpy.data.objects
 
@@ -196,6 +196,19 @@ def relayout():
         if b is not None:
             b.animation_data_clear()
             b.rotation_euler = (0, 0, 0)
+    can = OB.get('GATE_Canopy')                       # canopy lamps glow, they do not blow the roof out to white
+    for sl in (can.material_slots if can else ()):
+        m = sl.material
+        if m and m.node_tree and any(n.type == 'EMISSION' or (n.type == 'BSDF_PRINCIPLED' and
+                                     n.inputs['Emission Strength'].default_value > 0) for n in m.node_tree.nodes):
+            dim = m.copy()
+            dim.name = 'P20_CanopyLamp'
+            for n in dim.node_tree.nodes:
+                if n.type == 'EMISSION':
+                    n.inputs['Strength'].default_value *= 0.15
+                elif n.type == 'BSDF_PRINCIPLED':
+                    n.inputs['Emission Strength'].default_value *= 0.15
+            sl.material = dim
     OB['Crane_2'].location.x = CRANE_X
     open_waterside()
     shift_x(OB['SHIP'], DX)
@@ -476,18 +489,19 @@ def crane_and_box(f_stop, m_tr, m_slot):
     fl = int(round(f_stop)) + 18                          # spreader seats on the box after the truck has settled
     keys = [(F0, 30.0, z_up), (34, 30.0, z_up), (150, y_lane, -30.0), (fl - 26, y_lane, z_truck + 3.2),
             (fl - 8, y_lane, z_truck + 0.6), (fl, y_lane, z_truck), (fl + 6, y_lane, z_truck),
-            (fl + 22, y_lane + 1.0, z_truck + 6.0), (fl + 48, y_slot - 5.0, z_clear),
-            (fl + 60, y_slot, z_slot + 3.0), (fl + 76, y_slot, z_slot), (fl + 84, y_slot, z_slot),
-            (fl + 100, y_slot, z_slot + 6.5), (fl + 140, y_lane, z_up), (F1, y_lane, z_up)]
+            # up clear of the portal beam (z 22-24 at the waterside legs) before reaching it, then out and down
+            (fl + 30, y_lane + 1.0, z_truck + 12.6), (fl + 46, y_lane + 6.0, z_truck + 22.0),
+            (fl + 62, y_slot - 5.0, z_clear), (fl + 74, y_slot, z_slot + 3.0), (fl + 90, y_slot, z_slot),
+            (fl + 98, y_slot, z_slot), (fl + 114, y_slot, z_slot + 6.5), (fl + 154, y_lane, z_up), (F1, y_lane, z_up)]
     fy = pchip([k[0] for k in keys], [k[1] for k in keys])
     fz = pchip([k[0] for k in keys], [k[2] for k in keys])
     bake(trol, 'location', [(0.0, fy(f), gz) for f in frames], frames)
     bake(head, 'location', [(0.0, 0.0, fz(f)) for f in frames], frames)
-    f_lock, f_rel = fl + 3, fl + 79
+    f_lock, f_rel = fl + 3, fl + 93
     # boom of crane 2 tops up once its trolley is back over the quay (the other two cranes already have)
     hinge = OB['Crane_2_BoomHinge']
     hinge.animation_data_clear()
-    fb = fl + 146
+    fb = fl + 160
     hinge.rotation_euler = (0, 0, 0)
     hinge.keyframe_insert('rotation_euler', index=0, frame=fb)
     hinge.rotation_euler = (1.4, 0, 0)
@@ -533,8 +547,8 @@ def depart(f_dep):
     locs, rots = [], []
     for f in frames:
         u = max(0.0, (f - f_dep) / FPS)
-        lat = 2.6 * (u - 1.6 * (1 - math.exp(-u / 1.6)))            # thrusters: ~2.6 m/s off the berth after 3 s
-        fwd = 1.15 * (u * u / 2) / (1 + u / 9.0)                    # screw: gathering way, ~7 m/s by the end
+        lat = 4.0 * (u - 1.6 * (1 - math.exp(-u / 1.6)))            # thrusters: ~4 m/s off the berth after 3 s
+        fwd = 2.2 * (u * u / 2) / (1 + u / 6.0)                     # screw: gathering way, ~10 m/s by the end
         yaw = math.radians(5.0) * smoothstep(0.0, 7.0, u)
         locs.append((p0.x + fwd, p0.y + lat, p0.z))
         rots.append((0.0, 0.0, yaw))
@@ -757,7 +771,7 @@ def look():
     sun.rotation_mode = 'QUATERNION'
     sun.rotation_quaternion = (-d).to_track_quat('-Z', 'Y')
     sun.data.energy = 4.2
-    sun.data.color = (1.0, 0.77, 0.56)
+    sun.data.color = (1.0, 0.70, 0.46)
     sun.data.angle = math.radians(1.6)
     w = bpy.data.worlds.new('P20_World')
     w.use_nodes = True
@@ -853,13 +867,13 @@ def camera(per, cr, f_dep):
     slot = (OB['SHIP'].matrix_world @ cr['m_slot']).translation
     K = [
         # through the gate lane behind the box, under the canopy (lamps at z 9.4), rising only once past it
-        (F0, Vector((-35.7, -70.0, 7.4)), tr(F0, 2.0, 0.0, 2.2)),
-        (20, Vector((-35.7, -66.0, 7.5)), tr(20, 2.0, 0.0, 2.2)),
-        (36, Vector((-35.7, -62.0, 7.6)), tr(36, 2.0, 0.0, 2.2)),
-        (50, Vector((-35.7, -58.0, 7.8)), tr(50, 2.5, 0.0, 2.2)),
-        (62, Vector((-35.7, -54.5, 8.0)), tr(62, 3.0, 0.0, 2.2)),
-        (78, Vector((-35.3, -48.0, 8.1)), tr(78, 4.0, 0.0, 2.2)),        # lane between the islands: x -37.0..-33.5
-        (90, Vector((-35.4, -41.5, 8.3)), tr(90, 5.0, 0.0, 2.2)),
+        (F0, Vector((-35.4, -70.0, 7.4)), tr(F0, 2.0, 0.0, 2.2)),
+        (20, Vector((-35.4, -66.0, 7.5)), tr(20, 2.0, 0.0, 2.2)),
+        (36, Vector((-35.4, -62.0, 7.6)), tr(36, 2.0, 0.0, 2.2)),
+        (50, Vector((-35.3, -58.0, 7.7)), tr(50, 2.5, 0.0, 2.2)),
+        (62, Vector((-35.3, -54.5, 7.7)), tr(62, 3.0, 0.0, 2.2)),
+        (78, Vector((-35.3, -48.0, 7.7)), tr(78, 4.0, 0.0, 2.2)),        # lane between the islands: x -37.0..-33.5
+        (90, Vector((-35.4, -41.5, 7.9)), tr(90, 5.0, 0.0, 2.2)),
         (100, Vector((-37.0, -36.5, 9.2)), tr(100, 6.0, 0.0, 2.2)),
         (118, Vector((-42.0, -27.0, 11.2)), tr(118, 6.0, 0.0, 2.0)),
         (140, Vector((-39.0, -21.5, 11.6)), tr(140, 6.0, 0.0, 2.0)),
@@ -869,17 +883,25 @@ def camera(per, cr, f_dep):
         (fl + 30, Vector((-36.0, -19.0, 14.0)), Vector((CRANE_X, QUAY_Y + 4.0, 20.0))),
         (fl + 55, Vector((-42.0, -13.0, 26.0)), Vector((CRANE_X, slot.y - 6.0, 30.0))),
         (fr, Vector((-46.0, -6.0, 37.0)), Vector((CRANE_X, slot.y, slot.z + 1.5))),
-        (fr + 30, Vector((-58.0, -30.0, 70.0)), Vector((CRANE_X + 10.0, 24.0, 10.0))),
-        (365, Vector((-70.0, -95.0, 170.0)), Vector((0.0, 34.0, 2.0))),
-        (405, Vector((-35.0, -115.0, 450.0)), Vector((0.0, 6.0, 0.0))),
+        (fr + 28, Vector((-38.0, -28.0, 72.0)), Vector((CRANE_X + 10.0, 26.0, 8.0))),   # between cranes 1 and 2
+        (380, Vector((-36.0, -100.0, 200.0)), Vector((0.0, 40.0, 0.0))),
+        (412, Vector((-20.0, -115.0, 470.0)), Vector((0.0, 10.0, 0.0))),
         (442, Vector((0.0, -45.0, 850.0)), Vector((0.0, -25.0, 0.0))),
-        (F1, Vector((0.0, 330.0, 1100.0)), Vector((0.0, 1430.0, 0.0))),
+        (F1, Vector((0.0, 460.0, 1100.0)), Vector((0.0, 1560.0, 0.0))),
     ]
     K.sort(key=lambda k: k[0])
     frames = list(range(F0, F1 + 1))
     xs = [k[0] for k in K]
     pos = [Vector([pchip(xs, [k[1][i] for k in K])(f) for i in range(3)]) for f in frames]
     tgt = [Vector([pchip(xs, [k[2][i] for k in K])(f) for i in range(3)]) for f in frames]
+    # while the box is in the air the look-at follows the box itself (lightly smoothed), not a guessed key
+    box = OB['HERO_Reefer']
+    for i, f in enumerate(frames):
+        w = smoothstep(fl - 14, fl + 8, f) * (1.0 - smoothstep(fr + 4, fr + 30, f))
+        if w > 0:
+            s.frame_set(f)
+            bc = box.matrix_world @ Vector((0.0, 0.0, CH * 0.5))
+            tgt[i] = tgt[i].lerp(bc, w)
     sig = [5.0 + 9.0 * smoothstep(fr - 10, fr + 40, f) for f in frames]     # wider easing once airborne
     pos = vgauss(pos, sig)
     tgt = vgauss(tgt, [x + 2.0 for x in sig])
