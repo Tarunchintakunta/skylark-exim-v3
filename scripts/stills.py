@@ -4,9 +4,9 @@ STILL / LAST: first and last frame PNGs of a 2560×1440 master, or STILL alone (
 CX: the phone crop's centre, a share of the width (chapters.ts CROP_X). ID, OUT: file id, output dir.
 Writes <id>_<tier>.avif/.webp for tiers m (810×1440 crop), 960, 1280, 1920 (+2560 with POSTER_2560=1), and
 <id>_end_1280: the last frame, shown on desktop only for the moment a clip seeks back after scrolling up into it, so it
-stays at 1280 (at 1920 the end frames would take ~3.8 MB of a path's 25 MB from the clips).
-Quality-targeted: AVIF crf 25 (libavif q ≈ 60), WebP q 82; only a file over its cap steps down (AVIF to crf 41, WebP
-never below q 70).
+stays at 1280 (at 1920 the end frames would take ~3.8 MB of a path's budget from the clips). CAP_KB caps it too.
+Quality-targeted: AVIF crf 25 (libavif q ≈ 60), WebP q 82; only a file over its cap steps down (AVIF to crf 61, WebP
+never below q 55).
 Caps: 350 KB; the LCP still (the hero loop's first frame) 120 KB, and its phone AVIF 60 KB.
 SHARPEN=0.3–0.5: light unsharp mask on the luma of the downscale only (off by default).
 BLUR=<px at 1280 wide>: a Gaussian blur scaled with each tier (the documentation backdrop: 1 px, measured on the old file).
@@ -52,7 +52,7 @@ def save(img: Image.Image, name: str, cap_avif: int, cap_webp: int) -> str:
     sizes = []
     png = tempfile.NamedTemporaryFile(suffix='.png', dir=os.environ.get('TMPDIR'))
     img.save(png.name)
-    for ext, qs, cap in (('avif', range(25, 42, 4), cap_avif), ('webp', range(82, 69, -3), cap_webp)):
+    for ext, qs, cap in (('avif', range(25, 62, 4), cap_avif), ('webp', range(82, 54, -3), cap_webp)):
         path = f'{OUT}/{name}.{ext}'
         for q in qs:
             if ext == 'avif':
@@ -73,6 +73,7 @@ for t in TIERS:
     # CAP_KB: a tighter cap for a page's own stills (the story entry's cards: 250 KB, #268)
     cap = 120 * KB if LCP else int(os.environ.get('CAP_KB') or 350) * KB
     log.append(save(frame(first, t), f'{ID}_{t}', 60 * KB if LCP and t == 'm' else cap, cap))
+end_cap = int(os.environ.get('CAP_KB') or 350) * KB
 if os.environ.get('LAST'):
-    log.append(save(frame(Image.open(os.environ['LAST']).convert('RGB'), 1280), f'{ID}_end_1280', 350 * KB, 350 * KB))
+    log.append(save(frame(Image.open(os.environ['LAST']).convert('RGB'), 1280), f'{ID}_end_1280', end_cap, end_cap))
 print('  ' + ' · '.join(log))

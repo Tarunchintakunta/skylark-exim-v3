@@ -11,6 +11,8 @@
 # A cut of another clip (#268, the story entry's crate-free wild card): MASTER_ID=<clip whose master to read>,
 # CAPS_ID=<clip whose size caps to use>, SRC_CROP=w:h:x:y cropped from the master before every desktop tier (never scaled
 # up: list only TIERS up to its width), M_CROP=w:h:x:y the phone tier's own crop, kept at its native size.
+# SOLVE="<ids>": the clips being encoded in this run; every other clip keeps its files and its bytes (clip-manifest.ts caps).
+# CAP_<tier>=<bytes>: that tier's cap instead of the solver's, for a tier whose budget cannot hold the clip (say so in the PR).
 # Quality first, capped by size: AV1 crf 30 / HEVC crf 22 / H.264 crf 18, HEVC and H.264 with maxrate at the solver's
 # cap for the tier (scripts/clip-manifest.ts caps). Where the cap still binds, the encode drops to a VBR at the cap; AV1
 # goes there directly (SVT-AV1's capped CRF starves busy frames: SSIM 0.83 vs 0.89 for VBR at fewer bytes on hf-catch).
@@ -65,7 +67,7 @@ posters(){
 }
 [ "${POSTERS:-}" = only ] && { posters; exit 0; }
 caps=$(node --import tsx scripts/clip-manifest.ts caps "${CAPS_ID:-$id}")
-cap(){ awk -v t="$1" '$1==t{print $2}' <<<"$caps"; }
+cap(){ local o="CAP_$1"; [ -n "${!o:-}" ] && echo "${!o}" || awk -v t="$1" '$1==t{print $2}' <<<"$caps"; }
 
 line="$id (crop x $x)"
 for t in ${TIERS:-m 960 1280 1920 2560}; do
