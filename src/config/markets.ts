@@ -32,3 +32,6 @@ export const MARKETS_BY_REGION = REGIONS.map((region) => ({
   region,
   markets: MARKET_COORDS.flatMap((m, i) => (m.region === region ? [i] : [])),
 }))
+
+/** The client's list has one regional entry, "Europe", beside the countries. Anywhere the names are listed it reads "Europe (region)", so it is never mistaken for a country. */
+export const marketLabel = (name: string) => (name === 'Europe' ? 'Europe (region)' : name)

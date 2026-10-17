@@ -1,4 +1,4 @@
-import { MARKET_COORDS, MARKETS_BY_REGION } from '../config/markets'
+import { MARKET_COORDS, MARKETS_BY_REGION, marketLabel } from '../config/markets'
 import { globeUi } from '../three/globeState'
 import './markets.css'
 
@@ -14,7 +14,7 @@ export function MarketList() {
             {markets.map((i) => (
               <li key={i}>
                 <button type="button" className="markets__item" onMouseEnter={set(i)} onMouseLeave={set(-1)} onFocus={set(i)} onBlur={set(-1)} onClick={() => void (globeUi.focus = globeUi.highlight = i)}>
-                  {MARKET_COORDS[i].name}
+                  {marketLabel(MARKET_COORDS[i].name)}
                 </button>
               </li>
             ))}
