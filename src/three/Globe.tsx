@@ -143,10 +143,9 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
       await idle()
       if (stop) return
       gl.initTexture(tex)
-      // the smaller levels are resized off the main thread, all at once, at better quality than the GPU's box filter
-      const resized = tex.mipmaps.map(({ width, height }, level) => (level ? createImageBitmap(bitmap, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' }) : bitmap))
       for (const [level, { width, height }] of tex.mipmaps.entries()) {
-        const img = await resized[level]
+        // the smaller levels are resized off the main thread, at better quality than the GPU's box filter
+        const img = level ? await createImageBitmap(bitmap, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' }) : bitmap
         const rows = Math.min(height, Math.max(1, STRIP_PX / width))
         for (let y = 0; y < height && !stop; y += rows) {
           const strip = rows < height ? await createImageBitmap(img, 0, y, width, Math.min(rows, height - y)) : img
