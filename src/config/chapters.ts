@@ -147,7 +147,7 @@ const PLANT_POND: ChapterDef[] = [
 /** The wild-catch path's plant (#219): whole fish and tuna loins through the same plant, never a shrimp on screen or in the copy. */
 const PLANT_OCEAN: ChapterDef[] = [
   {
-    id: 'intake', path: 'ocean', label: 'Intake', vh: 450, joinNext: 'crossfade',
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 480, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
