@@ -261,6 +261,72 @@ def frost257(sid):
         o.data.materials.append(m)
 
 
+def _fcurves(act):
+    if act is None:
+        return []
+    if getattr(act, 'fcurves', None) is not None:
+        return list(act.fcurves)
+    return [fc for ly in act.layers for st in ly.strips for cb in st.channelbags for fc in cb.fcurves]
+
+
+def carry246(sid, frame=62):
+    """#246 beat 3: both unloaders hold the one crate between them, one at each grab bar, gloves wrapped over the bar,
+    feet planted (no walk-cycle kick). Staged at the still frame only: the film's own carry is unchanged."""
+    if sid not in ('246', '246f'):
+        return
+    import math
+    from mathutils import Matrix, Vector
+    import skhuman as H
+    s = bpy.context.scene
+    s.frame_set(frame)
+    DZ = 1.2
+    crate = bpy.data.objects['TRK_RigidReefer_Cargo08']
+    ctr = Vector((9.2, 0.42))                        # W1 clear of the crate on trolley A (Cargo02)
+    u = Vector((1.0, 0.0))                           # crate's bar axis, W1 -> W2
+    crate.animation_data_clear()
+    crate.matrix_world = Matrix.Translation((ctr.x, ctr.y, DZ + 0.70)) @ Matrix.Rotation(math.atan2(-u.x, u.y), 4, 'Z')
+    legs = {'hips': (0, 0, 0), 'spine': (12, 0, 0), 'thigh.L': (12, 3, 0), 'shin.L': (-14, 0, 0), 'foot.L': (3, 0, 0),
+            'thigh.R': (2, 3, 0), 'shin.R': (-6, 0, 0), 'foot.R': (2, 0, 0)}
+    for nm, sg in (('HUM_DockW1', -1), ('HUM_DockW2', 1)):
+        w = bpy.data.objects[nm]
+        mo = w.children[0]
+        for fc in _fcurves(w.animation_data.action if w.animation_data else None):
+            if fc.data_path in ('location', 'rotation_euler') or any('"%s"' % b in fc.data_path for b in legs) or \
+                    '.constraints[' in fc.data_path:      # the film's IK influence keys would drive the new same-named IK
+                fc.mute = True
+        p = ctr + u * sg * 0.66
+        face = -u * sg
+        w.location = (p.x, p.y, DZ - 0.01)
+        w.rotation_euler = (0, 0, math.atan2(face.x, -face.y))
+        for b, v in legs.items():
+            H._rot(w.pose.bones[b], *v, b.split('.')[-1] if '.' in b else '')
+        for sd in 'LR':                              # the film's carry / door IK and hand tracks off (removed: the legacy IK
+            for b in ('forearm.', 'hand.'):          # solver still blends a muted IK into the chain)
+                cs = w.pose.bones[b + sd].constraints
+                for c in list(cs):
+                    cs.remove(c)
+        if mo.data.shape_keys:                       # the film's finger grips off: new ones close on this bar
+            for kb in mo.data.shape_keys.key_blocks:
+                if kb.name.startswith('grip'):
+                    kb.value = 0.0
+            ad = mo.data.shape_keys.animation_data
+            for fc in _fcurves(ad.action if ad else None):
+                fc.mute = True
+        by = sg * 0.258                              # this worker's bar, crate local y; fingers point in over it
+        for sd, bx in (('L', 0.06 * sg), ('R', -0.06 * sg)):
+            H.wrap_hand(w, sd, crate, (bx, by + sg * 0.02, 0.275), (0, -sg * 0.8, 0.6), (0, -sg * 0.6, -0.8), [(1, 1.0)],
+                        s.collection)                # palm on the bar's outer top, fingers over it and down behind
+            ik = [c for c in w.pose.bones['forearm.' + sd].constraints if c.type == 'IK' and not c.mute][-1]
+            pole = bpy.data.objects.get('%s_CarryPole%s' % (nm, sd))
+            if pole is not None:
+                ik.pole_target, ik.pole_angle = pole, math.radians(-90)
+    s.frame_set(frame)
+    bpy.context.view_layer.update()
+    for nm in ('HUM_DockW1', 'HUM_DockW2'):
+        for sd in 'LR':
+            H.grip(bpy.data.objects[nm], sd, target=[crate], curl=1.0)
+
+
 def apply_all(sid=''):
     apply()
     crane_paint()
@@ -269,3 +335,4 @@ def apply_all(sid=''):
     leveler(sid)
     props256(sid)
     frost257(sid)
+    carry246(sid)
