@@ -173,7 +173,8 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
         const fromClip = s.kind === 'video' || s.src.startsWith('blob:') || /_(m|960|1280|1920|2560)\.(avif|webp)$/.test(s.src)
         // the documentation still comes from a 3840×2160 master, but it is exported into the same tier ladder as the
         // clips and so tops out at 2560×1440 like them
-        const masterRows = MASTER_ROWS
+        // a card cut from a larger master at native size (hf-catch-card, #268) has fewer rows than the master: its own rows are its ceiling
+        const masterRows = /-card_/.test(s.src) ? +s.source.split('×')[1] : MASTER_ROWS
         const min = fromClip ? Math.min(MIN, +((0.99 * masterRows) / (+s.css.split('×')[1] * v.dpr)).toFixed(2)) : MIN
         rows.push({ ...s, page: where, min, ok: s.ratio >= min })
       }

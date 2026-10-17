@@ -1,17 +1,13 @@
 /* Homepage below the hero (#233). Sections reuse sections.css; this adds the bands that only the homepage has. */
 /* section anchors clear the fixed bar */
 main section[id] { scroll-margin-top: 68px; }
+/* the intro is a short band: its own smaller step, and the section after it opens with the same space, so the
+   hairline between them sits evenly (#275) */
+.section.home-intro { padding-block: var(--space-intro); }
+.home-intro + .section { padding-top: var(--space-intro); }
 .home-intro__body { max-width: 52ch; color: var(--ink-2); font-size: var(--fs-lead); line-height: 1.45; }
 
 /* the two stories */
-.story-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(20px, 3vw, 48px); }
-.story-card__link { display: grid; gap: 14px; color: var(--ink); text-decoration: none; }
-.story-card__poster { display: block; overflow: hidden; border-radius: var(--radius); background: var(--deep); }
-.story-card__img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
-.story-card__title { margin-top: 8px; font-size: var(--fs-h3); line-height: 1.15; }
-.story-card__route { color: var(--ink-2); }
-.story-card__cta { color: var(--brass-ink); }
-.story-card__cta u { text-underline-offset: 4px; }
 
 /* markets: the list beside the globe (stacked on phones, globe first) */
 .home-markets { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 96px); align-items: center; }
@@ -50,5 +46,5 @@ main section[id] { scroll-margin-top: 68px; }
 .home-news__all { color: var(--ink); text-underline-offset: 4px; }
 
 @media (max-width: 819px) {
-  .story-cards, .plant-grid, .home-company { grid-template-columns: 1fr; }
+  .plant-grid, .home-company { grid-template-columns: 1fr; }
 }

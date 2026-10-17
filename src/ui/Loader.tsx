@@ -13,13 +13,22 @@ const WIPE_S = 0.3
 const MAX_MS = 3000
 
 /**
- * What must be ready when the intro opens (#274): `fn` runs once the page's own load has settled (the LCP poster is
- * in), in the first idle slice, in parallel with the hero frames; so it never competes with the first screen.
+ * What must be ready when the intro opens (#274): `fn` runs in an idle slice once the hero's LCP has painted and the page
+ * has been ready (`data-ready`) for 500 ms, in parallel with the hero frames; so its bytes stay out of the first
+ * screens' weight budget (tests/weight.spec.ts) and never compete with the LCP.
  */
 export function duringIntro(fn: () => void) {
+  const html = document.documentElement
   const idle = () => ('requestIdleCallback' in window ? requestIdleCallback(() => fn(), { timeout: 400 }) : setTimeout(fn, 100))
-  if (document.readyState === 'complete') idle()
-  else addEventListener('load', idle, { once: true })
+  const lcp = new Promise<void>((done) => {
+    // a page that never reports an LCP (a hidden tab) goes on after 2 s
+    setTimeout(done, 2000)
+    new PerformanceObserver((l, o) => l.getEntries().length && (o.disconnect(), done())).observe({ type: 'largest-contentful-paint', buffered: true })
+  })
+  const later = () => void lcp.then(() => setTimeout(idle, 500))
+  if (html.dataset.ready === '1') return later()
+  const mo = new MutationObserver(() => html.dataset.ready === '1' && (mo.disconnect(), later()))
+  mo.observe(html, { attributes: true, attributeFilter: ['data-ready'] })
 }
 
 /**
