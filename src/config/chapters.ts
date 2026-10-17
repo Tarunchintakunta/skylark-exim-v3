@@ -184,7 +184,7 @@ const ENDING: ChapterDef[] = [
   {
     // the #258 port run (#284): six chained shots, each starting on the previous one's last frame, so the cross-fades
     // between them join matching frames
-    id: 'port', path: 'shared', label: 'The port', vh: 630, joinNext: 'crossfade', scrim: 'soft',
+    id: 'port', path: 'shared', label: 'The port', vh: 640, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-stuff', alt: 'At the plant loading bays, a forklift carries a pallet of plain cartons toward a white refrigerated trailer.' },
       { kind: 'video', id: 'hf-port-gate', alt: 'A white truck carrying a red container rolls along the quay road past the gatehouse, ship-to-shore cranes and a loaded container ship behind it.' },
