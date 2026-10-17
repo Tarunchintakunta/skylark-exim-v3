@@ -2014,29 +2014,102 @@ _SHRIMP = {}
 def shrimp_mesh():
     if 'm' in _SHRIMP:
         return _SHRIMP['m']
+    """Raw whole shrimp (~11.5 cm), cheap (~700 faces): straight carapace with rostrum and eyes, six abdominal plates
+    curling into a C and tapering to a fan tail, walking legs, swimmerets and long antennae (#256 #246).
+    Curl in the XZ plane, body side along Y; origin at the bounding-box centre."""
+    if 'm' in _SHRIMP:
+        return _SHRIMP['m']
     bm = bmesh.new()
-    seg = 10
-    n = 14
-    rings = []
+    Y = Vector((0, 1, 0))
+    seg, n, Ln = 12, 48, 0.115
+    ds, CAR = Ln / n, 0.34
+    p, th = Vector((0, 0, 0)), 0.0
+    rings, band = [], []
     for i in range(n + 1):
         t = i / n
-        a = math.pi * 0.75 * t
-        R = 0.05
-        cx, cz = R * math.sin(a), R * (1 - math.cos(a))
-        r = 0.012 * (0.35 + 0.65 * math.sin(math.pi * min(1, t * 1.1 + 0.05)))
-        nrm = Vector((math.cos(a), 0, math.sin(a)))
-        side = Vector((0, 1, 0))
-        ring = []
-        for j in range(seg):
-            b = 2 * math.pi * j / seg
-            p = Vector((cx, 0, cz)) + r * (math.cos(b) * side + math.sin(b) * Vector((-nrm.z, 0, nrm.x)) * 1.0)
-            ring.append(bm.verts.new(p))
-        rings.append(ring)
+        tan = Vector((math.cos(th), 0, math.sin(th)))
+        dor = Vector((math.sin(th), 0, -math.cos(th)))          # back: the outside of the curl
+        if t < CAR:                                              # carapace: blunt front, full by a seventh
+            r, ph = 0.0122 * (0.3 + 0.7 * math.sin(math.pi / 2 * min(1.0, t / 0.22))), 0.0
+        else:                                                    # six overlapping plates tapering to the tail stalk
+            u = (t - CAR) / (1 - CAR)
+            ph = (u * 6.0) % 1.0
+            r = max(0.0032, (0.0118 - 0.0084 * u ** 1.3)) * (0.95 + 0.08 * ph if u < 0.9 else 1.0)
+        ring = [bm.verts.new(p + Y * (math.cos(b) * r * 0.7) + dor * (math.sin(b) * r))
+                for b in (2 * math.pi * j / seg for j in range(seg))]
+        rings.append((ring, p.copy(), tan, dor, r))
+        band.append(ph > 0.78)
+        if t > CAR:
+            th += 0.95 * math.pi / ((1 - CAR) * Ln) * ds        # the abdomen curls toward the legs
+        p = p + tan * ds
     for i in range(n):
+        a, b = rings[i][0], rings[i + 1][0]
         for j in range(seg):
-            bm.faces.new((rings[i][j], rings[i + 1][j], rings[i + 1][(j + 1) % seg], rings[i][(j + 1) % seg]))
+            f = bm.faces.new((a[j], b[j], b[(j + 1) % seg], a[(j + 1) % seg]))
+            f.material_index = 1 if band[i + 1] else 0          # darker plate edges read as segments
+    h0, ht, hd, hr = rings[0][1], rings[0][2], rings[0][3], rings[0][4]
+    tip = bm.verts.new(h0 - ht * 0.004)
+    for j in range(seg):
+        bm.faces.new((rings[0][0][(j + 1) % seg], rings[0][0][j], tip))
+    e, et, ed = rings[-1][1], rings[-1][2], rings[-1][3]
+    ec = bm.verts.new(e)
+    for j in range(seg):
+        bm.faces.new((rings[-1][0][j], rings[-1][0][(j + 1) % seg], ec))
+
+    def tube(pts, rad, mat=0):                                   # 3-sided prism: reads from every side
+        prev = None
+        for k, q in enumerate(pts):
+            d = (pts[min(k + 1, len(pts) - 1)] - pts[max(k - 1, 0)]).normalized()
+            s1 = d.cross(Y if abs(d.dot(Y)) < 0.9 else Vector((1, 0, 0))).normalized()
+            s2 = d.cross(s1)
+            ring = [bm.verts.new(q + (s1 * math.cos(c) + s2 * math.sin(c)) * rad) for c in (0, 2.09, 4.19)]
+            if prev:
+                for j in range(3):
+                    bm.faces.new((prev[j], ring[j], ring[(j + 1) % 3], prev[(j + 1) % 3])).material_index = mat
+            prev = ring
+    # rostrum: a spike forward over the eyes
+    rb = h0 + hd * hr * 0.7
+    tube([rb + ht * 0.012, rb - ht * 0.026 + hd * 0.004], 0.0011)
+    # eyes
+    for sy in (-1, 1):
+        ce = h0 + ht * 0.006 + hd * 0.002 + Y * sy * 0.0055
+        vs = bmesh.ops.create_icosphere(bm, subdivisions=1, radius=0.0034)['verts']
+        for v in vs:
+            v.co += ce
+        for f in {f for v in vs for f in v.link_faces}:
+            f.material_index = 2
+    # antennae: long feelers sweeping back past the tail
+    for sy, sw in ((-1, 1.0), (1, 0.8)):
+        a0 = h0 - hd * hr * 0.2 + Y * sy * 0.004
+        tube([a0 + ht * (-0.014 * math.sin(math.pi * k / 12) + 0.085 * sw * (k / 12) ** 2) +
+              hd * (0.004 + 0.022 * sw) * math.sin(math.pi * k / 16) + Y * sy * 0.004 * k / 12
+              for k in range(13)], 0.0006)
+    # walking legs under the carapace, swimmerets under the abdomen
+    for sy in (-1, 1):
+        for k in range(5):
+            _, c, tn, dr, r = rings[3 + k * 3]
+            b0 = c - dr * r * 0.7 + Y * sy * r * 0.35
+            tube([b0, b0 - dr * 0.006 - tn * 0.002 + Y * sy * 0.002, b0 - dr * 0.010 + tn * 0.001 + Y * sy * 0.003], 0.0006)
+        for k in range(5):
+            _, c, tn, dr, r = rings[18 + k * 5]
+            b0 = c - dr * r * 0.8 + Y * sy * r * 0.3
+            tube([b0, b0 - dr * 0.005 + tn * 0.002], 0.0008, 1)
+    # fan tail: telson and four uropods, spread obliquely so it reads both lying and upright
+    sd = (Y * 0.55 + ed * 0.84).normalized()
+    fan = [ec]
+    for k in range(11):
+        ang = math.radians(-45 + 9 * k)
+        fan.append(bm.verts.new(e + (et * math.cos(ang) + sd * math.sin(ang)) * (0.017 if k % 2 == 0 else 0.0145)))
+    for k in range(10):
+        bm.faces.new((fan[0], fan[k + 1], fan[k + 2])).material_index = 1
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    mn = Vector([min(v.co[a] for v in bm.verts) for a in range(3)])
+    mx = Vector([max(v.co[a] for v in bm.verts) for a in range(3)])
+    bmesh.ops.translate(bm, verts=bm.verts, vec=-(mn + mx) / 2)
     me = bm_to_mesh(bm, 'LIB_Shrimp_proxy', smooth=True)
     me.materials.append(pbr('MAT_ShrimpRaw', (0.62, 0.6, 0.55), 0.25, var=0.15, sss=0.4, coat=0.6, transmission=0.15))
+    me.materials.append(pbr('MAT_ShrimpBand', (0.38, 0.35, 0.36), 0.3, var=0.1, sss=0.2, coat=0.6))
+    me.materials.append(pbr('MAT_ShrimpEye', (0.02, 0.02, 0.025), 0.1, coat=1.0, var=0.0))
     _SHRIMP['m'] = me
     return me
 
