@@ -12,13 +12,13 @@ import skpbr as P
 
 BL, BW, BH, BZ = 7.0, 2.5, 2.55, 1.28      # box length, width, height, floor height (dock ~1.2-1.3)
 REAR = -2.75                              # rear face x
-WB = 4.7                                  # wheelbase (front axle x)
+WB = 5.55                                 # wheelbase (front axle x): under the cab front, ~1.1 m overhang to the nose (#255)
 TR = 0.52                                 # tyre radius
 
 
 def _mats():
     return {
-        'white': P.grime_paint('TRK_PaintWhite', (0.80, 0.81, 0.80), rough=0.28, grime=0.55, streak=0.25, coat=0.6),
+        'white': P.grime_paint('TRK_PaintWhite', (0.78, 0.78, 0.76), rough=0.38, grime=0.7, streak=0.4, coat=0.25),
         'box': P.grime_paint('TRK_BoxGRP', (0.8, 0.79, 0.74), rough=0.36, grime=0.6, streak=0.5, coat=0.3, metal=0.0),
         'alu': P.tex_mat('TRK_Alu', 'Metal009', scale=1.5, tint=(0.85, 0.86, 0.88), rough_mul=0.9, metal=1.0, aniso=0.4),
         'dark': P.plain('TRK_DarkGrey', (0.035, 0.037, 0.04), 0.5, 0.2, bump=0.05),
@@ -168,8 +168,8 @@ def _cut_windows(cab, name, root, coll, cx1, W2):
     ang = math.atan2(b.x - a.x, b.z - a.z)
     for sy in (-1, 1):
         p.box((a + b) / 2 + Vector((0, sy * 0.52, 0)), (0.4, 0.9, (b - a).length - 0.06), Euler((0, ang, 0)))
-        p.box((cx1 - 0.55, sy * W2, 2.33), (0.69, 0.4, 0.56))
-        p.box((cx1 - 1.3, sy * W2, 2.45), (0.29, 0.4, 0.29))
+        p.box((cx1 - 0.73, sy * W2, 2.34), (1.12, 0.4, 0.64))       # door window
+    p.cyl((WB, -1.6, TR), (WB, 1.6, TR), TR + 0.1, 32)              # front wheel arches
     cut = p.make(name + '_WindowCut', None, root, coll=coll)
     cut.hide_render = True
     cut.display_type = 'WIRE'
@@ -207,8 +207,8 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     # ---------------- chassis
     p = Part()
     for sy in (-0.43, 0.43):
-        p.box((0.9, sy, 0.92), (8.0, 0.08, 0.26))
-    for x in (-2.4, -1.2, 0.0, 1.4, 2.8, 4.0):
+        p.box((1.65, sy, 0.92), (9.5, 0.08, 0.26))
+    for x in (-2.4, -1.2, 0.0, 1.4, 2.8, 4.0, 5.0, 6.2):
         p.box((x, 0, 0.92), (0.1, 0.86, 0.2))
     p.box((0.0, 0, TR), (0.18, 1.7, 0.16))           # rear axle
     p.cyl((0.0, -0.18, TR), (0.0, 0.18, TR), 0.2, 16)  # diff
@@ -250,7 +250,7 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     p = Part()
     for sy in (-0.92, 0.92):
         p.box((-0.75, sy, 0.45), (0.01, 0.6, 0.55))
-        p.box((WB - 0.75, sy * 1.0, 0.5), (0.01, 0.45, 0.45))
+        p.box((WB - TR - 0.14, sy * 1.0, 0.5), (0.01, 0.45, 0.45))
     p.make(name + '_Flaps', M['seal'], root, coll=coll)
 
     # ---------------- insulated box
@@ -398,20 +398,24 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     # ---------------- cab (cab-over), built from a convex hull, then bevelled
     W2 = 1.18
     NB = 0.36                                   # short bonnet nose ahead of the windscreen
+    ZB = 0.86                                   # cab skirt bottom: the front wheel arches are cut out of it
     pts = []
-    for sy in (-1, 1):
-        pts += [(cx0, sy * W2, 1.05), (cx0, sy * W2, 3.0), (cx1 - 0.14, sy * (W2 - 0.04), 3.0),
-                (cx1 - 0.03, sy * (W2 - 0.02), 2.86), (cx1 + 0.02, sy * W2, 1.72), (cx1 + 0.02, sy * W2, 1.05)]
+    for sy in (-1, 1):                          # vertical sides up to the window tops, then a rounded roof edge and crown;
+        pts += [(cx0, sy * W2, ZB), (cx0, sy * W2, 2.74), (cx0, sy * (W2 - 0.1), 2.94),   # chamfered front corners
+                (cx0 + 0.05, sy * (W2 - 0.26), 3.02), (cx1 - 0.2, sy * (W2 - 0.26), 3.02),
+                (cx1 - 0.1, sy * (W2 - 0.1), 2.94), (cx1 - 0.13, sy * W2, 2.74),
+                (cx1 - 0.03, sy * (W2 - 0.1), 2.84), (cx1 - 0.12, sy * W2, ZB), (cx1 - 0.1, sy * W2, 1.72),
+                (cx1 + 0.02, sy * (W2 - 0.13), 1.72), (cx1 + 0.02, sy * (W2 - 0.13), ZB)]
     p = Part()
     p.hull(pts)
     cab = p.make(name + '_Cab', M['white'], root, bevel=0.07, seg=4, coll=coll)
     _cut_windows(cab, name, root, coll, cx1, W2)     # hollow cab with real window openings: the driver shows (#255)
     pts = []                                    # bonnet nose: its own hull so the screen corner stays concave
     for sy in (-1, 1):
-        pts += [(cx1 - 0.1, sy * (W2 - 0.02), 1.62), (cx1 - 0.1, sy * (W2 - 0.02), 1.0),
-                (cx1 + NB - 0.08, sy * (W2 - 0.1), 1.56), (cx1 + NB - 0.02, sy * 0.72, 1.585),
-                (cx1 + NB - 0.08, sy * (W2 - 0.1), 1.0), (cx1 + NB - 0.02, sy * 0.72, 1.0)]
-    pts += [(cx1 + NB, 0, 1.59), (cx1 + NB, 0, 1.0)]
+        pts += [(cx1 - 0.1, sy * (W2 - 0.13), 1.62), (cx1 - 0.1, sy * (W2 - 0.13), ZB),
+                (cx1 + NB - 0.08, sy * (W2 - 0.16), 1.56), (cx1 + NB - 0.02, sy * 0.72, 1.585),
+                (cx1 + NB - 0.08, sy * (W2 - 0.16), ZB), (cx1 + NB - 0.02, sy * 0.72, ZB)]
+    pts += [(cx1 + NB, 0, 1.59), (cx1 + NB, 0, ZB)]
     p = Part()
     p.hull(pts)
     p.make(name + '_Bonnet', M['white'], root, bevel=0.06, seg=4, coll=coll)
@@ -424,9 +428,13 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     for sy in (-1, 1):                          # tall upright two-piece screen
         p.box(mid + Vector((0.014, sy * 0.52, 0)), (0.02, 0.96, (b - a).length), Euler((0, ang, 0)))
     for sy in (-1, 1):
-        p.box((cx1 - 0.55, sy * (W2 + 0.006), 2.33), (0.75, 0.02, 0.62))
-        p.box((cx1 - 1.3, sy * (W2 + 0.006), 2.45), (0.35, 0.02, 0.35))
+        p.box((cx1 - 0.73, sy * (W2 + 0.006), 2.34), (1.18, 0.02, 0.70))
     p.make(name + '_CabGlass', M['glass'], root, bevel=0.01, coll=coll)
+    p = Part()                                  # green-tinted sun strip across the top of the screen (Indian trucks)
+    for sy in (-1, 1):
+        p.box(b + (a - b).normalized() * 0.08 + Vector((0.03, sy * 0.52, 0)), (0.006, 0.95, 0.15), Euler((0, ang, 0)))
+    p.make(name + '_SunStrip', P.plain('TRK_SunStrip', (0.01, 0.10, 0.06), 0.05, 0.0, coat=1.0, alpha=0.7), root,
+           coll=coll)
     p = Part()                                  # black rubber seals round the screen and side glass (r8)
     for sy in (-1, 1):
         for z, l in ((1.80, 0.98), (2.76, 0.98)):
@@ -434,16 +442,24 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
             xx = a.x + (b.x - a.x) * (z - a.z) / (b.z - a.z)
             p.box((xx + 0.02, sy * 0.52, zz), (0.03, l, 0.035), Euler((0, ang, 0)))
         p.box(mid + Vector((0.022, sy * 1.0, 0)), (0.03, 0.035, (b - a).length), Euler((0, ang, 0)))
-        p.box((cx1 - 0.55, sy * (W2 + 0.01), 2.65), (0.79, 0.02, 0.03))
-        p.box((cx1 - 0.55, sy * (W2 + 0.01), 2.01), (0.79, 0.02, 0.03))
-        p.box((cx1 - 0.94, sy * (W2 + 0.01), 2.33), (0.03, 0.02, 0.66))
+        p.box((cx1 - 0.73, sy * (W2 + 0.01), 2.675), (1.2, 0.02, 0.03))
+        p.box((cx1 - 0.73, sy * (W2 + 0.01), 2.005), (1.2, 0.02, 0.03))
+        p.box((cx1 - 1.32, sy * (W2 + 0.01), 2.34), (0.03, 0.02, 0.7))
+        p.box((cx1 - 0.14, sy * (W2 + 0.01), 2.34), (0.03, 0.02, 0.7))
+        p.box((cx1 - 0.42, sy * (W2 + 0.012), 2.34), (0.025, 0.02, 0.68))     # quarter-light divider
     p.make(name + '_CabSeals', M['dark'], root, bevel=0.005, coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.box((cx1 - 0.08, sy * (W2 + 0.004), 1.85), (0.012, 0.012, 1.55))   # front door seam
-        p.box((cx0 + 0.35, sy * (W2 + 0.004), 1.85), (0.012, 0.012, 1.55))   # rear door seam
-        p.box((cx1 - 0.5, sy * (W2 + 0.012), 1.75), (0.18, 0.02, 0.04))      # door handle
-        p.box((cx1 + 0.04, sy * (W2 + 0.03), 1.55), (0.025, 0.025, 0.55))    # grab handle by the door
+        dz0, dz1, dx0, dx1 = 1.2, 2.74, cx0 + 0.35, cx1 - 0.12                # door: above the wheel arch
+        for xx in (dx0, dx1):
+            p.box((xx, sy * (W2 + 0.004), (dz0 + dz1) / 2), (0.012, 0.012, dz1 - dz0))
+        for zz in (dz0, dz1):
+            p.box(((dx0 + dx1) / 2, sy * (W2 + 0.004), zz), (dx1 - dx0, 0.012, 0.012))
+        p.box((dx0 + 0.2, sy * (W2 + 0.014), 1.86), (0.2, 0.025, 0.045))     # door handle at the rear edge
+        p.box((dx0 + 0.2, sy * (W2 + 0.006), 1.86), (0.24, 0.01, 0.09))      # its recess
+        p.box((cx0 + 0.2, sy * (W2 + 0.035), 1.75), (0.025, 0.025, 0.6))     # grab handle on the back pillar
+        for zz in (1.47, 2.03):
+            p.box((cx0 + 0.2, sy * (W2 + 0.018), zz), (0.03, 0.035, 0.03))
     p.make(name + '_CabSeams', M['dark'], root, coll=coll)
     # Indian rigid-truck front (Tata LPT / Ashok Leyland style, no badges): black slatted grille panel in a bright
     # frame, twin round headlamps in square bezels, a deep painted steel bumper with fog lamps and a blank yellow
@@ -481,21 +497,17 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     p = Part()
     p.box((fx - 0.01, 0, 1.555), (0.012, 1.7, 0.035))                         # accent stripe along the nose top
     for sy in (-1, 1):
-        p.box((cx1 - 0.6, sy * (W2 + 0.008), 1.79), (1.2, 0.01, 0.06))
-    p.make(name + '_Stripe', P.plain('TRK_StripeBlue', (0.03, 0.08, 0.22), 0.35, coat=0.5), root, coll=coll)
+        p.box(((cx0 + cx1 - 0.13) / 2, sy * (W2 + 0.008), 1.62), (cx1 - cx0 - 0.15, 0.01, 0.06))
+    p.make(name + '_Stripe', P.plain('TRK_StripeBlue', (0.05, 0.08, 0.15), 0.4, coat=0.2), root, coll=coll)
     p = Part()
     p.box((fx + 0.1, 0, 0.88), (0.24, 2.1, 0.34))                            # deep steel bumper
     for sy in (-1, 1):
         p.box((fx - 0.07, sy * 1.12, 0.88), (0.36, 0.1, 0.34), Euler((0, 0, sy * 0.5)))   # wrap-round corner guards
-        p.box((cx1 - 0.55, sy * 1.08, 0.72), (0.5, 0.26, 0.04))             # step 1
-        p.box((cx1 - 0.55, sy * 1.12, 0.95), (0.5, 0.2, 0.04))
+        p.box((cx0 + 0.36, sy * 1.08, 0.5), (0.42, 0.26, 0.04))             # steps under the door, behind the wheel
+        p.box((cx0 + 0.36, sy * 1.14, 0.84), (0.42, 0.16, 0.04))
+        p.box((cx0 + 0.36, sy * 1.2, 0.67), (0.42, 0.02, 0.38))               # step hanger
     p.make(name + '_Bumper', P.grime_paint('TRK_BumperPaint', (0.16, 0.17, 0.18), rough=0.45, grime=0.6, streak=0.3,
                                            coat=0.2, metal=0.4), root, bevel=0.03, coll=coll)
-    p = Part()
-    for sy in (-1, 1):                                                       # corner guard bars up the nose
-        p.cyl((fx + 0.17, sy * 1.0, 1.05), (fx + 0.05, sy * 1.02, 1.5), 0.022, 10)
-        p.cyl((fx + 0.05, sy * 1.02, 1.5), (fx - 0.12, sy * 1.06, 1.56), 0.022, 10)
-    p.make(name + '_GuardBars', M['chrome'], root, smooth=True, coll=coll)
     p = Part()
     p.box((cx1 - 0.05, 0, 2.97), (0.34, 2.24, 0.05), Euler((0, -0.28, 0)))   # sun visor
     p.make(name + '_Visor', M['white'], root, bevel=0.02, coll=coll)
@@ -506,16 +518,16 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     p = Part()
     for sy in (-1, 1):
         for zb in (2.62, 2.0):                                                   # two tube arms, each bolted to the cab by a plate
-            p.box((cx1 - 0.02, sy * (W2 + 0.012), zb), (0.1, 0.03, 0.12))
-            p.cyl((cx1 - 0.02, sy * (W2 + 0.02), zb), (cx1 + 0.1, sy * (W2 + 0.36), zb), 0.018, 8)
+            p.box((cx1 - 0.18, sy * (W2 + 0.012), zb), (0.1, 0.03, 0.12))
+            p.cyl((cx1 - 0.18, sy * (W2 + 0.02), zb), (cx1 + 0.1, sy * (W2 + 0.36), zb), 0.018, 8)
         p.box((cx1 + 0.1, sy * (W2 + 0.37), 2.31), (0.07, 0.2, 0.7), Euler((0, 0, sy * 0.1)))   # mirror head: tall and slim
-        p.box((cx1 + 0.04, sy * (W2 + 0.22), 2.88), (0.07, 0.15, 0.14))        # kerb mirror
+        p.box((cx1 - 0.1, sy * (W2 + 0.2), 2.86), (0.07, 0.15, 0.14))         # kerb mirror
         p.box((cx1 + 0.02, sy * 0.35, 1.84), (0.02, 0.6, 0.02), Euler((0.3 * sy, 0, 0)))  # wiper
     p.make(name + '_Mirrors', M['dark'], root, bevel=0.01, coll=coll)
     p = Part()
     for sy in (-1, 1):
-        p.box((cx1 + 0.14, sy * (W2 + 0.37), 2.31), (0.02, 0.17, 0.62), Euler((0, 0, sy * 0.1)))
-        p.box((cx1 + 0.085, sy * (W2 + 0.22), 2.88), (0.02, 0.12, 0.11))
+        p.box((cx1 + 0.06, sy * (W2 + 0.37), 2.31), (0.02, 0.17, 0.62), Euler((0, 0, sy * 0.1)))   # glass faces the driver
+        p.box((cx1 - 0.14, sy * (W2 + 0.2), 2.86), (0.02, 0.12, 0.11))
     p.make(name + '_MirrorGlass', M['glass'], root, coll=coll)
     # driver door (right-hand drive -> the -Y side when facing +X)
     hn = name + '_CabDoorHinge'
@@ -532,20 +544,25 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
     R['cab_door'] = cdh
     # cab interior, right-hand drive (Indian): the wheel, column and driver's seat on the right (-Y); dash, binnacle,
     # gear lever in the middle, passenger seat on the left, a floor so the footwell reads through the glass
+    SX = 0.36                                   # seats ~1.1 m behind the screen, as in a day cab: the driver shows through it
     p = Part()
-    p.box((cx1 - 0.3, 0, 1.94), (0.48, 2.2, 0.28))                          # dashboard
-    p.box((cx1 - 0.52, -0.55, 2.13), (0.14, 0.5, 0.12), Euler((0, 0.5, 0)))  # instrument binnacle, driver's side
+    p.box((cx1 - 0.2, 0, 1.94), (0.32, 2.2, 0.28))                          # dashboard
+    p.box((cx1 - 0.4, -0.55, 2.13), (0.14, 0.5, 0.12), Euler((0, 0.5, 0)))   # instrument binnacle, driver's side
     p.box((cx1 - 0.7, 0.0, 1.62), (0.5, 0.36, 0.3))                         # centre console
     p.cyl((cx1 - 0.75, 0.0, 1.77), (cx1 - 0.8, 0.0, 2.05), 0.014, 8)        # gear lever
     p.box(((cx0 + cx1) / 2, 0, 1.38), (cx1 - cx0, 2.2, 0.04))               # cab floor
     for sy in (-0.55, 0.55):
-        p.box((cx0 + 0.55, sy, 1.75), (0.5, 0.52, 0.15))                    # seat cushion
-        p.box((cx0 + 0.3, sy, 2.2), (0.12, 0.5, 0.75), Euler((0, -0.12, 0)))   # backrest, slightly raked
-        p.box((cx0 + 0.24, sy, 2.68), (0.1, 0.28, 0.2))                     # headrest
-        p.box((cx0 + 0.55, sy, 1.55), (0.36, 0.36, 0.26))                   # seat base
+        p.box((cx0 + SX + 0.55, sy, 1.55), (0.36, 0.36, 0.26))              # seat base
     p.make(name + '_CabInterior', M['dark'], root, coll=coll)
+    p = Part()                                                               # seats in maroon fabric covers
+    for sy in (-0.55, 0.55):
+        p.box((cx0 + SX + 0.55, sy, 1.75), (0.5, 0.52, 0.15))               # seat cushion
+        p.box((cx0 + SX + 0.3, sy, 2.2), (0.12, 0.5, 0.75), Euler((0, -0.12, 0)))   # backrest, slightly raked
+        p.box((cx0 + SX + 0.24, sy, 2.68), (0.1, 0.28, 0.2))                # headrest
+    p.make(name + '_CabSeats', P.plain('TRK_SeatFabric', (0.16, 0.05, 0.045), 0.9, 0.0, bump=0.3), root, bevel=0.03,
+           coll=coll)
     # steering wheel on the right: rim ring, three spokes, hub, column into the dash; raked like a cab-over wheel
-    wc = Vector((cx0 + 1.02, -0.55, 2.2))
+    wc = Vector((cx0 + SX + 0.99, -0.55, 2.2))
     tilt = Euler((0, math.radians(-52), 0))            # wheel plane leans back toward the driver
     u, v = tilt.to_matrix() @ Vector((0, 1, 0)), tilt.to_matrix() @ Vector((0, 0, 1))
     p = Part()
@@ -557,13 +574,13 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
         p.cyl(wc, wc + u * (rr * math.cos(ang)) + v * (rr * math.sin(ang)), 0.012, 6)
     nrm = tilt.to_matrix() @ Vector((1, 0, 0))
     p.cyl(wc - nrm * 0.02, wc + nrm * 0.05, 0.05, 16)                     # hub
-    p.cyl(wc + nrm * 0.05, Vector((cx1 - 0.5, -0.55, 1.98)), 0.035, 10)    # column
+    p.cyl(wc + nrm * 0.05, Vector((cx1 - 0.36, -0.55, 1.98)), 0.035, 10)   # column
     p.make(name + '_SteeringWheel', M['dark'], root, smooth=True, coll=coll)
     R['wheel_grips'] = []
     for side, ang in (('L', math.radians(20)), ('R', math.radians(160))):   # ten-to-two; +Y is the driver's left
         g = _empty('%s_Grip%s' % (name, side), wc + u * (rr * math.cos(ang)) + v * (rr * math.sin(ang)), root, coll)
         R['wheel_grips'].append(g)
-    R['seat_driver'] = Vector((cx0 + 0.52, -0.55, 1.9))                    # driver's hip point, truck-local
+    R['seat_driver'] = Vector((cx0 + SX + 0.52, -0.55, 1.9))                    # driver's hip point, truck-local
 
     # ---------------- wheels
     tyre, rim = _wheel_meshes(M)
@@ -603,13 +620,11 @@ def reefer_truck(name='TRK_RigidReefer', loc=(0, 0, 0), rot_z=0.0, coll=None, lo
                 p.box((x + rr_ * math.cos(th), sy * y0, TR + rr_ * math.sin(th)), (0.15, wd, 0.035),
                       Euler((0, math.atan2(-math.cos(th), -math.sin(th)), 0)))
     p.make(name + '_Arches', M['dark'], root, bevel=0.008, coll=coll)
-    p = Part()                                                               # bumper detail: bolt heads, slots, tow eyes
-    for k in range(-4, 5):
-        p.cyl((fx + 0.225, k * 0.23, 0.99), (fx + 0.245, k * 0.23, 0.99), 0.02, 10)
+    p = Part()                                                               # bumper detail: slots, tow eyes
     for sy in (-1, 1):
         p.box((fx + 0.23, sy * 0.45, 0.8), (0.02, 0.38, 0.06))
         p.cyl((fx + 0.12, sy * 0.35, 0.7), (fx + 0.34, sy * 0.35, 0.7), 0.03, 10)
-    p.make(name + '_BumperDetail', M['chrome'], root, smooth=True, coll=coll)
+    p.make(name + '_BumperDetail', M['chassis'], root, smooth=True, coll=coll)
 
     # ---------------- cargo: iced crates stacked inside (seen when the doors open)
     R['cargo'] = []
