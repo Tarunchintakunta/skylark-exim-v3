@@ -77,6 +77,11 @@ CAMS.update({
     '246a': ((5.2, 4.2, 2.75), (9.2, 0.4, 2.35), 36),
     '246b': ((13.2, 5.0, 2.75), (9.2, 0.4, 2.35), 36),
 })
+CAMS.update({                                   # #286 processing hall (p-proc), CX 8.2, floor DZ 1.2
+    '286': ((8.2, 12.6, 3.6), (8.2, 30.0, 1.9), 24),          # wide: wash tanks in the corners, the belt down the middle
+    '286b': ((9.7, 21.2, 2.95), (8.2, 24.2, 2.1), 40),         # belt close-up: sorters' hands over the shrimp
+    '286c': ((10.0, 34.4, 2.9), (8.2, 30.6, 2.0), 36),         # the discharge end and its bin
+})
 CAMS['246f'] = CAMS['246']
 for _k in 'abc':
     CAMS['258' + _k] = CAMS['258']          # the crane sequence's three stills share the quay camera

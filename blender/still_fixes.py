@@ -379,6 +379,19 @@ def carry246(sid, frame=62):
             H.grip(bpy.data.objects[nm], sd, target=[crate], curl=1.0)
 
 
+def white_gear(sid):
+    """#286 processing hall: plain white hygiene gear on everyone. The coat and apron palettes (navy, maroon, teal,
+    green by role) all go white; gloves stay blue, boots white, caps and masks as built."""
+    if not sid.startswith('286'):
+        return
+    for nm, white in (('HUM_WhiteCotton', (0.62, 0.63, 0.62, 1)), ('HUM_WhitePVC', (0.80, 0.82, 0.82, 1))):
+        m = bpy.data.materials.get(nm)
+        for n in (m.node_tree.nodes if m else ()):
+            if n.type == 'VALTORGB':
+                for e in n.color_ramp.elements:
+                    e.color = white
+
+
 def apply_all(sid=''):
     apply()
     crane_paint()
@@ -389,3 +402,4 @@ def apply_all(sid=''):
     frost257(sid)
     crew257(sid)
     carry246(sid)
+    white_gear(sid)
