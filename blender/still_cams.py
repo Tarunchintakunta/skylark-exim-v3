@@ -347,6 +347,33 @@ def _building(g, rnd, x0, x1, y0, y1, zb, floors, mi, near):
         g.cyl(tx, ty, rnd.uniform(0.6, 0.9), top, top + rnd.uniform(1.3, 1.8), TANK)
 
 
+def _scrub(name, haze):
+    """#260: dry scrub-forest hills (olive / brown-green ground, darker patchy scrub), mixed toward a dawn blue haze by
+    `haze` (0 near .. 1 far). No pale grey: that read as snow."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = nt.nodes['Principled BSDF']
+    b.inputs['Roughness'].default_value = 0.95
+    b.inputs['Specular IOR Level'].default_value = 0.15           # no grazing sheen: that whitened the far ridges
+    hz = (0.19, 0.24, 0.31)
+    mixc = lambda c: tuple(a * (1 - haze) + h * haze for a, h in zip(c, hz)) + (1,)
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    ns = nt.nodes.new('ShaderNodeTexNoise')
+    ns.inputs['Scale'].default_value = 0.012                      # scrub patches tens of metres across
+    ns.inputs['Detail'].default_value = 8.0
+    ns.inputs['Roughness'].default_value = 0.65
+    nt.links.new(tc.outputs['Object'], ns.inputs['Vector'])
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    cr = ramp.color_ramp
+    cr.elements[0].position, cr.elements[0].color = 0.42, mixc((0.055, 0.07, 0.035))   # dark scrub
+    cr.elements[1].position, cr.elements[1].color = 0.62, mixc((0.17, 0.15, 0.085))    # dry olive-brown ground
+    cr.elements.new(0.52).color = mixc((0.10, 0.11, 0.055))                             # green-brown
+    nt.links.new(ns.outputs['Fac'], ramp.inputs['Fac'])
+    nt.links.new(ramp.outputs['Color'], b.inputs['Base Color'])
+    return m
+
+
 def coast260():
     """#260: a real coastal city seen from the sea at dawn instead of boxes. The port's city blocks are kept only as
     plots: each is split into 1-4 buildings with setbacks, G+1 to G+9 RC-frame blocks (taller along the beach road, a few
@@ -448,29 +475,19 @@ def coast260():
     s.collection.objects.link(o)
     print('STILL coast260: %d faces' % len(g.f))
     hills = bpy.data.objects.get('HERO_Hills')
-    if hills is not None and hills.data.materials:
-        hm = hills.data.materials[0].copy()
-        hm.name = 'STILL_HillsHaze'
-        nt = hm.node_tree
-        b = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
-        b.inputs['Base Color'].default_value = (0.33, 0.37, 0.40, 1)        # far hills read blue-grey
-        b.inputs['Roughness'].default_value = 0.95
-        hills.data.materials[0] = hm
+    if hills is not None and hills.data.materials:                     # Eastern Ghats scrub forest, hazed a little
+        hills.data.materials[0] = _scrub('STILL_HillsHaze', 0.25)
     if hills is not None:                                               # layered ridges: each further one lighter and bluer
         fwd = s.camera.matrix_world.to_quaternion() @ Vector((0, 0, -1)) if s.camera else Vector((0, 1, 0))
         fwd.z = 0
         fwd.normalize()
-        for k, (dist, sz, col) in enumerate(((500.0, 0.75, (0.43, 0.49, 0.55)), (1100.0, 1.35, (0.56, 0.62, 0.70)))):
+        for k, (dist, sz, hz) in enumerate(((500.0, 0.75, 0.45), (1100.0, 1.35, 0.65))):
             h2 = hills.copy()
             h2.data = hills.data.copy()
             s.collection.objects.link(h2)
             h2.location = hills.location + fwd * dist
             h2.scale = (1.0, 1.0, sz)
-            m2 = hills.data.materials[0].copy()
-            m2.name = 'STILL_HillsFar%d' % k
-            b2 = next(n for n in m2.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
-            b2.inputs['Base Color'].default_value = (*col, 1)
-            h2.data.materials[0] = m2
+            h2.data.materials[0] = _scrub('STILL_HillsFar%d' % k, hz)
     w = s.world
     nt = w.node_tree
     out = next(n for n in nt.nodes if n.type == 'OUTPUT_WORLD')
