@@ -14,8 +14,8 @@ const VIEWPORTS = {
   '390x844@3': { viewport: { width: 390, height: 844 }, dpr: 3, mobile: true },
 } as const
 const MIN = 0.95
-/** per tier (#264): the 2560 retina desktop 40 MB, the 1920 desktop 25 MB, the phone 12 MB */
-const PATH_MB = { retina: 40, desktop: 25, mobile: 12 }
+/** per tier (#264): the 2560 retina desktop 40 MB, the 1920 desktop 28 MB (#284), the phone 12 MB */
+const PATH_MB = { retina: 40, desktop: 28, mobile: 12 }
 /** the masters are 1440 rows tall: the best a phone portrait clip or poster can reach at 844 css px × dpr 3 (0.57) */
 const MASTER_ROWS = 1440
 /** LCP: 2,300 ms is the target, 2,500 ms the hard limit (#264) */
