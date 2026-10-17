@@ -1,5 +1,5 @@
 """Scene touch-ups for the composition stills, applied after load and before render or rule check (#255-#260).
-- hull draft numerals (SHIP_Draft*) are text, and the stills carry no text: hidden;
+- hull draft numerals (SHIP_Draft*) are text, and the stills carry no text: hidden; so are the trucks' (blank) number plates;
 - the yard's reefer racks use a generic black material named MAT_PlasticBlack: they are steel frames, so they get a dark steel one."""
 import bpy
 
@@ -7,6 +7,8 @@ import bpy
 def apply():
     for o in bpy.data.objects:
         if o.type == 'FONT':
+            o.hide_render = o.hide_viewport = True
+        if o.name.startswith('TRK_') and o.name.endswith(('_Plate', '_FrontPlate')):   # no number plates, blank or not
             o.hide_render = o.hide_viewport = True
     steel = bpy.data.materials.get('STILL_DarkSteel')
     if steel is None:
