@@ -149,6 +149,23 @@ def gauss(vals, sigma):
     return out
 
 
+def vgauss(vals, sigmas):
+    """Gaussian smoothing with a per-frame sigma (tight on the ground, long in the air)."""
+    n = len(vals)
+    out = []
+    for i in range(n):
+        sg = sigmas[i]
+        r = int(3 * sg)
+        acc, ws = None, 0.0
+        for k in range(-r, r + 1):
+            wk = math.exp(-0.5 * (k / sg) ** 2)
+            v = vals[min(n - 1, max(0, i + k))]
+            acc = v * wk if acc is None else acc + v * wk
+            ws += wk
+        out.append(acc / ws)
+    return out
+
+
 # ---------------------------------------------------------------------------------------------------- 1. clean-up
 def cleanup():
     s = bpy.context.scene
@@ -180,6 +197,7 @@ def relayout():
             b.animation_data_clear()
             b.rotation_euler = (0, 0, 0)
     OB['Crane_2'].location.x = CRANE_X
+    open_waterside()
     shift_x(OB['SHIP'], DX)
     for o in OB:
         if o.parent is None and o.name.startswith(('MOOR_', 'BANKSMAN0')):
@@ -187,6 +205,47 @@ def relayout():
     shift_x(OB['AHEAD1'], 40.0)       # the truck ahead on the outer lane is already past the hero's turn
     sea = OB['SeaFull']
     sea.location.z = -0.05            # water surface at z 0, the hulls' waterline (the ocean patch is gone)
+
+
+def open_waterside():
+    """The library STS frame braces its waterside face with X diagonals from the portal beam to the top and runs its top
+    cross beam through the trolley's path, so a box (and the trolley) would pass through steel going out to the ship.
+    A real crane leaves that face open above the portal beam: drop those members between the legs on all three cranes."""
+    for n in ('Crane_1_Frame', 'Crane_2_Frame', 'Crane_3_Frame'):
+        o = OB.get(n)
+        if o is None:
+            continue
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bm.verts.ensure_lookup_table()
+        dead = set()
+        seen = set()
+        for v in bm.verts:
+            if v in seen:
+                continue
+            stack, part = [v], []
+            seen.add(v)
+            while stack:                             # one connected part = one box of the frame
+                w = stack.pop()
+                part.append(w)
+                for e in w.link_edges:
+                    u = e.other_vert(w)
+                    if u not in seen:
+                        seen.add(u)
+                        stack.append(u)
+            xs = [p.co.x for p in part]
+            ys = [p.co.y for p in part]
+            zs = [p.co.z for p in part]
+            on_face = min(ys) > 13.5 and max(ys) < 16.5                  # waterside legs plane, y = +gauge/2
+            between = min(xs) > -8.0 and max(xs) < 8.0 or (min(xs) < -7 and max(xs) > 7 and max(zs) - min(zs) > 4)
+            above = min(zs) > 20.5 and max(zs) < 47.5
+            top_beam = min(zs) > 45.5 and max(zs) < 48.5 and max(xs) - min(xs) > 15
+            if on_face and ((between and above) or top_beam):
+                dead.update(part)
+        bmesh.ops.delete(bm, geom=list(dead), context='VERTS')
+        bm.to_mesh(o.data)
+        bm.free()
+        print('P20 %s: opened the waterside face (%d verts removed)' % (n, len(dead)))
 
 
 # ---------------------------------------------------------------------------------------------------- 3. hero truck
@@ -374,6 +433,9 @@ def measure():
     box, trailer, ship = OB['HERO_Reefer'], OB['HERO_Trailer'], OB['SHIP']
     s.frame_set(F0)
     m_tr = trailer.matrix_world.inverted() @ box.matrix_world
+    ch = OB['HERO_Trailer_Chassis']                    # the base scene sank the box 11 cm into the chassis: seat it on top
+    top = max((trailer.matrix_world.inverted() @ ch.matrix_world @ v.co).z for v in ch.data.vertices)
+    m_tr.translation.z = top + 0.005                   # corner castings reach 5 mm below the box origin
     s.frame_set(479)
     m_slot = ship.matrix_world.inverted() @ box.matrix_world
     s.frame_set(F0)
@@ -406,7 +468,8 @@ def crane_and_box(f_stop, m_tr, m_slot):
     z_slot = slot_w.translation.z + CH + LOCK - (cz + gz)
     assert abs(slot_w.translation.x - CRANE_X) < 0.05, ('slot not under crane 2', slot_w.translation.x)
     y_lane = QUAY_Y - crane.location.y
-    box_top_truck = cz + 1.33 + CH                        # trailer deck height + box height, z of the roof on the truck
+    s.frame_set(int(f_stop) + 2)
+    box_top_truck = (trailer.matrix_world @ m_tr).translation.z + CH     # roof of the box standing on the truck
     z_truck = box_top_truck + LOCK - (cz + gz)
     z_up = -13.65
     z_clear = 32.2 + CH + LOCK - (cz + gz)                # box bottom 32.2 m: 2 m over the highest tier it passes
@@ -674,7 +737,7 @@ def antitile(m, seed_attr=None):
 def look():
     s = bpy.context.scene
     from sklib import pbr
-    grey = pbr('P20_CraneGrey', (0.66, 0.68, 0.69), 0.42, 0.12, var=0.06, bump=0.04, scale=0.12, grime=0.12)
+    grey = pbr('P20_CraneGrey', (0.58, 0.6, 0.61), 0.42, 0.12, var=0.06, bump=0.04, scale=0.12, grime=0.12)
     dgrey = pbr('P20_CraneGreyDark', (0.42, 0.44, 0.46), 0.45, 0.15, var=0.07, bump=0.04, scale=0.2, grime=0.12)
     for o in OB:
         if o.type == 'MESH' and o.name.startswith('Crane_'):
@@ -709,14 +772,14 @@ def look():
         if hasattr(sky, attr):
             setattr(sky, attr, v)
     bg = nt.nodes['Background']
-    bg.inputs['Strength'].default_value = 0.32
+    bg.inputs['Strength'].default_value = 0.24
     nt.links.new(sky.outputs['Color'], bg.inputs['Color'])
     s.world = w
     w.mist_settings.falloff = 'LINEAR'
     vs = s.view_settings
     vs.view_transform = 'AgX'
     vs.look = 'AgX - Medium High Contrast'
-    vs.exposure = 0.0
+    vs.exposure = -0.35
 
 
 def water():
@@ -789,31 +852,37 @@ def camera(per, cr, f_dep):
     fl, fr = cr['f_land'], cr['f_rel']
     slot = (OB['SHIP'].matrix_world @ cr['m_slot']).translation
     K = [
-        (F0, Vector((-51.6, -64.0, 8.6)), tr(F0, 2.0, 0.0, 2.6)),
-        (36, Vector((-51.4, -52.0, 9.0)), tr(36, 2.5, 0.0, 2.4)),
-        (70, Vector((-49.5, -37.0, 11.0)), tr(70, 4.0, 0.0, 2.0)),
-        (105, Vector((-45.0, -27.0, 12.0)), tr(105, 6.0, 0.0, 2.0)),
+        # through the gate lane behind the box, under the canopy (lamps at z 9.4), rising only once past it
+        (F0, Vector((-35.7, -70.0, 7.4)), tr(F0, 2.0, 0.0, 2.2)),
+        (20, Vector((-35.7, -66.0, 7.5)), tr(20, 2.0, 0.0, 2.2)),
+        (36, Vector((-35.7, -62.0, 7.6)), tr(36, 2.0, 0.0, 2.2)),
+        (50, Vector((-35.7, -58.0, 7.8)), tr(50, 2.5, 0.0, 2.2)),
+        (62, Vector((-35.7, -54.5, 8.0)), tr(62, 3.0, 0.0, 2.2)),
+        (78, Vector((-35.3, -48.0, 8.1)), tr(78, 4.0, 0.0, 2.2)),        # lane between the islands: x -37.0..-33.5
+        (90, Vector((-35.4, -41.5, 8.3)), tr(90, 5.0, 0.0, 2.2)),
+        (100, Vector((-37.0, -36.5, 9.2)), tr(100, 6.0, 0.0, 2.2)),
+        (118, Vector((-42.0, -27.0, 11.2)), tr(118, 6.0, 0.0, 2.0)),
         (140, Vector((-39.0, -21.5, 11.6)), tr(140, 6.0, 0.0, 2.0)),
         (175, Vector((-33.5, -19.5, 10.4)), tr(175, 4.0, 0.0, 2.5)),
         (fl - 20, Vector((-31.0, -20.0, 9.0)), tr(fl - 20, -2.0, 0.0, 3.5)),
         (fl + 4, Vector((-31.5, -21.0, 8.4)), Vector((CRANE_X, QUAY_Y, 11.0))),
-        (fl + 30, Vector((-33.0, -17.0, 13.0)), Vector((CRANE_X, QUAY_Y + 3.0, 19.0))),
-        (fl + 55, Vector((-36.0, -9.0, 25.0)), Vector((CRANE_X, slot.y - 6.0, 31.0))),
-        (fr, Vector((-38.0, -2.0, 36.0)), Vector((CRANE_X, slot.y, slot.z + 1.5))),
-        (f_dep + 6, Vector((-44.0, -12.0, 52.0)), Vector((CRANE_X + 4.0, 22.0, 16.0))),
-        (f_dep + 36, Vector((-70.0, -95.0, 150.0)), Vector((0.0, 32.0, 4.0))),
-        (400, Vector((-30.0, -120.0, 420.0)), Vector((0.0, 10.0, 0.0))),
-        (436, Vector((0.0, -50.0, 860.0)), Vector((0.0, -28.0, 0.0))),
-        (456, Vector((0.0, 60.0, 1000.0)), Vector((0.0, 250.0, 0.0))),
-        (F1, Vector((0.0, 380.0, 1150.0)), Vector((0.0, 1530.0, 0.0))),
+        (fl + 30, Vector((-36.0, -19.0, 14.0)), Vector((CRANE_X, QUAY_Y + 4.0, 20.0))),
+        (fl + 55, Vector((-42.0, -13.0, 26.0)), Vector((CRANE_X, slot.y - 6.0, 30.0))),
+        (fr, Vector((-46.0, -6.0, 37.0)), Vector((CRANE_X, slot.y, slot.z + 1.5))),
+        (fr + 30, Vector((-58.0, -30.0, 70.0)), Vector((CRANE_X + 10.0, 24.0, 10.0))),
+        (365, Vector((-70.0, -95.0, 170.0)), Vector((0.0, 34.0, 2.0))),
+        (405, Vector((-35.0, -115.0, 450.0)), Vector((0.0, 6.0, 0.0))),
+        (442, Vector((0.0, -45.0, 850.0)), Vector((0.0, -25.0, 0.0))),
+        (F1, Vector((0.0, 330.0, 1100.0)), Vector((0.0, 1430.0, 0.0))),
     ]
     K.sort(key=lambda k: k[0])
     frames = list(range(F0, F1 + 1))
     xs = [k[0] for k in K]
     pos = [Vector([pchip(xs, [k[1][i] for k in K])(f) for i in range(3)]) for f in frames]
     tgt = [Vector([pchip(xs, [k[2][i] for k in K])(f) for i in range(3)]) for f in frames]
-    pos = gauss(pos, 5.0)
-    tgt = gauss(tgt, 5.0)
+    sig = [5.0 + 9.0 * smoothstep(fr - 10, fr + 40, f) for f in frames]     # wider easing once airborne
+    pos = vgauss(pos, sig)
+    tgt = vgauss(tgt, [x + 2.0 for x in sig])
     cam = OB.get('Camera')
     cam.animation_data_clear()
     for c in list(cam.constraints):
@@ -877,6 +946,15 @@ def cycles(samples=96, pct=100, mblur=True):
     r.use_placeholder = True
 
 
+def lod():
+    """GPU memory (the machine is shared): background figures keep their pose but lose most of their triangles."""
+    for o in OB:
+        if o.type == 'MESH' and o.name.endswith('_mesh') and not o.name.startswith('HERO'):
+            d = o.modifiers.new('p20_lod', 'DECIMATE')
+            d.ratio = 0.08 if 'Driver' in o.name else 0.35
+            d.show_viewport = False                 # render only: scripted frame changes stay fast
+
+
 def build(out):
     s = bpy.context.scene
     cleanup()
@@ -897,6 +975,7 @@ def build(out):
     pos, tgt = camera(per, cr, f_dep)
     haze_grade([(F0, 120.0, 2200.0), (f_dep, 160.0, 2600.0), (420, 700.0, 5200.0), (F1, 1000.0, 7000.0)])
     cycles()
+    lod()
     s['p20'] = {'f_stop': f_stop, 'f_land': cr['f_land'], 'f_lock': cr['f_lock'], 'f_rel': cr['f_rel'], 'f_dep': f_dep}
     print('P20 beats', dict(s['p20']))
     s.frame_set(F0)
@@ -1086,6 +1165,24 @@ def check(outdir):
     dyn_rows = [{'f': F0 + i, 'speed': round(v[i].length, 2), 'acc': round(a[i].length, 2) if i < len(a) else None,
                  'jerk': round(j[i].length, 2) if i < len(j) else None, 'turn_dps': round(turn[i], 2)}
                 for i in range(len(v))]
+    # screen rectangles of the things to inspect at 100% in the per-second preview frames
+    rects = {}
+    W, H = 1920, 1080
+    for f in list(range(F0, F1 + 1, 24)) + [F1]:
+        s.frame_set(f)
+        rects[f] = {}
+        for n in ('HERO_CabShell', 'HERO_DriverRHD_mesh', 'Crane_2_Spreader', 'HERO_Reefer', 'SHIP_Hull'):
+            o = OB.get(n)
+            pts = [w2c(s, cam, o.matrix_world @ Vector(c)) for c in o.bound_box]
+            if any(q.z <= 0 for q in pts):
+                continue
+            x0, x1 = min(q.x for q in pts) * W, max(q.x for q in pts) * W
+            y0, y1 = (1 - max(q.y for q in pts)) * H, (1 - min(q.y for q in pts)) * H
+            if x1 < 0 or y1 < 0 or x0 > W or y0 > H or (x1 - x0) * (y1 - y0) < 64:
+                continue
+            rects[f][n] = [int(max(0, x0)), int(max(0, y0)), int(min(W, x1)), int(min(H, y1))]
+    with open(os.path.join(outdir, 'rects.json'), 'w') as fh:
+        json.dump(rects, fh)
     report = {'beats': b, 'per_frame': res, 'frozen_people': sorted(froz), 'flush_gaps_m': flush,
               'box_intersections': inter, 'vessels': vessels, 'fonts': fonts, 'logo_images': logos, 'pop_keys': pops,
               'camera_dynamics': dyn_rows,
