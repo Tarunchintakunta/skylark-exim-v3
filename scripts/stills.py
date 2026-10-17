@@ -6,7 +6,7 @@ Writes <id>_<tier>.avif/.webp for tiers m (810×1440 crop), 960, 1280, 1920 (+25
 <id>_end_1280: the last frame, shown on desktop only for the moment a clip seeks back after scrolling up into it, so it
 stays at 1280 (at 1920 the end frames would take ~3.8 MB of a path's 25 MB from the clips).
 Quality-targeted: AVIF crf 25 (libavif q ≈ 60), WebP q 82; only a file over its cap steps down (AVIF to crf 41, WebP
-never below q 70).
+never below q 55).
 Caps: 350 KB; the LCP still (the hero loop's first frame) 120 KB, and its phone AVIF 60 KB.
 SHARPEN=0.3–0.5: light unsharp mask on the luma of the downscale only (off by default).
 BLUR=<px at 1280 wide>: a Gaussian blur scaled with each tier (the documentation backdrop: 1 px, measured on the old file).
@@ -52,7 +52,7 @@ def save(img: Image.Image, name: str, cap_avif: int, cap_webp: int) -> str:
     sizes = []
     png = tempfile.NamedTemporaryFile(suffix='.png', dir=os.environ.get('TMPDIR'))
     img.save(png.name)
-    for ext, qs, cap in (('avif', range(25, 42, 4), cap_avif), ('webp', range(82, 69, -3), cap_webp)):
+    for ext, qs, cap in (('avif', range(25, 42, 4), cap_avif), ('webp', range(82, 54, -3), cap_webp)):
         path = f'{OUT}/{name}.{ext}'
         for q in qs:
             if ext == 'avif':
