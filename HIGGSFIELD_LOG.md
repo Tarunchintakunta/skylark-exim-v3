@@ -255,3 +255,29 @@ Playwright, local, unsandboxed: 19 failed / 183 passed on the branch against 18 
 commit `ee54ad4`. The one extra name is `story-stuck` "globe: long tasks entering world, pond fling", which fails
 on the base commit too when that spec is run on its own (4 of 4 globe profiles fail there), so it is the known
 globe flake and not the port beat. Desktop ocean weight 24.94 MB, pond 24.31 MB, both inside the 25 MB budget.
+
+### 2026-10-17: all six port shots on `/story` (#284)
+
+The `/story` desktop budget goes to 28 MB (`BUDGET[1280]` and `[1920]`, `tests/weight.spec.ts`, `tests/hd.spec.ts`),
+and the port chapter runs every shot as its own segment after `hf-stuff`: `hf-port-gate`, `hf-port-turn`, `hf-cranes`,
+`hf-port-trolley`, `hf-port-land`, `hf-port-sail`. Each master is 60 frames, resampled evenly from the shot with its
+first and last frame kept, so the joins are the stitch's own (mean abs difference 2.2-3.9 on 0-255, as in
+`hf-port-FINAL.mp4`). Frames used: s1 52-123, s2 0-95, s3 0-123, s4a take 2 0-123, s4b 0-123, s5 0-107.
+
+| Clip | SSIM 1920 AV1 | 1920 KB (AV1/HEVC/H.264) | SSIM m AV1 | m KB |
+|---|---|---|---|---|
+| hf-port-gate | 0.889 | 421 / 517 / 524 | 0.891 | 232 |
+| hf-port-turn | 0.894 | 509 / 516 / 524 | 0.886 | 242 |
+| hf-cranes | 0.877 | 529 / 531 / 539 | 0.884 | 258 |
+| hf-port-trolley | 0.874 | 536 / 529 / 524 | 0.882 | 265 |
+| hf-port-land | 0.863 | 573 / 521 / 531 | 0.872 | 321 |
+| hf-port-sail | 0.863 | 595 / 521 / 535 | 0.883 | 306 |
+
+SVT-AV1's VBR has a floor on these frames at GOP 6: about 700 KB for 72 frames at 1920 on shots 4b and 5, whatever
+bitrate is asked for, which put the desktop ocean path at 28.41 MB. At 60 frames the floor is under 600 KB. The phone
+tiers cannot fit 12 MB with six more clips (the solver leaves about 60 KB per clip), so `m` and `960` are capped by hand
+at 250 and 185 KB and the phone paths measure about 12.8 MB. The 2560 tier did not fit 40 MB and is dropped; retina
+desktops get 1920.
+
+Weight (`npm run test:weight`, local): desktop ocean 27.58 MB, pond 26.95 MB (28 MB budget); phone ocean 12.83 MB,
+pond 12.67 MB (12 MB budget, over); retina, now on 1920 files, 27.81 / 27.15 MB.

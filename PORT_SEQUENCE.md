@@ -45,22 +45,26 @@ same shot, or a balance that would fall below 1500 credits, stops the run for a 
 
 1. Stitch the shots into `masters/hf-port-FINAL.mp4` with clean cuts. Each shot starts from the previous
    shot's last frame, so straight concatenation joins them without a jump; no crossfade is needed.
-2. Encode with `scripts/encode-hf.sh hf-cranes` (the #258 port clip id), master at
-   `masters/hf-cranes/master.mp4`.
+2. `/story` (#284 follow-up): all six shots, each its own segment of the `port` chapter after `hf-stuff`, in
+   order `hf-port-gate` (1), `hf-port-turn` (2), `hf-cranes` (3), `hf-port-trolley` (4a), `hf-port-land` (4b),
+   `hf-port-sail` (5). Masters at `masters/<id>/master.mp4`, each 60 frames (2.5 s):
 
-   The full 31 s stitch cannot be the `/story` master. `FILE_CAP` is 2,300 KB per file and `BUDGET[1920]` is
-   25 MB for a whole path, both fixed byte budgets with no allowance for duration, so 31 s lands at about
-   590 kbit/s: mean SSIM 0.689 at 1920 against the master, where a three-second clip sits near 0.88. At a
-   usable bitrate the clip alone would want roughly 14 MB at 1920, over half the path budget. So `/story`
-   gets the lock-on and lift from shot 3, cut to 3.0 s, and `masters/hf-port-FINAL.mp4` stays the
-   full-sequence deliverable.
+   | id | shot | source frames | how |
+   |---|---|---|---|
+   | `hf-port-gate` | 1 | 52-123 | resampled to 60 |
+   | `hf-port-turn` | 2 | 0-95 | resampled to 60 (frames 96-123 are the truck standing still) |
+   | `hf-cranes` | 3 | 0-123 | resampled to 60 |
+   | `hf-port-trolley` | 4a (take 2) | 0-123 | resampled to 60 |
+   | `hf-port-land` | 4b | 0-123 | resampled to 60 |
+   | `hf-port-sail` | 5 | 0-107 | resampled to 60 (the ship has nearly cleared the frame) |
 
-   The 3.0 s length is not cosmetic. Every other clip master is exactly 3.0 s, and `solveCaps` splits each
-   path's budget in proportion to clip length, so a 5.167 s port beat drew 1.72x a normal share: the other
-   clips' committed files were encoded when the port beat was 3 s too, and the ocean path came to 25.67 MB
-   against its 25 MB budget (`tests/weight.spec.ts`, `tests/hd.spec.ts`). At 3.0 s the share is back in line.
-   This frame is also detail-dense, so its posters are encoded with `CAP_KB=230` instead of the default
-   350 KB: at 350 KB the 1920 poster alone put the ocean path at 25.08 MB.
+   Resampling keeps each shot's first and last frame, so every segment still ends on the frame the next one
+   starts from; trimming the middle shots to their strongest 3 s would have broken those joins. The scroll sets
+   the pace of a scrubbed clip, so what counts is frames per segment: 60 over 91 vh here, 72 over 90 vh
+   elsewhere. 60 rather than 72 because at 72 frames SVT-AV1 floors at about 700 KB at 1920 on the busiest
+   shots (12 keyframes at GOP 6, whatever bitrate is asked for), which put the desktop ocean path at 28.41 MB.
+   Encoded with `SOLVE` (the six ids) so the other clips keep their files, posters at `CAP_KB=60`,
+   phone tiers at `CAP_m=256000 CAP_960=189440`, 1920 at `CAP_1920=552960`, no 2560 tier. Numbers in the PR body.
 3. Micro commits on `feat/hf-port`, then a PR into `feat/higgsfield-story`.
 4. Report: the final file, the PR link, and credits per shot and in total.
 
