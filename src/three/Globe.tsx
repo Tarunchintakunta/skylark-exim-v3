@@ -16,7 +16,7 @@ const BRASS = new Color('#e08a5f')
 const ICE = new Color('#f6f2ea')
 const N = 64 // points per route
 const Z = new Vector3(0, 0, 1)
-/** texture pixels uploaded per idle slice (2 MB) */
+/** texture pixels uploaded per idle slice (2 MB): more in one frame stalls the GPU process (~20–30 ms on Metal) */
 const STRIP_PX = 1 << 19
 const FOV = 35
 const TAN = Math.tan(MathUtils.degToRad(FOV / 2))
@@ -129,25 +129,29 @@ function Earth({ worldIndex, labels, live, onWarm }: { worldIndex: number; label
   })
 
   // pre-warm ahead of time, in idle slices: the texture's storage, its mip chain strip by strip (≤ 2 MB per slice: the
-  // whole 4096 upload plus mipmap generation was one ~110 ms task, #274), then the shader compile; only then does the
-  // canvas render at all (frameloop 'never' until onWarm), so no frame uploads, compiles and draws in one task
+  // whole 4096 upload plus mipmap generation was one ~110 ms task, #274; the small levels share a slice), then the shader
+  // compile; only then does the canvas render at all (frameloop 'never' until onWarm), so no frame uploads, compiles and
+  // draws in one task
   useEffect(() => {
     let stop = false
+    let budget = 0
     const slice = () => new Promise<void>((done) => ('requestIdleCallback' in window ? requestIdleCallback(() => done(), { timeout: 300 }) : setTimeout(done, 50)))
     // the homepage globe also waits for a still page (three/calm.ts); the film's globe keeps its own timing
-    const idle = () => slice().then(standalone ? calm : undefined)
+    const idle = () => slice().then(standalone ? calm : undefined).then(() => void (budget = STRIP_PX))
     const at = new Vector2()
     void (async () => {
       await idle()
       if (stop) return
       gl.initTexture(tex)
+      // the smaller levels are resized off the main thread, all at once, at better quality than the GPU's box filter
+      const resized = tex.mipmaps.map(({ width, height }, level) => (level ? createImageBitmap(bitmap, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' }) : bitmap))
       for (const [level, { width, height }] of tex.mipmaps.entries()) {
-        // the smaller levels are resized off the main thread, at better quality than the GPU's box filter
-        const img = level ? await createImageBitmap(bitmap, { resizeWidth: width, resizeHeight: height, resizeQuality: 'high' }) : bitmap
+        const img = await resized[level]
         const rows = Math.min(height, Math.max(1, STRIP_PX / width))
         for (let y = 0; y < height && !stop; y += rows) {
           const strip = rows < height ? await createImageBitmap(img, 0, y, width, Math.min(rows, height - y)) : img
-          await idle()
+          if (budget <= 0) await idle()
+          budget -= strip.width * strip.height
           if (!stop) gl.copyTextureToTexture(new Texture(strip), tex, null, at.set(0, y), 0, level)
           if (strip !== bitmap) strip.close()
         }
