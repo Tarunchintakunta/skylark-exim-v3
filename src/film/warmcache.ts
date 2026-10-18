@@ -161,8 +161,9 @@ async function run(p: Path) {
   else await workers
   // then the stage's posters (first frames, and the end frames desktop shows when scrolling back into a clip), held as
   // decoded images, and the page's lazy images (products), so nothing below is fetched during the scroll either
-  // (desktop: the window's chapters only; the scrub loads each segment's poster and the next two as it enters them)
-  const media = chaptersFor(p).flatMap((ch, k) => (!windowed || Math.abs(k - frame.index) <= WINDOW ? ch.media : []))
+  // (every poster of the path, desktop too: they are what a fast scroll shows ahead of the streamed clips; windowed,
+  // a Fast 4G step scroll met segments with neither a clip nor a poster, tests/terminal-mode.spec.ts, #hd2)
+  const media = chaptersFor(p).flatMap((ch) => ch.media)
   const posters = [
     ...new Set([
       ...media.map((m) => posterFor(m)).filter((u): u is string => !!u),
