@@ -191,9 +191,10 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       expect.soft(report[`${where} cls`], `${where} CLS`).toBe(0)
       if (where === '/') continue
       expect.soft(report[`${where} p95FrameMs`] as number, `${where} p95 frame`).toBeLessThanOrEqual(FRAME_P95_MS)
-      // phones hold the whole path; desktop streams clips by chapter (#hd2), so only clips may arrive during the scroll
+      // phones hold the whole path; desktop streams clips by chapter (#hd2), so only clips and the port film's frames may
+      // arrive during the scroll
       const during = report[`${where} mediaDuringScroll`] as string[]
-      expect.soft(v.mobile ? during : during.filter((u) => !/\.mp4$/.test(u)), `${where} media requests during the scroll`).toEqual([])
+      expect.soft(v.mobile ? during : during.filter((u) => !/(\.mp4|-f_1920_\d+\.(avif|webp))$/.test(u)), `${where} media requests during the scroll`).toEqual([])
       // the tier a viewport is served decides its budget: DPR 2 on a 1440 desktop asks for 2560
       const tier = v.mobile ? 'mobile' : v.viewport.width * v.dpr * 0.9 > 1920 ? 'retina' : 'desktop'
       expect.soft((report[`${where} MB`] as { total: number }).total, `${where} path MB (${tier})`).toBeLessThanOrEqual(PATH_MB[tier])

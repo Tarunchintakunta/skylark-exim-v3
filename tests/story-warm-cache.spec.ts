@@ -59,6 +59,8 @@ for (const path of ['ocean', 'pond'] as const) {
     await page.waitForTimeout(8000)
     const cached = await page.evaluate(() => document.querySelector('.cache-bar')?.classList.contains('is-done') ?? false)
     const held = (await cache(page)).ids
+    // /story#<path> lands on the path's first chapter (#210): the window is around that one
+    const landed = await page.evaluate(() => (window as unknown as { __scrub: { chapter: number } }).__scrub.chapter)
     phase = 'scroll'
     await page.evaluate(() => {
       const w = window as unknown as { __f: number[]; __run: boolean }
@@ -82,9 +84,14 @@ for (const path of ['ocean', 'pond'] as const) {
     if (d.mobile) expect(during).toEqual([])
     else {
       // the window around the first chapter, no further; the scroll then streams clips of this path at the page's tier
-      expect([...held].sort()).toEqual([...new Set(windowAt(path, 0))].sort())
-      const mine = new Set(CLIPS[path].map((c) => c.id))
-      expect(during.filter((u) => !(/\.mp4$/.test(u) && mine.has(u.replace(/^\/media\/(.+?)_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '$1'))))).toEqual([])
+      // (a window clip a decoder already holds whole is left to the decoder: the hairline counts it as in hand)
+      const win = new Set(windowAt(path, landed))
+      expect(held.filter((id) => !win.has(id))).toEqual([])
+      // clips of this path, their posters (the scrub loads each segment's and the next two as it enters them), the
+      // documentation backdrop and the port film's frames (#hd2: a frame sequence on desktop)
+      const mine = new Set([...CLIPS[path].map((c) => c.id), 'ph-docs-blur'])
+      const id = (u: string) => u.replace(/^\/media\/(.+?)(?:-f_1920_\d+\.(?:avif|webp)|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4|_(?:end_)?(?:m|\d+)\.(?:avif|webp))$/, '$1')
+      expect(during.filter((u) => !mine.has(id(u)))).toEqual([])
     }
     if (process.env.GPU) expect(p95).toBeLessThanOrEqual(16.7)
     await ctx.close()
@@ -103,19 +110,22 @@ test('desktop follows the scroll: idle mid-film, the cache fills the window arou
   await page.goto('/story#ocean')
   await ready(page)
   await expect.poll(async () => (await cache(page)).progress, { timeout: 20_000 }).toBe(1)
-  // into the port chapter (6 clips), then idle
+  // wheel into the port chapter (6 clips), then idle
   const port = CLIPS.ocean.find((c) => c.id === 'hf-port-3')!.chapter
-  await page.evaluate((y) => scrollTo(0, y), await page.evaluate((i) => {
-    const el = document.querySelectorAll<HTMLElement>('[data-chapter]')[i]
-    return el.offsetTop + el.offsetHeight / 2
-  }, port))
+  await page.mouse.move(700, 450)
+  const chapter = () => page.evaluate(() => (window as unknown as { __scrub: { chapter: number } }).__scrub.chapter)
+  for (let k = 0; k < 400 && (await chapter()) < port; k++) await page.mouse.wheel(0, 400)
+  await page.waitForTimeout(1500)
+  expect(await chapter()).toBe(port)
   await expect.poll(async () => (await cache(page)).progress, { timeout: 60_000 }).toBe(1)
   const ids = (await cache(page)).ids
-  expect(ids).toEqual(expect.arrayContaining(windowAt('ocean', port)))
+  // every clip of the window is in hand: a Blob, or a decoder holding it whole
+  const whole = await page.$$eval('.stage video[src]', (vs) => (vs as HTMLVideoElement[]).filter((v) => v.buffered.length === 1 && v.buffered.end(0) > v.duration - 0.05).map((v) => v.dataset.clip!))
+  expect(windowAt('ocean', port).filter((id) => !ids.includes(id) && !whole.includes(id))).toEqual([])
   // and the port film's frame sets came in whole (sequence.ts prefetch, started by the window)
   await expect.poll(() => page.evaluate(() => ((window as unknown as { __sequences?: { id: string; complete: boolean }[] }).__sequences ?? []).filter((q) => q.id.startsWith('stage-hf-port') && q.complete).length), { timeout: 60_000 }).toBe(5)
-  // nothing from the far end of the path: the sea chapter is two chapters past the port
-  expect(ids).not.toContain('hf-sail')
+  // nothing from the chapters in between that the scroll passed straight through (o3, on ice)
+  expect(ids).not.toContain('hf-ice')
 })
 
 test('only the active path is fetched; decoders play from blob: URLs or hold their clip whole; a path switch drops the other path’s clips', async ({ page }) => {
@@ -141,7 +151,7 @@ test('only the active path is fetched; decoders play from blob: URLs or hold the
   await page.mouse.move(700, 450)
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 120)
   await expect.poll(waiting, { timeout: 10_000 }).toBe(0)
-  expect(await page.$$eval('.stage video[src^="blob:"]', (vs) => vs.length)).toBeGreaterThan(0)
+  // (desktop streams by chapter now, #hd2: a decoder may hold its clip whole from the network rather than a blob:)
 
   await page.locator('.path-toggle a', { hasText: 'Farmed shrimp' }).click()
   await expect.poll(async () => (await cache(page)).path).toBe('pond')

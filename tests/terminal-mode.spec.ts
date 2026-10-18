@@ -8,7 +8,8 @@ import { expect, test, type Page } from '@playwright/test'
  * - the homepage hero's canvas sequence: on a step scroll the frame drawn is within one index of the target, on a fast
  *   fling it keeps painting, and it is never blank or stuck
  * - /story, warm: a step scroll and a fast fling always have a clip on screen (no frozen frame, no blank stage)
- * - no request to /media once the page is warm, on either page
+ * - no request to /media once the page is warm: the homepage, and /story on a phone; desktop /story streams its clips
+ *   and the port film's frames by chapter (#hd2), so only those
  * - the frame-time p95 table, written to review/terminal-mode.json
  */
 const VIEWPORTS = {
@@ -186,7 +187,9 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       expect.soft(flung.filter((p) => !p), `${name} hero blank frames during a fling`).toEqual([])
       expect.soft(report.heroMediaDuringScroll, `${name} hero media requests once warm`).toEqual([])
       expect.soft(stuck, `${name} story stuck or blank`).toEqual([])
-      expect.soft(report.storyMediaDuringScroll, `${name} story media requests once warm`).toEqual([])
+      // desktop streams /story by chapter (#hd2): clips and the port film's frames may arrive during the scroll; a phone holds the path
+      const story = report.storyMediaDuringScroll as string[]
+      expect.soft(v.mobile ? story : story.filter((u) => !/(\.mp4|-f_1920_\d+\.(avif|webp))$/.test(u)), `${name} story media requests once warm`).toEqual([])
       expect.soft(report.heroFrameP95 as number, `${name} hero frame p95`).toBeLessThanOrEqual(FRAME_P95_MS)
       expect.soft(report.storyFrameP95 as number, `${name} story frame p95`).toBeLessThanOrEqual(FRAME_P95_MS)
     })

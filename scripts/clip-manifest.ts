@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import type { Plugin } from 'vite'
-import { SEQ_CLIPS, chaptersFor } from '../src/config/chapters'
+import { SEQ_CLIPS, chaptersFor, firstClip } from '../src/config/chapters'
 
 /**
  * Clip tiers (segments.ts): 'm' = 810×1440 portrait crop for phones held upright, 960 landscape phones / Save-Data,
@@ -88,6 +88,15 @@ export function motionWeight(id: string) {
 }
 
 /**
+ * The first clip of each path (o1 / p1) is what /story's loader buffers before the page is ready, so its 1280 and 1920
+ * files are first-screen bytes: held to 1,100 KB (the base build's 920-1,150 KB; hf-depart's 1280 files are the base
+ * build's own, so no tier is smaller than before), so the desktop first load stays under its 3 MB
+ * (tests/weight.spec.ts); at the solver's share it measured 3.29 / 3.37 MB (#hd2).
+ */
+const FIRST = new Set(PATHS.map((p) => firstClip(p)?.id))
+const FIRST_CAP = 1100 * 1024
+
+/**
  * Budget solver: bytes per clip and tier so each path's clips fill (budget − overhead) in proportion to their length,
  * max-min fair across the two paths (a clip on both paths gets the tighter path's rate; what that leaves over in the
  * other path goes to its own clips), never above the file cap (FILE_CAP). Every tier gets the whole budget: a device
@@ -109,7 +118,7 @@ export function solveCaps(dur: Record<string, number>, fixed: Record<string, Par
         return { p, ids, r: ids.length ? left[p] / ids.reduce((a, id) => a + len(id, t), 0) : Infinity }
       }).sort((a, b) => a.r - b.r)[0]
       for (const id of rate.ids) {
-        const bytes = Math.floor(Math.min(FILE_CAP, rate.r * len(id, t)))
+        const bytes = Math.floor(Math.min(FILE_CAP, rate.r * len(id, t), FIRST.has(id) && (t === 1280 || t === 1920) ? FIRST_CAP : Infinity))
         ;(caps[id] ??= {})[t] = bytes
         open.delete(id)
         for (const p of PATHS) if (pathClips(p).includes(id)) left[p] -= bytes
