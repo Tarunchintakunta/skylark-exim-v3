@@ -196,32 +196,14 @@ def wash(C, M, rnd, shrimp_fn):
         for k in (1, 3, 5, 7):                                         # four nozzles run, the rest are off
             xx = x - 1.4 + k * 0.35
             st.cyl((xx, y, DZ + 1.68), (xx, y, DZ + 0.93), 0.022, 14, r2=0.03)
-            for j in range(10):                                        # splash crown where the stream hits
-                a = j * 0.628
-                st.cyl((xx + 0.06 * math.cos(a), y + 0.06 * math.sin(a), DZ + 0.93),
-                       (xx + 0.1 * math.cos(a), y + 0.1 * math.sin(a), DZ + 0.99 + 0.02 * (j % 2)), 0.006, 6)
+            # (no splash-crown sticks: they read as particle spray, #286)
             sc.cyl((xx, y, DZ + 0.931), (xx, y, DZ + 0.934), 0.16, 20)  # foam ring on the surface
         st.make('IN_Stream%d' % t, _stream_mat(), None, smooth=True, coll=C)
-        dm = bpy.data.meshes.get('IN_DropMesh')
-        if dm is None:                                               # droplets thrown off around each stream
-            bmd = bmesh.new()
-            bmesh.ops.create_icosphere(bmd, subdivisions=1, radius=0.006)
-            dm = bpy.data.meshes.new('IN_DropMesh')
-            bmd.to_mesh(dm)
-            bmd.free()
-            dm.materials.append(_stream_mat())
-        for k in (1, 3, 5, 7):
-            xx = x - 1.4 + k * 0.35
+        for k in (1, 3, 5, 7):                       # no droplet spray over the tanks (#286); same draws keep the set
             for j in range(6):
-                d = bpy.data.objects.new('IN_Drop%d_%d_%d' % (t, k, j), dm)
-                C.objects.link(d)
-                a = rnd.uniform(0, 6.28)
-                r0 = rnd.uniform(0.03, 0.05)
-                per = rnd.randint(9, 14)
-                for f0 in range(1 + j * 2, 1100, per):               # spray out from the stream, fall to the water
-                    for df, rr, zz in ((0, r0, rnd.uniform(1.0, 1.5)), (per - 1, r0 + 0.12, 0.93)):
-                        d.location = (xx + rr * math.cos(a), y + rr * math.sin(a), DZ + zz)
-                        d.keyframe_insert('location', frame=f0 + df)
+                rnd.uniform(0, 1), rnd.uniform(0, 1)
+                for f0 in range(1 + j * 2, 1100, rnd.randint(9, 14)):
+                    rnd.uniform(0, 1)
         sc.make('IN_StreamFoam%d' % t, _foam_ring_mat(), None, coll=C)
         # product in the tank (under/at the surface)
         for k in range(60):
@@ -421,13 +403,32 @@ def _mesh_belt():
     return m
 
 
+def _rest_on(o, z, gap=0.001):
+    """Drop o so its lowest vertex sits gap above z (every vertex: legs and antennae hang lowest)."""
+    import numpy as np
+    me = o.data
+    if me.name not in _REST:
+        co = np.empty(len(me.vertices) * 3)
+        me.vertices.foreach_get('co', co)
+        _REST[me.name] = co.reshape(-1, 3)
+    R = np.array(o.rotation_euler.to_matrix()) * np.array(o.scale)
+    o.location.z = z + gap - float((_REST[me.name] @ R.T)[:, 2].min())
+
+
+_REST = {}
+
+
 def grading(C, M, rnd, shrimp_fn):
     belt = _conveyor('IN_GradeBelt', (CX, 20.5, DZ + 0.95), (CX, 31.5, DZ + 0.95), 0.7, C, M)
     for k in range(360):                                   # product spread along the belt (and the outfeed)
         y = rnd.uniform(17.4, 31.2)
-        z = DZ + 1.03 if y > 20.5 else DZ + 0.66 + (y - 17.2) / 3.3 * 0.35 + 0.08
-        shrimp_fn('IN_BeltShrimp%03d' % k, (CX + rnd.uniform(-0.27, 0.27), y, z),
-                  (rnd.uniform(-0.3, 0.3), rnd.uniform(-0.3, 0.3), rnd.uniform(0, 6.28)))
+        if 20.3 < y < 20.75:                               # none on the transfer joint (same draws)
+            rnd.uniform(0, 1), rnd.uniform(0, 1), rnd.uniform(0, 1), rnd.uniform(0, 1)
+            continue
+        top = DZ + 1.02 if y > 20.5 else DZ + 0.6 + (y - 17.2) / 3.3 * 0.35 + 0.07     # belt surface under it
+        o = shrimp_fn('IN_BeltShrimp%03d' % k, (CX + rnd.uniform(-0.27, 0.27), y, top),
+                      (math.pi / 2 + rnd.uniform(-0.3, 0.3) * 0.3, rnd.uniform(-0.3, 0.3) * 0.3, rnd.uniform(0, 6.28)))
+        _rest_on(o, top)                                   # the scan stands on its tail at rx 0: rolled flat onto its side                                   # lying on the belt: not floating, not through it (#286)
     # roller grader: hopper, inclined rollers in a frame, four chutes on each side into trays
     p = Part()
     p.box((CX, 26.5, DZ + 1.25), (1.4, 3.2, 0.08), Euler((0.06, 0, 0)))
@@ -465,6 +466,25 @@ def grading(C, M, rnd, shrimp_fn):
                 p.box((x + dx, yy, DZ + 0.33), (0.035, 0.035, 0.66))
         p.box((x, 26.5, DZ + 0.15), (0.5, 3.0, 0.02))
     p.make('IN_TrayStands', M['stainless'], None, bevel=0.005, coll=C)
+    # discharge end (#286): end roller, a lip, and a stainless collection bin on legs under the drop
+    p = Part()
+    p.cyl((CX - 0.35, 31.5, DZ + 0.97), (CX + 0.35, 31.5, DZ + 0.97), 0.05, 16)
+    p.box((CX, 31.62, DZ + 0.93), (0.66, 0.2, 0.012), Euler((-0.6, 0, 0)))
+    bx, by, top, bot = CX, 31.84, DZ + 0.84, DZ + 0.46
+    for cx, cy, sx, sy in ((0, 0, 0.8, 0.5), (0, 0.25, 0.8, 0.012), (0, -0.25, 0.8, 0.012),
+                           (0.4, 0, 0.012, 0.5), (-0.4, 0, 0.012, 0.5)):
+        h = 0.012 if sx > 0.1 and sy > 0.1 else top - bot
+        p.box((bx + cx, by + cy, bot + h / 2), (sx, sy, h))
+    for sx in (-0.37, 0.37):
+        for sy in (-0.22, 0.22):
+            p.box((bx + sx, by + sy, (DZ + bot) / 2), (0.035, 0.035, bot - DZ))
+    p.make('IN_BeltBin', M['stainless'], None, bevel=0.004, coll=C)
+    rb = random.Random(286)                                # own seed: the rest of the hall keeps its draws
+    for m in range(40):                                    # product collected in the bin, a shallow heap
+        o = shrimp_fn('IN_BinShrimp%02d' % m, (bx + rb.uniform(-0.08, 0.08), by + rb.uniform(-0.06, 0.06), bot),
+                      (math.pi / 2 + rb.uniform(-0.1, 0.1), rb.uniform(-0.1, 0.1),
+                       rb.choice((0, math.pi)) + rb.uniform(-0.25, 0.25)))   # along the bin: antennae stay inside
+        _rest_on(o, bot + 0.012 + rb.uniform(0, 0.03))
     return belt
 
 

@@ -379,6 +379,78 @@ def carry246(sid, frame=62):
             H.grip(bpy.data.objects[nm], sd, target=[crate], curl=1.0)
 
 
+def white_gear(sid):
+    """#286 processing hall: plain white hygiene gear on everyone. The coat and apron palettes (navy, maroon, teal,
+    green by role) all go white; gloves stay blue, boots white, caps and masks as built."""
+    if not sid.startswith('286'):
+        return
+    for nm, white in (('HUM_WhiteCotton', (0.62, 0.63, 0.62, 1)), ('HUM_WhitePVC', (0.80, 0.82, 0.82, 1))):
+        m = bpy.data.materials.get(nm)
+        for n in (m.node_tree.nodes if m else ()):
+            if n.type == 'VALTORGB':
+                for e in n.color_ramp.elements:
+                    e.color = white
+    bt = bpy.data.materials.get('HUM_WhiteBoot')       # clean white gumboots: no ground grime or dark sole reading black
+    if bt is not None:
+        pb = next(n for n in bt.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+        for lk in list(pb.inputs['Base Color'].links):
+            bt.node_tree.links.remove(lk)
+        pb.inputs['Base Color'].default_value = (0.78, 0.79, 0.78, 1)
+
+
+def bin286(sid):
+    """#286: product collected in the stainless bin at the belt's discharge end, a shallow heap (the p-proc blend was
+    built before skinterior.grading() put it there): the plant's shrimp mesh, laid along the bin, resting on it."""
+    if not sid.startswith('286') or bpy.data.objects.get('IN_BinShrimp00'):
+        return
+    import math
+    import random
+    import skinterior as SI
+    me = next((m for m in bpy.data.meshes if m.name.startswith(('FARM_ShrimpMesh', 'SCAN_Shrimp')) and m.users), None)
+    if me is None:                                     # (the belt shrimp were joined into IN_ShrimpZone meshes)
+        return
+    rb = random.Random(286)
+    bx, by, bot, top = SI.CX, 31.84, 1.2 + 0.46, 1.2 + 0.84
+    for m in range(150):                               # a heap, highest under the drop, below the rim
+        u, v = rb.uniform(-1, 1), rb.uniform(-1, 1)
+        o = bpy.data.objects.new('IN_BinShrimp%02d' % m, me)
+        bpy.context.scene.collection.objects.link(o)
+        o.location = (bx + u * 0.07, by + v * 0.1, bot)                # antennae stay inside the walls
+        o.rotation_euler = (math.pi / 2 + rb.uniform(-0.3, 0.3), rb.uniform(-0.3, 0.3),
+                            rb.choice((0, math.pi)) + rb.uniform(-0.1, 0.1))   # along the bin: antennae inside
+        h = (1 - 0.6 * max(abs(u), abs(v))) * (top - bot - 0.1)
+        SI._rest_on(o, bot + 0.012 + rb.uniform(0, h))
+
+def spray286(sid):
+    """#286 wash tanks: water only from a visible pipe into the tank. The built spray bar's feed stubs ran off sideways
+    and ended in the air, its posts stood 0.75 m off the bar: it is replaced by one clean stainless manifold per tank,
+    straight over the nozzle line, carried on two posts from the tank's end walls, with the nine nozzles under it
+    (the four running streams stay as built)."""
+    if not sid.startswith('286'):
+        return
+    import skinterior as SI
+    from sktruck import Part
+    st = bpy.data.materials.get('PL_Stainless')
+    DZ = 1.2
+    for t, x in enumerate((SI.CX - 2.6, SI.CX + 2.6)):
+        old = bpy.data.objects.get('IN_SprayBar%d' % t)
+        if old is None:
+            continue
+        old.hide_render = old.hide_viewport = True
+        y = 15.6
+        p = Part()
+        p.cyl((x - 1.62, y, DZ + 1.75), (x + 1.62, y, DZ + 1.75), 0.03, 12)          # manifold
+        for sx in (-1.6, 1.6):
+            p.cyl((x + sx, y, DZ + 1.1), (x + sx, y, DZ + 1.78), 0.025, 10)          # posts on the end walls
+            p.box((x + sx, y, DZ + 1.11), (0.1, 0.1, 0.02))                            # base plates
+        for k in range(9):
+            p.cyl((x - 1.4 + k * 0.35, y, DZ + 1.75), (x - 1.4 + k * 0.35, y, DZ + 1.68), 0.012, 8)   # nozzles
+        p.make('STILL_SprayManifold%d' % t, st, None, smooth=False, coll=bpy.context.scene.collection)
+        fo = bpy.data.objects.get('IN_StreamFoam%d' % t)   # its mottled foam disc read as a black-and-white blotch
+        if fo is not None:
+            fo.hide_render = fo.hide_viewport = True
+
+
 def apply_all(sid=''):
     apply()
     crane_paint()
@@ -389,3 +461,6 @@ def apply_all(sid=''):
     frost257(sid)
     crew257(sid)
     carry246(sid)
+    white_gear(sid)
+    bin286(sid)
+    spray286(sid)
