@@ -86,7 +86,16 @@ function instrument() {
       const p = w.__scrub
       const vids = [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')]
       const k = vids.findIndex((v) => v.style.opacity === '1')
-      const sig = p?.shown && k >= 0 ? `${k}:${vids[k].currentSrc}:${presented.get(vids[k]) ?? -1}` : 'poster'
+      // desktop frame sequences (#hd2): the stage canvas and the frame it drew
+      const cv = document.querySelector<HTMLCanvasElement>('canvas.stage__seq')
+      const sig = p?.shown && k >= 0 ? `${k}:${vids[k].currentSrc}:${presented.get(vids[k]) ?? -1}` : p?.shown && cv?.style.opacity === '1' ? `seq:${p.id}:${cv.dataset.frame}` : 'poster'
+      // a sequence clip has started loading once its set exists, and has a picture once a frame is in
+      for (const q of (window as unknown as { __sequences?: { id: string; progress: number }[] }).__sequences ?? []) {
+        if (!q.id.startsWith('stage-')) continue
+        const id = q.id.slice(6)
+        if (!(id in m.loadstart)) m.loadstart[id] = t
+        if (q.progress > 0 && !(id in m.loadeddata)) m.loadeddata[id] = t
+      }
       m.frames.push([t, scrollY, p?.chapter ?? -1, p?.id ?? null, p?.shown ? 1 : 0, sig])
     }
     requestAnimationFrame(step)
@@ -149,7 +158,7 @@ async function swipeTo(cdp: CDPSession, page: Page, to: number, px: number, ms: 
 }
 
 async function run(browser: Browser, prof: Prof, hash: string, mode: Mode): Promise<Run> {
-  const ctx = await browser.newContext({ viewport: prof.viewport, isMobile: prof.mobile, hasTouch: prof.mobile, deviceScaleFactor: prof.mobile ? 3 : 1 })
+  const ctx = await browser.newContext({ viewport: prof.viewport, isMobile: prof.mobile, hasTouch: prof.mobile, deviceScaleFactor: prof.mobile ? 3 : +(process.env.DPR ?? 1) })
   await ctx.addInitScript(instrument)
   const page = await ctx.newPage()
   const errors: string[] = []

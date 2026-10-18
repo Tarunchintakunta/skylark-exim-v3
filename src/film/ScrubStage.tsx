@@ -5,7 +5,7 @@ import { POOL, bindStage } from './scrub'
 import { toSegments } from './segments'
 import './stage.css'
 
-/** The one fixed stage: posters under POOL video decoders (the current clip and the next ones), a veil for cuts and the bottom scrim. */
+/** The one fixed stage: posters under POOL video decoders (the current clip and the next ones) and the frame-sequence canvas, a veil for cuts and the bottom scrim. */
 export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   const segs = useMemo(() => toSegments(chapters), [chapters])
   const ref = useRef<HTMLDivElement>(null)
@@ -37,6 +37,8 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           />
         )
       })}
+      {/* desktop frame sequences (#hd2, scrub.ts) */}
+      <canvas className="stage__seq" aria-hidden="true" />
       {Array.from({ length: POOL }, (_, k) => (
         <video key={k} className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
       ))}

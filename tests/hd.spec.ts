@@ -5,7 +5,8 @@ import { expect, test, type Page } from '@playwright/test'
  * HD pass: is every picture sharp on the screen it lands on? For each <img>/<video> on screen, source px ÷ (css px × dpr),
  * taken on the axis that limits it (object-fit: cover crops the other), must be ≥ 0.95. Phone portrait clips come from a
  * 810×1440 crop of the 2560×1440 masters: the master's 1440 rows are the ceiling there, so they are held to that ceiling.
- * Also per viewport: LCP, CLS, rAF p95 during a scroll, and no media request during a scroll once the warm cache is full.
+ * Also per viewport: LCP, CLS, rAF p95 during a scroll, and during a scroll once the warm cache is through: no media
+ * request on a phone (it holds the whole path), clips of the path only on desktop (it streams them by chapter, #hd2).
  * Prints a table per viewport and writes review/hd-<viewport>.json.
  */
 const VIEWPORTS = {
@@ -14,8 +15,8 @@ const VIEWPORTS = {
   '390x844@3': { viewport: { width: 390, height: 844 }, dpr: 3, mobile: true },
 } as const
 const MIN = 0.95
-/** per tier (#264): the 2560 retina desktop 40 MB, the 1920 desktop 28 MB (#284), the phone 12 MB */
-const PATH_MB = { retina: 40, desktop: 28, mobile: 12 }
+/** per tier: every desktop tier 60 MB (#hd2; was 40 MB retina, 28 MB at 1920), the phone 12 MB */
+const PATH_MB = { retina: 60, desktop: 60, mobile: 12 }
 /** the masters are 1440 rows tall: the best a phone portrait clip or poster can reach at 844 css px × dpr 3 (0.57) */
 const MASTER_ROWS = 1440
 /** LCP: 2,300 ms is the target, 2,500 ms the hard limit (#264) */
@@ -190,7 +191,9 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       expect.soft(report[`${where} cls`], `${where} CLS`).toBe(0)
       if (where === '/') continue
       expect.soft(report[`${where} p95FrameMs`] as number, `${where} p95 frame`).toBeLessThanOrEqual(FRAME_P95_MS)
-      expect.soft(report[`${where} mediaDuringScroll`], `${where} media requests during the scroll`).toEqual([])
+      // phones hold the whole path; desktop streams clips by chapter (#hd2), so only clips may arrive during the scroll
+      const during = report[`${where} mediaDuringScroll`] as string[]
+      expect.soft(v.mobile ? during : during.filter((u) => !/\.mp4$/.test(u)), `${where} media requests during the scroll`).toEqual([])
       // the tier a viewport is served decides its budget: DPR 2 on a 1440 desktop asks for 2560
       const tier = v.mobile ? 'mobile' : v.viewport.width * v.dpr * 0.9 > 1920 ? 'retina' : 'desktop'
       expect.soft((report[`${where} MB`] as { total: number }).total, `${where} path MB (${tier})`).toBeLessThanOrEqual(PATH_MB[tier])

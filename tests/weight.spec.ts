@@ -3,25 +3,29 @@ import { statSync, readdirSync } from 'node:fs'
 import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 
 // TRD §13 / ASSETS_SPEC budgets (#264). Transferred bytes from CDP, initial (the page ready) and after a full scroll.
-// /story per path, counted once the warm cache has the whole path. Per tier, because a device downloads one tier: a
-// 2560 retina desktop 40 MB, a 1920 desktop 28 MB (#284: the six-shot port run), a phone 12 MB. The homepage carries the hero's frame set, so it has
+// /story per path, counted once the warm cache is through and the scroll has reached the end. Per tier, because a
+// device downloads one tier: every desktop tier 60 MB (#hd2: 2560 clips from the HD masters, streamed by chapter on
+// desktop, was 40 MB retina and 28 MB at 1920), a phone 12 MB. The homepage carries the hero's frame set, so it has
 // its own 8 MB full-scroll budget.
-const BUDGET = { desktop: { initial: 3e6, full: 28e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
-const RETINA_FULL = 40e6
+const BUDGET = { desktop: { initial: 3e6, full: 60e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
+const RETINA_FULL = 60e6
 const HOME_FULL = 8e6
 const MB = (b: number) => +(b / 1e6).toFixed(2)
 
 /**
  * Per-file caps for everything under public/ (KB). First match wins; an unknown file type fails, so new
- * kinds of assets need a deliberate cap. Every clip, any tier or codec, ≤ 2,300 KB (the budget solver in
+ * kinds of assets need a deliberate cap. Every clip, any tier or codec, ≤ 6,000 KB (#hd2, was 2,300; the budget solver in
  * scripts/clip-manifest.ts sets each one's cap); posters and stills ≤ 350 KB; the LCP still (the hero loop's first
  * frame) ≤ 120 KB and its phone AVIF ≤ 60 KB.
  */
 const CAPS: [RegExp, number][] = [
-  [/\.mp4$/, 2300],
+  [/\.mp4$/, 6000],
   // product stills (#195): phones get up to the 960 (#hd), under 150 KB
   [/\/prod-[^/]+_(480|640)\.(avif|webp)$/, 70],
   [/\/prod-[^/]+_960\.(avif|webp)$/, 150],
+  // desktop frame sequences on the /story stage (#hd2, scripts/clip-frames.sh): one 2560 or 1920 frame ≤ 150 KB
+  // (Terminal Industries' desktop frames run 25-135 KB at 1920); phones play those clips as video
+  [/\/hf-[^/]+-f_(2560|1920)_\d+\.(avif|webp)$/, 150],
   // the hero's scroll-sequence frames (#249, #264): one frame is never worth more than the LCP still
   [/\/hero-seq_[^/]+\.(avif|webp)$/, 120],
   [/\/hero-loop_m\.avif$/, 60],
@@ -97,7 +101,7 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
   }
 }
 
-// the 2560 tier (#264): a retina desktop downloads the largest files the site serves, inside its own 40 MB budget
+// the 2560 tier (#264): a retina desktop downloads the largest files the site serves, inside its own budget (60 MB, #hd2)
 for (const path of ['ocean', 'pond']) {
   test(`weight retina 2560 ${path}`, async ({ browser }) => {
     test.setTimeout(600_000)

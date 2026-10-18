@@ -59,6 +59,14 @@ export const CROP_X: Record<string, number> = {
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
 }
 
+/**
+ * Clips a desktop plays as a frame sequence on the stage canvas instead of a <video> (#hd2; src/film/sequence.ts, the
+ * Terminal Industries pattern): the port film's fast camera moves macroblocked and smeared in video at any byte rate a
+ * path can afford. Every master frame as an AVIF still (scripts/clip-frames.sh), so each keeps its frame count and
+ * timing. Phones keep the video: 289 phone frames would take most of the 12 MB phone path.
+ */
+export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'hf-port-5']
+
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
 const start: ChapterDef = {

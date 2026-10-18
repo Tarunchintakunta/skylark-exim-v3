@@ -69,6 +69,14 @@ function instrument() {
     }
   })).observe(document, { subtree: true, childList: true })
 
+  // desktop frame sequences (#hd2): each new frame the stage canvas draws counts as a presented frame
+  new MutationObserver((list) => {
+    for (const r of list) {
+      const c = r.target as HTMLElement
+      if (m.run && current && c.style.opacity === '1') ch().frames++
+    }
+  }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-frame'] })
+
   new PerformanceObserver((l) => l.getEntries().forEach((e) => m.run && m.long.push(e.duration))).observe({ type: 'longtask', buffered: false })
   try {
     new PerformanceObserver((l) => l.getEntries().forEach((e) => m.run && m.loaf.push(e.duration))).observe({ type: 'long-animation-frame' })
@@ -94,7 +102,8 @@ function instrument() {
       if (p?.id) c.video = true
       if (p?.id && t - c.enteredAt > 500) {
         const v = [...document.querySelectorAll('video')].find((x) => x.style.opacity === '1')
-        const mt = v ? presented.get(v) : undefined
+        const cv = document.querySelector<HTMLCanvasElement>('canvas.stage__seq')
+        const mt = v ? presented.get(v) : cv?.style.opacity === '1' ? +(cv.dataset.frame ?? -99) / 24 : undefined
         if (!p.shown || mt === undefined || Math.abs(mt - p.target) > 2 / 24) c.staleMs += dt
       }
     }
@@ -138,7 +147,8 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         viewport: prof.viewport,
         isMobile: prof.mobile,
         hasTouch: prof.mobile,
-        deviceScaleFactor: prof.mobile ? 2.625 : 1,
+        // DPR=2 on desktop asks for the 2560 tier (#hd2: how the 2560 / 3840 tiers were measured)
+        deviceScaleFactor: prof.mobile ? 2.625 : +(process.env.DPR ?? 1),
         extraHTTPHeaders: process.env.VERCEL_BYPASS ? { 'x-vercel-protection-bypass': process.env.VERCEL_BYPASS, 'x-vercel-set-bypass-cookie': 'true' } : undefined,
         recordVideo: process.env.RECORD ? { dir: `review/recordings/${name}-${path}`, size: prof.viewport } : undefined,
       })

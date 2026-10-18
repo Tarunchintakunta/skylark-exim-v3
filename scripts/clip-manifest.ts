@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import type { Plugin } from 'vite'
-import { chaptersFor } from '../src/config/chapters'
+import { SEQ_CLIPS, chaptersFor } from '../src/config/chapters'
 
 /**
  * Clip tiers (segments.ts): 'm' = 810×1440 portrait crop for phones held upright, 960 landscape phones / Save-Data,
@@ -16,11 +16,12 @@ export const clipFile = (id: string, tier: Tier, codec: Codec) => `${id}_${tier}
 
 /**
  * Budgets per /story path and per file (TRD §13, #264; tests/weight.spec.ts, tests/hd.spec.ts). Per tier, because a
- * device downloads one tier: a 2560 retina desktop is allowed 40 MB for a whole path, a 1920 desktop 28 MB, a phone 12 MB.
- * 1280 follows 1920 (#284): both are the one desktop profile the weight test holds to a single budget.
+ * device downloads one tier. #hd2: every desktop tier (1280, 1920 and the 2560 retina one) 60 MB a path, each clip file
+ * up to 6,000 KB, now that desktop streams a clip only when its chapter is near (src/film/warmcache.ts) instead of
+ * fetching the whole path after the first screen (was 28 / 28 / 40 MB and 2,300 KB). Phones stay at 12 MB.
  */
-const BUDGET: Record<Tier, number> = { m: 12e6, 960: 12e6, 1280: 28e6, 1920: 28e6, 2560: 40e6 }
-export const FILE_CAP = 2300 * 1024
+const BUDGET: Record<Tier, number> = { m: 12e6, 960: 12e6, 1280: 60e6, 1920: 60e6, 2560: 60e6 }
+export const FILE_CAP = 6000 * 1024
 /**
  * What a /story path downloads besides /media (document, JS, CSS, fonts, globe placeholder and texture): the baseline
  * build's "other" bytes over a whole path (tests/hd.spec.ts: 0.78 MB at 1920×1080, 0.60 MB at 390×844), plus 10 %.
@@ -32,7 +33,7 @@ const profile = (t: Tier) => (t === 'm' || t === 960 ? 'mobile' : 'desktop')
  * the hero loop is not a path clip: fixed caps, no larger than before the HD pass (the loader waits for it to play, so
  * its bytes are first-screen time): 6 s of calm sea
  */
-const HERO_CAP: Record<Tier, number> = { m: 380 * 1024, 960: 380 * 1024, 1280: 630 * 1024, 1920: 1000 * 1024, 2560: FILE_CAP }
+const HERO_CAP: Record<Tier, number> = { m: 380 * 1024, 960: 380 * 1024, 1280: 630 * 1024, 1920: 1000 * 1024, 2560: 2300 * 1024 }
 
 const OUT = new URL('../src/film/manifest.ts', import.meta.url)
 const media = (f: string) => new URL(`../public/media/${f}`, import.meta.url)
@@ -40,6 +41,15 @@ const hash = (buf: Buffer) => createHash('sha256').update(buf).digest('hex').sli
 /** a /media file's URL with its content hash, as segments.ts mediaUrl writes it (for the static HTML) */
 export const versioned = (f: string) => `/media/${f}${existsSync(media(f)) ? `?v=${hash(readFileSync(media(f)))}` : ''}`
 const PATHS = ['ocean', 'pond'] as const
+/**
+ * Frame sequences (#hd2, chapters.ts SEQ_CLIPS, scripts/clip-frames.sh): <id>-f_1920_NNN.avif (+ .webp). Every desktop
+ * tier downloads the one AVIF set instead of the clip's video.
+ */
+const seqFrames = (id: string, ext = 'avif') =>
+  existsSync(media('')) ? readdirSync(media('')).filter((f) => f.startsWith(`${id}-f_1920_`) && f.endsWith(`.${ext}`)) : []
+export const isSeq = (id: string) => SEQ_CLIPS.includes(id) && seqFrames(id).length > 0
+/** bytes a desktop downloads for a sequence clip */
+const seqBytes = (id: string, _t?: Tier) => seqFrames(id).reduce((a, f) => a + fileSize(f), 0)
 const fileSize = (f: string) => (existsSync(media(f)) ? statSync(media(f)).size : 0)
 const pathClips = (p: (typeof PATHS)[number]) => [
   ...new Set(chaptersFor(p).flatMap((ch) => ch.media.flatMap((m) => (m.kind === 'video' ? [m.id] : [])))),
@@ -50,7 +60,7 @@ const pathClips = (p: (typeof PATHS)[number]) => [
  * decodes it): OTHER, the hero loop at its cap and its poster, each clip's first-frame poster, desktop's end frames,
  * the documentation still and the product stills the page shows at that size.
  */
-function overhead(path: (typeof PATHS)[number], t: Tier) {
+export function overhead(path: (typeof PATHS)[number], t: Tier) {
   const p = profile(t)
   // no 2560 posters yet when the 2560 tier is being decided: its 1920 posters stand in (an underestimate)
   const poster = (id: string) => fileSize(`${id}_${t}.avif`) || (t === 2560 ? fileSize(`${id}_1920.avif`) : 0)
@@ -60,12 +70,33 @@ function overhead(path: (typeof PATHS)[number], t: Tier) {
 }
 
 /**
+ * What a clip costs to encode clean (#hd2): kbit/s of its master at one fixed quality with the scrub's GOP (H.264
+ * veryfast crf 23, 960 wide, keyframe every 6, no B-frames), written by `tsx scripts/clip-manifest.ts cost` into
+ * scripts/clip-cost.json (re-run it when a master changes). Motion is most of it: with a keyframe every 6 frames, a
+ * fast move or churning water makes every P-frame expensive, a locked-off shot costs little past its keyframes (the
+ * locked-off dock 2.2 Mbit/s, the harvest net 8.0). The weight is cost ÷ the median clip's, held to 1–2.5: a cheap clip still gets
+ * the median rate (with a 0.7 floor the locked-off shots fell 25-35 % under their old 2560 bytes and the dock's wet
+ * floor went soft), the expensive ones up to 2.5×. A clip missing from the file weighs 1.
+ */
+const COST_FILE = new URL('./clip-cost.json', import.meta.url)
+const COST: Record<string, number> = existsSync(COST_FILE) ? JSON.parse(readFileSync(COST_FILE, 'utf8')) : {}
+export function motionWeight(id: string) {
+  const all = Object.values(COST).sort((a, b) => a - b)
+  if (!(id in COST) || !all.length) return 1
+  const median = all[Math.floor(all.length / 2)]
+  return Math.min(2.5, Math.max(1, COST[id] / median))
+}
+
+/**
  * Budget solver: bytes per clip and tier so each path's clips fill (budget − overhead) in proportion to their length,
  * max-min fair across the two paths (a clip on both paths gets the tighter path's rate; what that leaves over in the
- * other path goes to its own clips), never above the 2,300 KB file cap. Every tier gets the whole budget: a device
+ * other path goes to its own clips), never above the file cap (FILE_CAP). Every tier gets the whole budget: a device
  * downloads one tier and one codec, so the tier on screen gets all of it.
  */
 export function solveCaps(dur: Record<string, number>, fixed: Record<string, Partial<Record<Tier, number>>> = {}) {
+  // desktop tiers share by cost-weighted duration (#hd2): a fast camera move needs far more bytes a second than a
+  // locked-off shot to stay free of blocks (the port film smeared at 640 KB a clip); phones keep plain duration
+  const len = (id: string, t: Tier) => dur[id] * (profile(t) === 'desktop' ? motionWeight(id) : 1)
   const caps: Record<string, Partial<Record<Tier, number>>> = { 'hero-loop': HERO_CAP }
   for (const t of TIERS) {
     const left = Object.fromEntries(PATHS.map((p) => [p, BUDGET[t] - overhead(p, t)]))
@@ -75,10 +106,10 @@ export function solveCaps(dur: Record<string, number>, fixed: Record<string, Par
     while (open.size) {
       const rate = PATHS.map((p) => {
         const ids = pathClips(p).filter((id) => open.has(id))
-        return { p, ids, r: ids.length ? left[p] / ids.reduce((a, id) => a + dur[id], 0) : Infinity }
+        return { p, ids, r: ids.length ? left[p] / ids.reduce((a, id) => a + len(id, t), 0) : Infinity }
       }).sort((a, b) => a.r - b.r)[0]
       for (const id of rate.ids) {
-        const bytes = Math.floor(Math.min(FILE_CAP, rate.r * dur[id]))
+        const bytes = Math.floor(Math.min(FILE_CAP, rate.r * len(id, t)))
         ;(caps[id] ??= {})[t] = bytes
         open.delete(id)
         for (const p of PATHS) if (pathClips(p).includes(id)) left[p] -= bytes
@@ -94,13 +125,14 @@ export function solveCaps(dur: Record<string, number>, fixed: Record<string, Par
  */
 export function topTier(codec: Codec, size: (f: string) => number | null) {
   if (codec === 'h264') return { top: 1920 as const, why: 'H.264 has no 2560 tier' }
-  const sizes = PATHS.map((p) => pathClips(p).map((id) => size(clipFile(id, 2560, codec))))
+  const sizes = PATHS.map((p) => pathClips(p).map((id) => (isSeq(id) ? seqBytes(id, 2560) : size(clipFile(id, 2560, codec)))))
   if (sizes.flat().some((s) => s === null)) return { top: 1920 as const, why: `no ${codec} 2560 files: scripts/encode-all.sh drops them when a path does not fit` }
   const total = sizes.map((s, i) => (s as number[]).reduce((a, b) => a + b, 0) + overhead(PATHS[i], 2560))
-  const over = (sizes.flat() as number[]).filter((s) => s > FILE_CAP).length
+  // the file cap is a video cap: a frame set's total is not one file (each frame has its own cap, tests/weight.spec.ts)
+  const over = PATHS.flatMap(pathClips).filter((id) => !isSeq(id) && (size(clipFile(id, 2560, codec)) ?? 0) > FILE_CAP).length
   const mb = total.map((b, i) => `${PATHS[i]} ${(b / 1e6).toFixed(1)} MB`).join(', ')
   if (over || total.some((b) => b > BUDGET[2560]))
-    return { top: 1920 as const, why: `${codec} 2560: ${mb}, ${over} files over 2,300 KB; budget ${BUDGET[2560] / 1e6} MB` }
+    return { top: 1920 as const, why: `${codec} 2560: ${mb}, ${over} files over ${FILE_CAP / 1024} KB; budget ${BUDGET[2560] / 1e6} MB` }
   return { top: 2560 as const, why: `${codec} 2560 fits: ${mb}` }
 }
 
@@ -159,6 +191,11 @@ ${paths.join('\n')}
 /** the budget solver's top desktop tier per codec (scripts/clip-manifest.ts topTier) */
 export const TOP: Record<Codec, 1920 | 2560> = { ${CODECS.map((c) => `${c}: ${top[c].top}`).join(', ')} }
 
+/** desktop frame sequences (chapters.ts SEQ_CLIPS, #hd2): frames per clip, and bytes of its 1920 set (AVIF, WebP) */
+export const SEQ: Record<string, { frames: number; avif: number; webp: number }> = {
+${SEQ_CLIPS.filter(isSeq).map((id) => `  '${id}': { frames: ${seqFrames(id).length}, avif: ${seqBytes(id)}, webp: ${seqFrames(id, 'webp').reduce((a, f) => a + fileSize(f), 0)} },`).join('\n')}
+}
+
 /** content hash of every file in public/media; mediaUrl (segments.ts) puts it on the URL */
 export const MEDIA_V: Record<string, string> = {
 ${[...v].sort(([a], [b]) => (a < b ? -1 : 1)).map(([f, h]) => `  '${f}': '${h}',`).join('\n')}
@@ -191,13 +228,23 @@ if (process.argv[1]?.endsWith('clip-manifest.ts')) {
     // SOLVE="<ids>": only those clips are being encoded; every other clip keeps its files on disk, counted at its
     // largest codec per tier (a device downloads one)
     const solve = process.env.SOLVE?.split(/\s+/).filter(Boolean)
-    const fixed = Object.fromEntries(
-      all.filter((id) => solve && !solve.includes(id)).map((id) => [id, Object.fromEntries(TIERS.map((t) => [t, Math.max(...CODECS.map((c) => fileSize(clipFile(id, t, c))))]))]),
-    )
+    // a sequence clip is fixed too: its frame set on desktop tiers, its video files on the phone ones
+    const kept = (id: string, t: Tier) => (isSeq(id) && profile(t) === 'desktop' ? seqBytes(id, t) : Math.max(...CODECS.map((c) => fileSize(clipFile(id, t, c)))))
+    const fixed = Object.fromEntries(all.filter((id) => (solve && !solve.includes(id)) || isSeq(id)).map((id) => [id, Object.fromEntries(TIERS.map((t) => [t, kept(id, t)]))]))
     const dur = Object.fromEntries(all.filter((id) => !(id in fixed)).map((id) => [id, probe(id)]))
     const caps = solveCaps(dur, fixed)[arg]
     if (!caps) throw new Error(`clip-manifest: ${arg} is on no path`)
     for (const t of TIERS) console.log(t, caps[t])
+  } else if (cmd === 'cost') {
+    const out: Record<string, number> = {}
+    const tmp = `${process.env.TMPDIR ?? '/tmp'}/clip-cost.mp4`
+    for (const id of [...new Set(PATHS.flatMap(pathClips))]) {
+      execFileSync('ffmpeg', ['-nostdin', '-v', 'error', '-y', '-i', `masters/${id}/master.mp4`, '-vf', 'scale=960:-2', '-an', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-g', '6', '-keyint_min', '6', '-sc_threshold', '0', '-bf', '0', tmp])
+      const d = +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', tmp], { encoding: 'utf8' })
+      out[id] = Math.round((statSync(tmp).size * 8) / d / 1000)
+    }
+    writeFileSync(COST_FILE, JSON.stringify(out, null, 2) + '\n')
+    console.log(out)
   } else if (cmd === 'top') {
     const t = topTier(arg as Codec, (f) => (existsSync(media(f)) ? readFileSync(media(f)).length : null))
     console.log(t.top, t.why)

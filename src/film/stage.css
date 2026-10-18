@@ -4,6 +4,8 @@
   object-fit: cover; opacity: 0; pointer-events: none;
 }
 .stage__video { z-index: 1; }
+/* desktop frame sequences (#hd2): the canvas draws cover-fit itself, sized by its CSS box */
+.stage__seq { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: 0; pointer-events: none; }
 .stage__layer.is-over { z-index: 2; }
 .stage__gradient {
   /* sea placeholder: deep open-sea blue with a faint horizon */

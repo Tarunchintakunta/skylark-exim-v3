@@ -3,12 +3,15 @@ import { env } from '../engine/env'
 import { frame, store, type Path } from '../engine/store'
 import { GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
 import { CLIPS, type Clip } from './manifest'
-import { downloading, fullyLoaded } from './scrub'
-import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, posterFor, served } from './segments'
+import { downloading, fullyLoaded, prefetchSeq } from './scrub'
+import { W, avifReady, clipUrl, codec, codecReady, endPosterUrl, isSeq, posterFor, served } from './segments'
 
 /**
- * Warm cache (#251): once the first screen is up, one loader fetches every clip of the active path into Blobs, so the
- * stage's <video>s play from blob: URLs and a seek never touches the network. Only the active path, at the page's own
+ * Warm cache (#251): once the first screen is up, one loader fetches the active path's clips into Blobs, so the
+ * stage's <video>s play from blob: URLs and a seek never touches the network. Desktop (#hd2, 2560 clips up to 60 MB a
+ * path) keeps to a window around the chapter on screen, WINDOW chapters behind and ahead, and follows the scroll: the
+ * first load stays the first chapters' worth, and a reader who stops halfway never downloads the rest. Phones (12 MB
+ * a path) still take the whole path. Only the active path, at the page's own
  * tier and in one codec (#hd: it waits for segments.ts to settle the codec). Every clip gets its own Blob, including
  * one a decoder has already downloaded in full: without a Blob that clip is fetched again the next time a decoder takes
  * it, which was the one request a warm scroll still made (#264; /media is immutable, so the refetch is a cache hit).
@@ -23,6 +26,13 @@ const PARALLEL = env.mobile ? 3 : 6
 const QUIET = 400
 /** chapters ahead of the one on screen that the scrub loads itself while the visitor scrolls */
 const NEAR = 2
+/** desktop: chapters behind and ahead of the one on screen whose clips the cache fetches (#hd2); phones: the whole path */
+const WINDOW = 1
+const windowed = !env.mobile
+/** the clips the cache holds as Blobs: a desktop frame-sequence clip (#hd2) is the stage canvas's, not a video */
+const videos = (p: Path) => CLIPS[p].filter((c) => !isSeq(c.id))
+/** a clip the cache fetches now: on desktop within WINDOW chapters of the one on screen, on phones every clip */
+const inWindow = (c: Clip) => !windowed || Math.abs(c.chapter - frame.index) <= WINDOW
 let lastMove = 0
 addEventListener(
   'scroll',
@@ -39,9 +49,7 @@ addEventListener(
 const urls = new Map<string, string>()
 let path: Path | null = null
 let abort: AbortController | null = null
-let total = 0
-let done = 0
-/** the whole routine is through: clips, posters, the page's lazy images and the globe. Tests wait for this (#264). */
+/** the whole routine is through: clips (desktop: the first window), posters, the page's lazy images and the globe. Tests wait for this (#264). */
 let warm = false
 const listeners = new Set<() => void>()
 /** decoded posters, held so the document's list of available images serves them to the stage without a request */
@@ -57,8 +65,12 @@ const loading = new Map<string, AbortController>()
 
 /** blob: URL for a cached clip of the active path, else null */
 export const cachedUrl = (id: string) => urls.get(id) ?? null
-/** 0..1 of the active path's clip bytes in the cache */
-export const progress = () => (total ? done / total : 0)
+/** 0..1 of the clip bytes the cache wants now in the cache: the window around the chapter on screen (desktop), the path (phones) */
+export function progress() {
+  const want = path ? videos(path).filter(inWindow) : []
+  const total = want.reduce((a, c) => a + size(c), 0)
+  return total ? want.reduce((a, c) => a + (urls.has(c.id) ? size(c) : 0), 0) / total : 0
+}
 export function onCache(f: () => void) {
   listeners.add(f)
   return () => void listeners.delete(f)
@@ -79,13 +91,11 @@ async function run(p: Path) {
   const ctl = (abort = new AbortController())
   await Promise.all([codecReady, avifReady])
   if (ctl.signal.aborted) return
-  const clips = CLIPS[p]
+  const clips = videos(p)
   const keep = new Set(clips.map((c) => c.id))
   // the other path's clips go; the chapters both paths share stay cached
   for (const [id, u] of urls) if (!keep.has(id)) (URL.revokeObjectURL(u), urls.delete(id))
   path = p
-  total = clips.reduce((a, c) => a + size(c), 0)
-  done = clips.reduce((a, c) => a + (urls.has(c.id) ? size(c) : 0), 0)
   emit()
   const queue = order(clips).filter((c) => !urls.has(c.id))
   // nothing new starts while the visitor scrolls, so the scrub's progressive loads get the bandwidth; at idle coarse
@@ -94,12 +104,17 @@ async function run(p: Path) {
   const near = (c: Clip) => c.chapter >= frame.index && c.chapter <= frame.index + NEAR
   const next = () => {
     if (scrolling()) return null
-    // not a clip a decoder is downloading right now (that would be a second download); then, in order: a clip no
-    // decoder holds and that is not in the near window, one of those two, and last a clip a decoder already has in
-    // full — that one only needs its Blob, and on a slow link the progressive loads want the bandwidth more (#264)
-    const free = (c: Clip) => !downloading(c.id)
+    // not a clip a decoder is downloading right now (that would be a second download), and on desktop only inside the
+    // window; then, in order: phones a clip no decoder holds and that is not in the near window, desktop one in the
+    // chapter on screen, then one ahead; then any clip no decoder holds, and last a clip a decoder already has in full —
+    // that one only needs its Blob, and on a slow link the progressive loads want the bandwidth more (#264)
+    const free = (c: Clip) => !downloading(c.id) && inWindow(c)
     const first = (test: (c: Clip) => boolean) => queue.findIndex((c) => free(c) && test(c))
-    const j = [(c: Clip) => !near(c) && !fullyLoaded(c.id), (c: Clip) => !fullyLoaded(c.id), () => true].map(first).find((k) => k >= 0) ?? -1
+    const open = (c: Clip) => !fullyLoaded(c.id)
+    const tests = windowed
+      ? [(c: Clip) => open(c) && c.chapter === frame.index, (c: Clip) => open(c) && c.chapter > frame.index, open, () => true]
+      : [(c: Clip) => !near(c) && open(c), open, () => true]
+    const j = tests.map(first).find((k) => k >= 0) ?? -1
     return j < 0 ? null : queue.splice(j, 1)[0]
   }
   const fetchOne = async (c: Clip) => {
@@ -112,24 +127,33 @@ async function run(p: Path) {
       const blob = await res.blob()
       if (ctl.signal.aborted) return
       urls.set(c.id, URL.createObjectURL(blob))
-      done += size(c)
       emit()
     } finally {
       loading.delete(c.id)
     }
   }
-  await Promise.all(
+  let at = frame.index
+  const workers = Promise.all(
     Array.from({ length: PARALLEL }, async () => {
       while (queue.length && !ctl.signal.aborted) {
         const c = next()
         if (c) {
-          await fetchOne(c).catch(() => {})
+          const cut = await fetchOne(c).then(() => false, (e: unknown) => (e as Error)?.name === 'AbortError')
+          // desktop: a fetch a scroll cancelled goes back in the queue, for when the window comes round to it again
+          if (windowed && cut && !urls.has(c.id) && !ctl.signal.aborted) queue.push(c)
           continue
         }
+        // desktop: the window moved with the scroll, so the hairline shows the new window's share; frame sequences in
+        // the window start fetching (frame 0 first, then coarse first: sequence.ts)
+        if (frame.index !== at) ((at = frame.index), emit())
+        if (!scrolling()) for (const c of CLIPS[p]) if (isSeq(c.id) && inWindow(c)) prefetchSeq(c.id)
         await new Promise((r) => setTimeout(r, QUIET))
       }
     }),
   )
+  // desktop: the first window, then the rest of the routine; the workers go on following the scroll (phones: the path)
+  if (windowed) while (!ctl.signal.aborted && (loading.size || queue.some(inWindow))) await new Promise((r) => setTimeout(r, QUIET))
+  else await workers
   // then the stage's posters (first frames, and the end frames desktop shows when scrolling back into a clip), held as
   // decoded images, and the page's lazy images (products), so nothing below is fetched during the scroll either
   const media = chaptersFor(p).flatMap((ch) => ch.media)
@@ -162,6 +186,7 @@ async function run(p: Path) {
     warm = true
     emit()
   }
+  await workers
 }
 
 /** Starts after the loader's reveal (LCP is long past by then) in idle time, and follows path switches. */
