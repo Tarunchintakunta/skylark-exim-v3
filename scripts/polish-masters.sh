@@ -7,32 +7,30 @@
 #   pushed the ship's bow in every frame: the container ship is the only vessel in shot.
 #   From the sharpest master (the 2560 near-lossless hd-master; the 3840 k4 file is a lossy upscale with less edge
 #   detail), with a light unsharp only.
-# - hf-unload-shrimp, hf-store: every frame of the photoreal takes showed white plastic crates (unload) or racks of
-#   white boxes (cold store), and no carton-free take exists. Their slots take a slow push on the Blender review stills
-#   #246 (steel crates out of the truck) and #257 (cold store, steel racks), docs/review/stills/ in git history. #257's
-#   boxes rendered white: scripts/steel-grade.py grades them to brushed steel first.
+# - hf-unload-shrimp, hf-store: every frame of the photoreal takes in use showed white plastic crates (unload) or racks
+#   of white boxes (cold store). No Blender: the unload slot takes the photoreal #246 take (Skylark-17-Oct/videos/
+#   higgsfield-clips/hf-246-unload.mp4: steel crates on ice out of the truck), 124 frames resampled to 72; the cold store
+#   is a slow push on its photoreal start frame (Skylark-17-Oct/images/earlier-session/257-start-4k.png) after
+#   scripts/steel-grade.py grades its white boxes to brushed steel.
 # hf-load (the port's loading-dock opening) is cut from /story instead: wrapped carton pallets on wooden pallets, or
 # the carton stack inside the trailer, are in all but its last 8 frames.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HD="${HD:-$HOME/Desktop/skylark/hd-masters}"
 X264=(-c:v libx264 -preset slow -crf 10 -pix_fmt yuv420p -an)
-still(){ git show "$(git log --all --format=%h -1 -- "docs/review/stills/$1.jpg"):docs/review/stills/$1.jpg" > "$2"; }
-for id in hf-arrive hf-reverse hf-ship hf-unload-shrimp hf-store; do rm -rf "masters/$id"; mkdir -p "masters/$id"; done
-ffmpeg -nostdin -v error -y -i "$HD/hf-arrive/master.mp4" -vf hflip "${X264[@]}" masters/hf-arrive/master.mp4
-ffmpeg -nostdin -v error -y -i "$HD/hf-reverse/master.mp4" -vf hflip "${X264[@]}" masters/hf-reverse/master.mp4
-ffmpeg -nostdin -v error -y -i "$HD/hf-ship/master.mp4" -vf "crop=1176:662:1384:778,scale=2560:1440:flags=lanczos,unsharp=5:5:0.45:5:5:0" "${X264[@]}" masters/hf-ship/master.mp4
+SRC="${SRC:-$HOME/Desktop/skylark/Skylark-17-Oct}"
+sel=$(awk 'BEGIN{for(i=0;i<72;i++) printf "%seq(n\\,%d)", (i?"+":""), int(i*123/71+0.5)}')
+ffmpeg -nostdin -v error -y -i "$SRC/videos/higgsfield-clips/hf-246-unload.mp4" -vf "select='$sel',setpts=N/24/TB" "${X264[@]}" masters/hf-unload-shrimp/master.mp4
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/pm.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
-still 246 "$tmp/246.jpg"; python3 scripts/still-push.py "$tmp/246.jpg" masters/hf-unload-shrimp/master.mp4 0.5 0.55 1.08
-still 257 "$tmp/257.jpg"; python3 scripts/steel-grade.py "$tmp/257.jpg" "$tmp/257-steel.jpg"
-python3 scripts/still-push.py "$tmp/257-steel.jpg" masters/hf-store/master.mp4 0.5 0.55 1.08
+python3 scripts/steel-grade.py "$SRC/images/earlier-session/257-start-4k.png" "$tmp/257-steel.png"
+python3 scripts/still-push.py "$tmp/257-steel.png" masters/hf-store/master.mp4 0.5 0.55 1.08
 # then, every other clip held at its files:
 #   IDS="hf-arrive hf-reverse hf-unload-shrimp hf-store hf-ship"
 #   for id in $IDS; do SOLVE="$IDS" POSTERS=only scripts/encode-hf.sh $id; SOLVE="$IDS" POSTERS=no scripts/encode-hf.sh $id; done
 # The port film's phone tier, with a top crop so the canopy roof no longer fills a phone screen (as wide as the desktop
-# frame shows it), at 190 KB a file (was ~100): both phone paths end at 11.96 / 11.94 MB of 12.
+# frame shows it), at 160 KB a file (was ~100), inside the 12 MB phone paths.
 #   for id in hf-port-1 hf-port-2 hf-port-3 hf-port-4 hf-port-5; do
-#     CAPS_ID=hf-sail SOLVE=hf-sail M_CROP=608:1080:848:360 M_SCALE=1 TIERS=m CAP_m=194560 POSTERS=no scripts/encode-hf.sh $id
+#     CAPS_ID=hf-sail SOLVE=hf-sail M_CROP=608:1080:848:360 M_SCALE=1 TIERS=m CAP_m=163840 POSTERS=no scripts/encode-hf.sh $id
 #     CAPS_ID=hf-sail SOLVE=hf-sail M_CROP=608:1080:848:360 M_SCALE=1 POSTERS=only POSTER_2560=1 CAP_KB=60 scripts/encode-hf.sh $id
 #   done
 # Phones: hf-port-1/2's phone tier is a pull-back on hf-port-3's first frame (scripts/phone-port-hold.py), so the
