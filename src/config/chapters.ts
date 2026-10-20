@@ -49,7 +49,8 @@ export interface ChapterDef {
  */
 export const CROP_X: Record<string, number> = {
   'hero-loop': 0.5, opening: 0.5,
-  'hf-depart': 0.6, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
+  'hf-depart': 0.68,
+ 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
   'hf-arrive': 0.45, 'hf-reverse': 0.55,
  'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.47, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
