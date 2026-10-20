@@ -8,8 +8,6 @@ gsap.registerPlugin(SplitText)
 interface Cap {
   el: HTMLElement
   split?: SplitText
-  /** character splits for [data-type] (typed-in labels) */
-  typed?: SplitText
 }
 
 /** captions[chapterIndex][captionIndex] */
@@ -19,7 +17,6 @@ let active: Cap | null = null
 export function bindCaptions(sections: HTMLElement[]) {
   for (const c of caps.flat()) {
     c.split?.revert()
-    c.typed?.revert()
   }
   caps = sections.map((s) => [...s.querySelectorAll<HTMLElement>('.caption')].map((el) => ({ el })))
   active = null
@@ -31,8 +28,6 @@ export function bindCaptions(sections: HTMLElement[]) {
       // reduceWhiteSpace would turn the no-break space in "−18 °C" into a plain one (a /\s+/ replace), letting the
       // temperature break across lines; titles have no runs of whitespace to collapse (#146)
       if (h) c.split = SplitText.create(h, { type: 'lines', mask: 'lines', linesClass: 'line', autoSplit: true, reduceWhiteSpace: false })
-      const typed = c.el.querySelectorAll('[data-type]')
-      if (typed.length) c.typed = SplitText.create(typed, { type: 'chars' })
     }
   })
 }
@@ -59,7 +54,7 @@ export function updateCaptions(ch: ChapterDef, index: number, p: number) {
 }
 
 function targets(c: Cap) {
-  return [c.el, ...(c.split?.lines ?? []), ...c.el.querySelectorAll('[data-fade],[data-card]'), ...(c.typed?.chars ?? [])]
+  return [c.el, ...(c.split?.lines ?? []), ...c.el.querySelectorAll('[data-fade],[data-card]')]
 }
 
 /** Hard reset: invisible, no running tweens. */
@@ -78,7 +73,6 @@ function show(c: Cap) {
   if (fades.length) gsap.fromTo(fades, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.7, delay: 0.15, stagger: 0.06, ease: 'power3.out' })
   const cards = el.querySelectorAll('[data-card]')
   if (cards.length) gsap.fromTo(cards, { yPercent: 40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.7, stagger: 0.06, delay: 0.15, ease: 'power3.out' })
-  if (c.typed) gsap.fromTo(c.typed.chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: 0.035, delay: 0.5, ease: 'none' })
 }
 
 /** Lines go up and out through their masks; the rest fades. Returns the tween so the swap waits for it. */
