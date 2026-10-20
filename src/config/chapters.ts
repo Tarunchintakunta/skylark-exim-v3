@@ -49,14 +49,11 @@ export interface ChapterDef {
  */
 export const CROP_X: Record<string, number> = {
   'hero-loop': 0.5, opening: 0.5,
-  'hf-depart': 0.68,
- 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
+  'hf-depart': 0.68, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
-  'hf-arrive': 0.45, 'hf-reverse': 0.55,
- 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.47, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
+  'hf-arrive': 0.45, 'hf-reverse': 0.55, 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.47, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
-  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5,
- 'hf-fish-freeze': 0.45,
+  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5, 'hf-fish-freeze': 0.45,
   'hf-ship': 0.5, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
@@ -130,7 +127,6 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
       { kind: 'video', id: 'hf-unload-shrimp', alt: 'At the dock, two workers in white coats, hairnets and gloves lift a steel crate of shrimp on ice out of the open truck, past stacked steel crates, toward a steel trolley.' },
-
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving bay, a masked worker in a white coat carries a steel crate of shrimp on ice toward the steel trolleys beside the truck, while a second worker walks back to the dock door.' },
     ],
     captions: caps('intake', [[0.1, 0.92]]),
@@ -200,7 +196,6 @@ const ENDING: ChapterDef[] = [
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
-
       // #258: one continuous camera move, cut into five segments that share their boundary frames
       { kind: 'video', id: 'hf-port-1', alt: 'A red truck carrying a white refrigerated container drives through the port gate under its canopy, and the camera rises over the canopy roof.' },
       { kind: 'video', id: 'hf-port-2', alt: 'The truck turns right onto the quay beside the moored container ship and brakes under a ship-to-shore crane.' },
@@ -214,7 +209,6 @@ const ENDING: ChapterDef[] = [
     id: 'sea', path: 'shared', label: 'At sea', vh: 180, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the camera looks down on the loaded container ship\'s stacked containers and white bridge as it pulls away from the quay.' },
-
       { kind: 'video', id: 'hf-sail', alt: 'Seen from straight above, the loaded container ship sails alone across deep blue water, trailing a white wake.' },
     ],
     captions: caps('sea', [[0.1, 0.85]]),
