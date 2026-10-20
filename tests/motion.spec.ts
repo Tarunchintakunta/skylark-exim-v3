@@ -112,8 +112,8 @@ test('navbar: shrinks and blurs past 40 px; the underline sits under the current
     return Math.abs(b.x - l.x) < 2 && Math.abs(b.width - l.width) < 2
   }
   await expect.poll(() => under('Home')).toBe(true)
-  await page.locator('.nav > ul > li > .nav__link', { hasText: 'News' }).hover()
-  await expect.poll(() => under('News')).toBe(true)
+  await page.locator('.nav > ul > li > .nav__link', { hasText: 'About' }).hover()
+  await expect.poll(() => under('About')).toBe(true)
   await page.mouse.move(700, 600)
   await expect.poll(() => under('Home')).toBe(true)
 })

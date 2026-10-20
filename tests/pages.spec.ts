@@ -68,8 +68,8 @@ test('news page is an honest empty state', async ({ page }) => {
   await expect(page.getByText('Updates coming soon')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Request export quote', exact: true })).toHaveAttribute('href', '/quote')
   const labels = await page.getByRole('navigation', { name: 'Site' }).locator('.nav__link').allTextContents()
-  expect(labels.slice(0, 9).map((label) => label.trim())).toEqual(['Home', 'Our Story', 'Wild catch', 'Farmed shrimp', 'Products', 'Markets', 'About', 'News', 'Contact'])
-  await expect(page.getByRole('navigation', { name: 'Site' }).getByRole('link', { name: 'News' })).toHaveAttribute('aria-current', 'page')
+  // no News item in the nav while news.json is empty (nav.ts)
+  expect(labels.slice(0, 8).map((label) => label.trim())).toEqual(['Home', 'Our Story', 'Wild catch', 'Farmed shrimp', 'Products', 'Markets', 'About', 'Contact'])
 })
 
 test('an unknown news slug stays on the news layout', async ({ page }) => {
