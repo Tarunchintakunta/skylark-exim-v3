@@ -54,7 +54,8 @@ export const CROP_X: Record<string, number> = {
   'hf-arrive': 0.45, 'hf-reverse': 0.55,
  'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.47, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
-  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.45, 'hf-fish-freeze': 0.45,
+  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5,
+ 'hf-fish-freeze': 0.45,
   'hf-load': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
@@ -150,7 +151,7 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
       { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
       { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
-      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between frosted steel racks of white cartons; one pulls a pallet jack of cartons by its handle.' },
+      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain', [[0.02, 0.23], [0.27, 0.48], [0.52, 0.73], [0.77, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
   },
@@ -181,7 +182,7 @@ const PLANT_OCEAN: ChapterDef[] = [
     id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-fish-freeze', alt: 'A rack of whole fish and tuna loins is wheeled into the freezer while a packer lays glazed frozen fish into a plain carton.' },
-      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between frosted steel racks of white cartons; one pulls a pallet jack of cartons by its handle.' },
+      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
   },
