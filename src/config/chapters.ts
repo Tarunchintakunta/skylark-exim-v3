@@ -52,7 +52,7 @@ export const CROP_X: Record<string, number> = {
   'hf-depart': 0.6, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
   'hf-arrive': 0.45, 'hf-reverse': 0.55,
- 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.5, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
+ 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.47, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.45, 'hf-fish-freeze': 0.45,
   'hf-load': 0.5, 'hf-ship': 0.62, 'hf-sail': 0.57,
@@ -127,7 +127,8 @@ const PLANT_POND: ChapterDef[] = [
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
-      { kind: 'video', id: 'hf-unload-shrimp', alt: 'The rear doors open into the dock and cold vapour rolls out; workers in white coats, hairnets and gloves roll out insulated crates of shrimp on ice and probe one crate\'s temperature.' },
+      { kind: 'video', id: 'hf-unload-shrimp', alt: 'At the dock, two workers in white coats, hairnets and gloves lift a steel crate of shrimp on ice out of the open truck, past stacked steel crates, toward a steel trolley.' },
+
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving bay, a masked worker in a white coat carries a steel crate of shrimp on ice toward the steel trolleys beside the truck, while a second worker walks back to the dock door.' },
     ],
     captions: caps('intake', [[0.1, 0.92]]),
