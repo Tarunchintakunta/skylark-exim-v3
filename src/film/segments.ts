@@ -20,15 +20,22 @@ export interface Segment {
  * Segments inside a chapter cross-fade (separate Higgsfield shots never share a boundary frame); the last one uses the chapter's join.
  */
 export function toSegments(chapters: ChapterDef[]): Segment[] {
-  return chapters.flatMap((ch, chapter) => {
-    let from = 0
-    return ch.media.map((media, j, all) => {
+  return chapters.flatMap((ch, chapter) =>
+    segmentBounds(ch).map(([from, to], j, all) => {
       const last = j === all.length - 1
-      const to = last ? 1 : from + ((media.kind === 'still' && media.span) || 1 / all.length)
-      const seg = { media, chapter, from, to, join: last ? ch.joinNext : ('crossfade' as const), scrim: ch.scrim }
-      from = to
-      return seg
-    })
+      return { media: ch.media[j], chapter, from, to, join: last ? ch.joinNext : ('crossfade' as const), scrim: ch.scrim }
+    }),
+  )
+}
+
+/** [from, to] of each of a chapter's media inside its local progress */
+export function segmentBounds(ch: ChapterDef): [number, number][] {
+  let from = 0
+  return ch.media.map((media, j, all) => {
+    const to = j === all.length - 1 ? 1 : from + ((media.kind === 'still' && media.span) || 1 / all.length)
+    const b: [number, number] = [from, to]
+    from = to
+    return b
   })
 }
 

@@ -2,24 +2,34 @@ import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 import type { ChapterDef } from '../config/chapters'
 import { env } from '../engine/env'
+import { segmentBounds } from './segments'
 
 gsap.registerPlugin(SplitText)
 
 interface Cap {
   el: HTMLElement
   split?: SplitText
+  /** chapter index, and the [from, to] of the one clip the caption's range sits inside (null: it spans several) */
+  chapter: number
+  clip: [number, number] | null
 }
 
 /** captions[chapterIndex][captionIndex] */
 let caps: Cap[][] = []
 let active: Cap | null = null
 
-export function bindCaptions(sections: HTMLElement[]) {
+export function bindCaptions(sections: HTMLElement[], chapters: ChapterDef[]) {
   for (const c of caps.flat()) {
     c.split?.revert()
   }
-  caps = sections.map((s) => [...s.querySelectorAll<HTMLElement>('.caption')].map((el) => ({ el })))
-  active = null
+  caps = sections.map((s, chapter) => {
+    const bounds = segmentBounds(chapters[chapter])
+    return [...s.querySelectorAll<HTMLElement>('.caption')].map((el, k) => {
+      const [a, b] = chapters[chapter].captions[k].at
+      return { el, chapter, clip: bounds.find(([from, to]) => a >= from && b <= to) ?? null }
+    })
+  })
+  active = leaving = null
   swap?.kill()
   if (env.reduced) return
   document.fonts.ready.then(() => {
@@ -35,11 +45,20 @@ export function bindCaptions(sections: HTMLElement[]) {
 /**
  * One caption on screen at a time. A change is a sequence, never a cross-fade:
  * the outgoing lines leave through their masks (0.25 s), and only then the incoming lines come up.
- * Any other caption still mid-animation (fast scrolling) is cut instantly.
+ * Any other caption still mid-animation (fast scrolling) is cut instantly, and so is an outgoing caption whose clip
+ * has already left the stage (a fast scroll past its range's end): a caption is never over another clip.
  */
 let swap: gsap.core.Timeline | null = null
+/** the caption the running swap is taking out */
+let leaving: Cap | null = null
+const offClip = (c: Cap, index: number, p: number) => c.chapter !== index || (c.clip !== null && (p < c.clip[0] || p >= c.clip[1]))
 
 export function updateCaptions(ch: ChapterDef, index: number, p: number) {
+  // the clip under a leaving caption is gone: finish the swap now (the caption hides, the next one starts rising)
+  if (leaving && offClip(leaving, index, p)) {
+    leaving = null
+    swap?.progress(1)
+  }
   const k = ch.captions.findIndex((c) => p >= c.at[0] && p < c.at[1])
   const next = k >= 0 ? (caps[index]?.[k] ?? null) : null
   if (next === active) return
@@ -48,8 +67,13 @@ export function updateCaptions(ch: ChapterDef, index: number, p: number) {
   swap?.kill()
   for (const c of caps.flat()) if (c !== out && c !== next) cut(c)
   if (next) cut(next)
-  swap = gsap.timeline()
-  if (out) swap.add(hide(out))
+  leaving = null
+  swap = gsap.timeline({ onComplete: () => void (leaving = null) })
+  if (out && offClip(out, index, p)) cut(out)
+  else if (out) {
+    leaving = out
+    swap.add(hide(out))
+  }
   if (next) swap.add(() => show(next))
 }
 

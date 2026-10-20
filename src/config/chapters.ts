@@ -141,14 +141,16 @@ const PLANT_POND: ChapterDef[] = [
   },
   {
     id: 'coldchain', path: 'pond', label: 'Lab · freeze · pack', vh: 360, joinNext: 'crossfade',
-    // one shot per caption: lab, IQF, packing, cold store (each a quarter of the scroll)
+    // one shot per caption: lab, IQF, packing, cold store (each a quarter of the scroll). Each caption sits 0.02 inside
+    // its shot's quarter: a caption leaves through a 0.25 s exit before the next one rises, so with ranges on the clip
+    // boundaries "Packed and labelled" stayed up over the cold store (and "Frozen at its best" over the packing)
     media: [
       { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
       { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
       { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
       { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between frosted steel racks of white cartons; one pulls a pallet jack of cartons by its handle.' },
     ],
-    captions: caps('coldchain', [[0.02, 0.25], [0.25, 0.5], [0.5, 0.75], [0.75, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
+    captions: caps('coldchain', [[0.02, 0.23], [0.27, 0.48], [0.52, 0.73], [0.77, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
   },
 ]
 
@@ -188,7 +190,8 @@ const ENDING: ChapterDef[] = [
   {
     id: 'docs', path: 'shared', label: 'Documentation', vh: 100, joinNext: 'cut',
     media: [{ kind: 'dom', poster: 'ph-docs', alt: 'An export office desk in daylight: shipment folders, a binder of certificates and a laptop with a tracking map. Three cards: export documents, compliance, shipment tracking.' }],
-    captions: caps('docs', [[0.05, 0.95]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
+    // leaves before the cut to the port, so "Paperwork, done properly" is never over the port footage
+    captions: caps('docs', [[0.05, 0.88]]).map((c) => ({ ...c, extra: 'doc-cards' as const })),
   },
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
