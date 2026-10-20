@@ -56,7 +56,7 @@ export const CROP_X: Record<string, number> = {
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5,
  'hf-fish-freeze': 0.45,
-  'hf-ship': 0.62, 'hf-sail': 0.57,
+  'hf-ship': 0.5, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
 }
@@ -212,7 +212,8 @@ const ENDING: ChapterDef[] = [
   {
     id: 'sea', path: 'shared', label: 'At sea', vh: 180, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the loaded container ship pulls away from the quay behind a tug, its wake spreading.' },
+      { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the camera looks down on the loaded container ship\'s stacked containers and white bridge as it pulls away from the quay.' },
+
       { kind: 'video', id: 'hf-sail', alt: 'Seen from straight above, the loaded container ship sails alone across deep blue water, trailing a white wake.' },
     ],
     captions: caps('sea', [[0.1, 0.85]]),
