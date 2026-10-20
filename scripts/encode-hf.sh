@@ -10,7 +10,8 @@
 # CODECS="av1": those codecs alone, for re-encoding one codec's file without touching the others.
 # A cut of another clip (#268, the story entry's crate-free wild card): MASTER_ID=<clip whose master to read>,
 # CAPS_ID=<clip whose size caps to use>, SRC_CROP=w:h:x:y cropped from the master before every desktop tier (never scaled
-# up: list only TIERS up to its width), M_CROP=w:h:x:y the phone tier's own crop, kept at its native size.
+# up: list only TIERS up to its width), M_CROP=w:h:x:y the phone tier's own crop, kept at its native size unless
+# M_SCALE=1 scales it to 810×1440 (a crop off the top of the frame, like the port film's: scripts/port-film.sh).
 # SOLVE="<ids>": the clips being encoded in this run; every other clip keeps its files and its bytes (clip-manifest.ts caps).
 # CAP_<tier>=<bytes>: that tier's cap instead of the solver's, for a tier whose budget cannot hold the clip (say so in the PR).
 # Quality first, capped by size: AV1 crf 30 / HEVC crf 22 / H.264 crf 18, HEVC and H.264 with maxrate at the solver's
@@ -31,7 +32,8 @@ dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$in")
 # the phone crop: 810×1440 around CROP_X (src/config/chapters.ts), never scaled up
 cx=$(node --import tsx --input-type=module -e "const { CROP_X } = await import('./src/config/chapters.ts'); console.log(CROP_X['$id'] ?? 0.5)")
 x=$(awk -v c="$cx" 'BEGIN{x=int(c*2560-405); if(x<0)x=0; if(x>1750)x=1750; print x - x%2}')
-vf(){ case "$1" in m) echo "crop=${M_CROP:-810:1440:$x:0}";; 2560) echo "${SRC_CROP:+crop=$SRC_CROP,}null";; *) echo "${SRC_CROP:+crop=$SRC_CROP,}scale=$1:-2:flags=lanczos";; esac; }
+mvf="crop=${M_CROP:-810:1440:$x:0}${M_SCALE:+,scale=810:1440:flags=lanczos}"
+vf(){ case "$1" in m) echo "$mvf";; 2560) echo "${SRC_CROP:+crop=$SRC_CROP,}null";; *) echo "${SRC_CROP:+crop=$SRC_CROP,}scale=$1:-2:flags=lanczos";; esac; }
 
 # enc <codec> <tier> <out> <crf|vbr> <kbit/s>
 enc(){
@@ -62,7 +64,7 @@ posters(){
   local crop="${SRC_CROP:+-vf crop=$SRC_CROP}" still_m=""
   ffmpeg -nostdin -v error -y -i "$in" $crop -frames:v 1 "$tmp/first.png"
   ffmpeg -nostdin -v error -y -sseof -0.1 -i "$in" $crop -update 1 -frames:v 1 "$tmp/last.png"
-  if [ -n "${M_CROP:-}" ]; then ffmpeg -nostdin -v error -y -i "$in" -vf "crop=$M_CROP" -frames:v 1 "$tmp/first_m.png"; still_m="$tmp/first_m.png"; fi
+  if [ -n "${M_CROP:-}" ]; then ffmpeg -nostdin -v error -y -i "$in" -vf "$mvf" -frames:v 1 "$tmp/first_m.png"; still_m="$tmp/first_m.png"; fi
   STILL="$tmp/first.png" LAST="$tmp/last.png" STILL_M="$still_m" CX="$cx" ID="$id" OUT="$OUT" python3 scripts/stills.py
 }
 [ "${POSTERS:-}" = only ] && { posters; exit 0; }
