@@ -88,7 +88,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced crates.' }],
+    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced steel crates.' }],
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
@@ -112,8 +112,8 @@ const POND_ONLY: ChapterDef[] = [
   {
     id: 'p3', path: 'pond', label: 'Harvest', vh: 180, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks blue crates beside white ice boxes and a white truck.' },
-      { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in blue and white crates beside the refrigerated truck.' },
+      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks steel crates beside white ice boxes and a white truck.' },
+      { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in steel and white crates beside the refrigerated truck.' },
     ],
     captions: caps('p3', [[0.1, 0.9]]),
   },
@@ -200,8 +200,8 @@ const ENDING: ChapterDef[] = [
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
       // #258: one continuous camera move, cut into five segments that share their boundary frames
-      { kind: 'video', id: 'hf-port-1', alt: 'A red truck carrying a white refrigerated container drives through the port gate under its canopy, and the camera rises over the canopy roof.' },
-      { kind: 'video', id: 'hf-port-2', alt: 'The truck turns right onto the quay beside the moored container ship and brakes under a ship-to-shore crane.' },
+      { kind: 'video', id: 'hf-port-1', alt: 'On the quay beside the moored container ship, the crane\'s yellow spreader hangs over a white refrigerated container on its red truck; the camera eases in.' },
+      { kind: 'video', id: 'hf-port-2', alt: 'The camera keeps easing in on the truck parked under the ship-to-shore crane, its spreader above the container.' },
       { kind: 'video', id: 'hf-port-3', alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
       { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
       { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },
