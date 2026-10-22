@@ -3,7 +3,7 @@
 # fast camera moves macroblock in video at any byte rate a path can afford, a still frame per position does not (the
 # Terminal Industries pattern, already used for the hero: src/film/sequence.ts). Every master frame, so the clip keeps
 # its exact frame count and timing.
-#   scripts/clip-frames.sh <id>...
+#   scripts/clip-frames.sh <id>...   (MASTER_ID=<clip whose master to read>, for one id)
 # -> public/media/<id>-f_1920_NNN.avif, and a WebP set (.webp, q 75) for a browser without AVIF. Every desktop tier
 #    draws the 1920 set: a 2560 set (crf 38, 88 KB a frame) cost the five port clips 25.4 MB of the 60 MB desktop path
 #    and left the other 17 clips 1.3 MB each at 2560, less than before the HD pass; the 1920 set is 20.8 MB at crf 36 and ~17 MB at crf 39, which leaves room to keep every other clip at least at its old 2560 bytes. Phones keep
@@ -13,7 +13,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 for id in "$@"; do
-  in="masters/$id/master.mp4"
+  in="masters/${MASTER_ID:-$id}/master.mp4"
   tmp=$(mktemp -d "${TMPDIR:-/tmp}/cf.XXXXXX")
   rm -f public/media/"$id"-f_*.webp public/media/"$id"-f_*.avif
   line="$id:"

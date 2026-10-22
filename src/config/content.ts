@@ -137,7 +137,7 @@ export const HOME = {
     title: 'One standard, every stage.',
     body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.',
   },
-  news: { title: 'Latest updates', empty: 'Updates coming soon.', all: 'All news' },
+  news: { title: 'Latest updates', all: 'All news' },
 }
 
 /** Contact (CONTENT.md "Contact"). */

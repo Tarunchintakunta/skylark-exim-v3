@@ -34,6 +34,7 @@ main section[id] { scroll-margin-top: 68px; }
 
 /* about in short, beside the latest news */
 .home-company { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 112px); }
+.home-company--solo { grid-template-columns: minmax(0, 1fr); }
 .home-company__about { display: grid; gap: 18px; align-content: start; }
 .home-company__about .about__lead { max-width: 40ch; }
 .home-company__partners { color: var(--ink-2); }
@@ -42,7 +43,7 @@ main section[id] { scroll-margin-top: 68px; }
 .home-news__title { font-size: var(--fs-h3); }
 .home-news__item { display: grid; gap: 6px; color: var(--ink); text-decoration: none; }
 .home-news__item-title { font-family: var(--f-display); font-size: var(--fs-h3); line-height: 1.2; }
-.home-news__summary, .home-news__empty { color: var(--ink-2); }
+.home-news__summary { color: var(--ink-2); }
 .home-news__all { color: var(--ink); text-underline-offset: 4px; }
 
 @media (max-width: 819px) {

@@ -52,8 +52,8 @@ export const CROP_X: Record<string, number> = {
   'hf-depart': 0.68, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
   'hf-arrive': 0.45, 'hf-reverse': 0.55, 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.45, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
-  'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
-  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5, 'hf-fish-freeze': 0.45,
+  'hf-wash': 0.45, 'hf-peel': 0.72, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
+  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5, 'hf-fish-freeze': 0.725,
   'hf-ship': 0.5, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
@@ -88,7 +88,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced crates.' }],
+    media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced steel crates.' }],
     captions: caps('o3', [[0.1, 0.95]]),
   },
   {
@@ -112,8 +112,8 @@ const POND_ONLY: ChapterDef[] = [
   {
     id: 'p3', path: 'pond', label: 'Harvest', vh: 180, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks blue crates beside white ice boxes and a white truck.' },
-      { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in blue and white crates beside the refrigerated truck.' },
+      { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks steel crates beside white ice boxes and a white truck.' },
+      { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in steel and white crates beside the refrigerated truck.' },
     ],
     captions: caps('p3', [[0.1, 0.9]]),
   },
@@ -132,12 +132,15 @@ const PLANT_POND: ChapterDef[] = [
     captions: caps('intake', [[0.1, 0.92]]),
   },
   {
-    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'shared-frame',
+    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp washed under spray bars and graded along a conveyor by workers in caps, masks and gloves.' },
-      { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table, then the camera glides through the glass door toward the quality lab.' },
+      { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table.' },
     ],
-    captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
+    // washing and grading over the wash clip, "Made to order" over the peeling: hf-peel is the peeling alone (it used to
+    // glide on into the quality lab, so "Made to order" sat over the lab); the lab clip opens the next chapter with its
+    // own caption
+    captions: caps('process', [[0.02, 0.24], [0.26, 0.48], [0.52, 0.98]]),
   },
   {
     id: 'coldchain', path: 'pond', label: 'Lab · freeze · pack', vh: 360, joinNext: 'crossfade',
@@ -178,7 +181,7 @@ const PLANT_OCEAN: ChapterDef[] = [
   {
     id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-fish-freeze', alt: 'A rack of whole fish and tuna loins is wheeled into the freezer while a packer lays glazed frozen fish into a plain carton.' },
+      { kind: 'video', id: 'hf-fish-freeze', alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
       { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
@@ -197,8 +200,8 @@ const ENDING: ChapterDef[] = [
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
       // #258: one continuous camera move, cut into five segments that share their boundary frames
-      { kind: 'video', id: 'hf-port-1', alt: 'A red truck carrying a white refrigerated container drives through the port gate under its canopy, and the camera rises over the canopy roof.' },
-      { kind: 'video', id: 'hf-port-2', alt: 'The truck turns right onto the quay beside the moored container ship and brakes under a ship-to-shore crane.' },
+      { kind: 'video', id: 'hf-port-1', alt: 'On the quay beside the moored container ship, the crane\'s yellow spreader hangs over a white refrigerated container on its red truck; the camera eases in.' },
+      { kind: 'video', id: 'hf-port-2', alt: 'The camera keeps easing in on the truck parked under the ship-to-shore crane, its spreader above the container.' },
       { kind: 'video', id: 'hf-port-3', alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
       { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
       { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },

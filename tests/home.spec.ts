@@ -114,5 +114,5 @@ test('every page carries its own title, description, canonical and OG tags', asy
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /.{40,}/)
   }
   const sitemap = await (await page.request.get('/sitemap.xml')).text()
-  for (const loc of ['/', '/story', '/quote', '/news']) expect(sitemap).toContain(`<loc>https://skylarkexim.com${loc}</loc>`)
+  for (const loc of ['/', '/story', '/quote']) expect(sitemap).toContain(`<loc>https://skylarkexim.com${loc}</loc>`)
 })
