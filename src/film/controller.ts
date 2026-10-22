@@ -26,7 +26,7 @@ export function setChapters(list: ChapterDef[], elements: HTMLElement[]) {
   chapters = list
   els = elements
   measure()
-  bindCaptions(els)
+  bindCaptions(els, list)
   frame.index = -1
 }
 

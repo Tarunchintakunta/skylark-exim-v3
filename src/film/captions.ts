@@ -2,27 +2,34 @@ import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 import type { ChapterDef } from '../config/chapters'
 import { env } from '../engine/env'
+import { segmentBounds } from './segments'
 
 gsap.registerPlugin(SplitText)
 
 interface Cap {
   el: HTMLElement
   split?: SplitText
-  /** character splits for [data-type] (typed-in labels) */
-  typed?: SplitText
+  /** chapter index, and the [from, to] of the one clip the caption's range sits inside (null: it spans several) */
+  chapter: number
+  clip: [number, number] | null
 }
 
 /** captions[chapterIndex][captionIndex] */
 let caps: Cap[][] = []
 let active: Cap | null = null
 
-export function bindCaptions(sections: HTMLElement[]) {
+export function bindCaptions(sections: HTMLElement[], chapters: ChapterDef[]) {
   for (const c of caps.flat()) {
     c.split?.revert()
-    c.typed?.revert()
   }
-  caps = sections.map((s) => [...s.querySelectorAll<HTMLElement>('.caption')].map((el) => ({ el })))
-  active = null
+  caps = sections.map((s, chapter) => {
+    const bounds = segmentBounds(chapters[chapter])
+    return [...s.querySelectorAll<HTMLElement>('.caption')].map((el, k) => {
+      const [a, b] = chapters[chapter].captions[k].at
+      return { el, chapter, clip: bounds.find(([from, to]) => a >= from && b <= to) ?? null }
+    })
+  })
+  active = leaving = null
   swap?.kill()
   if (env.reduced) return
   document.fonts.ready.then(() => {
@@ -31,8 +38,6 @@ export function bindCaptions(sections: HTMLElement[]) {
       // reduceWhiteSpace would turn the no-break space in "−18 °C" into a plain one (a /\s+/ replace), letting the
       // temperature break across lines; titles have no runs of whitespace to collapse (#146)
       if (h) c.split = SplitText.create(h, { type: 'lines', mask: 'lines', linesClass: 'line', autoSplit: true, reduceWhiteSpace: false })
-      const typed = c.el.querySelectorAll('[data-type]')
-      if (typed.length) c.typed = SplitText.create(typed, { type: 'chars' })
     }
   })
 }
@@ -40,11 +45,20 @@ export function bindCaptions(sections: HTMLElement[]) {
 /**
  * One caption on screen at a time. A change is a sequence, never a cross-fade:
  * the outgoing lines leave through their masks (0.25 s), and only then the incoming lines come up.
- * Any other caption still mid-animation (fast scrolling) is cut instantly.
+ * Any other caption still mid-animation (fast scrolling) is cut instantly, and so is an outgoing caption whose clip
+ * has already left the stage (a fast scroll past its range's end): a caption is never over another clip.
  */
 let swap: gsap.core.Timeline | null = null
+/** the caption the running swap is taking out */
+let leaving: Cap | null = null
+const offClip = (c: Cap, index: number, p: number) => c.chapter !== index || (c.clip !== null && (p < c.clip[0] || p >= c.clip[1]))
 
 export function updateCaptions(ch: ChapterDef, index: number, p: number) {
+  // the clip under a leaving caption is gone: finish the swap now (the caption hides, the next one starts rising)
+  if (leaving && offClip(leaving, index, p)) {
+    leaving = null
+    swap?.progress(1)
+  }
   const k = ch.captions.findIndex((c) => p >= c.at[0] && p < c.at[1])
   const next = k >= 0 ? (caps[index]?.[k] ?? null) : null
   if (next === active) return
@@ -53,13 +67,18 @@ export function updateCaptions(ch: ChapterDef, index: number, p: number) {
   swap?.kill()
   for (const c of caps.flat()) if (c !== out && c !== next) cut(c)
   if (next) cut(next)
-  swap = gsap.timeline()
-  if (out) swap.add(hide(out))
+  leaving = null
+  swap = gsap.timeline({ onComplete: () => void (leaving = null) })
+  if (out && offClip(out, index, p)) cut(out)
+  else if (out) {
+    leaving = out
+    swap.add(hide(out))
+  }
   if (next) swap.add(() => show(next))
 }
 
 function targets(c: Cap) {
-  return [c.el, ...(c.split?.lines ?? []), ...c.el.querySelectorAll('[data-fade],[data-card]'), ...(c.typed?.chars ?? [])]
+  return [c.el, ...(c.split?.lines ?? []), ...c.el.querySelectorAll('[data-fade],[data-card]')]
 }
 
 /** Hard reset: invisible, no running tweens. */
@@ -78,7 +97,6 @@ function show(c: Cap) {
   if (fades.length) gsap.fromTo(fades, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.7, delay: 0.15, stagger: 0.06, ease: 'power3.out' })
   const cards = el.querySelectorAll('[data-card]')
   if (cards.length) gsap.fromTo(cards, { yPercent: 40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 0.7, stagger: 0.06, delay: 0.15, ease: 'power3.out' })
-  if (c.typed) gsap.fromTo(c.typed.chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, stagger: 0.035, delay: 0.5, ease: 'none' })
 }
 
 /** Lines go up and out through their masks; the rest fades. Returns the tween so the swap waits for it. */

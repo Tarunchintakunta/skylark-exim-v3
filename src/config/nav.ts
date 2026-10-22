@@ -1,3 +1,4 @@
+import { NEWS } from '../content/news'
 import { start } from './content'
 
 /** Site routes; each page marks its own nav item as current. */
@@ -11,7 +12,10 @@ export interface NavItem {
   sub?: { label: string; href: string }[]
 }
 
-/** The one navbar on every page. Section items are homepage anchors (no /products or /about page: the homepage holds that content). */
+/**
+ * The one navbar on every page. Section items are homepage anchors (no /products or /about page: the homepage holds that content).
+ * News shows only once src/content/news.json has a post: until then /news is an empty state (NEWS.md).
+ */
 export const NAV: NavItem[] = [
   { id: 'home', label: 'Home', href: '/' },
   {
@@ -26,6 +30,6 @@ export const NAV: NavItem[] = [
   { id: 'products', label: 'Products', href: '/#products' },
   { id: 'markets', label: 'Markets', href: '/#markets' },
   { id: 'about', label: 'About', href: '/#about' },
-  { id: 'news', label: 'News', href: '/news' },
+  ...(NEWS.length ? [{ id: 'news', label: 'News', href: '/news' }] : []),
   { id: 'contact', label: 'Contact', href: '/#contact' },
 ]

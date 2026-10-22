@@ -8,7 +8,7 @@ export function LabelCard() {
     <dl className="caption__fields" data-fade aria-label="Carton label fields">
       {LABEL_FIELDS.map((f) => (
         <div key={f}>
-          <dt data-type>{f}</dt>
+          <dt>{f}</dt>
           <dd aria-hidden="true" />
         </div>
       ))}

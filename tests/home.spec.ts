@@ -96,7 +96,7 @@ test('mobile menu opens, shows both stories, and reaches /story#pond', async ({ 
   await expect(nav).toBeHidden()
   await page.getByRole('button', { name: 'Menu' }).click()
   await expect(nav).toBeVisible()
-  for (const name of ['Home', 'Our Story', 'Wild catch', 'Farmed shrimp', 'Products', 'Markets', 'About', 'News', 'Contact', 'Request export quote →']) {
+  for (const name of ['Home', 'Our Story', 'Wild catch', 'Farmed shrimp', 'Products', 'Markets', 'About', 'Contact', 'Request export quote →']) {
     await expect(nav.getByRole('link', { name, exact: true })).toBeVisible()
   }
   await nav.getByRole('link', { name: 'Farmed shrimp' }).click()
