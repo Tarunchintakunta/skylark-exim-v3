@@ -1,7 +1,7 @@
 import type { ChapterDef, Media } from '../config/chapters'
 import { heroPoster } from '../config/hero'
 import { env } from '../engine/env'
-import { TOP, type Codec, type Tier } from './manifest'
+import { SEQ, TOP, type Codec, type Tier } from './manifest'
 import { mediaUrl } from './media'
 
 export interface Segment {
@@ -103,6 +103,15 @@ export const endPosterUrl = (id: string) => img(`${id}_end_1280`)
 /** stand-in stills (ph-*) come from 3840 px masters: the tier that covers the frame, up to 2560 */
 const stillW = (w: Tier): Tier => (w === 'm' || w === 960 ? w : (([1280, 1920, 2560] as const).find((t) => t >= px) ?? 2560))
 const stillUrl = (id: string, w: Tier) => (id.startsWith('ph-') ? img(`${id}_${stillW(w)}`) : posterUrl(id, w))
+
+/**
+ * Desktop frame sequences (#hd2, chapters.ts SEQ_CLIPS): the stage canvas plays these clips frame by frame instead of a
+ * <video>. Phones, Save-Data and 3G keep the video. One 1920 set on every desktop tier (scripts/clip-frames.sh): AVIF,
+ * or WebP for a browser without AVIF.
+ */
+export const isSeq = (id: string) => !env.mobile && W !== 960 && W !== 'm' && id in SEQ
+export const seqFrames = (id: string) => SEQ[id]?.frames ?? 0
+export const seqUrl = (id: string, i: number) => mediaUrl(`${id}-f_1920_${String(i).padStart(3, '0')}.${avif ? 'avif' : 'webp'}`)
 
 /** First-frame poster for a segment, or null for gradient/globe. `w` is the media tier (tests pass each one). */
 export function posterFor(m: Media, w: Tier = W): string | null {

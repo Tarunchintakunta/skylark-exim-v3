@@ -3,7 +3,8 @@ import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
 import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
-import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
+import { Sequence, createStage } from './sequence'
+import { avifReady, clipUrl, endPosterUrl, isSeq, posterFor, seqFrames, seqUrl, type Segment } from './segments'
 import { cachedUrl } from './warmcache'
 
 /**
@@ -75,6 +76,29 @@ if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
     get: () => slots.map((s) => ({ id: s.id, readyState: s.v.readyState, ready: s.ready, dead: s.dead, painted: s.painted })),
   })
 let clock = 0
+
+/**
+ * Desktop frame sequences (#hd2, chapters.ts SEQ_CLIPS): one canvas over the posters, at the decoders' level, drawing
+ * the frame nearest the scroll position of a sequence clip (sequence.ts). A set starts fetching (frame 0, then coarse
+ * first) when its clip comes within the decoders' look-ahead or the warm cache's window; a set off screen keeps its
+ * bytes in the worker and closes its bitmaps.
+ */
+let seqCanvas: HTMLCanvasElement | null = null
+let seqStage: ReturnType<typeof createStage> | null = null
+let seqOn = false
+const seqs = new Map<string, Sequence>()
+/** 2560 bitmaps are 14.7 MB each: 12 around the frame on screen */
+const SEQ_LRU = 12
+let avifKnown = false
+void avifReady.then(() => (avifKnown = true))
+const seqFor = (id: string) => {
+  if (!avifKnown) return null
+  let s = seqs.get(id)
+  if (!s) seqs.set(id, (s = new Sequence({ id: `stage-${id}`, frames: seqFrames(id), url: (i) => seqUrl(id, i), lru: SEQ_LRU })))
+  return s
+}
+/** start fetching a sequence clip's frames (the warm cache calls this for the clips in its window) */
+export const prefetchSeq = (id: string) => void seqFor(id)?.prefetch()
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
 /**
@@ -92,6 +116,11 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   posters = segments.map((_, i) => el.querySelector<HTMLElement>(`[data-seg="${i}"]`))
   veil = el.querySelector('.stage__veil')
   slots = [...el.querySelectorAll('video')].map((v) => slotOf.get(v) ?? makeSlot(v))
+  seqCanvas = el.querySelector('canvas.stage__seq')
+  seqStage = seqCanvas && createStage(seqCanvas)
+  const ro = seqCanvas && seqStage ? new ResizeObserver(seqStage.resize) : null
+  if (ro && seqCanvas && seqStage) (ro.observe(seqCanvas), seqStage.resize())
+  seqOn = false
   for (const s of slots) s.v.style.opacity = '0'
   cur = -1
   shown = null
@@ -103,6 +132,7 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   const stopReveal = store.subscribe((st, was) => st.revealed && !was.revealed && prime())
   if (store.getState().revealed) prime()
   return () => {
+    ro?.disconnect()
     stopReady()
     stopReveal()
     stopTick?.()
@@ -251,8 +281,12 @@ function tick() {
   if (i !== cur) enter(i, cur)
 
   // decoders: current now; the next AHEAD clips in the scroll direction once it has metadata (one more while fast)
-  const want = videoId(i)
-  const ahead = clipsFrom(i, frame.dir < 0 ? -1 : 1, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
+  const clip = videoId(i)
+  const seqNow = clip !== null && isSeq(clip)
+  // decoders take the video clips only; a sequence clip is drawn on the canvas
+  const want = seqNow ? null : clip
+  const near = clipsFrom(i, frame.dir < 0 ? -1 : 1, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
+  const ahead = near.filter((id) => !isSeq(id))
   const keep = [want, ...ahead]
   let active: Slot | null = null
   // the start clip waits for the reveal: the hero loop covers it, and the loader's budget goes to the first chapter
@@ -272,6 +306,20 @@ function tick() {
   }
   if (scrolled && (!want || (active && (active.v.readyState >= 1 || active.dead)))) for (const id of ahead) slotFor(id, keep, i)
   setShown(active && active.painted && !active.dead ? active : null)
+  // the sequence clip on screen, and the sets coming up (fetch only); every other set gives back its bitmaps
+  let drawn = -1
+  if (seqNow && seqStage) {
+    const sq = seqFor(clip)
+    if (sq) {
+      drawn = seqStage.draw({ seq: sq, at: p })
+      probe.target = sq.index(p) / 24
+    }
+  }
+  if (scrolled || seqNow) for (const id of near) if (isSeq(id)) prefetchSeq(id)
+  for (const [id, sq] of seqs) if (id !== clip && !near.includes(id)) sq.release()
+  const on = drawn >= 0
+  if (seqCanvas && on !== seqOn) seqCanvas.style.opacity = (seqOn = on) ? '1' : '0'
+  if (seqCanvas && on) seqCanvas.dataset.frame = String(drawn)
   // a decoder still on its network source moves to the warm cache's blob once that clip is cached: right away when it's
   // off screen, or while the hero still fully covers the start chapter, never under a clip the visitor is watching
   for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && (s !== shown || (frame.index === 0 && frame.local < 0.05))) load(s, s.id)
@@ -279,9 +327,9 @@ function tick() {
     settled = true
     dispatchEvent(new Event('scrub:settled'))
   }
-  probe.id = want
+  probe.id = clip
   probe.chapter = seg.chapter
-  probe.shown = shown !== null && shown === active
+  probe.shown = seqNow ? on : shown !== null && shown === active
   // something is on screen: the clip's decoder, or the layer under it (a poster, a still, a gradient or the globe)
   const layer = posters[i]
   probe.painted = probe.shown || (layer instanceof HTMLImageElement ? layer.complete && layer.naturalWidth > 0 : !!layer)

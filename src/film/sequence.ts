@@ -35,6 +35,8 @@ export interface SequenceSpec {
   frames: number
   /** URL of one frame, already versioned (media.ts mediaUrl) */
   url: (i: number) => string
+  /** decoded bitmaps held at once (default LRU); the /story stage's 2560 sets hold fewer (#hd2) */
+  lru?: number
 }
 
 /**
@@ -84,14 +86,19 @@ export class Sequence {
   private decoding = new Set<number>()
   private queue: number[]
   private stopped = false
+  /** keep fetching on every frame that arrives, not only when drawn (prefetch) */
+  private auto = false
+  private at = 0
 
   /** how many frames this device loads at all (the density thins the set on a slow link) */
   private readonly wanted: number
+  private readonly lru: number
 
   constructor(spec: SequenceSpec) {
     this.spec = spec
     this.queue = loadOrder(spec.frames)
     this.wanted = this.queue.length
+    this.lru = spec.lru ?? LRU
     sequences.set(spec.id, this)
   }
 
@@ -149,11 +156,14 @@ export class Sequence {
    * Keep the load moving towards the frame on screen: decode the frames around it that are cached but not decoded,
    * and fetch the rest of the set coarse first. Called once per drawn frame; it only ever starts work.
    */
-  pump(i: number) {
+  pump(i: number, decode = true) {
     if (this.stopped) return
+    this.at = i
     const free = () => PARALLEL - this.fetching.size - this.decoding.size
     // decode first: a cached frame near the scroll position is one message away from being drawable
-    for (let d = 0; d < LRU / 2 && free() > 0; d++)
+    // (a prefetch only fetches: no bitmaps for a set that is not on screen)
+    if (decode)
+    for (let d = 0; d < this.lru / 2 && free() > 0; d++)
       for (const j of d === 0 ? [i] : [i - d, i + d])
         if (j >= 0 && j < this.spec.frames && this.cached.has(j) && !this.bitmaps.has(j) && !this.decoding.has(j) && free() > 0) {
           this.decoding.add(j)
@@ -171,7 +181,7 @@ export class Sequence {
       if (this.cached.has(j) || this.fetching.has(j)) continue
       this.fetching.add(j)
       // the frame on screen and its neighbours are decoded straight away; the rest are only cached
-      const near = Math.abs(j - i) <= 1
+      const near = decode && Math.abs(j - i) <= 1
       if (near) this.decoding.add(j)
       send({ k: near ? 'decode' : 'fetch', seq: this.spec.id, i: j, url: this.spec.url(j) })
     }
@@ -182,6 +192,7 @@ export class Sequence {
     this.fetching.delete(m.i)
     this.decoding.delete(m.i)
     if (m.k === 'failed') return
+    if (this.auto && !this.stopped) queueMicrotask(() => this.pump(this.at, false))
     if (!this.cached.has(m.i)) {
       this.cached.add(m.i)
       if (m.k === 'fetched') this.bytes += m.bytes
@@ -195,7 +206,7 @@ export class Sequence {
 
   /** Hold the bitmap cap by closing the decoded frame furthest from the one just drawn. Its bytes stay in the worker. */
   private evict(near: number) {
-    while (this.bitmaps.size > LRU) {
+    while (this.bitmaps.size > this.lru) {
       let worst = -1
       let dist = -1
       for (const i of this.bitmaps.keys())
@@ -206,6 +217,22 @@ export class Sequence {
       this.bitmaps.get(worst)!.close()
       this.bitmaps.delete(worst)
     }
+  }
+
+  /**
+   * Fetch the whole set ahead of time, frame 0 first and then coarse first, PARALLEL at a time, each finished frame
+   * starting the next (#hd2: the /story stage starts this when a sequence clip's chapter is near).
+   */
+  prefetch() {
+    if (this.auto) return
+    this.auto = true
+    this.pump(this.at, false)
+  }
+
+  /** Close every decoded bitmap (the bytes stay in the worker): a set off screen holds no bitmap memory (#hd2). */
+  release() {
+    for (const b of this.bitmaps.values()) b.close()
+    this.bitmaps.clear()
   }
 
   destroy() {
