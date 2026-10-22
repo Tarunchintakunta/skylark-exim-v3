@@ -34,6 +34,15 @@
 # - hf-ice, hf-harvest, hf-sort (last fixes): scripts/crate-steel.py grades the blue plastic crates (and hf-ice's two red
 #   ones, RED=1; hf-harvest's backlit crates, DARK=1) to steel, into masters/<id>-steel; MASTER_ID=<id>-steel
 #   SOLVE="hf-ice hf-harvest hf-sort"
+# - hf-sort, hf-harvest (last fixes, round 2): grey crates still read as moulded plastic (ribs, a styrofoam chest, a
+#   bucket). scripts/steel-objects.py redraws each crate, chest and bucket as steel inside outlines drawn on frame 0
+#   (scripts/steel-objects/<id>.json) that follow the camera, then crate-steel.py greys what blue is left (poles, gloves,
+#   a crate carried past):
+#   python3 scripts/steel-objects.py masters/hf-sort/master.mp4 masters/hf-sort-steel2/master.mp4 scripts/steel-objects/hf-sort.json
+#   GAIN=0.38 LIFT=60 TINT=0.6 GATE=14 python3 scripts/steel-objects.py masters/hf-harvest/master.mp4 masters/hf-harvest-steel2/master.mp4 scripts/steel-objects/hf-harvest.json
+#   python3 scripts/crate-steel.py masters/hf-sort-steel2/... masters/hf-sort-steel3/... ; DARK=1 for hf-harvest
+#   MASTER_ID=<id>-steel3 SOLVE="hf-harvest hf-sort"; hf-harvest with CAP_1920=2290000 (its H.264 1920 file under 2300 KB)
+# - hf-fish-freeze_1920.mp4 re-encoded under 2300 KB: MASTER_ID=hf-fish-freeze-rack TIERS=1920 CODECS=h264 CAP_1920=2290000
 # hf-load (the port's loading-dock opening) is cut from /story instead: wrapped carton pallets on wooden pallets, or
 # the carton stack inside the trailer, are in all but its last 8 frames.
 set -euo pipefail
