@@ -25,6 +25,15 @@
 #   MASTER_ID=hf-fish-freeze-rack TIERS="960 1280 1920 2560" (SOLVE=hf-fish-freeze throughout)
 # - hf-store (last fixes): scripts/steel-grade.py darker (0.55 L), down to L 135, a tighter mask round the near worker, and
 #   the stack on the pallet jack graded too; masters/hf-store-steel, MASTER_ID=hf-store-steel SOLVE=hf-store.
+# - hf-port-1, hf-port-2 on desktop (last fixes): the same pull-back on hf-port-3's first frame as the phones, on the whole
+#   frame, so the desktop port opens on the crane and the container too (was the gate canopy, then the hull and empty quay):
+#   DESKTOP=1 python3 scripts/phone-port-hold.py p3.png 49 60 masters/hf-port-1-d/master.mp4 masters/hf-port-2-d/master.mp4
+#   per k: MASTER_ID=hf-port-k-d scripts/clip-frames.sh hf-port-k; desktop posters (CAPS_ID=hf-sail SOLVE=hf-sail
+#   POSTERS=only POSTER_2560=1 CAP_KB=60 into a scratch OUT, keeping the phone _m files); TIERS 960, 1280 1920 at 650 KB,
+#   2560 at 440 KB as in scripts/port-film.sh
+# - hf-ice, hf-harvest, hf-sort (last fixes): scripts/crate-steel.py grades the blue plastic crates (and hf-ice's two red
+#   ones, RED=1; hf-harvest's backlit crates, DARK=1) to steel, into masters/<id>-steel; MASTER_ID=<id>-steel
+#   SOLVE="hf-ice hf-harvest hf-sort"
 # hf-load (the port's loading-dock opening) is cut from /story instead: wrapped carton pallets on wooden pallets, or
 # the carton stack inside the trailer, are in all but its last 8 frames.
 set -euo pipefail
