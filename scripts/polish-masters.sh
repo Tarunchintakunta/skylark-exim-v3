@@ -12,6 +12,10 @@
 #   higgsfield-clips/hf-246-unload.mp4: steel crates on ice out of the truck), 124 frames resampled to 72; the cold store
 #   is a slow push on its photoreal start frame (Skylark-17-Oct/images/earlier-session/257-start-4k.png) after
 #   scripts/steel-grade.py grades its white boxes to brushed steel.
+# - hf-peel: the peeling alone (its first 17 frames, motion-interpolated to 43), into masters/hf-peel-trim; the rest of
+#   the take glided through the glass door into the quality lab, under "Made to order":
+#   ffmpeg -i <hf-peel master> -vf "trim=end_frame=17,setpts=PTS*48/17,minterpolate=fps=24:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1" ...
+#   MASTER_ID=hf-peel-trim SOLVE=hf-peel scripts/encode-hf.sh hf-peel (POSTERS=only, then POSTERS=no)
 # hf-load (the port's loading-dock opening) is cut from /story instead: wrapped carton pallets on wooden pallets, or
 # the carton stack inside the trailer, are in all but its last 8 frames.
 set -euo pipefail

@@ -53,7 +53,7 @@ export const CROP_X: Record<string, number> = {
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
   'hf-arrive': 0.45, 'hf-reverse': 0.55, 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.45, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
   'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
-  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5, 'hf-fish-freeze': 0.45,
+  'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5, 'hf-fish-freeze': 0.725,
   'hf-ship': 0.5, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
@@ -132,12 +132,15 @@ const PLANT_POND: ChapterDef[] = [
     captions: caps('intake', [[0.1, 0.92]]),
   },
   {
-    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'shared-frame',
+    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp washed under spray bars and graded along a conveyor by workers in caps, masks and gloves.' },
-      { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table, then the camera glides through the glass door toward the quality lab.' },
+      { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table.' },
     ],
-    captions: caps('process', [[0.02, 0.33], [0.33, 0.66], [0.66, 0.98]]),
+    // washing and grading over the wash clip, "Made to order" over the peeling: hf-peel is the peeling alone (it used to
+    // glide on into the quality lab, so "Made to order" sat over the lab); the lab clip opens the next chapter with its
+    // own caption
+    captions: caps('process', [[0.02, 0.24], [0.26, 0.48], [0.52, 0.98]]),
   },
   {
     id: 'coldchain', path: 'pond', label: 'Lab · freeze · pack', vh: 360, joinNext: 'crossfade',
