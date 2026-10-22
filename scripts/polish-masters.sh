@@ -16,6 +16,15 @@
 #   the take glided through the glass door into the quality lab, under "Made to order":
 #   ffmpeg -i <hf-peel master> -vf "trim=end_frame=17,setpts=PTS*48/17,minterpolate=fps=24:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1" ...
 #   MASTER_ID=hf-peel-trim SOLVE=hf-peel scripts/encode-hf.sh hf-peel (POSTERS=only, then POSTERS=no)
+# - hf-fish-freeze: every frame showed a packer laying fish into a brown carton (left half). Desktop tiers are the right
+#   of the frame, the rack of fish and tuna loins going into the blast freezer (1232x693 at 1328,260, scaled to 2560
+#   with a light unsharp) in masters/hf-fish-freeze-rack; the phone tier crops the original master at x 1450 (CROP_X
+#   0.725), also right of the carton:
+#   ffmpeg -i masters/hf-fish-freeze/master.mp4 -vf "crop=1232:693:1328:260,scale=2560:1440:flags=lanczos,unsharp=5:5:0.5" ...
+#   MASTER_ID=hf-fish-freeze-rack POSTERS=only, then MASTER_ID=hf-fish-freeze (phone poster, TIERS=m), then
+#   MASTER_ID=hf-fish-freeze-rack TIERS="960 1280 1920 2560" (SOLVE=hf-fish-freeze throughout)
+# - hf-store (last fixes): scripts/steel-grade.py darker (0.55 L), down to L 135, a tighter mask round the near worker, and
+#   the stack on the pallet jack graded too; masters/hf-store-steel, MASTER_ID=hf-store-steel SOLVE=hf-store.
 # hf-load (the port's loading-dock opening) is cut from /story instead: wrapped carton pallets on wooden pallets, or
 # the carton stack inside the trailer, are in all but its last 8 frames.
 set -euo pipefail
@@ -27,7 +36,8 @@ sel=$(awk 'BEGIN{for(i=0;i<72;i++) printf "%seq(n\\,%d)", (i?"+":""), int(i*123/
 ffmpeg -nostdin -v error -y -i "$SRC/videos/higgsfield-clips/hf-246-unload.mp4" -vf "select='$sel',setpts=N/24/TB" "${X264[@]}" masters/hf-unload-shrimp/master.mp4
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/pm.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
 python3 scripts/steel-grade.py "$SRC/images/earlier-session/257-start-4k.png" "$tmp/257-steel.png"
-python3 scripts/still-push.py "$tmp/257-steel.png" masters/hf-store/master.mp4 0.5 0.55 1.08
+mkdir -p masters/hf-store-steel
+python3 scripts/still-push.py "$tmp/257-steel.png" masters/hf-store-steel/master.mp4 0.5 0.55 1.08
 # then, every other clip held at its files:
 #   IDS="hf-arrive hf-reverse hf-unload-shrimp hf-store hf-ship"
 #   for id in $IDS; do SOLVE="$IDS" POSTERS=only scripts/encode-hf.sh $id; SOLVE="$IDS" POSTERS=no scripts/encode-hf.sh $id; done

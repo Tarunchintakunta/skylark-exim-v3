@@ -181,7 +181,7 @@ const PLANT_OCEAN: ChapterDef[] = [
   {
     id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-fish-freeze', alt: 'A rack of whole fish and tuna loins is wheeled into the freezer while a packer lays glazed frozen fish into a plain carton.' },
+      { kind: 'video', id: 'hf-fish-freeze', alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
       { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
