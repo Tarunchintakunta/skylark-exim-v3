@@ -52,7 +52,7 @@ export const CROP_X: Record<string, number> = {
   'hf-depart': 0.68, 'hf-catch': 0.55, 'hf-ice': 0.45, 'hf-return': 0.55,
   'hf-ponds': 0.5, 'hf-sample': 0.42, 'hf-harvest': 0.45, 'hf-sort': 0.5,
   'hf-arrive': 0.45, 'hf-reverse': 0.55, 'hf-unload-fish': 0.53, 'hf-unload-crew': 0.45, 'hf-unload-shrimp': 0.45, 'hf-intake': 0.3, 'hf-fish-intake': 0.45,
-  'hf-wash': 0.45, 'hf-peel': 0.55, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
+  'hf-wash': 0.45, 'hf-peel': 0.72, 'hf-fish-wash': 0.6, 'hf-fish-cut': 0.4,
   'hf-lab': 0.4, 'hf-iqf': 0.4, 'hf-pack': 0.45, 'hf-store': 0.5, 'hf-fish-freeze': 0.725,
   'hf-ship': 0.5, 'hf-sail': 0.57,
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
