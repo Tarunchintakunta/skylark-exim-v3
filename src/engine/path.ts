@@ -19,11 +19,6 @@ export function setPath(path: Path, jump = false) {
 
 const firstChapterY = () => Math.ceil(film.top(1)) + 1
 
-export function goTo(id: string) {
-  const el = document.getElementById(id)
-  if (el) scrollToY(el.getBoundingClientRect().top + window.scrollY)
-}
-
 const hashTarget = (): Path | null => (location.hash === '#ocean' ? 'ocean' : location.hash === '#pond' ? 'pond' : null)
 
 /**
