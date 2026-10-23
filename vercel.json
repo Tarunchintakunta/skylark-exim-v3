@@ -21,7 +21,7 @@
       ]
     },
     {
-      "source": "/(models|textures|media/news)/(.*)",
+      "source": "/(textures|media/news)/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
