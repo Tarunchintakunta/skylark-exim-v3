@@ -184,7 +184,7 @@ Each PR was merged with a merge commit, only after its **merged state** passed t
 | Full scroll | ≤ 25 MB / ≤ 12 MB | **22.87 / 8.86 MB** |
 | Every file | ≤ 2,300 KB | largest is the company profile PDF (2,064 KB); the largest clip is `hf-ship_1920.mp4` (1,766 KB) |
 | Console errors | 0 | **0** across every chapter on both paths at 390, 1024 and 1440, plus `/quote` and `/news` |
-| Banned claims (CONTENT.md "Never write" list, "Bay of Bengal") | none | none in `src`, `index.html`, `quote.html` or `news.html` |
+| Banned claims (CONTENT.md "Never write" list, the regional sea name) | none | none in `src`, `index.html`, `quote.html` or `news.html` |
 | Vercel preview (logged out) | smoke | smoke, pages, path-anchors and globe-drag against the preview: 24/25 pass. The one failure is `/news/:slug` (see Unfinished) |
 
 **LCP before and after (mobile, same machine).**
