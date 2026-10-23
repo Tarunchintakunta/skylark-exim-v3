@@ -81,15 +81,14 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await ctx.close()
 })
 
-test('the first screen loads the hero loop first, then only the chosen path\'s first clip; the start beat loads in idle time after the reveal (#197, #218, #248)', async ({ browser }) => {
+test('the first screen loads only the chosen path\'s first clip; the start beat loads in idle time after the reveal (#218, #248)', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
   const clips = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname).filter((n) => n.endsWith('.mp4')))
   const first = await clips()
-  expect(first[0]).toContain('/hero-loop_')
-  expect(first.slice(1).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
-  // the start beat the loop dissolves into loads once the loader has revealed the page, before any scroll
+  expect(first.map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
+  // the start beat the hero still dissolves into loads once the loader has revealed the page, before any scroll
   await page.waitForSelector('#boot', { state: 'detached' })
   // (and from then on the warm cache, #251, fetches the rest of the path in idle time)
-  await expect.poll(async () => (await clips()).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hero-loop', '/media/hf-depart', '/media/opening']))
+  await expect.poll(async () => (await clips()).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hf-depart', '/media/opening']))
   await ctx.close()
 })

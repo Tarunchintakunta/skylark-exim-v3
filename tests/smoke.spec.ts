@@ -38,15 +38,11 @@ test('inside the film the toggle lands on the other path\'s first chapter', asyn
   expect(Math.abs(top)).toBeLessThan(4)
 })
 
-test('the hero loop plays, loops, and hands over to the scrubbed story on scroll (#197)', async ({ page }) => {
+test('the hero is the opening\'s still first frame and hands over to the scrubbed story on scroll', async ({ page }) => {
   await page.goto('/story')
   await ready(page)
-  const loop = page.locator('video.hero__video')
-  await expect(loop).toHaveAttribute('loop', '')
-  const t1 = await loop.evaluate((v: HTMLVideoElement) => v.currentTime)
-  await page.waitForTimeout(700)
-  const t2 = await loop.evaluate((v: HTMLVideoElement) => v.currentTime)
-  expect(t2).toBeGreaterThan(t1)
+  // nothing plays before the first scroll: no loop in the hero
+  await expect(page.locator('.hero video')).toHaveCount(0)
   // the logo reveal unlocks scrolling when it finishes
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.mouse.move(700, 450)
@@ -56,9 +52,8 @@ test('the hero loop plays, loops, and hands over to the scrubbed story on scroll
     await page.waitForTimeout(60)
   }
   await page.waitForTimeout(800)
-  // past the hand-off: the loop has faded out and paused, the opening shot scrubs underneath
+  // past the hand-off: the still has faded out, the opening shot scrubs underneath
   expect(await page.locator('.hero__media').evaluate((el) => (el as HTMLElement).style.opacity)).toBe('0')
-  expect(await loop.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
   const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.dataset.clip))
   expect(shown.join()).toContain('opening')
 })
