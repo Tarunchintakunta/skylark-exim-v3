@@ -1,10 +1,8 @@
-import { chaptersFor } from '../config/chapters'
 import { env } from '../engine/env'
 import { frame, store, type Path } from '../engine/store'
-import { GLOBE_TEXTURE, warmGlobePlaceholder } from '../three/globeState'
 import { CLIPS, type Clip } from './manifest'
 import { downloading, fullyLoaded, prefetchSeq } from './scrub'
-import { W, avifReady, clipUrl, codec, codecReady, isSeq, posterFor, served } from './segments'
+import { W, avifReady, clipUrl, codec, codecReady, isSeq, served } from './segments'
 
 /**
  * Warm cache (#251): once the first screen is up, one loader fetches the active path's clips into Blobs, so the
@@ -43,11 +41,9 @@ addEventListener(
 const urls = new Map<string, string>()
 let path: Path | null = null
 let abort: AbortController | null = null
-/** the whole routine is through: clips (desktop: the first window), posters, the page's lazy images and the globe. Tests wait for this (#264). */
+/** the first window is in hand. Tests wait for this (#264). The posters (scrub.ts) and the globe (GlobeLayer.tsx) load themselves as their chapters come near. */
 let warm = false
 const listeners = new Set<() => void>()
-/** decoded posters, held so the document's list of available images serves them to the stage without a request */
-const images: HTMLImageElement[] = []
 const emit = () => listeners.forEach((f) => f())
 
 // what the cache holds, for tests (navigator.webdriver) and ?debug only
@@ -142,33 +138,9 @@ async function run(p: Path) {
       }
     }),
   )
-  // the first window, then the rest of the routine; the workers go on following the scroll
+  // the first window; the workers go on following the scroll
   // (a window clip a decoder is downloading or holds whole counts as handled)
   while (!ctl.signal.aborted && (loading.size || queue.some((c) => inWindow(c) && !downloading(c.id) && !fullyLoaded(c.id)))) await new Promise((r) => setTimeout(r, QUIET))
-  // then the stage's first-frame posters, held as decoded images, and the page's lazy images (products), so nothing
-  // below is fetched during the scroll either (a poster is what a fast scroll shows ahead of a streamed clip, and a few
-  // KB: tests/terminal-mode.spec.ts, #hd2)
-  const media = chaptersFor(p).flatMap((ch) => ch.media)
-  const posters = [...new Set(media.map((m) => posterFor(m)).filter((u): u is string => !!u))]
-  const warmImage = (src: string) =>
-    new Promise<void>((done) => {
-      const img = new Image()
-      img.onload = img.onerror = () => done()
-      img.src = src
-      images.push(img)
-    })
-  await Promise.all(
-    Array.from({ length: PARALLEL }, async () => {
-      while (posters.length && !ctl.signal.aborted) await warmImage(posters.shift()!)
-    }),
-  )
-  if (!ctl.signal.aborted) document.querySelectorAll<HTMLImageElement>('main img[loading="lazy"]').forEach((img) => (img.loading = 'eager'))
-  // last, the globe the film ends on: its code, its placeholder frame and its texture
-  if (!ctl.signal.aborted) {
-    void import('../three/Globe').catch(() => {})
-    images.push(warmGlobePlaceholder(await avifReady))
-    await fetch(await GLOBE_TEXTURE.film).then((r) => r.arrayBuffer()).catch(() => {})
-  }
   if (!ctl.signal.aborted) {
     warm = true
     emit()
