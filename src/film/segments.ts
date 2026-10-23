@@ -105,8 +105,6 @@ const img = (name: string) => mediaUrl(`${name}.${avif ? 'avif' : 'webp'}`)
 export const posterUrl = (id: string, w: Tier = W) => img(`${id}_${served(w)}`)
 /** a clip's first frame as a home card, AVIF or WebP at 960 / 1280 / 1920 (covers 2× on a desktop card, 3× on a phone) */
 export const cardSrcSet = (id: string, ext: 'avif' | 'webp') => [960, 1280, 1920].map((w) => `${mediaUrl(`${id}_${w}.${ext}`)} ${w}w`).join(', ')
-/** last frame, for the moment a clip seeks back after scrolling up into it (desktop only): 1280 */
-export const endPosterUrl = (id: string) => img(`${id}_end_1280`)
 /** stand-in stills (ph-*) come from 3840 px masters: the tier that covers the frame, up to 2560 */
 const stillW = (w: Tier): Tier => (w === 'm' || w === 960 ? w : (([1280, 1920, 2560] as const).find((t) => t >= px) ?? 2560))
 const stillUrl = (id: string, w: Tier) => (id.startsWith('ph-') ? img(`${id}_${stillW(w)}`) : posterUrl(id, w))

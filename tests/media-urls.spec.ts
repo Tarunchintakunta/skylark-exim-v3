@@ -8,7 +8,7 @@ test('every chapter media URL exists in public/ for every tier and codec', async
   // segments.ts reads the window size at import; stub it for Node
   Object.assign(globalThis, { devicePixelRatio: 1, innerWidth: 1440, innerHeight: 900 })
   const { OCEAN, POND } = await import('../src/config/chapters')
-  const { clipFile, endPosterUrl, posterFor } = await import('../src/film/segments')
+  const { clipFile, posterFor } = await import('../src/film/segments')
   const { TOP } = await import('../src/film/manifest')
 
   const files = new Set<string>()
@@ -19,7 +19,6 @@ test('every chapter media URL exists in public/ for every tier and codec', async
         const poster = posterFor(m, w)
         if (poster) both(poster).forEach((u) => files.add(u))
         if (m.kind !== 'video') continue
-        both(endPosterUrl(m.id)).forEach((u) => files.add(u))
         for (const c of ['av1', 'hevc', 'h264'] as const) if (w !== 2560 || TOP[c] === 2560) files.add(`/media/${clipFile(m.id, w, c)}`)
       }
 

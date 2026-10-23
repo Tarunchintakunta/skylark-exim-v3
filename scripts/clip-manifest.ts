@@ -57,14 +57,13 @@ const pathClips = (p: (typeof PATHS)[number]) => [
 
 /**
  * A path's bytes besides its clips at tier t, from the files on disk (AVIF: every browser that plays AV1 or HEVC here
- * decodes it): OTHER, the hero loop at its cap and its poster, each clip's first-frame poster, desktop's end frames,
- * the documentation still and the product stills the page shows at that size.
+ * decodes it): OTHER, the hero loop at its cap and its poster, each clip's first-frame poster, the documentation still and the product stills the page shows at that size.
  */
 export function overhead(path: (typeof PATHS)[number], t: Tier) {
   const p = profile(t)
   // no 2560 posters yet when the 2560 tier is being decided: its 1920 posters stand in (an underestimate)
   const poster = (id: string) => fileSize(`${id}_${t}.avif`) || (t === 2560 ? fileSize(`${id}_1920.avif`) : 0)
-  const posters = pathClips(path).reduce((a, id) => a + poster(id) + (p === 'desktop' ? fileSize(`${id}_end_1280.avif`) : 0), 0)
+  const posters = pathClips(path).reduce((a, id) => a + poster(id), 0)
   const products = readdirSync(media('')).filter((f) => f.startsWith('prod-') && f.endsWith(p === 'desktop' ? '_640.avif' : '_960.avif'))
   return OTHER[p] + HERO_CAP[t] + poster('hero-loop') + posters + fileSize(`ph-docs-blur_${t}.avif`) + products.reduce((a, f) => a + fileSize(f), 0)
 }
