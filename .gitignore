@@ -12,3 +12,4 @@ perf-report*.json
 /review/
 .claude/worktrees/
 masters/
+*.tsbuildinfo
