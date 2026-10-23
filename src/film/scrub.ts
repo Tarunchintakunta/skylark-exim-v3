@@ -427,10 +427,14 @@ function clearLayers(keep: number) {
   over = -1
 }
 
-/** Posters load lazily: this segment and the next two, but only this one until the loader is done (first screen = LCP). */
+/**
+ * Posters load lazily: this segment's and every one to the end of the next chapter (the clips' window: a poster is what
+ * a fast scroll shows before its clip arrives), but only this one until the loader is done (first screen = LCP).
+ */
 function loadPosters(i: number) {
   if (!scrolled) return
-  const last = store.getState().ready ? i + 2 : i
+  const next = (segs[i]?.chapter ?? 0) + 1
+  const last = store.getState().ready ? Math.max(i + 2, segs.findLastIndex((s) => s.chapter <= next)) : i
   for (let k = i; k <= last; k++) {
     const p = posters[k]
     // the URL is taken here, not at render: by now the page knows whether AVIF decodes
