@@ -38,7 +38,7 @@ test('boot downloads each file once and only what the first screens need', async
     return performance.getEntriesByType('resource').filter((e) => e.startTime < at).map((e) => new URL(e.name).pathname)
   })
 
-  const opening = [...bytes].filter(([f]) => f.includes('/hero-loop_') && f.endsWith('.mp4'))
+  const opening = [...bytes].filter(([f]) => f.includes('/opening_') && f.endsWith('.mp4'))
   for (const [f, b] of opening) expect(b, `${f} downloaded more than once`).toBeLessThanOrEqual(statSync(`dist${f}`).size * 1.1)
   const fonts = reqs.filter((f) => f.endsWith('.woff2'))
   expect(fonts.length, `fonts: ${fonts.join(', ')}`).toBe(new Set(fonts).size)

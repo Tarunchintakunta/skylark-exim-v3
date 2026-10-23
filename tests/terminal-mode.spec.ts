@@ -187,9 +187,11 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       expect.soft(flung.filter((p) => !p), `${name} hero blank frames during a fling`).toEqual([])
       expect.soft(report.heroMediaDuringScroll, `${name} hero media requests once warm`).toEqual([])
       expect.soft(stuck, `${name} story stuck or blank`).toEqual([])
-      // desktop streams /story by chapter (#hd2): clips and the port film's frames may arrive during the scroll; a phone holds the path
+      // /story streams by chapter on every device: clips, the port film's frames (desktop), the stage posters and the
+      // products' lazy images may arrive during the scroll; nothing else
       const story = report.storyMediaDuringScroll as string[]
-      expect.soft(v.mobile ? story : story.filter((u) => !/(\.mp4|-f_1920_\d+\.(avif|webp))$/.test(u)), `${name} story media requests once warm`).toEqual([])
+      const streamed = /(\.mp4|-f_1920_\d+\.(avif|webp)|\/(hf-|opening|ph-|prod-)[^/]*\.(avif|webp))$/
+      expect.soft(story.filter((u) => !streamed.test(u)), `${name} story media requests once warm`).toEqual([])
       expect.soft(report.heroFrameP95 as number, `${name} hero frame p95`).toBeLessThanOrEqual(FRAME_P95_MS)
       expect.soft(report.storyFrameP95 as number, `${name} story frame p95`).toBeLessThanOrEqual(FRAME_P95_MS)
     })

@@ -104,4 +104,4 @@ Managing partners: **V. Yashod Kumar** · **N.V. Prudhvi** (site writes "V.Yasho
 - Logo: https://skylarkexim.com/wp-content/uploads/2025/10/Logo-11-scaled.png (trace to SVG for the loader if Tarun has no vector logo `[CONFIRM]`)
 
 ## Never write (not on the real site)
-ninety nautical miles · purse seine · longline · pomfret · snapper · count grades (10/20 … 41/50) · EIC · residue test lists (nitrofurans, chloramphenicol, tetracyclines) · "RESIDUE: CLEARED" · "every batch tested" · −1 °C hold · 40 ft · blast freezing · Rotterdam / Dubai / Tokyo / New York · North America · any certificate number · any capacity other than 700 pallets · any year founded · any staff count.
+ninety nautical miles · the seine-net gear name (#173) · longline · pomfret · snapper · count grades (10/20 … 41/50) · EIC · residue test lists (nitrofurans, chloramphenicol, tetracyclines) · "RESIDUE: CLEARED" · "every batch tested" · −1 °C hold · 40 ft · blast freezing · Rotterdam / Dubai / Tokyo / New York · North America · any certificate number · any capacity other than 700 pallets · any year founded · any staff count.

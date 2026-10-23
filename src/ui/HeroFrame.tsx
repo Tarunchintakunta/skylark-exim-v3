@@ -4,7 +4,7 @@ import { exportsLine, start } from '../config/content'
 import type { Path } from '../engine/store'
 import { env } from '../engine/env'
 import { useApp } from '../engine/store'
-import { HERO_POSTER, clipUrl, mediaUrl } from '../film/segments'
+import { HERO_POSTER, mediaUrl } from '../film/segments'
 import { DUR, EASE, STAGGER } from '../motion/tokens'
 import './hero.css'
 
@@ -39,7 +39,8 @@ function Title({ lead, last }: { lead: string; last: string }) {
 }
 
 /**
- * The hero's markup (redesign §3), shared by the homepage and /story: a full-bleed looping coastal video (#197), one
+ * The film's hero markup (redesign §3): the opening shot's first frame, full bleed and still (the story moves only when the
+ * visitor scrolls down), one
  * editorial headline, one line of body, the exports line, Contact us, the story fork and a slim scroll cue.
  * scripts/static-hero.ts writes the same copy into the HTML. `fork` is where the fork links point ('#' in the film,
  * '/story#' on the homepage); `current` marks the chosen path (the film only).
@@ -47,14 +48,12 @@ function Title({ lead, last }: { lead: string; last: string }) {
 export function HeroFrame({
   root,
   media,
-  video,
   fork,
   current,
   onFork,
 }: {
   root: Ref<HTMLDivElement>
   media: Ref<HTMLDivElement>
-  video: Ref<HTMLVideoElement>
   fork: '#' | '/story#'
   current?: Path
   onFork?: (path: Path, e: MouseEvent<HTMLAnchorElement>) => void
@@ -62,28 +61,14 @@ export function HeroFrame({
   const [lead, last] = [start.title.replace(/ world\.$/, ''), 'world']
   return (
     <div className="hero" ref={root}>
-      {/* looping coastal shot (not scrubbed); reduced motion gets the poster only */}
       <div className="hero__media" ref={media}>
-      {/* the first frame, under the video until it plays: the LCP image, preloaded with the same sources (static-hero.ts) */}
+      {/* the first frame: the LCP image, preloaded with the same sources (static-hero.ts) */}
       <picture>
         {HERO_POSTER.map((p) => (
           <source key={p.type + p.media} type={p.type} media={p.media} srcSet={p.srcSet} sizes="100vw" />
         ))}
         <img className="hero__poster" src={mediaUrl('hero-loop_1280.webp')} alt="" fetchPriority="high" decoding="async" />
       </picture>
-      <video
-        ref={video}
-        className="hero__video"
-        src={env.reduced ? undefined : clipUrl('hero-loop')}
-        autoPlay={!env.reduced}
-        muted
-        loop
-        playsInline
-        preload={env.reduced ? 'none' : 'auto'}
-        disablePictureInPicture
-        tabIndex={-1}
-        aria-hidden="true"
-      />
       </div>
       <div className="hero__copy">
         <Title lead={lead} last={last} />
@@ -121,24 +106,4 @@ export function HeroFrame({
       </span>
     </div>
   )
-}
-
-/** Plays the loop only while it can be seen: off-screen, a hidden tab or `hidden()` (the film's hand-off) pauses it. */
-export function bindLoop(v: HTMLVideoElement | null, hidden: () => boolean = () => false) {
-  if (!v || env.reduced) return { sync: () => {}, stop: () => {} }
-  let inView = true
-  const sync = () => (inView && !document.hidden && !hidden() ? v.play().catch(() => {}) : v.pause())
-  const io = new IntersectionObserver(([e]) => {
-    inView = e.isIntersecting
-    sync()
-  })
-  io.observe(v)
-  document.addEventListener('visibilitychange', sync)
-  return {
-    sync,
-    stop: () => {
-      io.disconnect()
-      document.removeEventListener('visibilitychange', sync)
-    },
-  }
 }

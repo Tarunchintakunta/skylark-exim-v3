@@ -2,17 +2,16 @@ import { expect, test, type Page } from '@playwright/test'
 import { CLIPS, SEQ } from '../src/film/manifest'
 import { scrollThrough } from './helpers'
 
-// #251: after the first screen, the active path's clips are fetched into Blobs (and its posters into the HTTP cache).
-// Phones take the whole path, so a scroll through the film fetches no media from the network. Desktop (#hd2: 2560
-// clips, 60 MB a path) streams: the cache holds the chapters within one of the chapter on screen and follows the
-// scroll, so the first load is the first chapters only, and a reader who stops there downloads nothing more.
+// #251: after the first screen, the active path's clips are fetched into Blobs. Desktop and phones stream: the cache
+// holds the chapter on screen and the next one and follows the scroll down, so the first load is the first chapters
+// only, and a reader who stops there downloads nothing more.
 // Frame times only mean something with GPU=1.
 
 /**
- * video clips the desktop cache wants with chapter `at` on screen (src/film/warmcache.ts WINDOW = 1); the port film's
- * frame sequences (#hd2) are the stage canvas's, fetched by its worker, not the cache's
+ * video clips the cache wants with chapter `at` on screen (src/film/warmcache.ts: that chapter and the next); the port
+ * film's frame sequences (#hd2) are the stage canvas's, fetched by its worker, not the cache's
  */
-const windowAt = (path: 'ocean' | 'pond', at: number) => CLIPS[path].filter((c) => Math.abs(c.chapter - at) <= 1 && !(c.id in SEQ)).map((c) => c.id)
+const windowAt = (path: 'ocean' | 'pond', at: number) => CLIPS[path].filter((c) => c.chapter >= at && c.chapter <= at + 1 && !(c.id in SEQ)).map((c) => c.id)
 
 const ready = (page: Page) => page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
 
@@ -35,7 +34,7 @@ const DEVICES = {
 
 for (const [device, d] of Object.entries(DEVICES))
 for (const path of ['ocean', 'pond'] as const) {
-  const title = d.mobile ? 'a full scroll fetches no media from the network' : 'only the first chapters are cached, and a full scroll streams this path\'s clips, nothing else'
+  const title = 'only the first chapters are cached, and a full scroll streams this path\'s clips, nothing else'
   test(`${device} /story#${path}: after 8 s idle, ${title}`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: d.viewport, isMobile: d.mobile, hasTouch: d.mobile })
     const page = await ctx.newPage()
@@ -81,18 +80,16 @@ for (const path of ['ocean', 'pond'] as const) {
     console.log(device, path, JSON.stringify({ lcpMs: l, cachedBeforeScroll: cached, held: held.length, loadMB: +(bytes.load / 1e6).toFixed(2), scrollKB: Math.round(bytes.scroll / 1024), mediaFromNetworkDuringScroll: during.length, frameP95Ms: p95, decoders: shown }))
     expect(cached).toBe(true)
     console.log(during.join(" "))
-    if (d.mobile) expect(during).toEqual([])
-    else {
-      // the window around the first chapter, no further; the scroll then streams clips of this path at the page's tier
-      // (a window clip a decoder already holds whole is left to the decoder: the hairline counts it as in hand)
-      const win = new Set(windowAt(path, landed))
-      expect(held.filter((id) => !win.has(id))).toEqual([])
-      // clips of this path, their posters (the scrub loads each segment's and the next two as it enters them), the
-      // documentation backdrop and the port film's frames (#hd2: a frame sequence on desktop)
-      const mine = new Set([...CLIPS[path].map((c) => c.id), 'ph-docs-blur'])
-      const id = (u: string) => u.replace(/^\/media\/(.+?)(?:-f_1920_\d+\.(?:avif|webp)|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4|_(?:end_)?(?:m|\d+)\.(?:avif|webp))$/, '$1')
-      expect(during.filter((u) => !mine.has(id(u)))).toEqual([])
-    }
+    // the first chapter and the next, no further; the scroll then streams clips of this path at the page's tier
+    // (a window clip a decoder already holds whole is left to the decoder: the hairline counts it as in hand)
+    const win = new Set(windowAt(path, landed))
+    expect(held.filter((id) => !win.has(id))).toEqual([])
+    // clips of this path, their posters (the scrub loads each segment's and the next two as it enters them), the
+    // documentation backdrop, the port film's frames (#hd2: a frame sequence on desktop) and the products below the
+    // film, native lazy images that load as the section comes near
+    const mine = new Set([...CLIPS[path].map((c) => c.id), 'ph-docs-blur'])
+    const id = (u: string) => u.replace(/^\/media\/(.+?)(?:-f_1920_\d+\.(?:avif|webp)|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4|_(?:m|\d+)\.(?:avif|webp))$/, '$1')
+    expect(during.filter((u) => !mine.has(id(u)) && !u.startsWith('/media/prod-'))).toEqual([])
     if (process.env.GPU) expect(p95).toBeLessThanOrEqual(16.7)
     await ctx.close()
   })

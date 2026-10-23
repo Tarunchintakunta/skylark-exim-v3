@@ -67,8 +67,6 @@ function clipRow(page: string, what: string, id: string) {
     .filter(Boolean)
     .join(' · ')
   rows.push({ page, what: `${what} — first frame`, asset: `${id}_*.{avif,webp}`, master: m?.label ?? '**missing**', served: posters })
-  const end = size(media(`${id}_end_1280.avif`))
-  if (end !== null) rows.push({ page, what: `${what} — last frame (desktop scroll-back)`, asset: `${id}_end_1280.{avif,webp}`, master: m?.label ?? '**missing**', served: `1280: ${KB(end)} KB` })
 }
 
 // ── / (homepage)

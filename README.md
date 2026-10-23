@@ -15,7 +15,6 @@ npm test             # Playwright smoke tests (runs against vite preview)
 npm run test:scroll  # scroll perf, writes perf-report.json (GPU=1 to use the real GPU locally)
 npm run test:weight  # transferred MB, initial and full scroll, per path
 npm run lh           # Lighthouse CI, mobile
-npm run assets       # fetch + encode clips, posters, GLBs (needs ffmpeg, cwebp, Node 20+)
 ```
 
 ## Environment variables (all optional)

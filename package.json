@@ -11,11 +11,9 @@
     "build": "vite build && BUILD_ENTRIES=story vite build && BUILD_ENTRIES=documents vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "preview": "vite preview --port 4173 --strictPort",
-    "assets": "scripts/fetch-sources.sh && scripts/encode-clips.sh && scripts/make-posters.sh && scripts/optimize-glb.sh",
     "test": "playwright test tests/smoke.spec.ts",
     "test:scroll": "playwright test tests/scroll-perf.spec.ts",
     "test:weight": "playwright test tests/weight.spec.ts",
-    "test:a11y": "playwright test tests/a11y.spec.ts",
     "lh": "lhci autorun",
     "prepare": "simple-git-hooks || true"
   },
@@ -40,14 +38,12 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "1.64",
     "@types/node": "^24.19.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
-    "@vercel/node": "^23.0.0",
     "@vitejs/plugin-react": "^6.1.2",
     "simple-git-hooks": "^2.14.0",
     "typescript": "~6.0.2",
