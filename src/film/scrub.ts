@@ -4,14 +4,16 @@ import { frame, store } from '../engine/store'
 import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
 import { Sequence, createStage } from './sequence'
-import { avifReady, clipUrl, endPosterUrl, isSeq, posterFor, seqFrames, seqUrl, type Segment } from './segments'
+import { avifReady, clipUrl, isSeq, posterFor, seqFrames, seqUrl, type Segment } from './segments'
 import { cachedUrl } from './warmcache'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of POOL <video> decoders.
- * - The current clip loads on entry; after the first scroll, once it has metadata, the next AHEAD clips in the scroll
- *   direction load in parallel (one more while the scroll is fast). A clip on screen for under a second can't wait for
- *   its neighbour to finish buffering first.
+ * - Forward only: the picture follows the scroll down and holds while it goes up, so the story never plays backwards.
+ *   Scrolling up into an earlier clip shows that clip's first frame, never its end (`head`).
+ * - The current clip loads on entry; after the first scroll, once it has metadata, the next AHEAD clips below it load
+ *   in parallel (one more while the scroll is fast), never past the next chapter. A clip on screen for under a second
+ *   can't wait for its neighbour to finish buffering first.
  * - A new clip takes the decoder whose clip is furthest from the current segment, never one inside that window.
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held for HOLD ms, so the
  *   last presented frame stays up instead of stalling or flashing back to the poster; after that the picture follows the
@@ -57,6 +59,8 @@ const slotOf = new WeakMap<HTMLVideoElement, Slot>()
 let veil: HTMLElement | null = null
 let stage: HTMLElement | null = null
 let cur = -1
+/** progress through the current segment that the picture shows: rises with the scroll down, holds while it goes up */
+let head = 0
 let shown: Slot | null = null
 let over = -1
 let hidden = false
@@ -218,10 +222,11 @@ export function fullyLoaded(id: string) {
 /** A decoder is downloading `id` from the network right now: the warm cache leaves it alone until it's done. */
 export const downloading = (id: string) => slots.some((s) => s.id === id && !s.blob && s.v.networkState === s.v.NETWORK_LOADING)
 
-/** The next `n` distinct clips from segment i in direction d (skipping stills/globe). */
-function clipsFrom(i: number, d: 1 | -1, n: number) {
+/** The next `n` distinct clips after segment i, in this chapter and the next only (skipping stills/globe). */
+function clipsFrom(i: number, n: number) {
   const out: string[] = []
-  for (let k = i + d; k >= 0 && k < segs.length && out.length < n; k += d) {
+  const last = segs[i].chapter + 1
+  for (let k = i + 1; k < segs.length && segs[k].chapter <= last && out.length < n; k++) {
     const id = videoId(k)
     if (id && !out.includes(id)) out.push(id)
   }
@@ -276,16 +281,20 @@ function tick() {
   if (i < 0) i = segs.findLastIndex((s) => s.chapter === frame.index)
   if (i < 0) return
   const seg = segs[i]
-  const p = Math.min(1, Math.max(0, (frame.local - seg.from) / (seg.to - seg.from)))
+  const at = Math.min(1, Math.max(0, (frame.local - seg.from) / (seg.to - seg.from)))
+  // forward only: a segment entered from below starts on its first frame; inside a segment only a scroll down moves it
+  if (i !== cur) head = cur > i ? 0 : at
+  else if (frame.dir > 0) head = Math.max(head, at)
+  const p = head
 
   if (i !== cur) enter(i, cur)
 
-  // decoders: current now; the next AHEAD clips in the scroll direction once it has metadata (one more while fast)
+  // decoders: current now; the next AHEAD clips below it once it has metadata (one more while fast)
   const clip = videoId(i)
   const seqNow = clip !== null && isSeq(clip)
   // decoders take the video clips only; a sequence clip is drawn on the canvas
   const want = seqNow ? null : clip
-  const near = clipsFrom(i, frame.dir < 0 ? -1 : 1, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
+  const near = clipsFrom(i, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
   const ahead = near.filter((id) => !isSeq(id))
   const keep = [want, ...ahead]
   let active: Slot | null = null
@@ -431,7 +440,6 @@ function loadPosters(i: number) {
 }
 
 function enter(i: number, prev: number) {
-  const fromBelow = prev > i
   // coming back from the business sections (or the first frame): nothing to fade from, start clean
   if (prev < 0) clearLayers(i)
   if (prev >= 0 && posters[prev]) {
@@ -439,18 +447,8 @@ function enter(i: number, prev: number) {
     posters[prev]!.classList.remove('is-over')
   }
   loadPosters(i)
-  const el = posters[i]
-  if (el) {
-    el.style.opacity = '1'
-    // entering a clip from below: show its last frame until the decoder catches up
-    const m = segs[i].media
-    if (el instanceof HTMLImageElement && m.kind === 'video' && !env.mobile) {
-      const want = fromBelow ? endPosterUrl(m.id) : posterFor(m)!
-      if (!el.src.endsWith(want)) el.src = want
-      // the end frame is only needed for scrolling back into this clip from below (not on the first screen)
-      else if (prev >= 0) new Image().src = endPosterUrl(m.id)
-    }
-  }
+  // the first frame, whichever way the segment is entered (`head`)
+  if (posters[i]) posters[i]!.style.opacity = '1'
   // intentional cut (documentation → port): 250 ms fade through the page colour
   const crossedCut = prev >= 0 && (segs[Math.min(i, prev)].join === 'cut')
   if (crossedCut && veil) gsap.fromTo(veil, { opacity: 1 }, { opacity: 0, duration: 0.25, ease: 'none' })
