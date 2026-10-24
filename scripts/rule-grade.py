@@ -113,8 +113,9 @@ def fill(m, k):
     return cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) > 0
 
 
-def paint(a, L, hard, grain, sig, gain=0.5, lift=62):
-    """flat brushed steel over the hard mask, on its own light blurred inside the mask only"""
+def paint(a, L, hard, grain, sig, gain=0.5, lift=62, tone=None):
+    """flat brushed steel over the hard mask, on its own light blurred inside the mask only; `tone` [gain, lift]: the
+    object's own light kept (a mesh crate keeps its ribs and slots, read as perforated steel), no blur, no drawn edges"""
     hard = hard.astype(np.float32)
     if hard.sum() < 50:
         return a
@@ -122,6 +123,11 @@ def paint(a, L, hard, grain, sig, gain=0.5, lift=62):
     pad = int(3 * sig) + 8
     y0, y1, x0, x1 = max(0, ys.min() - pad), min(H, ys.max() + pad), max(0, xs.min() - pad), min(W, xs.max() + pad)
     hd, Lb = hard[y0:y1, x0:x1], L[y0:y1, x0:x1]
+    if tone:
+        v = tone[0] * Lb + tone[1] + grain[y0:y1, x0:x1] * 0.4
+        m = cv2.GaussianBlur(hd, (0, 0), 1.0)[..., None]
+        a[y0:y1, x0:x1] = a[y0:y1, x0:x1] * (1 - m) + np.minimum(v, 215)[..., None] * TINT * m
+        return a
     base = cv2.GaussianBlur(Lb * hd, (0, 0), sig) / np.maximum(cv2.GaussianBlur(hd, (0, 0), sig), 1e-3)
     mb = cv2.GaussianBlur(hd, (0, 0), 2.0)
     gy = cv2.Sobel(mb, cv2.CV_32F, 0, 1, ksize=5); gx = cv2.Sobel(mb, cv2.CV_32F, 1, 0, ksize=5)
@@ -197,7 +203,7 @@ for k, (f, h) in enumerate(zip(frames, Hs)):
             hard = (cv2.dilate(hard.astype(np.uint8), np.ones((o['grow'], o['grow']), np.uint8)) > 0) & mk
         if 'gate' in o:
             hard &= gate(a, o.get('track', cfg.get('track')), ho, o['gate'])
-        a = paint(a, L, hard, grain, o.get('blur', 12), o.get('gain', 0.5), o.get('lift', 62))
+        a = paint(a, L, hard, grain, o.get('blur', 12), o.get('gain', 0.5), o.get('lift', 62), o.get('tone'))
     if roi is not None:
         hard = fill(ks[cfg.get('roi_key', 'blue')] & (roi > 0), 9)
         if cfg.get('roi_grow'):  # over the blue fringe the key leaves round each crate
