@@ -26,5 +26,6 @@ The site builds and deploys with **no secrets**. The quote form posts to `api/rf
 | `RESEND_API_KEY` | Send quote requests by email through Resend |
 | `RFQ_FROM` | Sender address on a domain verified in Resend, e.g. `quotes@skylarkexim.com` |
 | `RFQ_TO` | Recipient, default `info@skylarkexim.com` |
+| `VITE_ORDER_WEBHOOK_URL` | `/order`: Apps Script web app that logs each order to a Google Sheet and emails an alert ([`docs/ORDER_SHEET_APPS_SCRIPT.js`](docs/ORDER_SHEET_APPS_SCRIPT.js)). Orders also go to info@skylarkexim.com through FormSubmit, which emails an activation link on the first order: click it once. |
 
 Copy `.env.example` to `.env.local` for local use (git-ignored). On Vercel: Project → Settings → Environment Variables.

@@ -1,5 +1,5 @@
-import { film, type CaptionCopy } from './content'
-import { MARKET_COUNT } from './markets'
+import { film, type CaptionCopy } from './content.ts'
+import { MARKET_COUNT } from './markets.ts'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
@@ -83,7 +83,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-catch', alt: 'On deck, the boom\'s power block lifts a dripping net full of silver fish in over the rail while the crew lean back and pull it aboard; the fish spill onto the deck beside blue crates of ice.' }],
+    media: [{ kind: 'video', id: 'hf-catch', alt: 'On deck, the boom\'s power block lifts a dripping net full of silver fish in over the rail while the crew lean back and pull it aboard; the fish spill onto the deck beside steel crates of ice.' }],
     captions: caps('o2', [[0.55, 1]]),
   },
   {
@@ -93,7 +93,7 @@ const OCEAN_ONLY: ChapterDef[] = [
   },
   {
     id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'crossfade',
-    media: [{ kind: 'video', id: 'hf-return', alt: 'Porters push trolleys of iced crates along the wharf as the fishing boat comes alongside.' }],
+    media: [{ kind: 'video', id: 'hf-return', alt: 'Porters push trolleys of iced steel crates along the wharf as the fishing boat comes alongside.' }],
     captions: caps('o4', [[0.1, 0.9]]),
   },
 ]
@@ -134,7 +134,7 @@ const PLANT_POND: ChapterDef[] = [
   {
     id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp washed under spray bars and graded along a conveyor by workers in caps, masks and gloves.' },
+      { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp ride a conveyor while workers in caps, masks and gloves grade them at the stainless tables beside it.' },
       { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table.' },
     ],
     // washing and grading over the wash clip, "Made to order" over the peeling: hf-peel is the peeling alone (it used to
@@ -166,14 +166,14 @@ const PLANT_OCEAN: ChapterDef[] = [
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
       { kind: 'video', id: 'hf-unload-fish', alt: 'A refrigerated truck stands backed into the dock seal with its rear doors open; cold vapour drifts out past three steel bins of whole fish on ice, with empty steel trolleys waiting on either side.' },
       { kind: 'video', id: 'hf-unload-crew', alt: 'Two workers in white coats, hairnets and gloves lift a steel crate of whole fish on ice out of the open truck together and set it on a steel trolley at the dock.' },
-      { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, crates of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
+      { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, steel trays of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
     ],
     captions: caps('intake.ocean', [[0.1, 0.92]]),
   },
   {
     id: 'process', path: 'ocean', label: 'Washing and portioning', vh: 180, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-fish-wash', alt: 'Whole seer fish and Indian mackerel are rinsed under chilled water on a stainless table and sorted by size into blue crates.' },
+      { kind: 'video', id: 'hf-fish-wash', alt: 'Whole seer fish and Indian mackerel are rinsed under chilled water on a stainless table and sorted by size into steel crates.' },
       { kind: 'video', id: 'hf-fish-cut', alt: 'A worker portions a deep-red tuna loin on a white board; finished loins lie on crushed ice beside it.' },
     ],
     captions: caps('process.ocean', [[0.04, 0.5], [0.5, 0.96]]),

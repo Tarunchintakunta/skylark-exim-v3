@@ -1,6 +1,6 @@
 // Every line here comes from docs/CONTENT.md ("Use on site" column) or docs/STORY.md.
 // Headlines are editorial and make no factual claim. Do not add facts here that are not in CONTENT.md.
-import { MARKET_COORDS, MARKET_COUNT, marketLabel } from './markets'
+import { MARKET_COORDS, MARKET_COUNT, marketLabel } from './markets.ts'
 
 export interface CaptionCopy {
   eyebrow?: string

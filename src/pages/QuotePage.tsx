@@ -28,6 +28,10 @@ export function QuotePage() {
             <p>
               <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
             </p>
+            <h2>Ready to order?</h2>
+            <p>
+              <a href="/order">Build a full order: grades, glaze, packing and Incoterm →</a>
+            </p>
           </m.aside>
         </m.div>
       </main>

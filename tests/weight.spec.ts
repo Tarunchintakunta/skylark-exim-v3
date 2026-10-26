@@ -7,7 +7,7 @@ import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 // device downloads one tier: every desktop tier 60 MB (#hd2: 2560 clips from the HD masters, streamed by chapter on
 // desktop, was 40 MB retina and 28 MB at 1920), a phone 12 MB. The homepage carries the hero's frame set, so it has
 // its own 8 MB full-scroll budget.
-const BUDGET = { desktop: { initial: 3e6, full: 60e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
+const BUDGET = { desktop: { initial: 2.5e6, full: 60e6 }, mobile: { initial: 1.5e6, full: 12e6 } }
 const RETINA_FULL = 60e6
 const HOME_FULL = 8e6
 const MB = (b: number) => +(b / 1e6).toFixed(2)
@@ -42,6 +42,8 @@ const CAPS: [RegExp, number][] = [
   [/\.glb$/, 1536],
   [/\.woff2$/, 40],
   [/\.(svg|txt|xml)$/, 20],
+  // /order is one standalone page (public/order.html): markup, style and script inline
+  [/\.html$/, 40],
   [/\.pdf$/, 2300],
   [/\.(ktx2|jpg|png)$/, 1024],
 ]
