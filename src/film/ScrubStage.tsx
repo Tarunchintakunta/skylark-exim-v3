@@ -1,11 +1,11 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { GlobeLayer } from './GlobeLayer'
-import { bindStage } from './scrub'
-import { posterFor, toSegments } from './segments'
+import { POOL, bindStage } from './scrub'
+import { toSegments } from './segments'
 import './stage.css'
 
-/** The one fixed stage: posters under three video decoders (prev, current, next), a veil for cuts and the bottom scrim. */
+/** The one fixed stage: posters under POOL video decoders (the current clip and the next ones) and the frame-sequence canvas, a veil for cuts and the bottom scrim. */
 export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   const segs = useMemo(() => toSegments(chapters), [chapters])
   const ref = useRef<HTMLDivElement>(null)
@@ -13,7 +13,8 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   useLayoutEffect(() => bindStage(ref.current!, segs), [segs])
 
   return (
-    <div className="stage" ref={ref} aria-hidden="true">
+    // not aria-hidden as a whole: the globe inside is a focusable, labelled control; the rest is decorative
+    <div className="stage" ref={ref}>
       {segs.map((s, i) => {
         const m = s.media
         if (m.kind === 'gradient') return <div key={i} data-seg={i} className="stage__layer stage__gradient" />
@@ -27,19 +28,20 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
           <img
             key={i}
             data-seg={i}
-            className="stage__layer"
-            // only the opening poster loads up front; scrub.ts sets the rest from data-src (current + next 2)
-            src={i === 0 ? posterFor(m)! : undefined}
-            data-src={posterFor(m)!}
+            className={m.kind === 'dom' ? 'stage__layer stage__dom' : 'stage__layer'}
+            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them after the first scroll
+            src={undefined}
             alt=""
             decoding="async"
-            fetchPriority={i === 0 ? 'high' : 'low'}
+            fetchPriority="low"
           />
         )
       })}
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
-      <video className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} />
+      {/* desktop frame sequences (#hd2, scrub.ts) */}
+      <canvas className="stage__seq" aria-hidden="true" />
+      {Array.from({ length: POOL }, (_, k) => (
+        <video key={k} className="stage__video" muted playsInline preload="auto" disablePictureInPicture tabIndex={-1} aria-hidden="true" />
+      ))}
       <div className="stage__veil" />
       <div className="stage__scrim" />
     </div>

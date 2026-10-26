@@ -67,10 +67,12 @@ Use: Our mission is to deliver premium-quality seafood to global markets while e
 **States:** Raw fresh · Chilled · Frozen.
 No count grades, sizes, MOQ or prices anywhere.
 
-## Markets (16, as listed on the site's "Our Market Places")
-China · Europe · Vietnam · UAE (Sharjah) · Turkey · Thailand · Taiwan · Sri Lanka · Malaysia · Kuwait · Japan · Egypt · Bangkok · Algeria · Russia · Hong Kong
-(Bangkok is listed separately from Thailand on the site; keep both as listed. `[CONFIRM]` whether to merge.)
-Globe marker coordinates (display only, never labelled with a city/port except Bangkok):
+## Markets (15 on our site; the live site's "Our Market Places" lists 16)
+Verbatim (16): China · Europe · Vietnam · UAE (Sharjah) · Turkey · Thailand · Taiwan · Sri Lanka · Malaysia · Kuwait · Japan · Egypt · Bangkok · Algeria · Russia · Hong Kong
+Use on site (15): China · Europe · Vietnam · UAE (Sharjah) · Turkey · Thailand · Taiwan · Sri Lanka · Malaysia · Kuwait · Japan · Egypt · Algeria · Russia · Hong Kong
+Client decision (#194): Bangkok is a city in Thailand, not a market, so it is removed; the headline reads "Trusted in 15 markets." The count is derived from `src/config/markets.ts`, never hard-coded.
+Region groups for the market grid (client's groups; "South Asia" added for Sri Lanka, which fits none of them): East Asia: China, Taiwan, Japan, Hong Kong · Southeast Asia: Vietnam, Thailand, Malaysia · South Asia: Sri Lanka · Middle East: UAE (Sharjah), Kuwait · Europe: Europe, Turkey, Russia · Africa: Egypt, Algeria.
+Globe marker coordinates (display only; markets carry their listed name, never a city/port; the origin pin is labelled "Visakhapatnam"):
 | Market | lat, lon |
 |---|---|
 | Origin: Visakhapatnam | 17.69, 83.22 |
@@ -86,7 +88,6 @@ Globe marker coordinates (display only, never labelled with a city/port except B
 | Kuwait | 29.3, 47.5 |
 | Japan | 36.2, 138.3 |
 | Egypt | 26.8, 30.8 |
-| Bangkok | 13.75, 100.5 |
 | Algeria | 28.0, 2.6 |
 | Russia | 56.0, 38.0 (western Russia, so the arc reads) |
 | Hong Kong | 22.3, 114.2 |
@@ -103,4 +104,4 @@ Managing partners: **V. Yashod Kumar** · **N.V. Prudhvi** (site writes "V.Yasho
 - Logo: https://skylarkexim.com/wp-content/uploads/2025/10/Logo-11-scaled.png (trace to SVG for the loader if Tarun has no vector logo `[CONFIRM]`)
 
 ## Never write (not on the real site)
-ninety nautical miles · purse seine · longline · pomfret · snapper · count grades (10/20 … 41/50) · EIC · residue test lists (nitrofurans, chloramphenicol, tetracyclines) · "RESIDUE: CLEARED" · "every batch tested" · −1 °C hold · 40 ft · blast freezing · Rotterdam / Dubai / Tokyo / New York · North America · any certificate number · any capacity other than 700 pallets · any year founded · any staff count.
+ninety nautical miles · the seine-net gear name (#173) · longline · pomfret · snapper · count grades (10/20 … 41/50) · EIC · residue test lists (nitrofurans, chloramphenicol, tetracyclines) · "RESIDUE: CLEARED" · "every batch tested" · −1 °C hold · 40 ft · blast freezing · Rotterdam / Dubai / Tokyo / New York · North America · any certificate number · any capacity other than 700 pallets · any year founded · any staff count.

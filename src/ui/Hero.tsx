@@ -1,35 +1,34 @@
 import gsap from 'gsap'
-import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef } from 'react'
-import { start } from '../config/content'
-import { env } from '../engine/env'
 import { setPath } from '../engine/path'
 import { frame, useApp } from '../engine/store'
 import { onTick } from '../engine/ticker'
-import './hero.css'
-
-gsap.registerPlugin(SplitText)
+import { HeroFrame } from './HeroFrame'
 
 /**
- * Hero frame (redesign §3): full-bleed moving footage behind (the stage), one editorial headline, one line of body,
- * a slim scroll cue and one text link to the other path. Fixed while the start chapter is on screen; fades over its last 15%.
+ * The film's hero: fixed while the start chapter is on screen; its still first frame dissolves into the scrubbed
+ * opening shot (the same frame) over the first tenth of the start chapter, and the copy fades over its last 15%.
  */
 export function Hero() {
-  const ready = useApp((s) => s.ready)
+  const revealed = useApp((s) => s.revealed)
   const path = useApp((s) => s.path)
   const root = useRef<HTMLDivElement>(null)
+  const media = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!ready) return
+    const m = media.current!
+    return onTick(() => {
+      // hand-off: the still dissolves into the scrubbed opening shot, which starts on the same first frame
+      const s = String(frame.index <= 0 ? 1 - Math.min(1, Math.max(0, (frame.local - 0.02) / 0.08)) : 0)
+      if (m.style.opacity !== s) m.style.opacity = s
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!revealed) return
     const el = root.current!
+    // no intro animation: the same copy is already on screen from the HTML (#207), above the loader
     gsap.set(el, { autoAlpha: 1 })
-    if (!env.reduced) {
-      SplitText.create(el.querySelector('h1'), {
-        type: 'lines', mask: 'lines', autoSplit: true,
-        onSplit: (s) => gsap.from(s.lines, { yPercent: 100, duration: 0.9, stagger: 0.08, delay: 0.35, ease: 'power3.out' }),
-      })
-      gsap.from(el.querySelectorAll('[data-fade]'), { y: 20, autoAlpha: 0, duration: 0.8, delay: 0.75, stagger: 0.08, ease: 'power3.out' })
-    }
     let op = -1
     return onTick(() => {
       const o = frame.index <= 0 ? 1 - Math.min(1, Math.max(0, (frame.local - 0.85) / 0.15)) : 0
@@ -38,32 +37,18 @@ export function Hero() {
       el.style.opacity = String(o)
       el.style.visibility = o > 0 ? 'visible' : 'hidden'
     })
-  }, [ready])
+  }, [revealed])
 
-  const other = path === 'ocean' ? 'pond' : 'ocean'
-  const [lead, last] = [start.title.replace(/ world\.$/, ''), 'world']
   return (
-    <div className="hero" ref={root}>
-      <div className="hero__copy">
-        <h1 className="hero__title">
-          {lead} <em>{last}</em>.
-        </h1>
-        <p className="hero__body" data-fade>{start.body}</p>
-        <a
-          className="hero__path"
-          href={`#${other}`}
-          data-fade
-          onClick={(e) => {
-            e.preventDefault()
-            setPath(other, true)
-          }}
-        >
-          Or follow the {start[other].sub.toLowerCase()} →
-        </a>
-      </div>
-      <span className="hero__cue" data-fade aria-hidden="true">
-        Scroll
-      </span>
-    </div>
+    <HeroFrame
+      root={root}
+      media={media}
+      fork="#"
+      current={path}
+      onFork={(p, e) => {
+        e.preventDefault()
+        setPath(p, true)
+      }}
+    />
   )
 }

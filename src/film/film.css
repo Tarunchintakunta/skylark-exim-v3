@@ -22,6 +22,10 @@
 .caption__title .line { padding-bottom: 0.06em; }
 .caption__body { margin-top: 1.4rem; max-width: 36ch; font-size: var(--fs-lead); line-height: 1.45; color: rgba(246, 242, 234, 0.86); }
 .caption__note { margin-top: 1.2rem; color: var(--steel); }
+/* end-of-path link (#219): the only clickable thing in a film caption */
+.caption__other { margin-top: 1.4rem; pointer-events: auto; }
+.caption__other a { color: var(--ice); text-underline-offset: 5px; }
+.caption__other a:hover { color: var(--brass); }
 .caption__list { margin-top: 1.2rem; max-width: 40rem; color: rgba(246, 242, 234, 0.72); font-size: 0.9375rem; letter-spacing: 0.02em; }
 .caption__fields { margin: 1.4rem 0 0; padding: 0; list-style: none; max-width: 26rem; }
 .caption__fields > * { display: flex; gap: 16px; align-items: baseline; padding: 9px 0; border-top: 1px solid var(--hairline); }
@@ -31,7 +35,11 @@
 .caption--light { color: var(--ink); }
 .caption--light .caption__eyebrow { color: var(--brass-ink); }
 .caption--light .caption__body { color: var(--ink-2); }
-.markets { display: flex; flex-wrap: wrap; gap: 4px 20px; margin-top: 1.4rem; max-width: 40rem; pointer-events: auto; }
-.markets__item { padding: 2px 0; border: 0; background: none; color: var(--ink); font: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color 0.2s; }
-.markets__item:hover, .markets__item:focus-visible { text-decoration-color: currentColor; }
-.globe-label { display: block; padding: 3px 6px; white-space: nowrap; color: var(--ink); background: rgba(244, 239, 230, 0.82); border-radius: 2px; font-size: 10px; transform: translateY(-16px); transition: opacity 0.35s; }
+/* markets: copy on the left, vertically centred below the header, so the globe can centre on it (Globe.tsx measures it) */
+.caption--markets { top: 68px; bottom: 0; height: fit-content; margin: auto 0; width: min(36rem, 44vw); }
+/* phones: the globe takes the top of the screen, the copy stacks under it */
+@media (max-width: 819px) {
+  .caption--markets { top: auto; margin: 0; width: calc(100vw - 2 * var(--gutter)); }
+  .caption--markets .caption__eyebrow { margin-bottom: 0.6rem; }
+  .caption--markets .caption__title { font-size: clamp(2.25rem, 10vw, 2.75rem); }
+}

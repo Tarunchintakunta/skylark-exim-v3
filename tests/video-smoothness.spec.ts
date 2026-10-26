@@ -69,6 +69,14 @@ function instrument() {
     }
   })).observe(document, { subtree: true, childList: true })
 
+  // desktop frame sequences (#hd2): each new frame the stage canvas draws counts as a presented frame
+  new MutationObserver((list) => {
+    for (const r of list) {
+      const c = r.target as HTMLElement
+      if (m.run && current && c.style.opacity === '1') ch().frames++
+    }
+  }).observe(document, { subtree: true, attributes: true, attributeFilter: ['data-frame'] })
+
   new PerformanceObserver((l) => l.getEntries().forEach((e) => m.run && m.long.push(e.duration))).observe({ type: 'longtask', buffered: false })
   try {
     new PerformanceObserver((l) => l.getEntries().forEach((e) => m.run && m.loaf.push(e.duration))).observe({ type: 'long-animation-frame' })
@@ -94,7 +102,8 @@ function instrument() {
       if (p?.id) c.video = true
       if (p?.id && t - c.enteredAt > 500) {
         const v = [...document.querySelectorAll('video')].find((x) => x.style.opacity === '1')
-        const mt = v ? presented.get(v) : undefined
+        const cv = document.querySelector<HTMLCanvasElement>('canvas.stage__seq')
+        const mt = v ? presented.get(v) : cv?.style.opacity === '1' ? +(cv.dataset.frame ?? -99) / 24 : undefined
         if (!p.shown || mt === undefined || Math.abs(mt - p.target) > 2 / 24) c.staleMs += dt
       }
     }
@@ -138,7 +147,8 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         viewport: prof.viewport,
         isMobile: prof.mobile,
         hasTouch: prof.mobile,
-        deviceScaleFactor: prof.mobile ? 2.625 : 1,
+        // DPR=2 on desktop asks for the 2560 tier (#hd2: how the 2560 / 3840 tiers were measured)
+        deviceScaleFactor: prof.mobile ? 2.625 : +(process.env.DPR ?? 1),
         extraHTTPHeaders: process.env.VERCEL_BYPASS ? { 'x-vercel-protection-bypass': process.env.VERCEL_BYPASS, 'x-vercel-set-bypass-cookie': 'true' } : undefined,
         recordVideo: process.env.RECORD ? { dir: `review/recordings/${name}-${path}`, size: prof.viewport } : undefined,
       })
@@ -160,7 +170,7 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         if (f) perFile.set(f, (perFile.get(f) ?? 0) + e.encodedDataLength)
       })
 
-      await page.goto(`${baseURL}/#${path}`)
+      await page.goto(`${baseURL}/story#${path}`)
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 60_000 })
       await page.waitForTimeout(500)
       const initial = bytes
@@ -194,7 +204,7 @@ for (const [name, prof] of Object.entries(PROFILES)) {
         }
       })
       const report = {
-        url: `${baseURL}/#${path}`,
+        url: `${baseURL}/story#${path}`,
         profile: name,
         initialKB: Math.round(initial / 1024),
         fullScrollMB: +(bytes / 1048576).toFixed(2),
@@ -213,7 +223,12 @@ for (const [name, prof] of Object.entries(PROFILES)) {
       // acceptance §7.4 (soft: every number is reported even when one fails)
       const seekLimit = prof.mobile ? LIMITS.seekP95Mobile : LIMITS.seekP95Desktop
       // §3: every chapter shows motion; stills are reported, not skipped
-      expect.soft(rows.filter((r) => r.motion === 'STILL' && r.chapter !== 'world').map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
+      // the documentation interlude stays a still by decision (#162)
+      // start: /#ocean and /#pond land on the path's first chapter (#210), and the start chapter's motion is the hero
+      // loop (#197), not a stage clip; smoke.spec.ts checks the loop on / (#212)
+      // the wild path's quality beat is a still until its fish-in-the-plant clips land (#219, "needs clip")
+      const stills = ['world', 'docs', 'start']
+      expect.soft(rows.filter((r) => r.motion === 'STILL' && !stills.includes(r.chapter)).map((r) => r.chapter), 'chapters with no moving picture').toEqual([])
       for (const r of rows) {
         if (r.motion !== 'video') continue
         expect.soft(r.presentedFps, `${r.chapter} presented fps`).toBeGreaterThanOrEqual(LIMITS.fps)

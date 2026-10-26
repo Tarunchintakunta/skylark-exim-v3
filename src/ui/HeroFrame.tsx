@@ -1,0 +1,109 @@
+import * as m from 'motion/react-m'
+import type { MouseEvent, Ref } from 'react'
+import { exportsLine, start } from '../config/content'
+import type { Path } from '../engine/store'
+import { env } from '../engine/env'
+import { useApp } from '../engine/store'
+import { HERO_POSTER, mediaUrl } from '../film/segments'
+import { DUR, EASE, STAGGER } from '../motion/tokens'
+import './hero.css'
+
+const PATHS = ['ocean', 'pond'] as const
+
+/**
+ * The headline's one-time reveal once the loader has gone (#237): word by word, a lift and a dip in light that starts and
+ * ends fully visible. The static HTML copy is the LCP element and is never hidden; this runs on React's copy after the
+ * hand-off, transform and opacity only. Words are inline-block (kerning inside a word is kept, so nothing reflows).
+ */
+const WAVE = (i: number) => ({
+  y: ['0em', '-0.08em', '0em'],
+  opacity: [1, 0.55, 1],
+  transition: { duration: DUR.slow, ease: EASE, delay: i * STAGGER * 2 },
+})
+
+function Title({ lead, last }: { lead: string; last: string }) {
+  const revealed = useApp((s) => s.revealed)
+  const words = [...lead.split(' ').map((w) => <>{w}</>), <><em>{last}</em>.</>]
+  return (
+    <h1 className="hero__title">
+      {words.map((w, i) => (
+        <span key={i}>
+          {i > 0 && ' '}
+          <m.span className="hero__word" animate={revealed && !env.reduced ? WAVE(i) : undefined}>
+            {w}
+          </m.span>
+        </span>
+      ))}
+    </h1>
+  )
+}
+
+/**
+ * The film's hero markup (redesign §3): the opening shot's first frame, full bleed and still (the story moves only when the
+ * visitor scrolls down), one
+ * editorial headline, one line of body, the exports line, Contact us, the story fork and a slim scroll cue.
+ * scripts/static-hero.ts writes the same copy into the HTML. `fork` is where the fork links point ('#' in the film,
+ * '/story#' on the homepage); `current` marks the chosen path (the film only).
+ */
+export function HeroFrame({
+  root,
+  media,
+  fork,
+  current,
+  onFork,
+}: {
+  root: Ref<HTMLDivElement>
+  media: Ref<HTMLDivElement>
+  fork: '#' | '/story#'
+  current?: Path
+  onFork?: (path: Path, e: MouseEvent<HTMLAnchorElement>) => void
+}) {
+  const [lead, last] = [start.title.replace(/ world\.$/, ''), 'world']
+  return (
+    <div className="hero" ref={root}>
+      <div className="hero__media" ref={media}>
+      {/* the first frame: the LCP image, preloaded with the same sources (static-hero.ts) */}
+      <picture>
+        {HERO_POSTER.map((p) => (
+          <source key={p.type + p.media} type={p.type} media={p.media} srcSet={p.srcSet} sizes="100vw" />
+        ))}
+        <img className="hero__poster" src={mediaUrl('hero-loop_1280.webp')} alt="" fetchPriority="high" decoding="async" />
+      </picture>
+      </div>
+      <div className="hero__copy">
+        <Title lead={lead} last={last} />
+        <p className="hero__body">{start.body}</p>
+        <div className="hero__exports">
+          <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
+          <ul>
+            {exportsLine.items.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+        <a className="hero__contact" href="/quote">
+          Contact us
+        </a>
+        {/* the fork (#219): two separate stories; the static copy in the HTML carries the same markup */}
+        <div className="hero__fork" role="group" aria-label={start.choose}>
+          <span className="hero__fork-label mono">{start.choose}</span>
+          {PATHS.map((p) => (
+            <a
+              key={p}
+              className="hero__fork-btn"
+              href={`${fork}${p}`}
+              data-path={p}
+              aria-current={current === p ? 'true' : undefined}
+              onClick={onFork && ((e) => onFork(p, e))}
+            >
+              {start[p].sub}
+            </a>
+          ))}
+        </div>
+      </div>
+      <span className="hero__cue" aria-hidden="true">
+        Scroll
+      </span>
+    </div>
+  )
+}

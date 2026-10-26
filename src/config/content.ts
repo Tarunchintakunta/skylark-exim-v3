@@ -1,12 +1,13 @@
 // Every line here comes from docs/CONTENT.md ("Use on site" column) or docs/STORY.md.
 // Headlines are editorial and make no factual claim. Do not add facts here that are not in CONTENT.md.
+import { MARKET_COORDS, MARKET_COUNT, marketLabel } from './markets.ts'
 
 export interface CaptionCopy {
   eyebrow?: string
   title: string
   body?: string
   chips?: string[]
-  /** small mono line instead of a body (x-ship) */
+  /** small mono line instead of a body (the last sea shot) */
   note?: string
 }
 
@@ -15,10 +16,7 @@ export const SHRIMPS = ['Vannamei', 'Black Tiger Shrimp', 'Sea White Shrimp', 'P
 export const SHRIMP_CHIPS = ['Vannamei', 'Black Tiger', 'Sea White', 'Pink / Brown', 'Sea Tiger']
 export const STATES = ['Raw fresh', 'Chilled', 'Frozen']
 
-export const MARKETS = [
-  'China', 'Europe', 'Vietnam', 'UAE (Sharjah)', 'Turkey', 'Thailand', 'Taiwan', 'Sri Lanka',
-  'Malaysia', 'Kuwait', 'Japan', 'Egypt', 'Bangkok', 'Algeria', 'Russia', 'Hong Kong',
-]
+export const MARKETS = MARKET_COORDS.map((m) => marketLabel(m.name))
 
 export const start = {
   eyebrow: 'Visakhapatnam · Andhra Pradesh',
@@ -28,8 +26,14 @@ export const start = {
   ocean: { label: 'The Ocean', sub: 'Wild catch' },
   pond: { label: 'The Pond', sub: 'Farmed shrimp' },
   skip: 'Skip the story',
+  /** hero fork and end-of-path link (#219) */
+  choose: 'Choose the story',
+  other: 'See the other story',
   cta: 'Request export quote',
 }
+
+/** Hero "What we export" line (CONTENT.md products and states). */
+export const exportsLine = { title: 'What we export', items: ['Vannamei and Black Tiger shrimp', 'Marine fish', 'Raw fresh, chilled and frozen'] }
 
 export const film: Record<string, CaptionCopy[]> = {
   o1: [{ eyebrow: 'The Ocean · 01', title: 'Before the harbour wakes.', body: 'Based in Visakhapatnam, Andhra Pradesh. Raw material is sourced directly from farms or fishing vessels.' }],
@@ -39,7 +43,9 @@ export const film: Record<string, CaptionCopy[]> = {
   p1: [{ eyebrow: 'The Pond · 01', title: 'Partner farms on the Andhra coast.', body: 'Strategic partnerships with aquaculture farmers and a focus on responsible sourcing.' }],
   p2: [{ eyebrow: 'The Pond · 02', title: 'Every batch has a history.', body: 'We guarantee superior freshness, traceability, and product integrity across all markets.' }],
   p3: [{ eyebrow: 'The Pond · 03', title: 'Harvested into ice.', body: 'Shrimp are sourced directly from farms. Initial quality checks (size, freshness, health) are done before acceptance.', chips: SHRIMP_CHIPS }],
-  intake: [{ eyebrow: 'The Plant · Anandapuram', title: 'Both origins arrive at one door.', body: 'Our processing unit at Anandapuram, Visakhapatnam: a state-of-the-art shrimp processing facility equipped with internationally acclaimed modernized equipment.' }],
+  intake: [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Our processing unit at Anandapuram, Visakhapatnam: a state-of-the-art shrimp processing facility equipped with internationally acclaimed modernized equipment.' }],
+  /** the same unit in words that fit fish too (#262): anywhere that is not the farmed-shrimp path */
+  'intake.any': [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Our processing unit at Anandapuram, Visakhapatnam, equipped with internationally acclaimed modernized equipment.' }],
   process: [
     { eyebrow: 'The Plant · Washing', title: 'Washed clean.', body: 'Thorough washing with clean, treated water to remove impurities.' },
     { eyebrow: 'The Plant · Grading', title: 'Graded to one standard.', body: 'Sorted by size, weight, and type. Grading ensures uniformity for export standards.' },
@@ -47,14 +53,25 @@ export const film: Record<string, CaptionCopy[]> = {
   ],
   coldchain: [
     { eyebrow: 'The Plant · Quality lab', title: 'Tested before it moves.', body: 'Checks for hygiene, freshness, texture and absence of defects. Samples tested for international food safety compliance.' },
-    { eyebrow: 'The Plant · Freezing', title: 'Frozen at its best.', body: 'IQF (Individually Quick Frozen) or block freezing. A thin ice glaze preserves freshness during shipment.' },
+    { eyebrow: 'The Plant · Freezing', title: 'Frozen at its best.', body: 'IQF (Individually Quick Frozen) or block freezing. Glazing (a thin ice layer) applied to preserve freshness during shipment.' },
     { eyebrow: 'The Plant · Packing', title: 'Packed and labelled.', body: 'Export-grade cartons, vacuum packs, or customized packaging. Labels with product details, size, batch, and export compliance.' },
     { eyebrow: 'The Plant · Cold storage', title: 'Held at −18\u00a0°C to −20\u00a0°C.', body: 'Our warehouse has a total storage capacity of 700 pallets.' },
+  ],
+  // the wild-catch path (#219): the fish in the plant. Only work-flow steps that hold for any seafood (receiving checks,
+  // washing, grading, freezing and glazing, cold storage) and the company's quality text; nothing shrimp-specific
+  'intake.ocean': [{ eyebrow: 'The Plant · Anandapuram', title: 'Into the plant.', body: 'Transported under chilled conditions to our processing unit at Anandapuram, Visakhapatnam. Initial quality checks (size, freshness, health) are done before acceptance.' }],
+  'process.ocean': [
+    { eyebrow: 'The Plant · Washing', title: 'Washed and graded.', body: 'Thorough washing with clean, treated water to remove impurities. Sorted by size, weight and type. Grading ensures uniformity for export standards.' },
+    { eyebrow: 'The Plant · Quality', title: 'One standard, every stage.', body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.', note: 'Quality control staff · Lab unit, Anandapuram' },
+  ],
+  'coldchain.ocean': [
+    { eyebrow: 'The Plant · Freezing', title: 'Frozen at its best.', body: 'IQF (Individually Quick Frozen) or block freezing. Glazing (a thin ice layer) applied to preserve freshness during shipment.' },
+    { eyebrow: 'The Plant · Cold storage', title: 'Held cold until dispatch.', body: 'Our warehouse has a total storage capacity of 700 pallets.' },
   ],
   docs: [{ eyebrow: 'Export · Documentation', title: 'Paperwork, done properly.', body: 'Our documentation staff professionally prepare all necessary documents and handle logistical tracking of shipments. Compliance with export certificates (HACCP, EU, FDA, etc.).' }],
   port: [{ eyebrow: 'Export · The port', title: 'Loaded under the cranes.', body: 'Shipped in reefer containers to maintain the cold chain until the destination.' }],
   sea: [{ eyebrow: 'Export · At sea', title: 'From Visakhapatnam to the world’s table.', note: 'Cold chain · outbound' }],
-  world: [{ eyebrow: 'Export · Markets', title: 'Trusted in 16 markets.', body: MARKETS.join(' · ') }],
+  world: [{ eyebrow: 'Export · Markets', title: `Trusted in ${MARKET_COUNT} markets.`, body: MARKETS.join(' · ') }],
 }
 
 /** Label card in the packing caption: field names only, never values (STORY §7). */
@@ -76,7 +93,7 @@ export const TRUST = {
   compliance: 'Compliance with export certificates (HACCP, EU, FDA, etc.)',
   facts: [
     { value: '700', label: 'pallet warehouse' },
-    { value: '16', label: 'markets' },
+    { value: String(MARKET_COUNT), label: 'markets' },
     { value: 'Raw fresh, chilled and frozen', label: 'seafood' },
   ],
 }
@@ -97,6 +114,30 @@ export const ABOUT = {
     { name: 'V. Yashod Kumar', initials: 'VY' },
     { name: 'N.V. Prudhvi', initials: 'NP' },
   ],
+}
+
+/**
+ * Homepage bands (#233). Sentences are CONTENT.md lines; the card titles are Tarun's. No founding year: none is on
+ * skylarkexim.com (CONTENT.md "Never write"), so the intro says where, not since when.
+ */
+export const HOME = {
+  intro: {
+    eyebrow: start.eyebrow,
+    title: 'Seafood exporters from Visakhapatnam.',
+    body: 'Raw material is sourced directly from farms or fishing vessels. Our processing unit is at Anandapuram, Visakhapatnam.',
+  },
+  stories: {
+    ocean: { title: 'Wild catch: from sea to port', cta: 'Watch the wild catch story' },
+    pond: { title: 'Farmed shrimp: from pond to port', cta: 'Watch the farmed shrimp story' },
+    /** shared by both cards: where every path ends */
+    end: ['The plant', 'The port'],
+  },
+  plant: {
+    eyebrow: 'The plant · Anandapuram',
+    title: 'One standard, every stage.',
+    body: 'Our commitment to excellence is powered by advanced processing facilities, innovative technology, and strict adherence to international quality standards.',
+  },
+  news: { title: 'Latest updates', all: 'All news' },
 }
 
 /** Contact (CONTENT.md "Contact"). */

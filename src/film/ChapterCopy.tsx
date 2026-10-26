@@ -1,5 +1,6 @@
 import type { ChapterDef } from '../config/chapters'
-import { DocCards, LabelCard, MarketList } from './Extras'
+import { MarketList } from '../sections/MarketList'
+import { DocCards, LabelCard, OtherPath } from './Extras'
 import './film.css'
 
 /** Chapters whose copy sits in a right-hand column instead of bottom-left, for editorial rhythm (redesign §6). */
@@ -16,7 +17,9 @@ export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
       {chapter.captions.map((c, i) => {
         const Title = i === 0 ? 'h2' : 'h3'
         return (
-          <article className={`caption${place}${chapter.theme === 'light' ? ' caption--light' : ''}`} key={i}>
+          // keyed by content, not index: after a path switch a chapter id (intake, process, coldchain) carries the
+          // other path's copy, and SplitText.revert() in bindCaptions would write the old title back into a reused node (#210)
+          <article className={`caption${place}${chapter.theme === 'light' ? ' caption--light' : ''}${c.extra === 'markets' ? ' caption--markets' : ''}`} key={`${i}:${c.title}`}>
             {c.eyebrow && <Eyebrow text={c.eyebrow} />}
             <Title className="caption__title display">{c.title}</Title>
             {c.body && <p className="caption__body" data-fade>{c.body}</p>}
@@ -24,6 +27,7 @@ export function ChapterCopy({ chapter }: { chapter: ChapterDef }) {
             {c.extra === 'label-card' && <LabelCard />}
             {c.extra === 'doc-cards' && <DocCards />}
             {c.extra === 'markets' && <MarketList />}
+            {c.extra === 'other-path' && <OtherPath />}
             {c.chips && (
               <p className="caption__list" data-fade>
                 <span className="sr-only">Species: </span>

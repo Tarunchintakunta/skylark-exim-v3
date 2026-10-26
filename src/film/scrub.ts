@@ -1,15 +1,23 @@
 import gsap from 'gsap'
 import { env } from '../engine/env'
 import { frame, store } from '../engine/store'
+import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
-import { clipUrl, endPosterUrl, posterFor, type Segment } from './segments'
+import { Sequence, createStage } from './sequence'
+import { avifReady, clipUrl, isSeq, posterFor, seqFrames, seqUrl, type Segment } from './segments'
+import { cachedUrl } from './warmcache'
 
 /**
- * Video engine (TRD §6, redesign §2.3-2.4). A pool of three <video> decoders: previous, current and next clip.
- * - The current clip loads on entry; after the first scroll the next starts once the current fires `canplaythrough`, and the one after
- *   once the next can play through (direction-aware, so scrolling up prefetches upwards).
- * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held, so the last
- *   presented frame stays up instead of stalling or flashing back to the poster.
+ * Video engine (TRD §6, redesign §2.3-2.4). A pool of POOL <video> decoders.
+ * - Forward only: the picture follows the scroll down and holds while it goes up, so the story never plays backwards.
+ *   Scrolling up into an earlier clip shows that clip's first frame, never its end (`head`).
+ * - The current clip loads on entry; after the first scroll, once it has metadata, the next AHEAD clips below it load
+ *   in parallel (one more while the scroll is fast), never past the next chapter. A clip on screen for under a second
+ *   can't wait for its neighbour to finish buffering first.
+ * - A new clip takes the decoder whose clip is furthest from the current segment, never one inside that window.
+ * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held for HOLD ms, so the
+ *   last presented frame stays up instead of stalling or flashing back to the poster; after that the picture follows the
+ *   buffered frame nearest the target, so it keeps moving with the page as the download arrives.
  * - `fastSeek()` while the scroll is fast,
  *   exact `currentTime` once it settles. Frames count as presented from `requestVideoFrameCallback`.
  */
@@ -18,66 +26,135 @@ interface Slot {
   id: string | null
   painted: boolean
   pending: number | null
+  /** when the current target was first found outside `buffered` (0: it wasn't) */
+  holdSince: number
   dead: boolean
-  /** fired canplaythrough: safe to start the neighbour */
+  /** fired loadeddata since the last load(): a slot that ever decoded a frame is never marked dead by the timer */
+  loaded: boolean
+  /** fired canplaythrough */
   ready: boolean
-  /** last time this slot was the current clip (pool eviction) */
+  /** last time this slot was the current clip (breaks eviction ties) */
   used: number
+  /** playing from the warm cache's blob: URL (#251), so its seeks never touch the network */
+  blob: boolean
 }
 
 const FRAME = 1 / 24
 const EPS = 1 / 48
+/** ms a target outside `buffered` is held before the picture moves to the nearest buffered frame */
+const HOLD = 250
 /** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
+const light = env.mobile || env.saveData || env.slow
+/** decoders on the stage (ScrubStage renders this many <video>s) */
+export const POOL = env.mobile ? 4 : 5
+/** clips prefetched ahead of the scroll: three on desktop, two on phones, Save-Data and 3G or slower; one more while fast */
+const AHEAD = light ? 2 : 3
 
 let segs: Segment[] = []
 let posters: (HTMLElement | null)[] = []
 let slots: Slot[] = []
+/** one slot per <video> for the page's life: a path switch rebinds the stage but keeps what the decoders already hold */
+const slotOf = new WeakMap<HTMLVideoElement, Slot>()
 let veil: HTMLElement | null = null
 let stage: HTMLElement | null = null
 let cur = -1
+/** progress through the current segment that the picture shows: rises with the scroll down, holds while it goes up */
+let head = 0
 let shown: Slot | null = null
 let over = -1
 let hidden = false
 let isLight = false
 let isSoft = false
 let lastY = 0
-/** Read by tests/video-smoothness.spec.ts: the clip that should be on screen and the time it should show. Plain writes, no DOM. */
-const probe = { id: null as string | null, target: 0, shown: false, chapter: -1 }
+/**
+ * Read by tests/video-smoothness.spec.ts and tests/terminal-mode.spec.ts: the clip that should be on screen, the time
+ * it should show, whether its decoder is the picture (`shown`) and whether the stage has a picture at all (`painted`:
+ * the clip, or the poster, still, gradient or globe layer under it). Plain writes, no DOM.
+ */
+const probe = { id: null as string | null, target: 0, shown: false, chapter: -1, painted: false }
 ;(globalThis as { __scrub?: typeof probe }).__scrub = probe
+// the decoder pool, for tests (navigator.webdriver) and ?debug only
+if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
+  Object.defineProperty(globalThis, '__scrubSlots', {
+    get: () => slots.map((s) => ({ id: s.id, readyState: s.v.readyState, ready: s.ready, dead: s.dead, painted: s.painted })),
+  })
 let clock = 0
+
+/**
+ * Desktop frame sequences (#hd2, chapters.ts SEQ_CLIPS): one canvas over the posters, at the decoders' level, drawing
+ * the frame nearest the scroll position of a sequence clip (sequence.ts). A set starts fetching (frame 0, then coarse
+ * first) when its clip comes within the decoders' look-ahead or the warm cache's window; a set off screen keeps its
+ * bytes in the worker and closes its bitmaps.
+ */
+let seqCanvas: HTMLCanvasElement | null = null
+let seqStage: ReturnType<typeof createStage> | null = null
+let seqOn = false
+const seqs = new Map<string, Sequence>()
+/** 2560 bitmaps are 14.7 MB each: 12 around the frame on screen */
+const SEQ_LRU = 12
+let avifKnown = false
+void avifReady.then(() => (avifKnown = true))
+const seqFor = (id: string) => {
+  if (!avifKnown) return null
+  let s = seqs.get(id)
+  if (!s) seqs.set(id, (s = new Sequence({ id: `stage-${id}`, frames: seqFrames(id), url: (i) => seqUrl(id, i), lru: SEQ_LRU })))
+  return s
+}
+/** start fetching a sequence clip's frames (the warm cache calls this for the clips in its window) */
+export const prefetchSeq = (id: string) => void seqFor(id)?.prefetch()
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
 /**
- * Opening (redesign §3): once the loader is done the first clip plays at 1× for INTRO_S so the hero is already moving,
- * then holds. The first scroll hands over to scrubbing from wherever it got to (introT0 → end of clip).
+ * The hero's looping video (#197) covers the start chapter: its clip loads in idle time after the loader's reveal (the
+ * loader already buffered the path's first clip), so it's there on the first scroll without competing with the first screen.
  */
-const INTRO_S = 2
-let introT0: number | null = null
+let primed = false
 let stopTick: (() => void) | null = null
+/** the clip on screen after the reveal can play through: the warm cache (#251) waits for this before it takes bandwidth */
+let settled = false
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
   stage = el
   segs = segments
   posters = segments.map((_, i) => el.querySelector<HTMLElement>(`[data-seg="${i}"]`))
   veil = el.querySelector('.stage__veil')
-  slots = [...el.querySelectorAll('video')].map((v) => makeSlot(v))
+  slots = [...el.querySelectorAll('video')].map((v) => slotOf.get(v) ?? makeSlot(v))
+  seqCanvas = el.querySelector('canvas.stage__seq')
+  seqStage = seqCanvas && createStage(seqCanvas)
+  const ro = seqCanvas && seqStage ? new ResizeObserver(seqStage.resize) : null
+  if (ro && seqCanvas && seqStage) (ro.observe(seqCanvas), seqStage.resize())
+  seqOn = false
+  for (const s of slots) s.v.style.opacity = '0'
   cur = -1
   shown = null
   over = -1
   stopTick?.()
   stopTick = onTick(tick, -5)
   const stopReady = store.subscribe((st, was) => st.ready && !was.ready && cur >= 0 && loadPosters(cur))
+  const prime = () => ('requestIdleCallback' in window ? requestIdleCallback(() => (primed = true), { timeout: 1000 }) : setTimeout(() => (primed = true), 200))
+  const stopReveal = store.subscribe((st, was) => st.revealed && !was.revealed && prime())
+  if (store.getState().revealed) prime()
   return () => {
+    ro?.disconnect()
     stopReady()
+    stopReveal()
     stopTick?.()
     stopTick = null
-    for (const s of slots) release(s)
   }
 }
 
+/**
+ * Loader gate (#218): buffer these clips into free decoders before the reveal, so the chosen path's first chapter plays
+ * on arrival. Returns their elements; the loader waits for `canplaythrough`.
+ */
+export function warm(ids: string[]) {
+  return ids.flatMap((id) => slotFor(id, ids, 0)?.v ?? [])
+}
+
 function makeSlot(v: HTMLVideoElement): Slot {
-  const s: Slot = { v, id: null, painted: false, pending: null, dead: false, ready: false, used: 0 }
+  const s: Slot = { v, id: null, painted: false, pending: null, holdSince: 0, dead: false, loaded: false, ready: false, used: 0, blob: false }
+  slotOf.set(v, s)
   v.muted = true // React doesn't reflect the muted attribute reliably
   const markPainted = () => {
     if (v.requestVideoFrameCallback) {
@@ -88,9 +165,11 @@ function makeSlot(v: HTMLVideoElement): Slot {
     } else s.painted = true
   }
   v.addEventListener('loadeddata', () => {
+    s.loaded = true
     s.dead = false
     markPainted()
   })
+  v.addEventListener('canplay', () => (s.dead = false))
   v.addEventListener('canplaythrough', () => (s.ready = true))
   v.addEventListener('error', () => (s.dead = true))
   v.addEventListener('seeked', () => {
@@ -100,6 +179,7 @@ function makeSlot(v: HTMLVideoElement): Slot {
       return
     }
     s.pending = null
+    s.dead = false
     markPainted()
   })
   return s
@@ -110,23 +190,19 @@ function load(s: Slot, id: string) {
   s.painted = false
   s.pending = null
   s.dead = false
+  s.loaded = false
   s.ready = false
-  s.v.src = clipUrl(id)
+  const cached = cachedUrl(id)
+  s.blob = cached !== null
+  // the clip id, readable whether the source is a file or a blob: URL
+  s.v.dataset.clip = id
+  s.v.src = cached ?? clipUrl(id)
   s.v.load()
-  // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives
+  // iOS Low Power Mode and friends: no first frame after 4 s → posters until `loadeddata` arrives. Not readyState: it
+  // drops below 2 during every seek, and a clip caught mid-seek would sit on its poster for the rest of the chapter.
   setTimeout(() => {
-    if (s.id === id && s.v.readyState < 2) s.dead = true
+    if (s.id === id && !s.loaded) s.dead = true
   }, 4000)
-}
-
-function release(s: Slot) {
-  if (!s.id) return
-  s.id = null
-  s.painted = false
-  s.ready = false
-  s.v.removeAttribute('src')
-  s.v.load()
-  s.v.style.opacity = '0'
 }
 
 const videoId = (i: number) => {
@@ -134,27 +210,43 @@ const videoId = (i: number) => {
   return m?.kind === 'video' ? m.id : null
 }
 
-/** Nearest video clip from segment i in direction d (skipping stills/globe), or null. */
-function videoNear(i: number, d: 1 | -1) {
-  for (let k = i + d; k >= 0 && k < segs.length; k += d) {
+/** A decoder holds `id` from the network, completely buffered: the warm cache fetches its Blob last (#264). */
+export function fullyLoaded(id: string) {
+  return slots.some((s) => {
+    const v = s.v
+    if (s.id !== id || s.blob || !Number.isFinite(v.duration) || v.buffered.length !== 1) return false
+    return v.buffered.start(0) <= EPS && v.buffered.end(0) >= v.duration - EPS
+  })
+}
+
+/** A decoder is downloading `id` from the network right now: the warm cache leaves it alone until it's done. */
+export const downloading = (id: string) => slots.some((s) => s.id === id && !s.blob && s.v.networkState === s.v.NETWORK_LOADING)
+
+/** The next `n` distinct clips after segment i, in this chapter and the next only (skipping stills/globe). */
+function clipsFrom(i: number, n: number) {
+  const out: string[] = []
+  const last = segs[i].chapter + 1
+  for (let k = i + 1; k < segs.length && segs[k].chapter <= last && out.length < n; k++) {
     const id = videoId(k)
-    if (id) return id
+    if (id && !out.includes(id)) out.push(id)
   }
-  return null
+  return out
 }
 
-/** Nearest clip after the segment that plays `id`, in direction d. */
-function videoNearId(id: string, d: 1 | -1) {
-  const k = segs.findIndex((s) => s.media.kind === 'video' && s.media.id === id)
-  return k < 0 ? null : videoNear(k, d)
+/** Segments between segment `at` and the nearest one playing `id` (Infinity: not on this path). */
+function distance(id: string | null, at: number) {
+  let best = Infinity
+  segs.forEach((s, k) => s.media.kind === 'video' && s.media.id === id && (best = Math.min(best, Math.abs(k - at))))
+  return best
 }
 
-/** Slot holding `id`, loading it into the least recently used slot not in `keep` if needed. */
-function slotFor(id: string, keep: (string | null)[]) {
+/** Slot holding `id`, else load it into a free slot or the one whose clip is furthest from segment `at`, never one in `keep`. */
+function slotFor(id: string, keep: (string | null)[], at: number) {
   const have = slots.find((s) => s.id === id)
   if (have) return have
   const free = slots.filter((x) => x !== shown && (x.id === null || !keep.includes(x.id)))
-  const s = free.find((x) => x.id === null) ?? free.sort((a, b) => a.used - b.used)[0]
+  const far = (x: Slot) => (x.id === null ? Infinity : distance(x.id, at))
+  const s = free.sort((a, b) => far(b) - far(a) || a.used - b.used)[0]
   if (!s) return null
   load(s, id)
   return s
@@ -189,43 +281,73 @@ function tick() {
   if (i < 0) i = segs.findLastIndex((s) => s.chapter === frame.index)
   if (i < 0) return
   const seg = segs[i]
-  const p = Math.min(1, Math.max(0, (frame.local - seg.from) / (seg.to - seg.from)))
+  const at = Math.min(1, Math.max(0, (frame.local - seg.from) / (seg.to - seg.from)))
+  // forward only: a segment entered from below starts on its first frame; inside a segment only a scroll down moves it
+  if (i !== cur) head = cur > i ? 0 : at
+  else if (frame.dir > 0) head = Math.max(head, at)
+  const p = head
 
   if (i !== cur) enter(i, cur)
 
-  // decoders: current now; the neighbour in the scroll direction once the current can play through
-  const want = videoId(i)
-  const ahead = videoNear(i, frame.dir < 0 ? -1 : 1)
-  const behind = videoNear(i, frame.dir < 0 ? 1 : -1)
+  // decoders: current now; the next AHEAD clips below it once it has metadata (one more while fast)
+  const clip = videoId(i)
+  const seqNow = clip !== null && isSeq(clip)
+  // decoders take the video clips only; a sequence clip is drawn on the canvas
+  const want = seqNow ? null : clip
+  const near = clipsFrom(i, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
+  const ahead = near.filter((id) => !isSeq(id))
+  const keep = [want, ...ahead]
   let active: Slot | null = null
-  if (want) {
-    active = slotFor(want, [ahead, behind])
+  // the start clip waits for the reveal: the hero loop covers it, and the loader's budget goes to the first chapter
+  // of each path (#218); a deep link that is about to jump past the hero doesn't fetch it at all
+  if (want && !(landing.pending && i === 0) && (scrolled || primed || i > 0)) {
+    active = slotFor(want, keep, i)
     if (active) {
       active.used = clock
-      const t0 = i === 0 ? intro(active) : 0
-      if (t0 !== null) {
-        seek(active, p, vel, t0)
-        probe.target = t0 + p * Math.max(0, (active.v.duration || 0) - FRAME - t0)
-      }
+      seek(active, p, vel)
+      probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
     }
   }
-  if (!scrolled && frame.scroll > 2) scrolled = true
-  if (ahead && scrolled && (!want || active?.ready)) {
-    const a = slotFor(ahead, [want, behind])
-    // the one after that once the next can play through too (short chapters pass in < 1 s)
-    const ahead2 = videoNearId(ahead, frame.dir < 0 ? -1 : 1)
-    if (a?.ready && ahead2) slotFor(ahead2, [want, ahead])
+  // a deep link (#ocean / #pond) lands mid-film: measure the first scroll from there, so it doesn't prefetch on arrival
+  if (!scrolled && !landing.pending && Math.abs(frame.scroll - Math.max(0, landing.y)) > 2) {
+    scrolled = true
+    loadPosters(i)
   }
+  if (scrolled && (!want || (active && (active.v.readyState >= 1 || active.dead)))) for (const id of ahead) slotFor(id, keep, i)
   setShown(active && active.painted && !active.dead ? active : null)
-  probe.id = want
+  // the sequence clip on screen, and the sets coming up (fetch only); every other set gives back its bitmaps
+  let drawn = -1
+  if (seqNow && seqStage) {
+    const sq = seqFor(clip)
+    if (sq) {
+      drawn = seqStage.draw({ seq: sq, at: p })
+      probe.target = sq.index(p) / 24
+    }
+  }
+  if (scrolled || seqNow) for (const id of near) if (isSeq(id)) prefetchSeq(id)
+  for (const [id, sq] of seqs) if (id !== clip && !near.includes(id)) sq.release()
+  const on = drawn >= 0
+  if (seqCanvas && on !== seqOn) seqCanvas.style.opacity = (seqOn = on) ? '1' : '0'
+  if (seqCanvas && on) seqCanvas.dataset.frame = String(drawn)
+  // a decoder still on its network source moves to the warm cache's blob once that clip is cached: right away when it's
+  // off screen, or while the hero still fully covers the start chapter, never under a clip the visitor is watching
+  for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && (s !== shown || (frame.index === 0 && frame.local < 0.05))) load(s, s.id)
+  if (!settled && active?.ready && store.getState().revealed) {
+    settled = true
+    dispatchEvent(new Event('scrub:settled'))
+  }
+  probe.id = clip
   probe.chapter = seg.chapter
-  probe.shown = shown !== null && shown === active
+  probe.shown = seqNow ? on : shown !== null && shown === active
+  // something is on screen: the clip's decoder, or the layer under it (a poster, a still, a gradient or the globe)
+  const layer = posters[i]
+  probe.painted = probe.shown || (layer instanceof HTMLImageElement ? layer.complete && layer.naturalWidth > 0 : !!layer)
 
   // placeholders (stills and the port/sea gradients): slow push-in
   const m = seg.media
   if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
-  // cross-fade join: next segment's poster fades in over the last 3% of scroll (x-ship → globe: 15%)
+  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%)
   const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
   const a = fadeLen ? Math.max(0, (p - (1 - fadeLen)) / fadeLen) : 0
   const o = a > 0 ? i + 1 : -1
@@ -251,27 +373,20 @@ function tick() {
   }
 }
 
-/** Intro playback for the opening clip. Returns the scrub start time once handed over, or null while it still plays. */
-function intro(s: Slot): number | null {
-  if (introT0 !== null) return introT0
-  const v = s.v
-  const scrolled = frame.scroll > 2
-  if (env.reduced || scrolled || (v.readyState >= 2 && v.currentTime >= INTRO_S)) {
-    v.pause()
-    introT0 = env.reduced ? 0 : Math.min(v.currentTime, INTRO_S)
-    return introT0
-  }
-  if (store.getState().ready && v.readyState >= 2 && v.paused) v.play().catch(() => (introT0 = v.currentTime))
-  return null
-}
-
 function seek(s: Slot, p: number, vel: number, t0 = 0) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
   // no extra easing here: Lenis already smooths the scroll, a second lerp only adds lag behind the page
-  const t = t0 + p * Math.max(0, v.duration - FRAME - t0)
-  // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it
-  if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) return
+  let t = t0 + p * Math.max(0, v.duration - FRAME - t0)
+  // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it.
+  // Held for more than HOLD ms: show the buffered frame nearest the target instead, so the picture doesn't sit still
+  if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) {
+    const now = performance.now()
+    s.holdSince ||= now
+    const near = now - s.holdSince > HOLD ? nearestBuffered(v, t) : null
+    if (near === null) return
+    t = near
+  } else s.holdSince = 0
   if (v.seeking) {
     s.pending = t
     return
@@ -287,6 +402,21 @@ function buffered(v: HTMLVideoElement, t: number) {
   return false
 }
 
+/** The buffered time closest to `t` between the current frame and `t` (in the direction of travel), or null. */
+function nearestBuffered(v: HTMLVideoElement, t: number) {
+  const from = v.currentTime
+  const lo = Math.min(from, t)
+  const hi = Math.max(from, t)
+  let best: number | null = null
+  const b = v.buffered
+  for (let k = 0; k < b.length; k++) {
+    // a frame short of the range's end: the last buffered frame may not be complete yet
+    const c = Math.min(Math.max(t, b.start(k)), Math.max(b.start(k), b.end(k) - FRAME))
+    if (c >= lo && c <= hi && (best === null || Math.abs(c - t) < Math.abs(best - t))) best = c
+  }
+  return best
+}
+
 /** Every stage layer to opacity 0 except `keep`; clears the cross-fade overlay. */
 function clearLayers(keep: number) {
   posters.forEach((el, k) => {
@@ -297,17 +427,23 @@ function clearLayers(keep: number) {
   over = -1
 }
 
-/** Posters load lazily: this segment and the next two, but only this one until the loader is done (first screen = LCP). */
+/**
+ * Posters load lazily: this segment's and every one to the end of the next chapter (the clips' window: a poster is what
+ * a fast scroll shows before its clip arrives), but only this one until the loader is done (first screen = LCP).
+ */
 function loadPosters(i: number) {
-  const last = store.getState().ready ? i + 2 : i
+  if (!scrolled) return
+  const next = (segs[i]?.chapter ?? 0) + 1
+  const last = store.getState().ready ? Math.max(i + 2, segs.findLastIndex((s) => s.chapter <= next)) : i
   for (let k = i; k <= last; k++) {
     const p = posters[k]
-    if (p instanceof HTMLImageElement && !p.getAttribute('src') && p.dataset.src) p.src = p.dataset.src
+    // the URL is taken here, not at render: by now the page knows whether AVIF decodes
+    const src = segs[k] && posterFor(segs[k].media)
+    if (p instanceof HTMLImageElement && !p.getAttribute('src') && src) p.src = src
   }
 }
 
 function enter(i: number, prev: number) {
-  const fromBelow = prev > i
   // coming back from the business sections (or the first frame): nothing to fade from, start clean
   if (prev < 0) clearLayers(i)
   if (prev >= 0 && posters[prev]) {
@@ -315,18 +451,8 @@ function enter(i: number, prev: number) {
     posters[prev]!.classList.remove('is-over')
   }
   loadPosters(i)
-  const el = posters[i]
-  if (el) {
-    el.style.opacity = '1'
-    // entering a clip from below: show its last frame until the decoder catches up
-    const m = segs[i].media
-    if (el instanceof HTMLImageElement && m.kind === 'video' && !env.mobile) {
-      const want = fromBelow ? endPosterUrl(m.id) : posterFor(m)!
-      if (!el.src.endsWith(want)) el.src = want
-      // the end frame is only needed for scrolling back into this clip from below
-      else new Image().src = endPosterUrl(m.id)
-    }
-  }
+  // the first frame, whichever way the segment is entered (`head`)
+  if (posters[i]) posters[i]!.style.opacity = '1'
   // intentional cut (documentation → port): 250 ms fade through the page colour
   const crossedCut = prev >= 0 && (segs[Math.min(i, prev)].join === 'cut')
   if (crossedCut && veil) gsap.fromTo(veil, { opacity: 1 }, { opacity: 0, duration: 0.25, ease: 'none' })

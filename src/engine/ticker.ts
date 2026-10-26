@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
+import { frame as motionFrame } from 'motion/react'
 import { env } from './env'
 import { frame } from './store'
 
@@ -10,12 +11,30 @@ type TickFn = (time: number) => void
 let subs: { fn: TickFn; order: number }[] = []
 let lenis: Lenis | null = null
 let started = false
+let ticking = false
 
-/** One clock for everything (TRD §1): gsap.ticker drives Lenis, ScrollTrigger and every per-frame callback. */
+/**
+ * The clock alone, without smooth scrolling: pages with no film (the homepage globe) still get onTick callbacks.
+ * One requestAnimationFrame for the page (#235): Motion's frame loop drives GSAP's root timeline, Lenis and every onTick
+ * callback, in that order, so Lenis, ScrollTrigger and Motion never tick on separate loops.
+ */
+export function startClock() {
+  if (ticking) return
+  ticking = true
+  gsap.ticker.remove(gsap.updateRoot)
+  // GSAP's clock starts at its own origin: carry its current time on, so tweens already running don't jump
+  const t0 = performance.now() / 1000 - gsap.ticker.time
+  motionFrame.update(({ timestamp }) => {
+    const time = timestamp / 1000 - t0
+    gsap.updateRoot(time)
+    tick(time)
+  }, true)
+}
+
+/** One clock for everything (TRD §1): the shared frame loop drives Lenis, ScrollTrigger and every per-frame callback. */
 export function startEngine() {
   if (started) return
   started = true
-  history.scrollRestoration = 'manual'
   // Touch and reduced motion keep native scrolling.
   if (!env.coarse && !env.reduced) {
     lenis = new Lenis({ autoRaf: false, lerp: 0.1, wheelMultiplier: 1, smoothWheel: true, syncTouch: false })
@@ -23,8 +42,7 @@ export function startEngine() {
   }
   if (env.coarse) ScrollTrigger.config({ ignoreMobileResize: true })
   ScrollTrigger.normalizeScroll(false)
-  gsap.ticker.lagSmoothing(0)
-  gsap.ticker.add(tick)
+  startClock()
 }
 
 function tick(time: number) {
@@ -66,7 +84,16 @@ export function unlockScroll() {
   lenis?.start()
 }
 
+/**
+ * Re-measure the page for Lenis. It clamps a wheel to the height it last measured, and the lazy page content lands
+ * after it is created: without this the first wheel after the content mounts moves nothing (#264).
+ */
+export const resizeScroll = () => lenis?.resize()
+
 export function scrollToY(y: number, immediate = false) {
+  // Lenis clamps to the page height it last measured (a debounced ResizeObserver): a jump right after the story mounts,
+  // with the intro already seen this session, would land at 0. Measure first.
+  lenis?.resize()
   if (lenis) lenis.scrollTo(y, { immediate, duration: 1.4, force: true })
   else window.scrollTo({ top: y, behavior: immediate || env.reduced ? 'instant' : 'smooth' })
 }

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { MARINE_FISH, SHRIMPS } from '../config/content'
 import { CATEGORIES, SHRIMP_FORMS, STATES } from '../config/products'
@@ -8,13 +8,37 @@ import { store } from '../engine/store'
 
 type Status = { kind: 'idle' } | { kind: 'sending' } | { kind: 'sent' } | { kind: 'mailto'; href: string } | { kind: 'error'; msg: string }
 
+const KNOWN = new Set<string>([...MARINE_FISH, ...SHRIMPS])
+
+/** Hash wins over the in-memory prefill. The query string does not survive Vite's html fallback. */
+function hashPrefill(): { category?: 'marine' | 'shrimps'; species?: string } {
+  const q = new URLSearchParams(location.hash.replace(/^#/, ''))
+  const category = q.get('category')
+  const species = q.get('species') ?? undefined
+  const known = category === 'shrimps' || category === 'marine' ? category : undefined
+  const list = known === 'shrimps' ? SHRIMPS : known === 'marine' ? MARINE_FISH : [...MARINE_FISH, ...SHRIMPS]
+  return {
+    category: known,
+    species: species && KNOWN.has(species) && (list as readonly string[]).includes(species) ? species : undefined,
+  }
+}
+
 /** The RFQ form (STORY §15, TRD §12): validated → api/rfq (Resend) or a pre-filled mailto. Lazy chunk: zod + react-hook-form stay out of the first load. */
 export default function RfqForm() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const doneRef = useRef<HTMLHeadingElement>(null)
+  const fromHash = hashPrefill()
   const { prefill } = store.getState()
-  const { register, handleSubmit, control, setValue, getValues, formState: { errors } } = useForm<RfqInput, unknown, Rfq>({
+  const category0 = fromHash.category ?? prefill.category ?? 'marine'
+  const species0 = fromHash.species ?? (fromHash.category ? undefined : prefill.species)
+  const { register, handleSubmit, control, setValue, getValues, reset, formState: { errors } } = useForm<RfqInput, unknown, Rfq>({
     resolver: zodResolver(rfqSchema),
-    defaultValues: { category: prefill.category ?? 'marine', species: prefill.species ? [prefill.species] : [], forms: [], states: [] },
+    defaultValues: {
+      category: category0,
+      species: species0 && KNOWN.has(species0) ? [species0] : [],
+      forms: [],
+      states: [],
+    },
   })
   const category = useWatch({ control, name: 'category' })
 
@@ -30,6 +54,10 @@ export default function RfqForm() {
       }),
     [setValue, getValues],
   )
+
+  useEffect(() => {
+    if (status.kind === 'sent' || status.kind === 'mailto') doneRef.current?.focus()
+  }, [status.kind])
 
   const onSubmit = async (r: Rfq) => {
     setStatus({ kind: 'sending' })
@@ -69,15 +97,25 @@ export default function RfqForm() {
   return status.kind === 'sent' || status.kind === 'mailto' ? (
     <div className="rfq-done" role="status">
       <svg className="rfq-done__check" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="M15 27l7 7 15-16" /></svg>
-      <h3 className="tile__title">{status.kind === 'sent' ? 'Thank you. Your request is with our team.' : 'Your email app should open with the request.'}</h3>
+      <h3 ref={doneRef} tabIndex={-1} className="tile__title">{status.kind === 'sent' ? 'Thank you. Your request is with our team.' : 'Your email app should open with the request.'}</h3>
       {status.kind === 'mailto' && (
         <p>
           If it didn’t, <a href={status.href}>open the pre-filled email</a> or write to <a href={`mailto:${RFQ_TO}`}>{RFQ_TO}</a>.
         </p>
       )}
+      <button
+        className="btn"
+        type="button"
+        onClick={() => {
+          reset()
+          setStatus({ kind: 'idle' })
+        }}
+      >
+        Send another request
+      </button>
     </div>
   ) : (
-    <form className="rfq" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form id="quote-form" className="rfq" onSubmit={handleSubmit(onSubmit)} noValidate>
       <div className="rfq__row">
         {field('name', 'Name', 'text', 'name')}
         {field('company', 'Company', 'text', 'organization')}

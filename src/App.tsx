@@ -1,38 +1,62 @@
-import { useEffect } from 'react'
-import { chaptersFor } from './config/chapters'
-import { useApp } from './engine/store'
-import { Film } from './film/Film'
-import { About } from './sections/About'
-import { Products } from './sections/Products'
-import { Quote } from './sections/Quote'
-import { Trust } from './sections/Trust'
-import { bindRise } from './sections/rise'
-import { Contact } from './sections/Contact'
+import { lazy, Suspense, useEffect } from 'react'
+import { chaptersFor, firstClip } from './config/chapters'
+import { storyReady } from './engine/boot'
+import { bindPathHash } from './engine/path'
+import { store, useApp } from './engine/store'
+import { scrollToY } from './engine/ticker'
 import { ScrubStage } from './film/ScrubStage'
+import { warm } from './film/scrub'
+import { startWarmCache } from './film/warmcache'
 import { Loader } from './ui/Loader'
 import { Header } from './ui/Header'
 import { Hero } from './ui/Hero'
 
+const Story = lazy(() => import('./Story'))
+
+// the chosen path's first clip (#ocean / #pond, else wild catch): started at mount, with nothing waiting on it (#264)
+const clip = firstClip(store.getState().path)
+const first = clip ? [clip.id] : []
+
 export default function App() {
   const path = useApp((s) => s.path)
+  const ready = useApp((s) => s.ready)
   const chapters = chaptersFor(path)
-  useEffect(() => bindRise(document.getElementById('products')!), [])
+  useEffect(() => {
+    if (!ready) return
+    const id = location.hash.slice(1)
+    if (!id || id === 'ocean' || id === 'pond') return
+    let raf = 0
+    let frames = 0
+    const tick = () => {
+      frames += 1
+      if (document.getElementById('boot') && frames < 180) {
+        raf = requestAnimationFrame(tick)
+        return
+      }
+      const el = document.getElementById(id)
+      if (el) scrollToY(el.getBoundingClientRect().top + window.scrollY, true)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [ready])
+  // #ocean / #pond: the path anchors (#210); other section anchors (/#products from /quote) are handled above
+  useEffect(bindPathHash, [])
+  // the first clip starts at mount: the intro gates nothing (#264)
+  useEffect(() => void warm(first), [])
+  useEffect(startWarmCache, [])
   return (
     <>
       <a className="skip-link mono" href="#main">Skip to content</a>
-      <a className="skip-link mono" href="#quote">Skip to quote</a>
+      <a className="skip-link mono" href="/quote">Skip to quote</a>
       <ScrubStage chapters={chapters} />
       <Header />
       <main id="main" tabIndex={-1}>
         <Hero />
-        <Film chapters={chapters} />
-        <Products />
-        <Trust />
-        <About />
-        <Quote />
-        <Contact />
+        <Suspense fallback={null}>
+          <Story chapters={chapters} />
+        </Suspense>
       </main>
-      <Loader />
+      <Loader mounted={storyReady} />
     </>
   )
 }

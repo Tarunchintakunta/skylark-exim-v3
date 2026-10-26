@@ -1,7 +1,7 @@
 /* business sections: sand, normal scroll, above the fixed stage */
 .section {
   position: relative; z-index: var(--z-content);
-  padding: clamp(96px, 14vh, 176px) var(--gutter);
+  padding: var(--space-section) var(--gutter);
   border-top: 1px solid var(--hairline-ink);
 }
 /* the first business section rises over the globe as a sand panel (story → business, redesign §6) */
@@ -120,4 +120,13 @@
   .contact-band__grid { grid-template-columns: 1fr; }
   .contact-band__foot { flex-direction: column; }
 }
-.contact-band__credit a { color: inherit; text-underline-offset: 3px; }
+
+.close { display: grid; gap: 28px; }
+.close__line {
+  font-family: var(--f-display);
+  font-size: clamp(1.7rem, 4.4vw, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.close__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; }
+.close__updates { color: var(--ink); text-underline-offset: 4px; }

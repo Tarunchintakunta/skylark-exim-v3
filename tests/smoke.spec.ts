@@ -3,15 +3,15 @@ import { expect, test } from '@playwright/test'
 const ready = (page: import('@playwright/test').Page) => page.waitForFunction(() => document.documentElement.dataset.ready === '1')
 
 test('loads, loader completes, one h1', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('/story')
   await ready(page)
   await expect(page.locator('h1')).toHaveCount(1)
   await expect(page.locator('.loader')).toHaveCount(0)
   await expect(page.locator('html')).not.toHaveClass(/is-locked/)
 })
 
-test('header toggle switches the path and keeps the hash; Ocean is the default', async ({ page }) => {
-  await page.goto('/')
+test('header toggle swaps the story and keeps the hash; Ocean is the default', async ({ page }) => {
+  await page.goto('/story')
   await ready(page)
   const ocean = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Wild catch' })
   const pond = page.getByRole('group', { name: 'Story path' }).getByRole('link', { name: 'Farmed shrimp' })
@@ -20,12 +20,13 @@ test('header toggle switches the path and keeps the hash; Ocean is the default',
   await pond.click()
   await expect(pond).toHaveAttribute('aria-current', 'true')
   await expect(page).toHaveURL(/#pond$/)
+  // two separate stories (#219): the pond path has no ocean chapter
   await expect(page.locator('[data-chapter="p1"]')).toHaveCount(1)
   await expect(page.locator('[data-chapter="o1"]')).toHaveCount(0)
 })
 
 test('inside the film the toggle lands on the other path\'s first chapter', async ({ page }) => {
-  await page.goto('/#ocean')
+  await page.goto('/story#ocean')
   await ready(page)
   const o2 = await page.locator('[data-chapter="o2"]').evaluate((el) => (el as HTMLElement).offsetTop + 50)
   await page.evaluate((y) => window.scrollTo(0, y), o2)
@@ -37,27 +38,30 @@ test('inside the film the toggle lands on the other path\'s first chapter', asyn
   expect(Math.abs(top)).toBeLessThan(4)
 })
 
-test('the hero is moving before the first scroll, then scrubbing takes over', async ({ page }) => {
-  await page.goto('/')
+test('the hero is the opening\'s still first frame and hands over to the scrubbed story on scroll', async ({ page }) => {
+  await page.goto('/story')
   await ready(page)
-  const video = page.locator('video[src*="/opening_"]')
-  const t1 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
-  await page.waitForTimeout(700)
-  const t2 = await video.evaluate((v: HTMLVideoElement) => v.currentTime)
-  expect(t2).toBeGreaterThan(t1)
+  // nothing plays before the first scroll: no loop in the hero
+  await expect(page.locator('.hero video')).toHaveCount(0)
   // the logo reveal unlocks scrolling when it finishes
   await page.waitForSelector('#boot', { state: 'detached' })
   await page.mouse.move(700, 450)
-  await page.mouse.wheel(0, 300)
-  await page.waitForTimeout(600)
-  expect(await video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true)
+  const start = await page.locator('[data-chapter="start"]').evaluate((el) => (el as HTMLElement).offsetHeight)
+  for (let y = 0; y < start * 0.45; y += 100) {
+    await page.mouse.wheel(0, 100)
+    await page.waitForTimeout(60)
+  }
+  await page.waitForTimeout(800)
+  // past the hand-off: the still has faded out, the opening shot scrubs underneath
+  expect(await page.locator('.hero__media').evaluate((el) => (el as HTMLElement).style.opacity)).toBe('0')
+  const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.dataset.clip))
+  expect(shown.join()).toContain('opening')
 })
 
 test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
   await page.route('**/api/rfq', (r) => r.fulfill({ json: { ok: false, fallback: 'mailto' } }))
-  await page.goto('/')
+  await page.goto('/quote')
   await ready(page)
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
   const form = page.locator('form.rfq')
   await form.getByRole('button', { name: 'Send request' }).click()
   await expect(form.getByRole('alert').first()).toBeVisible()
@@ -70,26 +74,26 @@ test('RFQ shows validation errors, then falls back to a pre-filled mailto', asyn
   await expect(link).toHaveAttribute('href', /^mailto:info@skylarkexim\.com\?subject=Export%20quote%20request/)
 })
 
-test('every nav link lands on its section', async ({ page }) => {
+test('every homepage nav link lands on its section', async ({ page }) => {
   await page.goto('/')
   await ready(page)
-  for (const id of ['products', 'about', 'contact']) {
-    await page.locator(`.nav a[href="#${id}"]`).click()
+  await page.waitForSelector('#boot', { state: 'detached' })
+  for (const id of ['products', 'markets', 'about', 'contact']) {
+    await page.locator(`.nav a[href="/#${id}"]`).click()
     await page.waitForTimeout(1800)
     const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)
     expect(Math.abs(top)).toBeLessThan(80)
   }
 })
 
-test('Enquire on a species lands on #quote with category and species pre-filled', async ({ page }) => {
+test('Enquire on a species opens /quote with category and species pre-filled', async ({ page }) => {
   await page.goto('/')
   await ready(page)
   await page.evaluate(() => document.getElementById('products')!.scrollIntoView())
   await page.locator('#products').getByRole('button', { name: 'Shrimps', exact: true }).click()
   await page.getByRole('button', { name: 'Enquire about Black Tiger Shrimp' }).click()
-  await page.waitForTimeout(1800)
-  const top = await page.locator('#quote').evaluate((el) => el.getBoundingClientRect().top)
-  expect(Math.abs(top)).toBeLessThan(80)
+  await page.waitForURL(/\/quote#/)
+  await ready(page)
   const form = page.locator('form.rfq')
   await expect(form.getByLabel('Product category')).toHaveValue('shrimps')
   await expect(form.getByLabel('Black Tiger Shrimp', { exact: true })).toBeChecked()

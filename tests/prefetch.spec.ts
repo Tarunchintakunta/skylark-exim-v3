@@ -7,19 +7,24 @@ import { open } from './helpers'
  * one pass down downloads no clip twice, and coming back from the business sections to the port
  * re-uses the two clips still held by the decoders (no re-download).
  */
-/** first chapter each Ocean clip plays in (a2 plays in the second half of o1, so o1's start is a strict bound) */
-const clipChapter: Record<string, string> = { a1: 'o1', a2: 'o1', a3: 'o3', a4: 'o4', 'x-cranes': 'port', 'x-ship': 'sea' }
+import { OCEAN } from '../src/config/chapters'
+
+/** the clip each chapter opens with on the Ocean path (later clips in a chapter are prefetched during the one before, so the chapter's start is no bound for them) */
+const clipChapter: Record<string, string> = {}
+for (const ch of OCEAN) if (ch.media[0]?.kind === 'video') clipChapter[ch.media[0].id] ??= ch.id
 
 test('clips prefetch ahead of their chapter, one download per pass, no re-download on the way back', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Network.enable')
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
+  // clips the first screen already requested, before this CDP session attached: their first request is not observed (#264)
+  const early = new Set(await page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname)))
   const urls = new Map<string, string>()
   const firstAt = new Map<string, number>()
   const bytes = new Map<string, number>()
   cdp.on('Network.requestWillBeSent', (e) => {
-    if (!e.request.url.endsWith('.mp4')) return
+    if (!new URL(e.request.url).pathname.endsWith('.mp4')) return
     const f = new URL(e.request.url).pathname
     urls.set(e.requestId, f)
     if (!firstAt.has(f)) firstAt.set(f, Date.now())
@@ -46,21 +51,21 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await page.waitForTimeout(1500)
   const afterPass = new Map(bytes)
   // past the film into Products, then back up to the port chapter
-  await page.evaluate(() => document.getElementById('quote')!.scrollIntoView())
+  await page.evaluate(() => document.getElementById('contact')!.scrollIntoView())
   await page.waitForTimeout(1200)
   const port = chapters.find((c) => c.id === 'port')!.top
   await page.evaluate((y) => window.scrollTo(0, y + 200), port)
   await page.waitForTimeout(1500)
-  const refetched = ['x-cranes', 'x-ship'].filter((id) => {
+  const refetched = ['hf-ship', 'hf-sail'].filter((id) => {
     const f = [...bytes.keys()].find((k) => k.includes(`/${id}_`))
     return f && (bytes.get(f) ?? 0) > (afterPass.get(f) ?? 0) * 1.1
   })
 
   const late: string[] = []
   for (const [f, t] of firstAt) {
-    const id = f.replace(/^\/media\/|_\d+\.mp4$/g, '')
+    const id = f.replace(/^\/media\/|_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/g, '')
     const ch = clipChapter[id]
-    if (!ch || id === 'opening') continue
+    if (!ch || id === 'opening' || early.has(f)) continue
     const entered = enteredAt.get(ch)
     if (entered && t > entered) late.push(`${id} requested ${t - entered} ms after ${ch} began`)
   }
@@ -76,16 +81,14 @@ test('clips prefetch ahead of their chapter, one download per pass, no re-downlo
   await ctx.close()
 })
 
-test('the opening clip plays on the first screen (no neighbour behind it)', async ({ browser }) => {
+test('the first screen loads only the chosen path\'s first clip; the start beat loads in idle time after the reveal (#218, #248)', async ({ browser }) => {
   const { ctx, page } = await open(browser, 'desktop')
-  await page.mouse.move(700, 450)
-  for (let n = 0; n < 5; n++) {
-    await page.mouse.wheel(0, 100)
-    await page.waitForTimeout(100)
-  }
-  await page.waitForTimeout(800)
-  const shown = await page.evaluate(() => [...document.querySelectorAll('video')].filter((v) => v.style.opacity === '1').map((v) => v.currentSrc))
-  expect(shown.length).toBe(1)
-  expect(shown[0]).toContain('/opening_')
+  const clips = () => page.evaluate(() => performance.getEntriesByType('resource').map((e) => new URL(e.name).pathname).filter((n) => n.endsWith('.mp4')))
+  const first = await clips()
+  expect(first.map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')), first.join(', ')).toEqual(['/media/hf-depart'])
+  // the start beat the hero still dissolves into loads once the loader has revealed the page, before any scroll
+  await page.waitForSelector('#boot', { state: 'detached' })
+  // (and from then on the warm cache, #251, fetches the rest of the path in idle time)
+  await expect.poll(async () => (await clips()).map((c) => c.replace(/_(?:m|\d+)(?:\.(?:av1|hevc))?\.mp4$/, '')).slice(0, 3), { timeout: 5_000 }).toEqual(expect.arrayContaining(['/media/hf-depart', '/media/opening']))
   await ctx.close()
 })
