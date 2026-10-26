@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import type { Plugin } from 'vite'
-import { exportsLine, start } from '../src/config/content'
-import { heroPoster } from '../src/config/hero'
-import { versioned } from './clip-manifest'
+import { exportsLine, start } from '../src/config/content.ts'
+import { heroPoster } from '../src/config/hero.ts'
+import { versioned } from './clip-manifest.ts'
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s*\n\s*/g, '')

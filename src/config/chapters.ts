@@ -1,5 +1,5 @@
-import { film, type CaptionCopy } from './content'
-import { MARKET_COUNT } from './markets'
+import { film, type CaptionCopy } from './content.ts'
+import { MARKET_COUNT } from './markets.ts'
 
 /**
  * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.

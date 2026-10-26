@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import type { Plugin } from 'vite'
-import { SEQ_CLIPS, chaptersFor, firstClip } from '../src/config/chapters'
+import { SEQ_CLIPS, chaptersFor, firstClip } from '../src/config/chapters.ts'
 
 /**
  * Clip tiers (segments.ts): 'm' = 810×1440 portrait crop for phones held upright, 960 landscape phones / Save-Data,
