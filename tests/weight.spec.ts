@@ -42,6 +42,8 @@ const CAPS: [RegExp, number][] = [
   [/\.glb$/, 1536],
   [/\.woff2$/, 40],
   [/\.(svg|txt|xml)$/, 20],
+  // /order is one standalone page (public/order.html): markup, style and script inline
+  [/\.html$/, 40],
   [/\.pdf$/, 2300],
   [/\.(ktx2|jpg|png)$/, 1024],
 ]
