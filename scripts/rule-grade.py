@@ -8,6 +8,10 @@ smooth), or `crate` (blue with next to no red: a worker's blue nitrile glove ove
 to a cool steel grey, a brushed horizontal grain that follows the camera, a bright pressed rim where an edge faces up
 and darker edges elsewhere. `roi` (polygons in 0-1 frame coordinates) keys blue crates that move on their own
 (trolleys, a crate carried past) frame by frame, with the same steel, each crate on its own.
+Second pass on an already graded master (`key: all`): the whole outline, crate by crate, as flat brushed steel;
+`cut` keeps what stands in front (a post, a rail), each cut an outline on the first and on the last frame, moved
+linearly in between; `grain` and `sheen` scale the brushed grain and add soft diagonal highlights that follow the camera.
+`screen` outlines are in frame coordinates, not tracked, and `frames` [from, to] limits any object to those frames.
 Patches: a second vessel painted out to haze, an outline on frame 0 that follows the camera, inpainted and softened.
   python3 scripts/rule-grade.py <in.mp4> <out.mp4> <config.json>
   config: {"objects": [{"poly": [[x, y], ...], "holes": [[[x, y], ...]], "key": "blue" | "foam", "blur": 12}],
@@ -36,8 +40,9 @@ S = np.diag([2.0, 2.0, 1.0])
 _cams = {}
 
 
-def camera(track):
-    key = json.dumps(track)
+def camera(track, fit=None):
+    """`fit: similarity`: scale, turn and shift only, for a small `track` area where a full homography runs away"""
+    key = json.dumps([track, fit])
     if key in _cams:
         return _cams[key]
     tm = None
@@ -45,14 +50,47 @@ def camera(track):
         tm = np.zeros((H // 2, W // 2), np.uint8)
         for x0, y0, x1, y1 in track:
             tm[int(y0 * H / 2):int(y1 * H / 2), int(x0 * W / 2):int(x1 * W / 2)] = 255
+    if fit == 'template':
+        _cams[key] = template(track[0])
+        return _cams[key]
     k0, d0 = orb.detectAndCompute(small[0], tm)
     hs = []
     for k1, d1 in feats:
         m = bf.match(d0, d1)
         a = np.float32([k0[x.queryIdx].pt for x in m]); b = np.float32([k1[x.trainIdx].pt for x in m])
-        h, _ = cv2.findHomography(a, b, cv2.RANSAC, 2.0)
+        if fit == 'similarity':
+            h = np.vstack([cv2.estimateAffinePartial2D(a, b, method=cv2.RANSAC, ransacReprojThreshold=2.0)[0], [0, 0, 1]])
+        else:
+            h, _ = cv2.findHomography(a, b, cv2.RANSAC, 2.0)
         hs.append(S @ h @ np.linalg.inv(S))
     _cams[key] = hs
+    return hs
+
+
+def template(rect, reach=40):
+    """`fit: template`: the `track` rectangle on frame 0 found again in every frame (normalised cross-correlation at half
+    size, scale searched round the last frame's), as scale and shift: a rigid box the camera pushes in on, where a
+    repeating mesh (crate slots) misleads feature matching"""
+    x0, y0, x1, y1 = int(rect[0] * W / 2), int(rect[1] * H / 2), int(rect[2] * W / 2), int(rect[3] * H / 2)
+    T = small[0][y0:y1, x0:x1]
+    cx0, cy0 = (x0 + x1) / 2, (y0 + y1) / 2
+    sc, cx, cy, hs = 1.0, cx0, cy0, []
+    for g in small:
+        best = (-2, sc, cx, cy)
+        for f in sc * np.linspace(0.985, 1.03, 10):
+            t = cv2.resize(T, None, fx=f, fy=f, interpolation=cv2.INTER_AREA)
+            th, tw = t.shape
+            wx0, wy0 = int(max(0, cx - tw / 2 - reach)), int(max(0, cy - th / 2 - reach))
+            win = g[wy0:int(min(H // 2, cy + th / 2 + reach)), wx0:int(min(W // 2, cx + tw / 2 + reach))]
+            if win.shape[0] < th or win.shape[1] < tw:
+                continue
+            r = cv2.matchTemplate(win, t, cv2.TM_CCOEFF_NORMED)
+            _, v, _, (mx, my) = cv2.minMaxLoc(r)
+            if v > best[0]:
+                best = (v, f, wx0 + mx + tw / 2, wy0 + my + th / 2)
+        _, sc, cx, cy = best
+        # frame 0 -> this frame, full size
+        hs.append(np.array([[sc, 0, 2 * (cx - sc * cx0)], [0, sc, 2 * (cy - sc * cy0)], [0, 0, 1]]))
     return hs
 
 
@@ -86,6 +124,17 @@ if cfg.get('roi'):
 rng = np.random.default_rng(3)
 GRAIN = cv2.GaussianBlur(cv2.resize(rng.normal(0, 1, (H, W // 40)).astype(np.float32), (W, H), interpolation=cv2.INTER_CUBIC), (0, 0), 0.8) * 5
 TINT = np.array([0.95, 0.99, 1.05], np.float32)
+# soft diagonal highlights, as on a brushed steel sheet under a strip light (`sheen`), 0-1
+_yy, _xx = np.mgrid[0:H, 0:W].astype(np.float32)
+_d = (_xx + 0.6 * _yy) % 900
+SHEEN = np.exp(-((_d - 300) / 110) ** 2) + 0.6 * np.exp(-((_d - 640) / 70) ** 2)
+del _yy, _xx, _d
+# galvanised spangle (`spangle`): zinc crystals a few mm across, each a flat patch a shade lighter or darker, -1..1
+_seed = np.ones((H, W), np.uint8)
+_seed[rng.integers(0, H, 9000), rng.integers(0, W, 9000)] = 0
+_, _lab = cv2.distanceTransformWithLabels(_seed, cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_CCOMP)
+SPANGLE = cv2.GaussianBlur(rng.uniform(-1, 1, _lab.max() + 1).astype(np.float32)[_lab], (0, 0), 0.7)
+del _seed, _lab
 
 
 def keys(a):
@@ -105,7 +154,7 @@ def keys(a):
     # dark hands: the box's own edges then come from its outline and holes, not from a ragged key
     ice = cv2.morphologyEx(((L > 150) & (sd >= 8)).astype(np.uint8), cv2.MORPH_OPEN, np.ones((9, 9), np.uint8)) > 0
     solid = ~ice & ~blue & (L > 80)
-    return {'blue': blue, 'crate': crate, 'foam': foam, 'wall': wall, 'solid': solid}, L
+    return {'blue': blue, 'crate': crate, 'foam': foam, 'wall': wall, 'solid': solid, 'all': np.ones_like(blue)}, L
 
 
 def fill(m, k):
@@ -182,9 +231,19 @@ for k, (f, h) in enumerate(zip(frames, Hs)):
     a = f.astype(np.float32)
     ks, L = keys(a)
     grain = cv2.warpPerspective(GRAIN, h, (W, H))
+    styles = objs + [cfg.get('roi_style', {})]
+    sheen = cv2.warpPerspective(SHEEN, h, (W, H)) if any(o.get('sheen') for o in styles) else None
+    spangle = cv2.warpPerspective(SPANGLE, h, (W, H)) if any(o.get('spangle') for o in styles) else None
     for o, (pm, hm) in zip(objs, polys):
-        ho = camera(o['track'])[k] if 'track' in o else h
-        mk = cv2.warpPerspective(pm, ho, (W, H), flags=cv2.INTER_NEAREST) > 0.5
+        if 'frames' in o and not o['frames'][0] <= k <= o['frames'][1]:
+            continue
+        ho = camera(o['track'], o.get('fit'))[k] if 'track' in o else h
+        mk = (pm if o.get('screen') else cv2.warpPerspective(pm, ho, (W, H), flags=cv2.INTER_NEAREST)) > 0.5
+        t = k / max(1, len(frames) - 1)
+        for c in o.get('cut', []):
+            cm = np.zeros((H, W), np.uint8)
+            cv2.fillPoly(cm, [np.int32((1 - t) * np.float32(c['poly0']) + t * np.float32(c['poly1']))], 1)
+            mk &= cm == 0
         key = ks[o.get('key', 'blue')]
         if o.get('holes'):
             hk = cv2.warpPerspective(hm, ho, (W, H), flags=cv2.INTER_NEAREST) > 0.5
@@ -201,18 +260,27 @@ for k, (f, h) in enumerate(zip(frames, Hs)):
         hard = fill(mk & key, o.get('close', 11)) & mk
         if o.get('grow'):  # over the key's own soft border (a white halo round a foam box)
             hard = (cv2.dilate(hard.astype(np.uint8), np.ones((o['grow'], o['grow']), np.uint8)) > 0) & mk
+        if o.get('plug'):  # handle holes and drain slots: small gaps wholly inside the wall are wall too
+            n, lab, st, _ = cv2.connectedComponentsWithStats((~hard & mk).astype(np.uint8))
+            hard |= np.isin(lab, [i for i in range(1, n) if st[i, 4] < o['plug']])
         if 'gate' in o:
             hard &= gate(a, o.get('track', cfg.get('track')), ho, o['gate'])
-        a = paint(a, L, hard, grain, o.get('blur', 12), o.get('gain', 0.5), o.get('lift', 62), o.get('tone'))
+        g = grain * o.get('grain', 1) + (sheen * o['sheen'] if o.get('sheen') else 0) + (spangle * o['spangle'] if o.get('spangle') else 0)
+        a = paint(a, L, hard, g, o.get('blur', 12), o.get('gain', 0.5), o.get('lift', 62), o.get('tone'))
     if roi is not None:
         hard = fill(ks[cfg.get('roi_key', 'blue')] & (roi > 0), 9)
+        if cfg.get('roi_style', {}).get('plug'):
+            n, lab, st, _ = cv2.connectedComponentsWithStats((~hard & (roi > 0)).astype(np.uint8))
+            hard |= np.isin(lab, [i for i in range(1, n) if st[i, 4] < cfg['roi_style']['plug']])
         if cfg.get('roi_grow'):  # over the blue fringe the key leaves round each crate
             hard = cv2.dilate(hard.astype(np.uint8), np.ones((cfg['roi_grow'], cfg['roi_grow']), np.uint8)) > 0
         n, lab, st, _ = cv2.connectedComponentsWithStats(hard.astype(np.uint8))
         for i in range(1, n):  # each crate on its own, so neighbours don't blur into one slab
             if st[i, 4] < cfg.get('roi_min', 0):  # a gloved hand, not a crate
                 continue
-            a = paint(a, L, lab == i, grain, 8, 0.5, cfg.get('roi_lift', 62))
+            rs = cfg.get('roi_style', {})  # the objects' own options (blur, gain, lift, grain, sheen, spangle), else the defaults
+            rg = grain * rs.get('grain', 1) + (sheen * rs['sheen'] if rs.get('sheen') else 0) + (spangle * rs['spangle'] if rs.get('spangle') else 0)
+            a = paint(a, L, lab == i, rg, rs.get('blur', 8), rs.get('gain', 0.5), rs.get('lift', cfg.get('roi_lift', 62)))
     for p in cfg.get('patches', []):
         if k >= p.get('upto', len(frames)):
             continue
