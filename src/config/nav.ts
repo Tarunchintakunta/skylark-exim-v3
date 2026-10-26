@@ -31,5 +31,6 @@ export const NAV: NavItem[] = [
   { id: 'markets', label: 'Markets', href: '/#markets' },
   { id: 'about', label: 'About', href: '/#about' },
   ...(NEWS.length ? [{ id: 'news', label: 'News', href: '/news' }] : []),
+  { id: 'order', label: 'Order', href: '/order' },
   { id: 'contact', label: 'Contact', href: '/#contact' },
 ]
