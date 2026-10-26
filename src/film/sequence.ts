@@ -272,6 +272,9 @@ export function createStage(canvas: HTMLCanvasElement) {
     ;[w, h] = next
     canvas.width = w
     canvas.height = h
+    // a resize resets the context: smoothing back to high, so a frame scaled up to a 2× canvas stays crisp
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     last = ''
   }
 
