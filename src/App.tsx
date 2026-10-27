@@ -9,7 +9,6 @@ import { warm } from './film/scrub'
 import { onCache, pathReady, progress, startWarmCache } from './film/warmcache'
 import { Loader, type Gate } from './ui/Loader'
 import { Header } from './ui/Header'
-import { Hero } from './ui/Hero'
 
 const Story = lazy(() => import('./Story'))
 
@@ -53,7 +52,7 @@ export default function App() {
       <ScrubStage chapters={chapters} />
       <Header />
       <main id="main" tabIndex={-1}>
-        <Hero />
+        <h1 className="sr-only">Our story: from sea and pond to port</h1>
         <Suspense fallback={null}>
           <Story chapters={chapters} />
         </Suspense>

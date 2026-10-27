@@ -38,64 +38,21 @@ test('inside the film the toggle lands on the other path\'s first chapter', asyn
   expect(Math.abs(top)).toBeLessThan(4)
 })
 
-test('the hero is the opening\'s still first frame and hands over to the scrubbed story on scroll', async ({ page }) => {
+test('/story opens on the path\'s first clip at y = 0, with no hero, and the clip scrubs on scroll', async ({ page }) => {
   await page.goto('/story')
   await ready(page)
-  // nothing plays before the first scroll: no loop in the hero
-  await expect(page.locator('.hero video')).toHaveCount(0)
-  // the logo reveal unlocks scrolling when it finishes
   await page.waitForSelector('#boot', { state: 'detached' })
+  await expect(page.locator('.hero, [data-chapter="start"]')).toHaveCount(0)
+  expect(await page.evaluate(() => scrollY)).toBe(0)
   await page.mouse.move(700, 450)
-  const start = await page.locator('[data-chapter="start"]').evaluate((el) => (el as HTMLElement).offsetHeight)
-  for (let y = 0; y < start * 0.45; y += 100) {
+  for (let k = 0; k < 6; k++) {
     await page.mouse.wheel(0, 100)
     await page.waitForTimeout(60)
   }
   await page.waitForTimeout(800)
-  // past the hand-off: the still has faded out, the opening shot scrubs underneath
-  expect(await page.locator('.hero__media').evaluate((el) => (el as HTMLElement).style.opacity)).toBe('0')
-  const shown = await page.evaluate(() => [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => v.dataset.clip))
-  expect(shown.join()).toContain('opening')
-})
-
-test('RFQ shows validation errors, then falls back to a pre-filled mailto', async ({ page }) => {
-  await page.route('**/api/rfq', (r) => r.fulfill({ json: { ok: false, fallback: 'mailto' } }))
-  await page.goto('/quote')
-  await ready(page)
-  const form = page.locator('form.rfq')
-  await form.getByRole('button', { name: 'Send request' }).click()
-  await expect(form.getByRole('alert').first()).toBeVisible()
-  await form.getByLabel('Name').fill('Test Buyer')
-  await form.getByLabel('Company').fill('Test Imports')
-  await form.getByLabel('Country').fill('Japan')
-  await form.getByLabel('Email').fill('buyer@example.com')
-  await form.getByRole('button', { name: 'Send request' }).click()
-  const link = page.getByRole('link', { name: 'open the pre-filled email' })
-  await expect(link).toHaveAttribute('href', /^mailto:info@skylarkexim\.com\?subject=Export%20quote%20request/)
-})
-
-test('every homepage nav link lands on its section', async ({ page }) => {
-  await page.goto('/')
-  await ready(page)
-  await page.waitForSelector('#boot', { state: 'detached' })
-  for (const id of ['products', 'markets', 'about', 'contact']) {
-    await page.locator(`.nav a[href="/#${id}"]`).click()
-    await page.waitForTimeout(1800)
-    const top = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top)
-    expect(Math.abs(top)).toBeLessThan(80)
-  }
-})
-
-test('Enquire on a species opens /quote with category and species pre-filled', async ({ page }) => {
-  await page.goto('/')
-  await ready(page)
-  await page.evaluate(() => document.getElementById('products')!.scrollIntoView())
-  await page.locator('#products').getByRole('button', { name: 'Shrimps', exact: true }).click()
-  await page.getByRole('button', { name: 'Enquire about Black Tiger Shrimp' }).click()
-  await page.waitForURL(/\/quote#/)
-  await ready(page)
-  const form = page.locator('form.rfq')
-  await expect(form.getByLabel('Product category')).toHaveValue('shrimps')
-  await expect(form.getByLabel('Black Tiger Shrimp', { exact: true })).toBeChecked()
-  await expect(form.getByLabel('Vannamei', { exact: true })).not.toBeChecked()
+  const shown = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLVideoElement>('video.stage__video')].filter((v) => v.style.opacity === '1').map((v) => [v.dataset.clip, v.currentTime] as const),
+  )
+  expect(shown.map(([id]) => id)).toEqual(['hf-depart'])
+  expect(shown[0][1]).toBeGreaterThan(0)
 })

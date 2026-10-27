@@ -1,5 +1,6 @@
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { film } from '../film/controller'
+import { releaseFloor } from '../film/scrub'
 import { store, type Path } from './store'
 import { scrollToY } from './ticker'
 
@@ -13,17 +14,16 @@ export function setPath(path: Path, jump = false) {
     idle(() => ScrollTrigger.refresh())
   }
   // wait for React to commit the new chapter list and the controller to re-measure
-  // 1 px inside the chapter: native scrolling (phones) rounds a fractional top down, which would leave the stage on the hero
-  if (jump) requestAnimationFrame(() => requestAnimationFrame(() => scrollToY(firstChapterY(), true)))
+  if (jump) requestAnimationFrame(() => requestAnimationFrame(() => (scrollToY(firstChapterY(), true), releaseFloor())))
 }
 
-const firstChapterY = () => Math.ceil(film.top(1)) + 1
+/** o1 / p1 open /story at y = 0: no chapter sits above a path's first */
+const firstChapterY = () => Math.max(0, Math.ceil(film.top(0)))
 
 const hashTarget = (): Path | null => (location.hash === '#ocean' ? 'ocean' : location.hash === '#pond' ? 'pond' : null)
 
 /**
- * A deep link (#ocean / #pond) on load: `pending` until the jump lands, so the video engine skips the hero's opening
- * clip; `y` is where it landed, so the jump doesn't count as the visitor's first scroll (no neighbour prefetch on arrival).
+ * A deep link (#ocean / #pond) on load: `pending` until the jump lands; `y` is where it landed, so the jump doesn't count as the visitor's first scroll (no neighbour prefetch on arrival).
  */
 export const landing = { pending: hashTarget() !== null, y: -1 }
 

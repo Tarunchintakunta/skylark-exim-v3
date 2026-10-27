@@ -8,6 +8,7 @@ export function Close() {
       <p id="close-title" className="close__line">{start.title}</p>
       <div className="close__actions">
         <a className="btn btn--solid" href="/quote">Request export quote</a>
+        <a className="close__updates" href="/order">Place an order →</a>
         {NEWS.length > 0 && <a className="close__updates" href="/news">Latest updates</a>}
       </div>
     </section>

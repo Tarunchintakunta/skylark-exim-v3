@@ -109,8 +109,8 @@ test('reduced motion: a crossfade only, no loops, no floating facts', async ({ b
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
   const page = await ctx.newPage()
   const clips: string[] = []
-  // the card loops (the path prefetch on hover is not a loop and may fetch its first clip)
-  page.on('request', (r) => /\/hf-(catch-card|sample)_[^/]*\.mp4(\?|$)/.test(r.url()) && clips.push(r.url()))
+  // the card loops, played by a <video> (the path prefetch on hover and the homepage's story warm-up are fetches, not loops)
+  page.on('request', (r) => r.resourceType() === 'media' && /\/hf-(catch-card|sample)_[^/]*\.mp4(\?|$)/.test(r.url()) && clips.push(r.url()))
   await atSection(page)
   await card(page, 'wild').locator('.se-hit').hover()
   await card(page, 'wild').locator('.se-hit').click()
@@ -128,7 +128,7 @@ test('reduced motion: a crossfade only, no loops, no floating facts', async ({ b
 })
 
 for (const c of CARDS.filter((c) => c.path)) {
-  test(`${c.id}: "Start the story" lands on /story#${c.path} at ${c.first}`, async ({ page }) => {
+  test(`${c.id}: "Begin Journey" lands on /story#${c.path} at ${c.first}`, async ({ page }) => {
     const chapterOnScreen = () =>
       page.evaluate(() => [...document.querySelectorAll<HTMLElement>('[data-chapter]')].find((el) => {
         const r = el.getBoundingClientRect()
@@ -140,7 +140,7 @@ for (const c of CARDS.filter((c) => c.path)) {
     await expect(page.locator(`link[rel="prefetch"][href*="/media/${c.path === 'ocean' ? 'hf-depart' : 'hf-ponds'}_"][href*=".mp4"]`)).toHaveCount(1)
     await card(page, c.id).locator('.se-hit').click()
     await settle(page)
-    await page.getByRole('dialog').getByRole('link', { name: 'Start the story' }).click()
+    await page.getByRole('dialog').getByRole('link', { name: 'Begin Journey' }).click()
     await page.waitForURL(new RegExp(`/story#${c.path}$`))
     await expect.poll(chapterOnScreen, { timeout: 15_000 }).toBe(c.first)
   })
@@ -225,6 +225,8 @@ for (const profile of ['desktop', 'mobile'] as const) {
     await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
     const files: [string, number][] = []
     page.on('requestfinished', async (r) => {
+      // the story warm-up after the intro (home/prefetch.ts warmStory) is a fetch for /story, not the section's weight
+      if (r.resourceType() === 'fetch') return
       const s = await r.sizes().catch(() => null)
       if (s) files.push([r.url(), s.responseBodySize])
     })

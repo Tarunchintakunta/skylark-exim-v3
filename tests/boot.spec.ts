@@ -1,9 +1,9 @@
 import { statSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 
-/** Loader and first load (#86, #197): the hero loop once, each font once, 3 posters at most, no RFQ chunk, up to the
- * reveal. After that the warm cache (#251) fetches the whole path on purpose. */
-test('boot downloads each file once and only what the first screens need', async ({ browser }) => {
+/** Loader and first load (#86, #197, #preload): the intro holds until the path is in memory, so every stage poster is in
+ * before it opens; each clip and each font downloads once, and the RFQ chunk waits for the form. */
+test('boot downloads each file once, every stage poster before the intro opens, no RFQ chunk', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const page = await ctx.newPage()
   const cdp = await ctx.newCDPSession(page)
@@ -38,12 +38,13 @@ test('boot downloads each file once and only what the first screens need', async
     return performance.getEntriesByType('resource').filter((e) => e.startTime < at).map((e) => new URL(e.name).pathname)
   })
 
-  const opening = [...bytes].filter(([f]) => f.includes('/opening_') && f.endsWith('.mp4'))
-  for (const [f, b] of opening) expect(b, `${f} downloaded more than once`).toBeLessThanOrEqual(statSync(`dist${f}`).size * 1.1)
+  const clips = [...bytes].filter(([f]) => f.endsWith('.mp4'))
+  for (const [f, b] of clips) expect(b, `${f} downloaded more than once`).toBeLessThanOrEqual(statSync(`dist${f}`).size * 1.1)
   const fonts = reqs.filter((f) => f.endsWith('.woff2'))
   expect(fonts.length, `fonts: ${fonts.join(', ')}`).toBe(new Set(fonts).size)
   const posters = new Set(firstScreen.filter((f) => /\.(webp|avif)$/.test(f)))
-  expect(posters.size, `posters: ${[...posters].join(', ')}`).toBeLessThanOrEqual(4)
+  const stage = await page.evaluate(() => [...document.querySelectorAll<HTMLImageElement>('.stage img')].map((i) => new URL(i.currentSrc || i.src, location.href).pathname))
+  expect(stage.filter((f) => !posters.has(f)), 'stage posters loaded after the intro').toEqual([])
   expect(reqs.some((f) => f.includes('RfqForm')), 'RFQ chunk loaded at boot').toBe(false)
   console.log(`before first scroll: ${(total / 1024).toFixed(0)} KB, ${reqs.length} requests, posters ${posters.size}`)
   await ctx.close()

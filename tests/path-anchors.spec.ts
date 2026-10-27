@@ -58,7 +58,7 @@ for (const p of Object.values(PATHS)) {
   })
 }
 
-test('header path toggle lands on each path from the hero and from inside the film', async ({ page, isMobile }) => {
+test('header path toggle lands on each path from the top and from inside the film', async ({ page, isMobile }) => {
   test.skip(!!isMobile, 'the toggle sits in the header on both widths, but one width is enough for the click path')
   await page.goto('/story')
   await page.waitForFunction(() => document.querySelector('.loader') === null || getComputedStyle(document.querySelector('.loader')!).opacity === '0', null, { timeout: 15_000 })
@@ -99,7 +99,7 @@ for (const path of ['ocean', 'pond'] as const) {
       await expect.poll(async () => (await onScreen(page)).probe, { timeout: 10_000, message: `${path} ${ch.id}` }).toMatch(new RegExp(`^(${clips.join('|')})$`))
       const s = await onScreen(page)
       expect(s.chapter, `${path} ${ch.id}`).toBe(ch.id)
-      // its own copy: the first caption title of this chapter (start has none; its copy is the hero)
+      // its own copy: the first caption title of this chapter
       if (ch.captions.length) expect(s.titles, `${path} ${ch.id} copy`).toContain(ch.captions[0].title)
     }
   })

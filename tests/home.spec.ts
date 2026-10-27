@@ -10,7 +10,8 @@ const ready = async (page: Page) => {
 
 /**
  * anything of the film: its scripts, its clips (every .mp4 but the hero loop and the story entry's own card loops,
- * #268), its posters' end frames
+ * #268), its posters' end frames. The story warm-up after the intro (home/prefetch.ts warmStory, #preload) fetches the
+ * clips into the HTTP cache: a `fetch`, not the page playing or loading the film, so it is left out.
  */
 const isStory = (url: string) => /\/assets\/(story|Story)-|\/media\/(?!hero-loop_|hf-catch-card_|hf-sample_)[^/]+\.mp4(\?|$)/.test(url)
 
@@ -23,12 +24,13 @@ const chapterOnScreen = (page: Page) =>
 
 test('the homepage has no film and requests nothing of the story, even scrolled to the end', async ({ page }) => {
   const story: string[] = []
-  page.on('request', (r) => isStory(r.url()) && story.push(r.url()))
+  page.on('request', (r) => r.resourceType() !== 'fetch' && isStory(r.url()) && story.push(r.url()))
   await page.goto('/')
   await ready(page)
   await expect(page.locator('.stage, [data-chapter], video.stage__video, .path-toggle')).toHaveCount(0)
-  await expect(page.locator('video[src]')).toHaveCount(0) // the hero is a frame sequence on a canvas; the story cards' loops get a src only on hover
-  await expect(page.locator('.home-hero canvas.seq__canvas')).toHaveCount(1)
+  // the one video with a source is the hero's city loop; the story cards' loops get a src only on hover
+  await expect(page.locator('video[src]')).toHaveCount(1)
+  await expect(page.locator('.home-hero video[src*="/media/hero-loop_"]')).toHaveCount(1)
   await scrollThrough(page, false, 3000)
   expect(story).toEqual([])
 })

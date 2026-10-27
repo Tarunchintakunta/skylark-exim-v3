@@ -1,45 +1,38 @@
-import { useGSAP } from '@gsap/react'
-import gsap from 'gsap'
-import { SplitText } from 'gsap/SplitText'
 import { useEffect, useRef, type RefObject } from 'react'
 import { exportsLine, start } from '../config/content'
-import { HERO_SEQ, heroFrameFile } from '../config/hero'
 import { env } from '../engine/env'
 import { useApp } from '../engine/store'
-import { HERO_POSTER, avifReady, mediaUrl } from '../film/segments'
-import { ScrollSequence, type FrameSet } from '../ui/ScrollSequence'
+import { HERO_POSTER, W, clipFile, mediaUrl } from '../film/segments'
 import '../ui/hero.css'
 
-gsap.registerPlugin(SplitText)
+/** the hero loop has no 2560 file: 1920 covers it there */
+const heroSrc = mediaUrl(clipFile('hero-loop', W === 2560 ? 1920 : W))
 
-/** AVIF where it decodes, else WebP; settled before the first frame URL is built (ScrollSequence `wait`) */
-let ext: 'avif' | 'webp' = 'webp'
+let heroIn = () => {}
+/** the city video can play through (at once with reduced motion: there is no video); the homepage's intro waits for it */
+export const heroReady = new Promise<void>((r) => (heroIn = r))
+if (env.reduced) heroIn()
 
-/**
- * The frame set starts as soon as the page's own load has settled (the poster, the LCP image, is in) and the browser
- * is idle (#270): that falls inside the intro's second, so the sequence is warm when the wipe opens onto it. Nothing of
- * it competes with the first screen: no frame is requested before the poster has loaded.
- */
-const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(() => f(), { timeout: 400 }) : setTimeout(f, 100))
-const posterIn = new Promise<void>((done) => (document.readyState === 'complete' ? done() : addEventListener('load', () => done(), { once: true })))
-const afterLcp = posterIn.then(() => new Promise<void>((done) => idle(done)))
-const ready = Promise.all([avifReady.then((ok) => (ext = ok ? 'avif' : 'webp')), afterLcp])
-export const heroFrame = (set: FrameSet, i: number) => mediaUrl(heroFrameFile(set, i, ext))
-
-/** the hero's first frame, the LCP image: the same <picture> and preloads the film's hero uses (config/hero.ts) */
+/** the hero's first frame, the LCP image: the same <picture> and preloads the static hero uses (config/hero.ts) */
 const Poster = () => (
   <picture>
     {HERO_POSTER.map((p) => (
       <source key={p.type + p.media} type={p.type} media={p.media} srcSet={p.srcSet} sizes="100vw" />
     ))}
-    <img className="seq__poster" src={mediaUrl('hero-loop_1280.webp')} alt="" fetchPriority="high" decoding="async" />
+    <img className="hero__poster" src={mediaUrl('hero-loop_1280.webp')} alt="" fetchPriority="high" decoding="async" />
   </picture>
 )
 const PATHS = ['ocean', 'pond'] as const
 
+/**
+ * Homepage hero: one screen of the Visakhapatnam city view, playing on its own as a muted loop under the copy, which is
+ * all on screen from the first frame. It plays while any of it is on screen and pauses once it has scrolled fully away;
+ * reduced motion gets the still first frame.
+ */
 export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | null> }) {
   const revealed = useApp((s) => s.revealed)
   const root = useRef<HTMLDivElement>(null)
+  const video = useRef<HTMLVideoElement>(null)
   const lead = start.title.replace(/ world\.$/, '')
 
   useEffect(() => {
@@ -48,31 +41,37 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
     root.current!.style.opacity = '1'
   }, [revealed])
 
-  useGSAP(
-    () => {
-      if (env.reduced) return
-      const q = gsap.utils.selector(root)
-      const body = SplitText.create(q('.hero__body'), { type: 'lines', mask: 'lines' })
-      const tl = gsap.timeline({
-        defaults: { ease: 'none' },
-        scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: true },
-      })
-      tl.to({}, { duration: 1 }, 0)
-      tl.fromTo(q('.hero__title'), { y: 0 }, { y: '-3vh', ease: 'power2.out', duration: 0.15 }, 0)
-      tl.fromTo(q('.hero__cue'), { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.1 }, 0)
-      tl.fromTo(body.lines, { yPercent: 110 }, { yPercent: 0, ease: 'power3.out', duration: 0.12, stagger: 0.015 }, 0.35)
-      tl.fromTo(q('.hero__body, .hero__exports'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.04 }, 0.35)
-      tl.fromTo(q('.hero__exports'), { y: 24 }, { y: 0, ease: 'power3.out', duration: 0.1 }, 0.4)
-      tl.fromTo(q('.hero__contact, .hero__fork'), { autoAlpha: 0, y: 32 }, { autoAlpha: 1, y: 0, ease: 'power3.out', duration: 0.15, stagger: 0.03 }, 0.85)
-      return () => body.revert()
-    },
-    { scope: root },
-  )
+  useEffect(() => {
+    const v = video.current
+    if (!v) return
+    const io = new IntersectionObserver(([e]) => (e.isIntersecting ? void v.play().catch(() => {}) : v.pause()))
+    io.observe(sectionRef.current!)
+    return () => io.disconnect()
+  }, [sectionRef])
 
   return (
-    <ScrollSequence src={heroFrame} frames={HERO_SEQ} wait={ready} poster={<Poster />} length="300vh" className="home-hero" sectionRef={sectionRef}>
+    <section ref={sectionRef} className="home-hero">
       <div className="hero" ref={root}>
-        <div className="hero__media" />
+        <div className="hero__media">
+          <Poster />
+          {!env.reduced && (
+            <video
+              ref={video}
+              className="hero__poster"
+              src={heroSrc}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              disablePictureInPicture
+              aria-hidden="true"
+              tabIndex={-1}
+              onCanPlayThrough={heroIn}
+              onError={heroIn}
+            />
+          )}
+        </div>
         <div className="hero__copy">
           <h1 className="hero__title">
             {lead} <em>world</em>.
@@ -98,10 +97,7 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
             ))}
           </div>
         </div>
-        <span className="hero__cue" aria-hidden="true">
-          Scroll
-        </span>
       </div>
-    </ScrollSequence>
+    </section>
   )
 }

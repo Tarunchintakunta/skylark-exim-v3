@@ -41,7 +41,7 @@ export const ENTRY_CARDS: EntryCard[] = [
     cta: 'Enter the story',
     heading: 'Wild catch',
     sub: 'Marine fish from the fishing vessels, through our plant at Anandapuram, to the port.',
-    start: { label: 'Start the story', href: '/story#ocean' },
+    start: { label: 'Begin Journey', href: '/story#ocean' },
     // hf-catch-card: a crop of the hf-catch master at its native pixels (scripts/encode-hf.sh SRC_CROP 1920:1080:640:0,
     // phone M_CROP 670:1192:1200:0) that leaves out the deck crates and the bin at the left edge in every frame
     clip: 'hf-catch-card',
@@ -63,7 +63,7 @@ export const ENTRY_CARDS: EntryCard[] = [
     cta: 'Enter the story',
     heading: 'Farmed shrimp',
     sub: 'From partner farms, through our plant at Anandapuram, to the port.',
-    start: { label: 'Start the story', href: '/story#pond' },
+    start: { label: 'Begin Journey', href: '/story#pond' },
     // hf-sample, not hf-ponds: the ponds aerial has a truck mid-frame whose driving side can't be checked
     clip: 'hf-sample',
     // the card's own stills of hf-sample's first frame, each under 250 KB (scripts/stills.py CAP_KB=250); the clip's

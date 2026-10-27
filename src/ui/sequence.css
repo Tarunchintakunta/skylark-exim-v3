@@ -1,5 +1,0 @@
-.seq { position: relative; background: var(--deep-2); }
-.seq__stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
-.seq__poster, .seq__canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.seq__canvas { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
-.seq[data-painted] .seq__canvas { opacity: 1; }
