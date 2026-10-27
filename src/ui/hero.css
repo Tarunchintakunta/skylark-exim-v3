@@ -1,5 +1,7 @@
 .hero { position: fixed; inset: 0; z-index: var(--z-copy); pointer-events: none; visibility: hidden; opacity: 0; }
 .hero__media { position: absolute; inset: 0; }
+/* homepage: one screen; the city video sits over its own first frame */
+.home-hero { position: relative; height: 100svh; background: var(--deep-2); }
 .hero__poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 /* same left + bottom scrims as the stage, so the copy keeps its contrast over the loop */
 .hero__media::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--scrim), linear-gradient(90deg, rgba(7, 31, 38, 0.72) 0%, rgba(7, 31, 38, 0.35) 38%, rgba(7, 31, 38, 0) 62%); }
