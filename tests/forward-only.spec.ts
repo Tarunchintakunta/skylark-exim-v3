@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
 /**
- * The film only moves forward (final audit, story flow lock): scrolling down plays it, scrolling up never plays a clip
- * backwards and never takes the stage back to an earlier chapter, and the top of /story is the path's first clip (o1 /
- * p1) on its first frame, still, at y = 0: there is no city view above it to scroll back up to.
+ * The film follows the scroll in both directions. The top of /story is the path's first clip (o1 / p1) on its first
+ * frame, still, at y = 0: there is no city view above it to scroll back up to. Once the story has moved, scrolling
+ * up rewinds the picture and scrolling down again moves on from that frame.
  * Desktop 1440×900 (Lenis wheel) and phone 390×844 (touch emulation, native scroll), both paths.
  */
 const VIEWS = {
@@ -38,12 +38,6 @@ function record() {
   requestAnimationFrame(loop)
 }
 
-const chapterOfY = (page: Page) =>
-  page.evaluate(() => {
-    const tops = [...document.querySelectorAll<HTMLElement>('.chapter')].map((el) => el.getBoundingClientRect().top + scrollY)
-    return tops
-  })
-
 async function open(page: Page, hash = '') {
   await page.goto(`/story${hash}`)
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1' && !document.getElementById('boot'))
@@ -60,20 +54,27 @@ async function wheel(page: Page, dy: number, steps: number, gap: number) {
   await page.waitForTimeout(300)
 }
 
-/** no clip ever runs backwards while the page scrolls up, and the stage never goes back to an earlier chapter */
-async function checkUpward(page: Page) {
-  const s = (await page.evaluate(() => (window as unknown as { __fwd: Sample[] }).__fwd)) as Sample[]
-  let backwards = 0
-  let earlier = 0
-  for (let k = 1; k < s.length; k++) {
-    const [a, b] = [s[k - 1], s[k]]
-    if (a.chapter >= 0 && b.chapter >= 0 && b.chapter < a.chapter) earlier++
-    if (b.dir >= 0 || a.id !== b.id) continue
-    if (a.t >= 0 && b.t >= 0 && b.t < a.t - 1 / 48) backwards++
-    if (a.frame >= 0 && b.frame >= 0 && b.frame < a.frame) backwards++
-  }
-  return { backwards, earlier, samples: s.length }
+type Shot = { y: number; chapter: number; id: string | null; local: number; time: number }
+
+async function shot(page: Page): Promise<Shot> {
+  return page.evaluate(() => {
+    const s = (window as unknown as { __scrub: { id: string | null; chapter: number; local: number } }).__scrub
+    const v = [...document.querySelectorAll<HTMLVideoElement>('.stage video')].find((x) => x.style.opacity === '1')
+    return {
+      y: scrollY,
+      chapter: s.chapter,
+      id: s.id,
+      local: s.local,
+      time: v && v.dataset.clip === s.id ? v.currentTime : -1,
+    }
+  })
 }
+
+/** Earlier chapter, or the same chapter further back through its scroll. */
+const rewound = (from: Shot, to: Shot) => to.chapter < from.chapter || (to.chapter === from.chapter && to.local < from.local - 0.05)
+
+/** Further on than `from`, still short of the point the scroll had reached before. */
+const resumed = (from: Shot, to: Shot) => to.chapter > from.chapter || (to.chapter === from.chapter && to.local > from.local + 0.03)
 
 for (const [name, view] of Object.entries(VIEWS)) {
   test.describe(name, () => {
@@ -105,35 +106,44 @@ for (const [name, view] of Object.entries(VIEWS)) {
       })
 
     for (const hash of ['#ocean', '#pond'])
-      test(`${hash}: fast and slow scroll down only move forward, scroll up never plays back`, async ({ page }) => {
-        test.setTimeout(240_000)
+      test(`${hash}: scroll up rewinds the picture and scroll down resumes before the old point`, async ({ page }) => {
+        test.setTimeout(180_000)
         await open(page, hash)
         await page.evaluate(() => scrollTo(0, 0))
         await page.waitForTimeout(600)
         await page.evaluate(record)
-        // slow down through the first chapters, then a fast run
-        await wheel(page, 120, 25, 120)
-        await wheel(page, 600, 12, 40)
+        await wheel(page, 140, 20, 70)
         const down = (await page.evaluate(() => (window as unknown as { __fwd: Sample[] }).__fwd)) as Sample[]
         let back = 0
         for (let k = 1; k < down.length; k++) {
           const [a, b] = [down[k - 1], down[k]]
           if (b.chapter < a.chapter) back++
-          if (a.id === b.id && b.dir >= 0 && a.t >= 0 && b.t >= 0 && b.t < a.t - 1 / 48) back++
+          if (a.id === b.id && b.dir >= 0 && a.t >= 0 && b.t >= 0 && b.t < a.t - 1 / 12) back++
         }
         expect(back, 'picture went back while scrolling down').toBe(0)
+        const moving = down.filter((s, k) => k > 0 && Math.abs(s.y - down[k - 1].y) > 2 && s.id)
+        const shownWhileMoving = moving.filter((s) => s.shown).length
+        expect(moving.length, 'the scroll produced video samples').toBeGreaterThan(8)
+        expect(shownWhileMoving / moving.length, 'the clip stayed on its poster while scrolling down').toBeGreaterThan(0.35)
 
-        // up at every chapter: a short wheel up inside it, then on up into the one before
-        const tops = await chapterOfY(page)
-        for (let i = Math.min(tops.length - 2, 9); i >= 1; i--) {
-          await page.evaluate(([y]) => scrollTo(0, y), [tops[i] + 300])
-          await page.waitForTimeout(700)
-          await page.evaluate(record)
-          await wheel(page, -100, 6, 80)
-          const r = await checkUpward(page)
-          expect(r.backwards, `chapter ${i}: clip ran backwards`).toBe(0)
-          expect(r.earlier, `chapter ${i}: the stage went back to an earlier chapter`).toBe(0)
-        }
+        const deep = await shot(page)
+        expect(deep.y, 'the page scrolled down').toBeGreaterThan(600)
+        expect(deep.chapter, 'the story left the opening').toBeGreaterThan(0)
+
+        await wheel(page, -140, 16, 70)
+        const up = await shot(page)
+        expect(up.y, 'the page scrolled back up').toBeLessThan(deep.y - 300)
+        expect(rewound(deep, up), `picture stayed on chapter ${deep.chapter} (${deep.id} @ ${deep.time.toFixed(2)}s) while the page returned to ${up.y}`).toBe(true)
+        if (deep.id && deep.id === up.id && deep.time >= 0 && up.time >= 0)
+          expect(up.time, 'the same clip did not rewind').toBeLessThan(deep.time - 0.15)
+
+        await wheel(page, 140, 8, 70)
+        const again = await shot(page)
+        expect(again.y, 'scroll down moved the page').toBeGreaterThan(up.y + 150)
+        expect(again.y, 'scroll down resumed before the old furthest point').toBeLessThan(deep.y - 40)
+        expect(resumed(up, again), `picture stayed on chapter ${up.chapter} (${up.id} @ ${up.time.toFixed(2)}s) while the page moved to ${again.y}`).toBe(true)
+        if (up.id && up.id === again.id && up.time >= 0 && again.time >= 0)
+          expect(again.time, 'the same clip did not move on').toBeGreaterThan(up.time + 0.08)
       })
 
     test('refresh mid-story lands on the first frame at the top', async ({ page }) => {
