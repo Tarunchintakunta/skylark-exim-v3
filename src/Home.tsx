@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { bindStoryPrefetch, warmHomeImages, warmStory } from './home/prefetch'
+import { bindStoryPrefetch, homeGate, warmStory } from './home/prefetch'
 import { HomeHero } from './home/HomeHero'
 import { Loader } from './ui/Loader'
 import { PageHeader } from './ui/PageHeader'
@@ -13,9 +13,11 @@ const MOUNTED = new Promise<void>((r) => {
   const was = mounted
   mounted = () => (was(), r())
 })
+/** the intro holds until the city video and every image on the page are in memory (#preload) */
+const gate = homeGate(MOUNTED)
 
 /**
- * Homepage (#233): the scroll-scrubbed hero frame sequence, then a normal scrolling company page. The film, its engine and its clips
+ * Homepage (#233): the city video hero, then a normal scrolling company page. The film, its engine and its clips
  * live on /story; story links here only prefetch it on hover or focus.
  */
 export default function Home() {
@@ -28,7 +30,6 @@ export default function Home() {
     return () => io.disconnect()
   }, [])
   useEffect(bindStoryPrefetch, [])
-  useEffect(warmHomeImages, [])
   useEffect(warmStory, [])
   return (
     <>
@@ -41,7 +42,7 @@ export default function Home() {
           <Sections onMount={mounted} />
         </Suspense>
       </main>
-      <Loader mounted={MOUNTED} />
+      <Loader mounted={MOUNTED} gate={gate} />
     </>
   )
 }
