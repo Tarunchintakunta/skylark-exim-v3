@@ -1,47 +1,29 @@
 import { env } from '../engine/env'
-import { frame, store, type Path } from '../engine/store'
-import { CLIPS, type Clip } from './manifest'
-import { downloading, fullyLoaded, prefetchSeq } from './scrub'
+import { store, type Path } from '../engine/store'
+import { CLIPS, SEQ, type Clip } from './manifest'
+import { prefetchSeq, seqProgress } from './scrub'
 import { W, avifReady, clipUrl, codec, codecReady, isSeq, served } from './segments'
 
 /**
- * Warm cache (#251): once the first screen is up, one loader fetches the active path's clips into Blobs, so the
- * stage's <video>s play from blob: URLs and a seek never touches the network. It keeps to the chapter on screen and
- * the next one, and follows the scroll down: the first load is the first chapters' worth, and a reader who stops
- * halfway never downloads the rest. Only the active path, at the page's own
- * tier and in one codec (#hd: it waits for segments.ts to settle the codec). Every clip gets its own Blob, including
- * one a decoder has already downloaded in full: without a Blob that clip is fetched again the next time a decoder takes
- * it, which was the one request a warm scroll still made (#264; /media is immutable, so the refetch is a cache hit).
- * Those clips are fetched last, so a slow link spends its bandwidth on clips nothing holds yet.
- * Coarse first: the first and the middle clip
- * of each chapter in story order, then the rest, so a fast scroll meets something cached everywhere early. Save-Data
- * and 2g/3g keep the distance prefetch only (scrub.ts), which stays the fallback for clips not cached yet.
+ * Warm cache, all up front (Terminal Industries' pattern): at mount the whole active path goes into memory before the
+ * story opens. Every video clip becomes a Blob (the stage's <video>s play from blob: URLs, so a seek never touches the
+ * network) and every desktop frame sequence lands in the decode worker's byte store (sequence.ts), in story order. The
+ * intro (Loader.tsx) shows the percentage and opens once the path is in hand; a path switch loads the other path's
+ * clips the same way, keeping the chapters both share. Only the active path, at the page's own tier, in one codec
+ * (it waits for segments.ts to settle the codec). Save-Data and 2g/3g skip it: the scrub's distance prefetch (scrub.ts)
+ * streams those.
  */
-/** clips fetched at once (#264, Terminal's concurrency): 6 desktop, 3 phone */
+/** clips fetched at once (Terminal's concurrency): 6 desktop, 3 phone */
 const PARALLEL = env.mobile ? 3 : 6
-/** ms since the last scroll that still counts as scrolling */
-const QUIET = 400
 /** the clips the cache holds as Blobs: a desktop frame-sequence clip (#hd2) is the stage canvas's, not a video */
 const videos = (p: Path) => CLIPS[p].filter((c) => !isSeq(c.id))
-/** a clip the cache fetches now: the chapter on screen and the next one (the story only moves forward) */
-const inWindow = (c: Clip) => c.chapter >= frame.index && c.chapter <= frame.index + 1
-let lastMove = 0
-addEventListener(
-  'scroll',
-  () => {
-    const starts = performance.now() - lastMove >= QUIET
-    lastMove = performance.now()
-    // a scroll starts: cancel every fetch in flight so the scrub's progressive loads get the whole link. Those clips are
-    // left to the scrub (fetching them again would download them twice); the cache goes on with the rest in the next pause
-    if (starts) for (const stop of loading.values()) stop.abort()
-  },
-  { passive: true },
-)
+const frameSets = (p: Path) => CLIPS[p].filter((c) => isSeq(c.id))
+export const enabled = !(env.saveData || env.slow)
 
 const urls = new Map<string, string>()
 let path: Path | null = null
 let abort: AbortController | null = null
-/** the first window is in hand. Tests wait for this (#264). The posters (scrub.ts) and the globe (GlobeLayer.tsx) load themselves as their chapters come near. */
+/** the whole active path is in hand. Tests wait for this. */
 let warm = false
 const listeners = new Set<() => void>()
 const emit = () => listeners.forEach((f) => f())
@@ -50,31 +32,33 @@ const emit = () => listeners.forEach((f) => f())
 if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
   Object.defineProperty(globalThis, '__warmCache', { get: () => ({ path, ids: [...urls.keys()], progress: progress(), warm }) })
 
-/** fetches in flight, by clip: a scroll cancels them (see below) */
-const loading = new Map<string, AbortController>()
-
 /** blob: URL for a cached clip of the active path, else null */
 export const cachedUrl = (id: string) => urls.get(id) ?? null
-/** 0..1 of the clip bytes the cache wants now in hand: the chapter on screen and the next one */
+
+/** bytes of a clip in the codec and tier this page plays (a frame set: its frames, AVIF or WebP) */
+const size = (c: Clip) => (isSeq(c.id) ? SEQ[c.id][avif ? 'avif' : 'webp'] : (c.files[codec][served(W, codec)]?.bytes ?? 0))
+let avif = false
+void avifReady.then((a) => (avif = a))
+
+/** 0..1 of the active path's bytes in memory: its clips' Blobs and its frame sets' bytes */
 export function progress() {
-  const want = path ? videos(path).filter(inWindow) : []
-  const total = want.reduce((a, c) => a + size(c), 0)
-  // (a clip a decoder holds whole is as good as cached; the cache leaves it to the decoder)
-  return total ? want.reduce((a, c) => a + (urls.has(c.id) || fullyLoaded(c.id) ? size(c) : 0), 0) / total : 0
+  if (!path) return 0
+  const all = [...videos(path), ...frameSets(path)]
+  const total = all.reduce((a, c) => a + size(c), 0)
+  const have = all.reduce((a, c) => a + size(c) * (isSeq(c.id) ? seqProgress(c.id) : urls.has(c.id) ? 1 : 0), 0)
+  return total ? have / total : 0
 }
 export function onCache(f: () => void) {
   listeners.add(f)
   return () => void listeners.delete(f)
 }
 
-/** story order, coarse first: each chapter's first and middle clip, then everything else */
-export function order(clips: Clip[]) {
-  const coarse = clips.filter((c) => c.seg === 0 || c.seg === Math.floor((c.of - 1) / 2))
-  return [...coarse, ...clips.filter((c) => !coarse.includes(c))]
-}
-
-/** bytes of a clip in the codec and tier this page plays */
-const size = (c: Clip) => c.files[codec][served(W, codec)]?.bytes ?? 0
+/** resolves once the active path is in memory (at once where the cache is off) */
+export const pathReady = () =>
+  new Promise<void>((done) => {
+    if (!enabled || warm) return done()
+    const off = onCache(() => warm && (off(), done()))
+  })
 
 async function run(p: Path) {
   warm = false
@@ -88,92 +72,39 @@ async function run(p: Path) {
   for (const [id, u] of urls) if (!keep.has(id)) (URL.revokeObjectURL(u), urls.delete(id))
   path = p
   emit()
-  const queue = order(clips).filter((c) => !urls.has(c.id))
-  // nothing new starts while the visitor scrolls, so the scrub's progressive loads get the bandwidth; at idle coarse
-  // first, with the near window last (the scrub is already loading those)
-  const scrolling = () => performance.now() - lastMove < QUIET
-  const next = () => {
-    if (scrolling()) return null
-    // not a clip a decoder is downloading right now (that would be a second download), and only inside the window: the
-    // chapter on screen first, then the next; a clip a decoder already holds whole is left to it (#264, #hd2)
-    const free = (c: Clip) => !downloading(c.id) && inWindow(c)
-    const first = (test: (c: Clip) => boolean) => queue.findIndex((c) => free(c) && test(c))
-    const open = (c: Clip) => !fullyLoaded(c.id)
-    const tests = [(c: Clip) => open(c) && c.chapter === frame.index, (c: Clip) => open(c) && c.chapter > frame.index]
-    const j = tests.map(first).find((k) => k >= 0) ?? -1
-    return j < 0 ? null : queue.splice(j, 1)[0]
-  }
+  // story order: the first chapter first, so a visitor who opens the intro early still finds the start in hand
+  const queue = clips.filter((c) => !urls.has(c.id))
   const fetchOne = async (c: Clip) => {
-    const stop = new AbortController()
-    ctl.signal.addEventListener('abort', () => stop.abort())
-    loading.set(c.id, stop)
-    try {
-      const res = await fetch(clipUrl(c.id), { signal: stop.signal })
-      if (!res.ok) return
-      const blob = await res.blob()
-      if (ctl.signal.aborted) return
-      urls.set(c.id, URL.createObjectURL(blob))
-      emit()
-    } finally {
-      loading.delete(c.id)
-    }
+    const res = await fetch(clipUrl(c.id), { signal: ctl.signal })
+    if (!res.ok) return
+    const blob = await res.blob()
+    if (ctl.signal.aborted) return
+    urls.set(c.id, URL.createObjectURL(blob))
+    emit()
   }
-  let shown = -1
-  const workers = Promise.all(
+  // the frame sets start with the videos: the worker fetches them PARALLEL at a time, frame 0 first, then coarse first
+  for (const c of frameSets(p)) prefetchSeq(c.id)
+  await Promise.all(
     Array.from({ length: PARALLEL }, async () => {
-      while (queue.length && !ctl.signal.aborted) {
-        const c = next()
-        if (c) {
-          const cut = await fetchOne(c).then(() => false, (e: unknown) => (e as Error)?.name === 'AbortError')
-          // a fetch a scroll cancelled goes back in the queue, for when the window comes round to it again
-          if (cut && !urls.has(c.id) && !ctl.signal.aborted) queue.push(c)
-          continue
-        }
-        // the hairline follows what is in hand: the window moves with the scroll, and a decoder finishing a
-        // window clip completes it without a fetch here; frame sequences in the window start fetching (frame 0 first,
-        // then coarse first: sequence.ts)
-        if (progress() !== shown) ((shown = progress()), emit())
-        if (!scrolling()) for (const c of CLIPS[p]) if (isSeq(c.id) && inWindow(c)) prefetchSeq(c.id)
-        await new Promise((r) => setTimeout(r, QUIET))
-      }
+      while (queue.length && !ctl.signal.aborted) await fetchOne(queue.shift()!).catch(() => {})
     }),
   )
-  // the first window; the workers go on following the scroll
-  // (a window clip a decoder is downloading or holds whole counts as handled)
-  while (!ctl.signal.aborted && (loading.size || queue.some((c) => inWindow(c) && !downloading(c.id) && !fullyLoaded(c.id)))) await new Promise((r) => setTimeout(r, QUIET))
+  // the frame sets report through scrub.ts; follow them until every byte is here
+  while (!ctl.signal.aborted && progress() < 1) {
+    emit()
+    await new Promise((r) => setTimeout(r, 250))
+  }
   if (!ctl.signal.aborted) {
     warm = true
     emit()
   }
-  await workers
 }
 
-/** Starts after the loader's reveal (LCP is long past by then) in idle time, and follows path switches. */
+/** Starts at mount, before the intro opens, and follows path switches. */
 export function startWarmCache() {
-  if (env.saveData || env.slow) return () => {}
-  let started = false
-  const idle = (f: () => void) => ('requestIdleCallback' in window ? requestIdleCallback(f, { timeout: 2000 }) : setTimeout(f, 300))
-  // after the reveal and once the clip on screen can play through (or 4 s after the reveal at the latest), in idle time
-  let settled = false
-  let revealed = store.getState().revealed
-  let late = 0
-  const go = () => {
-    if (started || !revealed || !settled) return
-    started = true
-    clearTimeout(late)
-    idle(() => void run(store.getState().path))
-  }
-  const onSettled = () => ((settled = true), go())
-  addEventListener('scrub:settled', onSettled, { once: true })
-  const reveal = () => {
-    revealed = true
-    late = window.setTimeout(onSettled, 4000)
-    go()
-  }
-  if (revealed) reveal()
-  const stop = store.subscribe((s, was) => {
-    if (s.revealed && !was.revealed) reveal()
+  if (!enabled) return () => {}
+  void run(store.getState().path)
+  return store.subscribe((s) => {
     if (path && s.path !== path) void run(s.path)
   })
-  return () => (stop(), clearTimeout(late), removeEventListener('scrub:settled', onSettled))
 }
