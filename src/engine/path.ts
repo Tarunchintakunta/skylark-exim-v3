@@ -1,6 +1,5 @@
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { film } from '../film/controller'
-import { releaseFloor } from '../film/scrub'
 import { store, type Path } from './store'
 import { scrollToY } from './ticker'
 
@@ -14,7 +13,7 @@ export function setPath(path: Path, jump = false) {
     idle(() => ScrollTrigger.refresh())
   }
   // wait for React to commit the new chapter list and the controller to re-measure
-  if (jump) requestAnimationFrame(() => requestAnimationFrame(() => (scrollToY(firstChapterY(), true), releaseFloor())))
+  if (jump) requestAnimationFrame(() => requestAnimationFrame(() => scrollToY(firstChapterY(), true)))
 }
 
 /** o1 / p1 open /story at y = 0: no chapter sits above a path's first */

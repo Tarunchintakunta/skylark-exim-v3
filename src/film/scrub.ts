@@ -9,9 +9,8 @@ import { cachedUrl, enabled } from './warmcache'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of POOL <video> decoders.
- * - Forward only: the picture follows the scroll down and holds while it goes up, so the story never plays backwards,
- *   and it never goes back to an earlier segment than the furthest one reached (`floor`): scrolling up holds the frame
- *   on screen until the scroll comes back down past it.
+ * - The picture follows the scroll in both directions. Scrolling up rewinds the clip and returns to earlier chapters.
+ *   Scrolling down again moves on from the frame now on screen.
  * - The current clip loads on entry; after the first scroll, once it has metadata, the next AHEAD clips below it load
  *   in parallel (one more while the scroll is fast), never past the next chapter. A clip on screen for under a second
  *   can't wait for its neighbour to finish buffering first.
@@ -19,10 +18,9 @@ import { cachedUrl, enabled } from './warmcache'
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held for HOLD ms, so the
  *   last presented frame stays up instead of stalling or flashing back to the poster; after that the picture follows the
  *   buffered frame nearest the target, so it keeps moving with the page as the download arrives.
- * - `fastSeek()` only while the scroll is fast and that time is not yet in memory (no warm-cache blob,
- *   not canplaythrough, and not inside `buffered`). Otherwise exact `currentTime`, so a preloaded clip
- *   scrubs the real 24 fps frame instead of stepping to keyframes. Frames count as presented from
- *   `requestVideoFrameCallback`.
+ * - While the scroll is fast (`vel > FAST`), `fastSeek()` keeps a hardware decoder from queueing exact 40 ms seeks.
+ *   Slow travel, and the settle seek that applies `pending`, use exact `currentTime`. A `seeked` marks the frame
+ *   painted before any follow-up seek, so a clip entered mid-scroll is visible while the wheel is still moving.
  */
 interface Slot {
   v: HTMLVideoElement
@@ -46,7 +44,7 @@ const FRAME = 1 / 24
 const EPS = 1 / 48
 /** ms a target outside `buffered` is held before the picture moves to the nearest buffered frame */
 const HOLD = 250
-/** px per tick above which an unbuffered seek may use fastSeek (keyframe-accurate, cheaper) */
+/** px per tick above which a seek uses fastSeek instead of an exact currentTime */
 const FAST = 30
 const light = env.mobile || env.saveData || env.slow
 /** decoders on the stage (ScrubStage renders this many <video>s) */
@@ -62,20 +60,20 @@ const slotOf = new WeakMap<HTMLVideoElement, Slot>()
 let veil: HTMLElement | null = null
 let stage: HTMLElement | null = null
 let cur = -1
-/** progress through the current segment that the picture shows: rises with the scroll down, holds while it goes up */
-let head = 0
 let shown: Slot | null = null
 let over = -1
 let hidden = false
 let isLight = false
 let isSoft = false
 let lastY = 0
+/** px moved on the last tick, so a follow-up seek can stay on fastSeek until the wheel slows */
+let travel = 0
 /**
  * Read by tests/video-smoothness.spec.ts and tests/terminal-mode.spec.ts: the clip that should be on screen, the time
  * it should show, whether its decoder is the picture (`shown`) and whether the stage has a picture at all (`painted`:
  * the clip, or the poster, still, gradient or globe layer under it). Plain writes, no DOM.
  */
-const probe = { id: null as string | null, target: 0, shown: false, chapter: -1, painted: false }
+const probe = { id: null as string | null, target: 0, shown: false, chapter: -1, painted: false, local: 0 }
 ;(globalThis as { __scrub?: typeof probe }).__scrub = probe
 // the decoder pool, for tests (navigator.webdriver) and ?debug only
 if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
@@ -110,10 +108,6 @@ export const prefetchSeq = (id: string) => void seqFor(id)?.prefetch()
 export const seqProgress = (id: string) => seqs.get(id)?.progress ?? 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the first clip */
 let scrolled = false
-/** the furthest segment the stage has shown on this path: it never goes back above it (story flow lock) */
-let floor = -1
-/** a jump to a path's first chapter (engine/path.ts) starts the lock over */
-export const releaseFloor = () => void (floor = -1)
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -128,7 +122,6 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   if (ro && seqCanvas && seqStage) (ro.observe(seqCanvas), seqStage.resize())
   seqOn = false
   for (const s of slots) s.v.style.opacity = '0'
-  floor = -1
   cur = -1
   shown = null
   over = -1
@@ -174,14 +167,19 @@ function makeSlot(v: HTMLVideoElement): Slot {
   v.addEventListener('canplaythrough', () => (s.ready = true))
   v.addEventListener('error', () => (s.dead = true))
   v.addEventListener('seeked', () => {
+    // Paint before any follow-up. Returning first left a clip entered mid-scroll invisible until the wheel stopped.
+    if (v.readyState >= 2) s.painted = true
+    else markPainted()
+    s.dead = false
     if (s.pending !== null && Math.abs(v.currentTime - s.pending) > EPS) {
-      v.currentTime = s.pending
+      const next = s.pending
       s.pending = null
+      // Still moving fast: keyframe seek. The settle, once the wheel has slowed, is the exact frame.
+      if (travel > FAST && typeof v.fastSeek === 'function') v.fastSeek(next)
+      else v.currentTime = next
       return
     }
     s.pending = null
-    s.dead = false
-    markPainted()
   })
   return s
 }
@@ -222,6 +220,17 @@ function clipsFrom(i: number, n: number) {
   return out
 }
 
+/** The previous `n` distinct clips before segment i, in this chapter and the one above it. */
+function clipsBehind(i: number, n: number) {
+  const out: string[] = []
+  const first = segs[i].chapter - 1
+  for (let k = i - 1; k >= 0 && segs[k].chapter >= first && out.length < n; k--) {
+    const id = videoId(k)
+    if (id && !out.includes(id)) out.push(id)
+  }
+  return out
+}
+
 /** Segments between segment `at` and the nearest one playing `id` (Infinity: not on this path). */
 function distance(id: string | null, at: number) {
   let best = Infinity
@@ -253,6 +262,7 @@ function tick() {
   clock++
   const vel = Math.abs(frame.scroll - lastY)
   lastY = frame.scroll
+  travel = vel
   // the whole film is off screen: stop all work, keep the decoders' sources so the way back doesn't re-download
   if (frame.past !== hidden) {
     hidden = frame.past
@@ -269,27 +279,28 @@ function tick() {
   let i = segs.findIndex((s) => s.chapter === frame.index && frame.local < s.to)
   if (i < 0) i = segs.findLastIndex((s) => s.chapter === frame.index)
   if (i < 0) return
-  // flow lock: above the furthest segment reached, the stage holds it; it moves again once the scroll is back down there
-  const held = i < floor
-  if (held) i = floor
-  floor = i
   const seg = segs[i]
-  const at = Math.min(1, Math.max(0, (frame.local - seg.from) / (seg.to - seg.from)))
-  // forward only: inside a segment only a scroll down moves it
-  if (i !== cur) head = at
-  else if (frame.dir > 0 && !held) head = Math.max(head, at)
-  const p = head
-
+  const span = seg.to - seg.from
+  const at = span > 0 ? Math.min(1, Math.max(0, (frame.local - seg.from) / span)) : 0
+  // The segment under scrollY owns the stage. An earlier chapter replaces the later picture; nothing is held.
   if (i !== cur) enter(i, cur)
+  // Inside the segment the picture is `at` in both directions. Down assigns that position directly, so a rewind
+  // never blocks the next scroll down. Up scrubs the same position, so the stage stays with the caption.
+  const p = at
 
-  // decoders: current now; the next AHEAD clips below it once it has metadata (one more while fast)
+  // decoders: current now; neighbours ahead while scrolling down, neighbours behind while scrolling up
   const clip = videoId(i)
   const seqNow = clip !== null && isSeq(clip)
   // decoders take the video clips only; a sequence clip is drawn on the canvas
   const want = seqNow ? null : clip
-  const near = clipsFrom(i, Math.min(POOL - 1, AHEAD + (vel > FAST ? 1 : 0)))
+  const up = frame.dir < 0
+  const behindN = up ? (vel > FAST ? 2 : 1) : 0
+  const aheadN = Math.min(POOL - 1 - behindN, AHEAD + (vel > FAST && !up ? 1 : 0))
+  const near = clipsFrom(i, aheadN)
+  const behind = clipsBehind(i, behindN)
   const ahead = near.filter((id) => !isSeq(id))
-  const keep = [want, ...ahead]
+  const behindVideo = behind.filter((id) => !isSeq(id))
+  const keep = [want, ...ahead, ...behindVideo]
   let active: Slot | null = null
   if (want) {
     active = slotFor(want, keep, i)
@@ -304,7 +315,10 @@ function tick() {
     scrolled = true
     loadPosters(i)
   }
-  if (scrolled && (!want || (active && (active.v.readyState >= 1 || active.dead)))) for (const id of ahead) slotFor(id, keep, i)
+  if (scrolled && (!want || (active && (active.v.readyState >= 1 || active.dead)))) {
+    for (const id of ahead) slotFor(id, keep, i)
+    for (const id of behindVideo) slotFor(id, keep, i)
+  }
   setShown(active && active.painted && !active.dead ? active : null)
   // the sequence clip on screen, and the sets coming up (fetch only); every other set gives back its bitmaps
   let drawn = -1
@@ -316,8 +330,11 @@ function tick() {
     }
   }
   // a set coming up has its first frames decoded already (its bytes are in memory), so the cut onto it draws at once
-  if (scrolled || seqNow) for (const id of near) if (isSeq(id)) (prefetchSeq(id), id !== clip && seqFor(id)?.pump(0))
-  for (const [id, sq] of seqs) if (id !== clip && !near.includes(id)) sq.release()
+  if (scrolled || seqNow) {
+    for (const id of near) if (isSeq(id)) (prefetchSeq(id), id !== clip && seqFor(id)?.pump(0))
+    for (const id of behind) if (isSeq(id)) (prefetchSeq(id), seqFor(id)?.pump(0))
+  }
+  for (const [id, sq] of seqs) if (id !== clip && !near.includes(id) && !behind.includes(id)) sq.release()
   const on = drawn >= 0
   if (seqCanvas && on !== seqOn) seqCanvas.style.opacity = (seqOn = on) ? '1' : '0'
   if (seqCanvas && on) seqCanvas.dataset.frame = String(drawn)
@@ -326,6 +343,7 @@ function tick() {
   for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && s !== shown) load(s, s.id)
   probe.id = clip
   probe.chapter = seg.chapter
+  probe.local = frame.local
   probe.shown = seqNow ? on : shown !== null && shown === active
   // something is on screen: the clip's decoder, or the layer under it (a poster, a still, a gradient or the globe)
   const layer = posters[i]
@@ -380,8 +398,8 @@ function seek(s: Slot, p: number, vel: number, t0 = 0) {
     return
   }
   if (Math.abs(v.currentTime - t) <= EPS) return
-  // a clip already in the warm cache, or buffered through this time, can land on the exact frame
-  if (vel > FAST && v.fastSeek && !s.blob && !s.ready && !buffered(v, t)) v.fastSeek(t)
+  // Fast travel steps by keyframe. Slow travel lands on the exact frame. The pending settle in `seeked` is exact too.
+  if (vel > FAST && typeof v.fastSeek === 'function') v.fastSeek(t)
   else v.currentTime = t
 }
 
@@ -442,7 +460,7 @@ function enter(i: number, prev: number) {
     posters[prev]!.classList.remove('is-over')
   }
   loadPosters(i)
-  // the first frame, whichever way the segment is entered (`head`)
+  // the frame under the scroll, whichever way the segment is entered
   if (posters[i]) posters[i]!.style.opacity = '1'
   // intentional cut (documentation → port): 250 ms fade through the page colour
   const crossedCut = prev >= 0 && (segs[Math.min(i, prev)].join === 'cut')
