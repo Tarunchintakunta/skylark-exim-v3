@@ -29,7 +29,7 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
             key={i}
             data-seg={i}
             className={m.kind === 'dom' ? 'stage__layer stage__dom' : 'stage__layer'}
-            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them after the first scroll
+            // the source is set by scrub.ts once AVIF support is known: every poster under the intro (#preload), else lazily
             src={undefined}
             alt=""
             decoding="async"

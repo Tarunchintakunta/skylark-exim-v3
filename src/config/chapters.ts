@@ -69,12 +69,6 @@ export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'h
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
-const start: ChapterDef = {
-  id: 'start', path: 'shared', label: 'Start', vh: 120, joinNext: 'crossfade',
-  media: [{ kind: 'video', id: 'opening', alt: 'Dawn at sea off the Andhra coast: the camera glides at water level toward a fishing town under green hills.' }],
-  captions: [],
-}
-
 const OCEAN_ONLY: ChapterDef[] = [
   {
     id: 'o1', path: 'ocean', label: 'Setting out', vh: 200, joinNext: 'crossfade',
@@ -225,13 +219,17 @@ const ENDING: ChapterDef[] = [
 
 const sharedFor = (path: 'ocean' | 'pond') => [...(path === 'pond' ? PLANT_POND : PLANT_OCEAN), ...ENDING]
 
-/** Two separate stories (#219): each origin, then its own plant, then the shared ending. No chapter of one path renders on the other. */
-export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...sharedFor('ocean')]
-export const POND: ChapterDef[] = [start, ...POND_ONLY, ...sharedFor('pond')]
+/**
+ * Two separate stories (#219): each origin, then its own plant, then the shared ending. No chapter of one path renders on
+ * the other. The city view is the homepage's hero only: /story opens straight on o1 / p1 at y = 0, so nothing sits above
+ * the story to scroll back up to.
+ */
+export const OCEAN: ChapterDef[] = [...OCEAN_ONLY, ...sharedFor('ocean')]
+export const POND: ChapterDef[] = [...POND_ONLY, ...sharedFor('pond')]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)
 
-/** First clip after the shared start chapter on a path (o1 / p1): what /story's loader waits for, and what the homepage prefetches. */
+/** A path's first clip (o1 / p1): what /story's loader waits for, and what the homepage prefetches. */
 export function firstClip(path: 'ocean' | 'pond') {
-  const m = chaptersFor(path).slice(1).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
+  const m = chaptersFor(path).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
   return m?.kind === 'video' ? m : null
 }

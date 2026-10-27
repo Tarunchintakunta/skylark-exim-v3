@@ -9,18 +9,19 @@ const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url),
 
 /**
  * #207 LCP: the hero headline and body as static HTML, painted before any JS and above the loader (occluded text does
- * not count for LCP). Markup mirrors src/ui/Hero.tsx and comes from the same content.ts, so the copy never drifts.
+ * not count for LCP). Homepage only (/story opens on its first chapter, no hero). Markup mirrors src/home/HomeHero.tsx
+ * and comes from the same content.ts, so the copy never drifts.
  * Where the copy would meet the loader mark, an inline script drops it under the loader (see below).
  * The loader removes #hero-static when it finishes; React's hero sits at the same fixed position, so nothing shifts.
  */
 export function staticHero(): Plugin {
   const lead = start.title.replace(/ world\.$/, '')
-  // the homepage's fork links over to /story (no aria-current: no path is chosen there); the film's fork stays in-page
-  const html = (story: boolean) => `<div class="hero hero--static" id="hero-static"><div class="hero__copy">
+  // the fork links over to /story (no aria-current: no path is chosen here)
+  const html = () => `<div class="hero hero--static" id="hero-static"><div class="hero__copy">
 <h1 class="hero__title">${esc(lead)} <em>world</em>.</h1>
 <p class="hero__body">${esc(start.body)}</p>
 <div class="hero__exports"><h2 class="hero__exports-title mono">${esc(exportsLine.title)}</h2><ul>${exportsLine.items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>
-<a class="hero__contact" href="/quote">Contact us</a><div class="hero__fork" role="group" aria-label="${esc(start.choose)}"><span class="hero__fork-label mono">${esc(start.choose)}</span><a class="hero__fork-btn" href="${story ? '' : '/story'}#ocean" data-path="ocean"${story ? ' aria-current="true"' : ''}>${esc(start.ocean.sub)}</a><a class="hero__fork-btn" href="${story ? '' : '/story'}#pond" data-path="pond">${esc(start.pond.sub)}</a></div>
+<a class="hero__contact" href="/quote">Contact us</a><div class="hero__fork" role="group" aria-label="${esc(start.choose)}"><span class="hero__fork-label mono">${esc(start.choose)}</span><a class="hero__fork-btn" href="/story#ocean" data-path="ocean">${esc(start.ocean.sub)}</a><a class="hero__fork-btn" href="/story#pond" data-path="pond">${esc(start.pond.sub)}</a></div>
 </div></div>`
   // after the loader markup (end of body), once the web fonts have set the copy (fallback metrics differ): is there
   // room above the copy for the mark? Only z-index changes, so the check can never shift the layout
@@ -66,10 +67,10 @@ export function staticHero(): Plugin {
     // 'pre': before Vite's own HTML pass, which strips CSS comments (and with them the placeholder)
     transformIndexHtml: {
       order: 'pre',
-      handler: (src, ctx) =>
+      handler: (src) =>
         src
           .replace('/*static-hero-css*/', css('styles/tokens.css') + base + css('ui/hero.css'))
-          .replace('<!--static-hero-->', html(ctx.path.startsWith('/story')))
+          .replace('<!--static-hero-->', html())
           .replace('<!--hero-preload-->', preload())
           .replace('</body>', `${fit}\n  </body>`),
     },
