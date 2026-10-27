@@ -20,8 +20,8 @@
     <!-- hero loop poster (#197, #hd): AVIF preloads matching the hero <picture> (scripts/static-hero.ts) -->
     <!--hero-preload-->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <!-- intro variant before first paint (#218): seen this session → no loader; #ocean / #pond → the short intro -->
-    <script>try{var c=document.documentElement.classList;if(sessionStorage.getItem('skylark-intro'))c.add('intro-skip');else if(/^#(ocean|pond)$/.test(location.hash))c.add('intro-short')}catch(e){}</script>
+    <!-- intro variant before first paint (#218): #ocean / #pond → the short intro. /story always shows it: it holds until the path is in memory (#preload), which on a return visit is the HTTP cache's few hundred ms -->
+    <script>try{if(/^#(ocean|pond)$/.test(location.hash))document.documentElement.classList.add('intro-short')}catch(e){}</script>
     <style>
       /* critical: the loader and the hero copy paint before any JS. The mark sits in the header band above the copy (#219: it
          clears the copy on short laptops too), and the copy stays on top of the loader (#207): Chrome ignores occluded text for LCP, so hidden copy would wait for the reveal. */
@@ -32,6 +32,9 @@
       .loader__name{margin:0;font:400 1.375rem/1.2 "Instrument Serif",serif;letter-spacing:.02em;color:#f6f2ea;animation:name-in .45s cubic-bezier(.22,1,.36,1) backwards}
       .loader__line{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(246,242,234,.12);overflow:hidden}
       .loader__line::after{content:"";display:block;height:100%;background:#e08a5f;transform-origin:left;animation:line-fill .6s cubic-bezier(.65,0,.35,1) .1s backwards}
+      /* gated (#preload, Loader.tsx): the hairline and a percentage follow the bytes of the path in memory */
+      .loader__pct{position:absolute;right:16px;bottom:10px;font:500 .75rem/1 "Inter Tight",sans-serif;letter-spacing:.08em;font-variant-numeric:tabular-nums;color:rgba(246,242,234,.72)}
+      .loader.is-gated .loader__line::after{animation:none;transform:scaleX(var(--p,0));transition:transform .25s ease-out}
       @keyframes name-in{from{opacity:0;transform:translateY(6px)}}
       @keyframes line-fill{from{transform:scaleX(0)}}
       @keyframes loader-thin{from{background-color:#071f26}to{background-color:rgba(7,31,38,.84)}}
@@ -47,6 +50,7 @@
     <div id="boot" class="loader" aria-hidden="true">
       <p class="loader__name">Skylark Exim</p>
       <span class="loader__line"></span>
+      <span class="loader__pct"></span>
     </div>
     <script type="module" src="/src/story-main.tsx"></script>
   </body>
