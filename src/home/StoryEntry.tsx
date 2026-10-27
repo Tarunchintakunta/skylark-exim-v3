@@ -353,6 +353,7 @@ export function StoryEntry() {
   return (
     <section id="story-entry" className={`se${open ? ' is-open' : ''}`} aria-labelledby="se-title">
       <h2 id="se-title" className="sr-only">Choose a story</h2>
+      <p className="se-hint mono">Click a card to preview · Click Begin Journey to enter full story · Or scroll to explore</p>
       <ul className="se-grid" ref={cards}>
         {ENTRY_CARDS.map((c) => (
           <li key={c.id} className={`se-cell se-cell--${c.id}`}>

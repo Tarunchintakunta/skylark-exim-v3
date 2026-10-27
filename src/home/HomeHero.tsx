@@ -97,6 +97,9 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
             ))}
           </div>
         </div>
+        <span className="hero__cue mono" aria-hidden="true">
+          {start.cue}
+        </span>
       </div>
     </section>
   )

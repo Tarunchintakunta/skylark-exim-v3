@@ -37,14 +37,18 @@
 .brand__mark svg { width: 100%; height: 100%; }
 .topbar.is-light .brand__mark { color: var(--brass-ink); }
 .brand__word { font-size: 0.9375rem; letter-spacing: 0.01em; }
-.path-toggle { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; font-size: 0.9375rem; opacity: 0.86; white-space: nowrap; }
+.path-toggle { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; font-size: 0.9375rem; opacity: 0.92; white-space: nowrap; }
 /* the seven-link nav meets the centred toggle on /story: from 1400 px the toggle joins the row too, between brand and nav */
 @media (min-width: 1400px) {
   .path-toggle { position: static; transform: none; margin: 0 auto; }
   .topbar:has(.path-toggle) .nav { margin-left: 0; }
 }
-.path-toggle a { color: inherit; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 5px; transition: text-decoration-color 0.3s; }
-.path-toggle a[aria-current='true'], .path-toggle a:hover { text-decoration-color: currentColor; }
+/* pill toggle: both paths read as buttons, the current one filled */
+.path-toggle a { display: inline-block; padding: 0.3rem 0.85rem; border: 1px solid currentColor; border-radius: 999px; color: inherit; text-decoration: none; transition: background-color 0.3s, color 0.3s; }
+.path-toggle a:hover, .path-toggle a:focus-visible { background: rgba(246, 242, 234, 0.16); }
+.path-toggle a[aria-current='true'] { background: var(--ice); border-color: var(--ice); color: var(--ink); }
+.topbar.is-light .path-toggle a:hover { background: rgba(16, 22, 26, 0.08); }
+.topbar.is-light .path-toggle a[aria-current='true'] { background: var(--ink); border-color: var(--ink); color: var(--ice); }
 .topbar { gap: clamp(16px, 2.4vw, 32px); }
 .nav { margin-left: auto; }
 .nav > ul { display: flex; gap: clamp(14px, 1.8vw, 28px); }

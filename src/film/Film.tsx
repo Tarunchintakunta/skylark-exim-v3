@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type CSSProperties } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { ChapterCopy } from './ChapterCopy'
 import { setChapters } from './controller'
+import { StoryCue } from './StoryCue'
 import './film.css'
 
 /** Chapters are spacer sections; the visuals live on one fixed stage. */
@@ -27,6 +28,7 @@ export function Film({ chapters }: { chapters: ChapterDef[] }) {
           <ChapterCopy chapter={ch} />
         </section>
       ))}
+      <StoryCue />
     </div>
   )
 }

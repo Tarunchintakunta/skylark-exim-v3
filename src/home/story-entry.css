@@ -58,9 +58,11 @@
 /* 0.88 white on the deep card: well over 4.5:1 */
 .se-markets { max-width: 34ch; color: rgba(246, 242, 234, 0.88); font-size: clamp(0.8125rem, 0.45vw + 0.5rem, 1.0625rem); }
 .se-card--dark .se-title { max-width: 12ch; }
-.se-cta { color: var(--brass); font-weight: 500; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 5px; transition: text-decoration-color 0.3s; }
+/* a pill, so the cards read as clickable at a glance */
+.se-cta { display: inline-flex; align-items: center; gap: 0.4em; padding: 0.55rem 1.1rem; border: 1px solid var(--brass); border-radius: 999px; background: rgba(7, 31, 38, 0.45); color: var(--brass); font-weight: 500; text-decoration: none; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); transition: background-color 0.3s, color 0.3s; }
 .se-cta span { display: inline-block; transition: translate 0.4s var(--ease-out); }
-.se-card:hover .se-cta, .se-cta--link:focus-visible { text-decoration-color: currentColor; }
+.se-card:hover .se-cta, .se-hit:focus-visible .se-cta, .se-cta--link:is(:hover, :focus-visible) { background: var(--brass); color: #10161a; }
+.se-hint { margin: 0 0 clamp(12px, 1.25vw, 24px); color: rgba(246, 242, 234, 0.8); font-size: 0.8125rem; letter-spacing: 0.04em; }
 .se-card:hover .se-cta span { translate: 4px 0; }
 .se-cta--link { position: absolute; top: var(--se-pad); right: var(--se-pad); z-index: 1; }
 .se-card.is-open :is(.se-hit, .se-cta--link) { visibility: hidden; }
