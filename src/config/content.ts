@@ -28,6 +28,8 @@ export const start = {
   skip: 'Skip the story',
   /** hero fork and end-of-path link (#219) */
   choose: 'Choose the story',
+  /** homepage hero scroll cue */
+  cue: 'Scroll to explore',
   other: 'See the other story',
   cta: 'Request export quote',
 }
