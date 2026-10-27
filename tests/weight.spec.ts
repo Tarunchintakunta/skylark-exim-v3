@@ -3,6 +3,8 @@ import { statSync, readdirSync } from 'node:fs'
 import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 
 // TRD §13 / ASSETS_SPEC budgets (#264). Transferred bytes from CDP, initial (the page ready) and after a full scroll.
+// Initial is the page itself: the story's clips and frames (/story's up-front load and the homepage's background warm
+// of the story, #preload) are counted in the full budget only.
 // /story per path, counted once the warm cache is through and the scroll has reached the end. Per tier, because a
 // device downloads one tier: every desktop tier 60 MB (#hd2: 2560 clips from the HD masters, streamed by chapter on
 // desktop, was 40 MB retina and 28 MB at 1920), a phone 12 MB. The homepage carries the hero's frame set, so it has
@@ -11,6 +13,8 @@ const BUDGET = { desktop: { initial: 2.5e6, full: 60e6 }, mobile: { initial: 1.5
 const RETINA_FULL = 60e6
 const HOME_FULL = 8e6
 const MB = (b: number) => +(b / 1e6).toFixed(2)
+/** the story's clips and frame sequences */
+const STORY_MEDIA = /^\/media\/.+(\.mp4|-f_(1920|2560)_\d+\.(avif|webp))$/
 
 /**
  * Per-file caps for everything under public/ (KB). First match wins; an unknown file type fails, so new
@@ -78,9 +82,13 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
       // Playwright's own request events, not CDP's: the hero's frames are fetched inside a Web Worker, which is a
       // separate CDP target and so never shows up in the page's Network events (#264)
       let bytes = 0
+      let film = 0
       page.on('requestfinished', async (r) => {
         const s = await r.sizes().catch(() => null)
-        if (s) bytes += s.responseBodySize + s.responseHeadersSize
+        if (!s) return
+        const b = s.responseBodySize + s.responseHeadersSize
+        if (STORY_MEDIA.test(new URL(r.url()).pathname)) film += b
+        else bytes += b
       })
       await page.goto(path === 'home' ? '/' : `/story#${path}`)
       await page.waitForFunction(() => document.documentElement.dataset.ready === '1', null, { timeout: 30_000 })
@@ -94,9 +102,10 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
         await page.waitForTimeout(1500)
       }
       await scrollThrough(page, p.mobile, 900)
-      const full = bytes
+      // the homepage's own weight; the story it warms in the background is /story's budget
+      const full = path === 'home' ? bytes : bytes + film
       await ctx.close()
-      console.log(profile, path, `initial ${MB(initial)} MB · full scroll ${MB(full)} MB`)
+      console.log(profile, path, `initial ${MB(initial)} MB · full scroll ${MB(full)} MB · story clips and frames ${MB(film)} MB`)
       expect(initial).toBeLessThanOrEqual(BUDGET[profile].initial)
       expect(full).toBeLessThanOrEqual(path === 'home' ? HOME_FULL : BUDGET[profile].full)
     })
