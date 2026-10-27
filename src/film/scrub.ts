@@ -101,8 +101,10 @@ const seqFor = (id: string) => {
   if (!s) seqs.set(id, (s = new Sequence({ id: `stage-${id}`, frames: seqFrames(id), url: (i) => seqUrl(id, i), lru: SEQ_LRU })))
   return s
 }
-/** start fetching a sequence clip's frames (the warm cache calls this for the clips in its window) */
+/** start fetching a sequence clip's frames (the warm cache calls this for every set of the path, at mount) */
 export const prefetchSeq = (id: string) => void seqFor(id)?.prefetch()
+/** 0..1 of a sequence clip's frames in the worker */
+export const seqProgress = (id: string) => seqs.get(id)?.progress ?? 0
 /** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
 let scrolled = false
 /**
@@ -111,8 +113,6 @@ let scrolled = false
  */
 let primed = false
 let stopTick: (() => void) | null = null
-/** the clip on screen after the reveal can play through: the warm cache (#251) waits for this before it takes bandwidth */
-let settled = false
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
   stage = el
@@ -209,18 +209,6 @@ const videoId = (i: number) => {
   const m = segs[i]?.media
   return m?.kind === 'video' ? m.id : null
 }
-
-/** A decoder holds `id` from the network, completely buffered: the warm cache fetches its Blob last (#264). */
-export function fullyLoaded(id: string) {
-  return slots.some((s) => {
-    const v = s.v
-    if (s.id !== id || s.blob || !Number.isFinite(v.duration) || v.buffered.length !== 1) return false
-    return v.buffered.start(0) <= EPS && v.buffered.end(0) >= v.duration - EPS
-  })
-}
-
-/** A decoder is downloading `id` from the network right now: the warm cache leaves it alone until it's done. */
-export const downloading = (id: string) => slots.some((s) => s.id === id && !s.blob && s.v.networkState === s.v.NETWORK_LOADING)
 
 /** The next `n` distinct clips after segment i, in this chapter and the next only (skipping stills/globe). */
 function clipsFrom(i: number, n: number) {
@@ -324,7 +312,8 @@ function tick() {
       probe.target = sq.index(p) / 24
     }
   }
-  if (scrolled || seqNow) for (const id of near) if (isSeq(id)) prefetchSeq(id)
+  // a set coming up has its first frames decoded already (its bytes are in memory), so the cut onto it draws at once
+  if (scrolled || seqNow) for (const id of near) if (isSeq(id)) (prefetchSeq(id), id !== clip && seqFor(id)?.pump(0))
   for (const [id, sq] of seqs) if (id !== clip && !near.includes(id)) sq.release()
   const on = drawn >= 0
   if (seqCanvas && on !== seqOn) seqCanvas.style.opacity = (seqOn = on) ? '1' : '0'
@@ -332,10 +321,6 @@ function tick() {
   // a decoder still on its network source moves to the warm cache's blob once that clip is cached: right away when it's
   // off screen, or while the hero still fully covers the start chapter, never under a clip the visitor is watching
   for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && (s !== shown || (frame.index === 0 && frame.local < 0.05))) load(s, s.id)
-  if (!settled && active?.ready && store.getState().revealed) {
-    settled = true
-    dispatchEvent(new Event('scrub:settled'))
-  }
   probe.id = clip
   probe.chapter = seg.chapter
   probe.shown = seqNow ? on : shown !== null && shown === active
