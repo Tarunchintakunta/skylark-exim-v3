@@ -19,8 +19,10 @@ import { cachedUrl, enabled } from './warmcache'
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held for HOLD ms, so the
  *   last presented frame stays up instead of stalling or flashing back to the poster; after that the picture follows the
  *   buffered frame nearest the target, so it keeps moving with the page as the download arrives.
- * - `fastSeek()` while the scroll is fast,
- *   exact `currentTime` once it settles. Frames count as presented from `requestVideoFrameCallback`.
+ * - `fastSeek()` only while the scroll is fast and that time is not yet in memory (no warm-cache blob,
+ *   not canplaythrough, and not inside `buffered`). Otherwise exact `currentTime`, so a preloaded clip
+ *   scrubs the real 24 fps frame instead of stepping to keyframes. Frames count as presented from
+ *   `requestVideoFrameCallback`.
  */
 interface Slot {
   v: HTMLVideoElement
@@ -44,7 +46,7 @@ const FRAME = 1 / 24
 const EPS = 1 / 48
 /** ms a target outside `buffered` is held before the picture moves to the nearest buffered frame */
 const HOLD = 250
-/** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
+/** px per tick above which an unbuffered seek may use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
 const light = env.mobile || env.saveData || env.slow
 /** decoders on the stage (ScrubStage renders this many <video>s) */
@@ -378,7 +380,8 @@ function seek(s: Slot, p: number, vel: number, t0 = 0) {
     return
   }
   if (Math.abs(v.currentTime - t) <= EPS) return
-  if (vel > FAST && v.fastSeek) v.fastSeek(t)
+  // a clip already in the warm cache, or buffered through this time, can land on the exact frame
+  if (vel > FAST && v.fastSeek && !s.blob && !s.ready && !buffered(v, t)) v.fastSeek(t)
   else v.currentTime = t
 }
 

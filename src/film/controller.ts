@@ -28,6 +28,15 @@ export function setChapters(list: ChapterDef[], elements: HTMLElement[]) {
   measure()
   bindCaptions(els, list)
   frame.index = -1
+  // frame 0, before the first scroll tick: the opening caption is on screen as the page lands
+  if (list[0]) updateCaptions(list[0], 0, 0)
+  if (!env.reduced) {
+    // bindCaptions queues the line split on fonts.ready first; this runs after it and replays the entrance
+    document.fonts.ready.then(() => {
+      if (frame.scroll > 1 || frame.index > 0 || !list[0]) return
+      updateCaptions(list[0], 0, 0, true)
+    })
+  }
 }
 
 export function measure() {

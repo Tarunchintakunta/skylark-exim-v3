@@ -26,5 +26,48 @@
 /* the world chapter's scroll spacer lets pointers through to the globe under it (its copy re-enables its own) */
 .chapter[data-chapter="world"] { pointer-events: none; }
 
+/* floating cue: under the captions (their bottom edge sits higher), never a blur, never stealing the globe */
+.stage__cue {
+  position: absolute; left: 50%; bottom: 18px; z-index: 6; transform: translateX(-50%);
+  margin: 0; max-width: min(92vw, 40rem); pointer-events: none; text-align: center;
+  color: rgba(246, 242, 234, 0.94); opacity: 0; visibility: hidden;
+}
+.stage__cue[data-cue='explore'],
+.stage__cue[data-cue='continue'],
+.stage__cue[data-cue='world'] { opacity: 1; visibility: visible; }
+.stage__cue-pill {
+  display: inline-block; padding: 8px 16px; border: 1px solid rgba(246, 242, 234, 0.28); border-radius: 999px;
+  background: rgba(7, 31, 38, 0.86); color: rgba(246, 242, 234, 0.94);
+  font-size: 0.8125rem; letter-spacing: 0.02em; line-height: 1.35;
+}
+.stage__cue span[data-for] { display: none; }
+.stage__cue[data-cue='explore'] [data-for='explore'],
+.stage__cue[data-cue='continue'] [data-for='continue'],
+.stage__cue[data-cue='world'] [data-for='world'] { display: inline; }
+.stage__cue[data-cue='world'] .stage__cue-pill { border-radius: 16px; max-width: 34rem; }
+.stage.is-light .stage__cue { color: var(--ink); }
+.stage.is-light .stage__cue-pill {
+  color: var(--ink); background: rgba(244, 239, 230, 0.94); border-color: rgba(7, 31, 38, 0.16);
+}
+@media (max-width: 767px) {
+  .stage__cue { bottom: 14px; }
+  .stage__cue[data-cue='explore']::after,
+  .stage__cue[data-cue='continue']::after { display: none; }
+}
+.stage__cue[data-cue='explore']::after,
+.stage__cue[data-cue='continue']::after {
+  content: ''; display: block; width: 1px; height: 22px; margin: 8px auto 0; background: currentColor;
+  transform-origin: top; animation: stage-cue 2.4s var(--ease-io) infinite;
+}
+@keyframes stage-cue {
+  0% { transform: scaleY(0); }
+  50% { transform: scaleY(1); transform-origin: top; }
+  51% { transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage__cue::after { animation: none; }
+}
+
 /* documentation desk (#196): a real, lightly blurred photo; on narrow screens the copy spans the whole width, so the photo dims to keep AA */
 @media (max-width: 819px) { .stage__dom { filter: brightness(0.45); } }

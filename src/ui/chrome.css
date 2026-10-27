@@ -13,15 +13,15 @@
   transition: opacity 0.4s;
 }
 .topbar.is-light { color: var(--ink); }
-/* past 40 px (#238): a blurred panel fades in behind the bar and shrinks it 68 → 56 px, and the items move up into it.
+/* past 40 px (#238): a solid panel fades in behind the bar and shrinks it 68 → 56 px, and the items move up into it.
    Transform and opacity only (scaleY on the panel, `translate` on the items, which composes with their own transforms). */
 .topbar::after {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; transform-origin: top;
-  background: rgba(7, 31, 38, 0.62); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+  background: rgba(7, 31, 38, 0.88);
   border-bottom: 1px solid var(--hairline); opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
-.topbar.is-light::after { background: rgba(244, 239, 230, 0.78); border-bottom-color: var(--hairline-ink); }
+.topbar.is-light::after { background: rgba(244, 239, 230, 0.92); border-bottom-color: var(--hairline-ink); }
 .topbar.is-scrolled::after { opacity: 1; transform: scaleY(0.8235); }
 .topbar.is-scrolled::before { opacity: 0; }
 .brand, .path-toggle, .menu-btn, .nav, .quote-cta { transition: translate var(--dur-fast) var(--ease-out); }
@@ -37,18 +37,28 @@
 .brand__mark svg { width: 100%; height: 100%; }
 .topbar.is-light .brand__mark { color: var(--brass-ink); }
 .brand__word { font-size: 0.9375rem; letter-spacing: 0.01em; }
-.path-toggle { position: absolute; left: 50%; transform: translateX(-50%); margin: 0; font-size: 0.9375rem; opacity: 0.92; white-space: nowrap; }
+.path-toggle {
+  position: absolute; left: 50%; transform: translateX(-50%); margin: 0;
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  border: 1px solid rgba(246, 242, 234, 0.22); border-radius: 999px;
+  background: rgba(7, 31, 38, 0.45); font-size: 0.9375rem; white-space: nowrap;
+}
 /* the seven-link nav meets the centred toggle on /story: from 1400 px the toggle joins the row too, between brand and nav */
 @media (min-width: 1400px) {
   .path-toggle { position: static; transform: none; margin: 0 auto; }
   .topbar:has(.path-toggle) .nav { margin-left: 0; }
 }
-/* pill toggle: both paths read as buttons, the current one filled */
-.path-toggle a { display: inline-block; padding: 0.3rem 0.85rem; border: 1px solid currentColor; border-radius: 999px; color: inherit; text-decoration: none; transition: background-color 0.3s, color 0.3s; }
-.path-toggle a:hover, .path-toggle a:focus-visible { background: rgba(246, 242, 234, 0.16); }
-.path-toggle a[aria-current='true'] { background: var(--ice); border-color: var(--ice); color: var(--ink); }
-.topbar.is-light .path-toggle a:hover { background: rgba(16, 22, 26, 0.08); }
-.topbar.is-light .path-toggle a[aria-current='true'] { background: var(--ink); border-color: var(--ink); color: var(--ice); }
+.path-toggle > span { display: inline-flex; align-items: center; }
+.path-toggle span[aria-hidden] { display: none; }
+.path-toggle a {
+  display: inline-block; padding: 5px 12px; border-radius: 999px; color: inherit;
+  text-decoration: none; transition: background-color 0.3s var(--ease-out);
+}
+.path-toggle a:hover { background: rgba(246, 242, 234, 0.1); }
+.path-toggle a[aria-current='true'] { background: rgba(246, 242, 234, 0.16); }
+.topbar.is-light .path-toggle { border-color: rgba(7, 31, 38, 0.16); background: rgba(244, 239, 230, 0.72); color: var(--ink); }
+.topbar.is-light .path-toggle a:hover { background: rgba(7, 31, 38, 0.06); }
+.topbar.is-light .path-toggle a[aria-current='true'] { background: rgba(7, 31, 38, 0.12); color: var(--ink); }
 .topbar { gap: clamp(16px, 2.4vw, 32px); }
 .nav { margin-left: auto; }
 .nav > ul { display: flex; gap: clamp(14px, 1.8vw, 28px); }
@@ -123,7 +133,8 @@
 .topbar.is-light .quote-cta:hover { color: var(--brass-ink); }
 .topbar.has-cta .quote-cta { max-width: 16rem; opacity: 1; visibility: visible; }
 @media (max-width: 899px) {
-  .path-toggle { font-size: 0.875rem; }
+  .path-toggle { font-size: 0.8125rem; }
+  .path-toggle a { padding: 4px 8px; }
   .quote-cta { position: fixed; inset: auto 0 0 0; max-width: none; padding: 18px; text-align: center; background: var(--brass); color: var(--ink); }
   .topbar.has-cta .quote-cta { max-width: none; opacity: 0; visibility: hidden; }
   .topbar.has-bar .quote-cta { opacity: 1; visibility: visible; }

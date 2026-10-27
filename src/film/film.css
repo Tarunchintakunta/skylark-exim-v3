@@ -43,23 +43,3 @@
   .caption--markets .caption__eyebrow { margin-bottom: 0.6rem; }
   .caption--markets .caption__title { font-size: clamp(2.25rem, 10vw, 2.75rem); }
 }
-
-/* "Scroll to explore" cue (StoryCue.tsx): a pill bottom-right over the scrim, centred and compact on phones */
-.story-cue {
-  position: fixed; right: var(--gutter); bottom: clamp(24px, 4vh, 48px); z-index: var(--z-copy);
-  display: flex; align-items: center; gap: 0.5em; margin: 0; padding: 0.55rem 1rem;
-  /* no backdrop blur: it would re-composite over the playing clip every frame */
-  border: 1px solid rgba(246, 242, 234, 0.4); border-radius: 999px; background: rgba(7, 31, 38, 0.72);
-  color: var(--ice); font-size: 0.8125rem; letter-spacing: 0.04em; white-space: nowrap;
-  opacity: 0; translate: 0 8px; pointer-events: none; transition: opacity 0.4s, translate 0.4s var(--ease-out);
-}
-.story-cue.is-on { opacity: 0.85; translate: 0 0; }
-.story-cue.is-top { opacity: 1; padding: 0.7rem 1.25rem; font-size: 0.9375rem; background: var(--ice); border-color: var(--ice); color: var(--ink); }
-.story-cue.is-light { background: rgba(246, 242, 234, 0.85); border-color: rgba(16, 22, 26, 0.25); color: var(--ink); }
-.story-cue__arrow { display: inline-block; animation: story-cue 1.6s var(--ease-io) infinite; }
-@keyframes story-cue { 0%, 100% { translate: 0 -2px; } 50% { translate: 0 3px; } }
-@media (max-width: 720px) {
-  .story-cue { right: 50%; transform: translateX(50%); bottom: 14px; padding: 0.4rem 0.85rem; font-size: 0.75rem; max-width: calc(100vw - 2 * var(--gutter)); white-space: normal; text-align: center; }
-  .story-cue.is-top { padding: 0.5rem 1rem; font-size: 0.8125rem; }
-}
-@media (prefers-reduced-motion: reduce) { .story-cue, .story-cue__arrow { transition: none; animation: none; } }

@@ -11,6 +11,9 @@
 .hero__title { font-size: min(var(--fs-hero), calc((100vw - 2 * var(--gutter)) / 5.6)); line-height: 0.92; letter-spacing: -0.01em; max-width: 100%; text-wrap: balance; hyphens: manual; overflow-wrap: normal; }
 .hero__title em { font-style: italic; }
 .hero__word { display: inline-block; }
+.hero { --hero-beat: 0; }
+/* parallax only — the 1.4rem gap stays on the body so the static hero and React share one title box */
+.hero__rest { transform: translate3d(0, calc(var(--hero-beat) * 18px), 0); }
 .hero__body { margin-top: 1.4rem; max-width: 36ch; font-size: clamp(1.125rem, 1.35vw, 1.5rem); line-height: 1.45; color: rgba(246, 242, 234, 0.88); }
 .hero__exports { margin-top: 1.2rem; }
 .hero__exports-title { font-size: 0.8125rem; font-weight: 400; letter-spacing: 0.04em; color: rgba(246, 242, 234, 0.8); }
@@ -22,13 +25,23 @@
 .hero__fork-btn { padding: 0.5rem 1.1rem; border: 1px solid rgba(246, 242, 234, 0.55); border-radius: 999px; color: var(--ice); text-decoration: none; line-height: 1.3; }
 .hero__fork-btn:hover { border-color: var(--ice); }
 .hero__fork-btn[aria-current] { background: var(--ice); border-color: var(--ice); color: var(--ink); }
-.hero__cue { z-index: 1; position: absolute; right: var(--gutter); bottom: clamp(56px, 11vh, 128px); font-size: 0.8125rem; letter-spacing: 0.04em; color: rgba(246, 242, 234, 0.8); }
+.hero__cue {
+  position: absolute; right: var(--gutter); bottom: clamp(56px, 11vh, 128px); z-index: 2;
+  margin: 0; font-size: 0.8125rem; letter-spacing: 0.04em; color: rgba(246, 242, 234, 0.92);
+  pointer-events: none; opacity: clamp(0, calc(1 - var(--hero-beat) * 3.2), 1);
+}
 .hero__cue::after { content: ''; display: block; width: 1px; height: 48px; margin: 10px auto 0; background: currentColor; transform-origin: top; animation: cue 2.4s var(--ease-io) infinite; }
 @keyframes cue { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
 @media (max-width: 720px) {
-  /* phones: a compact pill centred under the copy instead of the right-hand line */
-  .hero__cue { right: 50%; bottom: 14px; translate: 50% 0; display: flex; align-items: center; gap: 0.5em; padding: 0.4rem 0.9rem; border: 1px solid rgba(246, 242, 234, 0.4); border-radius: 999px; background: rgba(7, 31, 38, 0.55); font-size: 0.75rem; white-space: nowrap; }
-  .hero__cue::after { width: 1px; height: 12px; margin: 0; }
   .hero__fork-label { width: 100%; }
+  .hero__cue {
+    left: 50%; right: auto; bottom: 14px; transform: translateX(-50%);
+    display: inline-flex; align-items: center; padding: 6px 12px; white-space: nowrap;
+    border: 1px solid rgba(246, 242, 234, 0.4); border-radius: 999px; background: rgba(7, 31, 38, 0.82);
+  }
+  .hero__cue::after { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .hero__cue::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .hero__rest { transform: none; }
+  .hero__cue::after { animation: none; }
+}
