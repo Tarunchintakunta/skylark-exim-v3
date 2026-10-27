@@ -1,7 +1,8 @@
 import { useEffect, useRef, type RefObject } from 'react'
 import { exportsLine, start } from '../config/content'
 import { env } from '../engine/env'
-import { useApp } from '../engine/store'
+import { frame, useApp } from '../engine/store'
+import { onTick } from '../engine/ticker'
 import { HERO_POSTER, W, clipFile, mediaUrl } from '../film/segments'
 import '../ui/hero.css'
 
@@ -49,6 +50,17 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
     return () => io.disconnect()
   }, [sectionRef])
 
+  // two beats inside the same 100svh frame: the headline holds, the details drift as the next section rises
+  useEffect(() => {
+    const el = root.current
+    if (!el || env.reduced) return
+    return onTick(() => {
+      const h = sectionRef.current?.offsetHeight || innerHeight
+      const beat = Math.min(1, Math.max(0, frame.scroll / (h * 0.72)))
+      el.style.setProperty('--hero-beat', beat.toFixed(4))
+    })
+  }, [sectionRef])
+
   return (
     <section ref={sectionRef} className="home-hero">
       <div className="hero" ref={root}>
@@ -76,27 +88,32 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
           <h1 className="hero__title">
             {lead} <em>world</em>.
           </h1>
-          <p className="hero__body">{start.body}</p>
-          <div className="hero__exports">
-            <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
-            <ul>
-              {exportsLine.items.map((t) => (
-                <li key={t}>{t}</li>
+          <div className="hero__rest">
+            <p className="hero__body">{start.body}</p>
+            <div className="hero__exports">
+              <h2 className="hero__exports-title mono">{exportsLine.title}</h2>
+              <ul>
+                {exportsLine.items.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </div>
+            <a className="hero__contact" href="/quote">
+              Contact us
+            </a>
+            <div className="hero__fork" role="group" aria-label={start.choose}>
+              <span className="hero__fork-label mono">{start.choose}</span>
+              {PATHS.map((p) => (
+                <a key={p} className="hero__fork-btn" href={`/story#${p}`} data-path={p}>
+                  {start[p].sub}
+                </a>
               ))}
-            </ul>
-          </div>
-          <a className="hero__contact" href="/quote">
-            Contact us
-          </a>
-          <div className="hero__fork" role="group" aria-label={start.choose}>
-            <span className="hero__fork-label mono">{start.choose}</span>
-            {PATHS.map((p) => (
-              <a key={p} className="hero__fork-btn" href={`/story#${p}`} data-path={p}>
-                {start[p].sub}
-              </a>
-            ))}
+            </div>
           </div>
         </div>
+        <p className="hero__cue">
+          Scroll to explore <span aria-hidden="true">↓</span>
+        </p>
       </div>
     </section>
   )
