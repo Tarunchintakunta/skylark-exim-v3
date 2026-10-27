@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
 /**
- * The film only moves forward (final audit): scrolling down plays it, scrolling up never plays a clip backwards, never
- * shows a later chapter than the one the page is on, and the top of /story is the opening's first frame, still.
+ * The film only moves forward (final audit, story flow lock): scrolling down plays it, scrolling up never plays a clip
+ * backwards and never takes the stage back to an earlier chapter, and the top of /story is the path's first clip (o1 /
+ * p1) on its first frame, still, at y = 0: there is no city view above it to scroll back up to.
  * Desktop 1440×900 (Lenis wheel) and phone 390×844 (touch emulation, native scroll), both paths.
  */
 const VIEWS = {
@@ -59,44 +60,49 @@ async function wheel(page: Page, dy: number, steps: number, gap: number) {
   await page.waitForTimeout(300)
 }
 
-/** no clip ever runs backwards while the page scrolls up, and the stage never shows a chapter below the page's own */
+/** no clip ever runs backwards while the page scrolls up, and the stage never goes back to an earlier chapter */
 async function checkUpward(page: Page) {
-  const tops = await chapterOfY(page)
   const s = (await page.evaluate(() => (window as unknown as { __fwd: Sample[] }).__fwd)) as Sample[]
-  const chapterAt = (y: number) => tops.reduce((a, top, i) => (y >= top ? i : a), 0)
   let backwards = 0
-  let later = 0
+  let earlier = 0
   for (let k = 1; k < s.length; k++) {
     const [a, b] = [s[k - 1], s[k]]
-    if (b.chapter > chapterAt(b.y)) later++
+    if (a.chapter >= 0 && b.chapter >= 0 && b.chapter < a.chapter) earlier++
     if (b.dir >= 0 || a.id !== b.id) continue
     if (a.t >= 0 && b.t >= 0 && b.t < a.t - 1 / 48) backwards++
     if (a.frame >= 0 && b.frame >= 0 && b.frame < a.frame) backwards++
   }
-  return { backwards, later, samples: s.length }
+  return { backwards, earlier, samples: s.length }
 }
 
 for (const [name, view] of Object.entries(VIEWS)) {
   test.describe(name, () => {
     test.use(view)
 
-    test('top of /story: the opening on its first frame, still, nothing else on screen', async ({ page }) => {
-      await open(page)
-      await page.waitForTimeout(2000)
-      const top = await page.evaluate(() => ({
-        y: scrollY,
-        loop: document.querySelectorAll('.hero video').length,
-        chapter: (window as unknown as { __scrub: { chapter: number } }).__scrub.chapter,
-        // any decoder that shows a picture is the opening, on frame 0
-        shown: [...document.querySelectorAll<HTMLVideoElement>('.stage video')].filter((v) => v.style.opacity === '1').map((v) => [v.dataset.clip, v.currentTime]),
-        captions: [...document.querySelectorAll<HTMLElement>('.caption')].filter((c) => getComputedStyle(c).visibility === 'visible').length,
-      }))
-      expect(top.y).toBe(0)
-      expect(top.loop).toBe(0)
-      expect(top.chapter).toBe(0)
-      for (const [id, t] of top.shown) expect([id, t]).toEqual(['opening', 0])
-      expect(top.captions).toBe(0)
-    })
+    for (const [hash, first] of [['', 'hf-depart'], ['#ocean', 'hf-depart'], ['#pond', 'hf-ponds']])
+      test(`top of /story${hash}: ${first} on its first frame at y = 0, and a scroll up goes nowhere`, async ({ page }) => {
+        await open(page, hash)
+        await page.waitForTimeout(2000)
+        const top = () =>
+          page.evaluate(() => ({
+            y: scrollY,
+            hero: document.querySelectorAll('.hero').length,
+            chapter: (window as unknown as { __scrub: { chapter: number } }).__scrub.chapter,
+            // any decoder that shows a picture is the path's first clip, on frame 0
+            shown: [...document.querySelectorAll<HTMLVideoElement>('.stage video')].filter((v) => v.style.opacity === '1').map((v) => [v.dataset.clip, v.currentTime]),
+          }))
+        const t = await top()
+        expect(t.y).toBe(0)
+        expect(t.hero).toBe(0)
+        expect(t.chapter).toBe(0)
+        for (const [id, at] of t.shown) expect([id, at]).toEqual([first, 0])
+        if (name === 'desktop') await page.mouse.wheel(0, -600)
+        else await page.evaluate(() => scrollBy(0, -600))
+        await page.waitForTimeout(600)
+        const u = await top()
+        expect(u.y).toBe(0)
+        expect(u.chapter).toBe(0)
+      })
 
     for (const hash of ['#ocean', '#pond'])
       test(`${hash}: fast and slow scroll down only move forward, scroll up never plays back`, async ({ page }) => {
@@ -112,7 +118,7 @@ for (const [name, view] of Object.entries(VIEWS)) {
         let back = 0
         for (let k = 1; k < down.length; k++) {
           const [a, b] = [down[k - 1], down[k]]
-          if (b.chapter < a.chapter && b.dir >= 0) back++
+          if (b.chapter < a.chapter) back++
           if (a.id === b.id && b.dir >= 0 && a.t >= 0 && b.t >= 0 && b.t < a.t - 1 / 48) back++
         }
         expect(back, 'picture went back while scrolling down').toBe(0)
@@ -126,7 +132,7 @@ for (const [name, view] of Object.entries(VIEWS)) {
           await wheel(page, -100, 6, 80)
           const r = await checkUpward(page)
           expect(r.backwards, `chapter ${i}: clip ran backwards`).toBe(0)
-          expect(r.later, `chapter ${i}: a later chapter on screen`).toBe(0)
+          expect(r.earlier, `chapter ${i}: the stage went back to an earlier chapter`).toBe(0)
         }
       })
 

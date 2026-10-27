@@ -31,10 +31,10 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--deep-2); color: var(--ice); font: 400 clamp(1rem, 0.95rem + 0.2vw, 1.0625rem)/1.55 var(--f-body); }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
-.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px var(--gutter); border-bottom: 1px solid var(--hairline); }
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 18px var(--gutter); border-bottom: 1px solid var(--hairline); }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .brand svg { width: 28px; height: 28px; color: var(--brass); }
-.top nav { display: flex; gap: clamp(12px, 2vw, 28px); font-size: 0.9375rem; }
+.top nav { display: flex; flex-wrap: wrap; gap: 6px clamp(12px, 2vw, 28px); font-size: 0.9375rem; }
 .top nav a { text-decoration: none; opacity: 0.85; }
 .top nav a:hover, .top nav a[aria-current] { opacity: 1; text-decoration: underline; text-underline-offset: 5px; }
 main { max-width: 1120px; margin: 0 auto; padding: clamp(40px, 6vw, 88px) var(--gutter) 96px; }
@@ -91,7 +91,7 @@ dl { display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 6px 16
 dt { color: var(--steel); }
 dd { margin: 0; overflow-wrap: anywhere; }
 footer { padding: 32px var(--gutter); border-top: 1px solid var(--hairline); color: var(--steel); font-size: 0.8125rem; }
-@media (max-width: 640px) { .top nav a.hide-sm { display: none; } dl { grid-template-columns: 1fr; } dt { margin-top: 8px; } }
+@media (max-width: 640px) { dl { grid-template-columns: 1fr; } dt { margin-top: 8px; } }
 @media (prefers-reduced-motion: no-preference) { #done.is-on { animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1); } }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 @media print {
@@ -113,9 +113,13 @@ footer { padding: 32px var(--gutter); border-top: 1px solid var(--hairline); col
   </a>
   <nav aria-label="Site">
     <a href="/">Home</a>
-    <a class="hide-sm" href="/story">Our Story</a>
+    <a href="/story">Our Story</a>
+    <a href="/#products">Products</a>
+    <a href="/#markets">Markets</a>
+    <a href="/#about">About</a>
     <a href="/quote">Quote</a>
     <a href="/order" aria-current="page">Order</a>
+    <a href="/#contact">Contact</a>
   </nav>
 </header>
 

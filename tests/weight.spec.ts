@@ -4,7 +4,8 @@ import { PROFILES, scrollThrough, type ProfileName } from './helpers'
 
 // TRD §13 / ASSETS_SPEC budgets (#264). Transferred bytes from CDP, initial (the page ready) and after a full scroll.
 // Initial is the page itself: the story's clips and frames (/story's up-front load and the homepage's background warm
-// of the story, #preload) are counted in the full budget only.
+// of the story, #preload), and on /story every /media file its intro preloads (posters, stills, photos), are counted in
+// the full budget only.
 // /story per path, counted once the warm cache is through and the scroll has reached the end. Per tier, because a
 // device downloads one tier: every desktop tier 60 MB (#hd2: 2560 clips from the HD masters, streamed by chapter on
 // desktop, was 40 MB retina and 28 MB at 1920), a phone 12 MB. The homepage carries the hero's frame set, so it has
@@ -87,7 +88,8 @@ for (const profile of Object.keys(PROFILES) as ProfileName[]) {
         const s = await r.sizes().catch(() => null)
         if (!s) return
         const b = s.responseBodySize + s.responseHeadersSize
-        if (STORY_MEDIA.test(new URL(r.url()).pathname)) film += b
+        const f = new URL(r.url()).pathname
+        if (STORY_MEDIA.test(f) || (path !== 'home' && f.startsWith('/media/'))) film += b
         else bytes += b
       })
       await page.goto(path === 'home' ? '/' : `/story#${path}`)

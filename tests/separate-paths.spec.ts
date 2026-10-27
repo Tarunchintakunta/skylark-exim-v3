@@ -2,13 +2,13 @@ import { expect, test, type Page } from '@playwright/test'
 
 /**
  * Wild catch and Farmed shrimp are two separate stories (#219): each path renders only its own chapters and clips,
- * the wild path never says or shows shrimp, and every switch (header toggle, hero fork, end-of-path link) swaps the
- * list and lands on the new path's first chapter.
+ * the wild path never says or shows shrimp, and every switch (header toggle, homepage fork, end-of-path link) swaps
+ * the list and lands on the new path's first chapter, at the top of /story.
  */
 const ENDING = ['docs', 'port', 'sea', 'world']
 const ORDER = {
-  ocean: ['start', 'o1', 'o2', 'o3', 'o4', 'intake', 'process', 'coldchain', ...ENDING],
-  pond: ['start', 'p1', 'p2', 'p3', 'intake', 'process', 'coldchain', ...ENDING],
+  ocean: ['o1', 'o2', 'o3', 'o4', 'intake', 'process', 'coldchain', ...ENDING],
+  pond: ['p1', 'p2', 'p3', 'intake', 'process', 'coldchain', ...ENDING],
 }
 /** clips that belong to one path only: pond farms and the shrimp plant / the boat and the fish plant */
 const POND_CLIPS = /hf-(ponds|sample|harvest|sort|intake|wash|peel|lab|iqf|pack|unload-shrimp)_/
@@ -110,22 +110,16 @@ test('header toggle swaps the story both ways', async ({ page }) => {
   await landsOn(page, 'ocean')
 })
 
-test('hero fork swaps the story both ways, and the header mirrors it', async ({ page }) => {
-  await page.goto('/story')
-  await ready(page)
-  await page.waitForSelector('#boot', { state: 'detached' })
-  const btn = (p: 'ocean' | 'pond') => page.locator(`.hero:not(#hero-static) .hero__fork-btn[data-path="${p}"]`)
-  await expect(page.locator('.hero:not(#hero-static)').getByRole('group', { name: 'Choose the story' })).toBeVisible()
-  await expect(btn('ocean')).toHaveAttribute('aria-current', 'true')
-  await btn('pond').click()
-  await landsOn(page, 'pond')
-  // back to the hero (it fades out past the start chapter), then the other button
-  await page.evaluate(() => window.scrollTo(0, 0))
-  await expect(btn('pond')).toBeVisible()
-  await expect(btn('pond')).toHaveAttribute('aria-current', 'true')
-  await btn('ocean').click()
-  await landsOn(page, 'ocean')
-})
+for (const p of ['ocean', 'pond'] as const)
+  test(`the homepage hero fork opens the ${p} story on its first chapter`, async ({ page }) => {
+    await page.goto('/')
+    await page.waitForSelector('#boot', { state: 'detached', timeout: 60_000 })
+    await page.locator(`.home-hero .hero__fork-btn[data-path="${p}"]`).click()
+    await ready(page)
+    await page.waitForSelector('#boot', { state: 'detached', timeout: 60_000 })
+    await landsOn(page, p)
+    expect(await page.evaluate(() => scrollY)).toBe(0)
+  })
 
 for (const [from, to] of [['ocean', 'pond'], ['pond', 'ocean']] as const) {
   test(`end-of-path link switches ${from} → ${to}`, async ({ page }) => {

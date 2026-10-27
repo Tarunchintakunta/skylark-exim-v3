@@ -1,5 +1,8 @@
-import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { ChapterDef } from '../config/chapters'
+import { frame } from '../engine/store'
+import { onTick } from '../engine/ticker'
+import { film } from './controller'
 import { GlobeLayer } from './GlobeLayer'
 import { POOL, bindStage } from './scrub'
 import { toSegments } from './segments'
@@ -9,8 +12,32 @@ import './stage.css'
 export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
   const segs = useMemo(() => toSegments(chapters), [chapters])
   const ref = useRef<HTMLDivElement>(null)
+  const cueRef = useRef<HTMLParagraphElement>(null)
 
   useLayoutEffect(() => bindStage(ref.current!, segs), [segs])
+
+  useEffect(() => {
+    let lastY = -1
+    let stillSince = 0
+    return onTick(() => {
+      const el = cueRef.current
+      if (!el) return
+      const y = frame.scroll
+      const now = performance.now()
+      if (lastY < 0 || Math.abs(y - lastY) > 0.5) {
+        lastY = y
+        stillSince = now
+      }
+      const id = frame.index >= 0 ? film.chapters[frame.index]?.id : undefined
+      let cue = 'off'
+      if (!frame.past && id) {
+        if (y < 80) cue = 'explore'
+        else if (id === 'world') cue = 'world'
+        else if (now - stillSince > 1000) cue = 'continue'
+      }
+      if (el.dataset.cue !== cue) el.dataset.cue = cue
+    })
+  }, [])
 
   return (
     // not aria-hidden as a whole: the globe inside is a focusable, labelled control; the rest is decorative
@@ -29,7 +56,7 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
             key={i}
             data-seg={i}
             className={m.kind === 'dom' ? 'stage__layer stage__dom' : 'stage__layer'}
-            // no poster loads up front (the hero loop covers the first screen); scrub.ts sets them after the first scroll
+            // the source is set by scrub.ts once AVIF support is known: every poster under the intro (#preload), else lazily
             src={undefined}
             alt=""
             decoding="async"
@@ -44,6 +71,19 @@ export function ScrubStage({ chapters }: { chapters: ChapterDef[] }) {
       ))}
       <div className="stage__veil" />
       <div className="stage__scrim" />
+      <p className="stage__cue" data-cue="off" ref={cueRef} aria-hidden="true">
+        <span className="stage__cue-pill">
+          <span data-for="explore">
+            Scroll down to explore <span aria-hidden="true">↓</span>
+          </span>
+          <span data-for="continue">
+            Scroll to continue <span aria-hidden="true">↓</span>
+          </span>
+          <span data-for="world">
+            Drag to rotate globe · Click a market · Scroll for products <span aria-hidden="true">↓</span>
+          </span>
+        </span>
+      </p>
     </div>
   )
 }

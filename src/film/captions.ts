@@ -53,7 +53,7 @@ let swap: gsap.core.Timeline | null = null
 let leaving: Cap | null = null
 const offClip = (c: Cap, index: number, p: number) => c.chapter !== index || (c.clip !== null && (p < c.clip[0] || p >= c.clip[1]))
 
-export function updateCaptions(ch: ChapterDef, index: number, p: number) {
+export function updateCaptions(ch: ChapterDef, index: number, p: number, force = false) {
   // the clip under a leaving caption is gone: finish the swap now (the caption hides, the next one starts rising)
   if (leaving && offClip(leaving, index, p)) {
     leaving = null
@@ -61,7 +61,11 @@ export function updateCaptions(ch: ChapterDef, index: number, p: number) {
   }
   const k = ch.captions.findIndex((c) => p >= c.at[0] && p < c.at[1])
   const next = k >= 0 ? (caps[index]?.[k] ?? null) : null
-  if (next === active) return
+  // the opening call lands before SplitText exists; once the fonts split, replay that same caption
+  if (next === active) {
+    if (force && next) show(next)
+    return
+  }
   const out = active
   active = next
   swap?.kill()

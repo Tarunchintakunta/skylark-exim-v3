@@ -19,7 +19,7 @@ export interface AppState {
 
 const hashPath = (): Path => (location.hash === '#pond' ? 'pond' : 'ocean')
 
-export const store = createStore<AppState>(() => ({ path: hashPath(), ready: false, revealed: false, chapter: 'start', past: false, prefill: {} }))
+export const store = createStore<AppState>(() => ({ path: hashPath(), ready: false, revealed: false, chapter: hashPath() === 'pond' ? 'p1' : 'o1', past: false, prefill: {} }))
 export const useApp = <T,>(sel: (s: AppState) => T) => useStore(store, sel)
 
 /** Per-frame values. Mutable on purpose: written by the ticker, read by ticker callbacks. Never put these in React state. */

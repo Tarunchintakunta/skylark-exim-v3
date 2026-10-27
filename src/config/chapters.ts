@@ -69,32 +69,26 @@ export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'h
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
-const start: ChapterDef = {
-  id: 'start', path: 'shared', label: 'Start', vh: 120, joinNext: 'crossfade',
-  media: [{ kind: 'video', id: 'opening', alt: 'Dawn at sea off the Andhra coast: the camera glides at water level toward a fishing town under green hills.' }],
-  captions: [],
-}
-
 const OCEAN_ONLY: ChapterDef[] = [
   {
     id: 'o1', path: 'ocean', label: 'Setting out', vh: 200, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'hf-depart', alt: 'A weathered white and blue fishing boat eases away from the stone quay at sunrise while the crew coil a rope and bring in a fender.' }],
-    captions: caps('o1', [[0.08, 0.92]]),
+    captions: caps('o1', [[0, 0.92]]),
   },
   {
     id: 'o2', path: 'ocean', label: 'The catch', vh: 140, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'hf-catch', alt: 'On deck, the boom\'s power block lifts a dripping net full of silver fish in over the rail while the crew lean back and pull it aboard; the fish spill onto the deck beside steel crates of ice.' }],
-    captions: caps('o2', [[0.55, 1]]),
+    captions: caps('o2', [[0.06, 0.95]]),
   },
   {
     id: 'o3', path: 'ocean', label: 'On ice', vh: 100, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'hf-ice', alt: 'Seen from above, the crew kneel on the wet deck sorting tuna and silver fish into iced steel crates.' }],
-    captions: caps('o3', [[0.1, 0.95]]),
+    captions: caps('o3', [[0.03, 0.95]]),
   },
   {
     id: 'o4', path: 'ocean', label: 'Back to Vizag', vh: 160, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'hf-return', alt: 'Porters push trolleys of iced steel crates along the wharf as the fishing boat comes alongside.' }],
-    captions: caps('o4', [[0.1, 0.9]]),
+    captions: caps('o4', [[0.04, 0.9]]),
   },
 ]
 
@@ -102,12 +96,12 @@ const POND_ONLY: ChapterDef[] = [
   {
     id: 'p1', path: 'pond', label: 'The ponds', vh: 120, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'hf-ponds', alt: 'Aerial view over a grid of shrimp ponds on a bright morning, aerators throwing white water, a white refrigerated truck on a bund road.' }],
-    captions: caps('p1', [[0.1, 0.92]]),
+    captions: caps('p1', [[0, 0.92]]),
   },
   {
     id: 'p2', path: 'pond', label: 'Traceable', vh: 100, joinNext: 'crossfade',
     media: [{ kind: 'video', id: 'hf-sample', alt: 'A farm technician crouches on the pond bank and reads a handheld water meter, its probe hanging on a cable into the pond, aerators churning behind him.' }],
-    captions: caps('p2', [[0.1, 0.92]]),
+    captions: caps('p2', [[0.02, 0.92]]),
   },
   {
     id: 'p3', path: 'pond', label: 'Harvest', vh: 180, joinNext: 'crossfade',
@@ -115,7 +109,7 @@ const POND_ONLY: ChapterDef[] = [
       { kind: 'video', id: 'hf-harvest', alt: 'Sunrise at a shrimp pond: four workers wade behind the drag net, its line of white floats arcing in front of them; on the bank a crew stacks steel crates beside white ice boxes and a white truck.' },
       { kind: 'video', id: 'hf-sort', alt: 'On the pond bank, workers tip live shrimp onto crushed ice in steel and white crates beside the refrigerated truck.' },
     ],
-    captions: caps('p3', [[0.1, 0.9]]),
+    captions: caps('p3', [[0.02, 0.9]]),
   },
 ]
 
@@ -129,7 +123,7 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-unload-shrimp', alt: 'At the dock, two workers in white coats, hairnets and gloves lift a steel crate of seafood on ice out of the open truck, stacked with steel crates, onto a steel trolley.' },
       { kind: 'video', id: 'hf-intake', alt: 'Inside the receiving bay, a masked worker in a white coat carries a steel crate of shrimp on ice toward the steel trolleys beside the truck, while a second worker walks back to the dock door.' },
     ],
-    captions: caps('intake', [[0.1, 0.92]]),
+    captions: caps('intake', [[0.02, 0.92]]),
   },
   {
     id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'crossfade',
@@ -168,7 +162,7 @@ const PLANT_OCEAN: ChapterDef[] = [
       { kind: 'video', id: 'hf-unload-crew', alt: 'Two workers in white coats, hairnets and gloves lift a steel crate of whole fish on ice out of the open truck together and set it on a steel trolley at the dock.' },
       { kind: 'video', id: 'hf-fish-intake', alt: 'At the receiving bay, steel trays of whole tuna, seer fish and Indian mackerel on ice; one worker opens a tuna\'s gill cover to check the gills while another inspects a second tuna.' },
     ],
-    captions: caps('intake.ocean', [[0.1, 0.92]]),
+    captions: caps('intake.ocean', [[0.02, 0.92]]),
   },
   {
     id: 'process', path: 'ocean', label: 'Washing and portioning', vh: 180, joinNext: 'crossfade',
@@ -206,7 +200,7 @@ const ENDING: ChapterDef[] = [
       { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
       { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },
     ],
-    captions: caps('port', [[0.1, 0.92]]),
+    captions: caps('port', [[0.03, 0.92]]),
   },
   {
     id: 'sea', path: 'shared', label: 'At sea', vh: 180, joinNext: 'crossfade',
@@ -214,24 +208,28 @@ const ENDING: ChapterDef[] = [
       { kind: 'video', id: 'hf-ship', alt: 'From high on the crane, the camera looks down on the loaded container ship\'s stacked containers and white bridge as it pulls away from the quay.' },
       { kind: 'video', id: 'hf-sail', alt: 'Seen from straight above, the loaded container ship sails alone across deep blue water, trailing a white wake.' },
     ],
-    captions: caps('sea', [[0.1, 0.85]]),
+    captions: caps('sea', [[0.04, 0.85]]),
   },
   {
     id: 'world', path: 'shared', label: 'The world', vh: 220, joinNext: 'cut', theme: 'light',
     media: [{ kind: 'globe', alt: `A bright daytime globe with gold routes from Visakhapatnam to ${MARKET_COUNT} markets.` }],
-    captions: caps('world', [[0.3, 1.01]]).map((c) => ({ ...c, body: undefined, extra: 'markets' as const })),
+    captions: caps('world', [[0.08, 1.01]]).map((c) => ({ ...c, body: undefined, extra: 'markets' as const })),
   },
 ]
 
 const sharedFor = (path: 'ocean' | 'pond') => [...(path === 'pond' ? PLANT_POND : PLANT_OCEAN), ...ENDING]
 
-/** Two separate stories (#219): each origin, then its own plant, then the shared ending. No chapter of one path renders on the other. */
-export const OCEAN: ChapterDef[] = [start, ...OCEAN_ONLY, ...sharedFor('ocean')]
-export const POND: ChapterDef[] = [start, ...POND_ONLY, ...sharedFor('pond')]
+/**
+ * Two separate stories (#219): each origin, then its own plant, then the shared ending. No chapter of one path renders on
+ * the other. The city view is the homepage's hero only: /story opens straight on o1 / p1 at y = 0, so nothing sits above
+ * the story to scroll back up to.
+ */
+export const OCEAN: ChapterDef[] = [...OCEAN_ONLY, ...sharedFor('ocean')]
+export const POND: ChapterDef[] = [...POND_ONLY, ...sharedFor('pond')]
 export const chaptersFor = (path: 'ocean' | 'pond') => (path === 'pond' ? POND : OCEAN)
 
-/** First clip after the shared start chapter on a path (o1 / p1): what /story's loader waits for, and what the homepage prefetches. */
+/** A path's first clip (o1 / p1): what /story's loader waits for, and what the homepage prefetches. */
 export function firstClip(path: 'ocean' | 'pond') {
-  const m = chaptersFor(path).slice(1).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
+  const m = chaptersFor(path).flatMap((ch) => ch.media).find((m) => m.kind === 'video')
   return m?.kind === 'video' ? m : null
 }

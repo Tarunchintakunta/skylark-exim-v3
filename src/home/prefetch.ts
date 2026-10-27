@@ -1,8 +1,12 @@
 import { firstClip } from '../config/chapters'
+import { decodeAll } from '../engine/boot'
 import { env } from '../engine/env'
 import { store, type Path } from '../engine/store'
 import { CLIPS } from '../film/manifest'
 import { avifReady, clipUrl, codecReady, isSeq, posterUrl, seqFrames, seqUrl } from '../film/segments'
+import { GLOBE_TEXTURE } from '../three/globeState'
+import type { Gate } from '../ui/Loader'
+import { heroReady } from './HomeHero'
 
 const hinted = new Set<string>()
 function hint(rel: 'modulepreload' | 'prefetch', href: string, as?: string) {
@@ -57,26 +61,28 @@ export function bindStoryPrefetch() {
 }
 
 /**
- * The homepage's own images, warmed once the intro has opened and the browser is idle (#264): every lazy image below the
- * fold is switched to eager, so a scroll through the page fetches nothing. The hero's frame set loads on the same
- * signal (home/HomeHero.tsx); this is everything under it: the story cards, the products, the plant and the globe still.
+ * The homepage's gate (#preload): the intro counts from 0 % to 100 % as the page's media lands, and opens at 100 %: the
+ * city video able to play through, every image on the page decoded (the hero poster, the three story cards, the
+ * products, the plant stills and the globe poster; lazy ones switched to eager), and the globe's earth texture fetched.
  */
-export function warmHomeImages() {
-  const go = () => {
-    const warm = () => document.querySelectorAll<HTMLImageElement>('main img[loading="lazy"]').forEach((img) => (img.loading = 'eager'))
-    if ('requestIdleCallback' in window) requestIdleCallback(() => warm(), { timeout: 3000 })
-    else setTimeout(warm, 500)
+export function homeGate(mounted: Promise<void>): Gate {
+  let done = 0
+  let total = 0
+  const subs = new Set<() => void>()
+  const tick = () => (done++, subs.forEach((f) => f()))
+  void heroReady.then(tick)
+  let ready: Promise<void> | null = null
+  return {
+    progress: () => (total ? done / total : 0),
+    onCache: (f) => (subs.add(f), () => void subs.delete(f)),
+    ready: () =>
+      (ready ??= mounted.then(async () => {
+        const imgs = [...document.querySelectorAll<HTMLImageElement>('main img')]
+        total = imgs.length + 2
+        const texture = GLOBE_TEXTURE.home.then((u) => fetch(u)).then((r) => r.blob()).catch(() => null)
+        await Promise.all([heroReady, decodeAll(imgs, tick), texture.then(tick)])
+      })),
   }
-  if (store.getState().revealed) {
-    go()
-    return () => {}
-  }
-  const off = store.subscribe((s) => {
-    if (!s.revealed) return
-    off()
-    go()
-  })
-  return off
 }
 
 /**

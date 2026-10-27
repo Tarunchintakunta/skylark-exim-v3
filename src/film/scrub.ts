@@ -5,12 +5,13 @@ import { landing } from '../engine/path'
 import { onTick } from '../engine/ticker'
 import { Sequence, createStage } from './sequence'
 import { avifReady, clipUrl, isSeq, posterFor, seqFrames, seqUrl, type Segment } from './segments'
-import { cachedUrl } from './warmcache'
+import { cachedUrl, enabled } from './warmcache'
 
 /**
  * Video engine (TRD §6, redesign §2.3-2.4). A pool of POOL <video> decoders.
- * - Forward only: the picture follows the scroll down and holds while it goes up, so the story never plays backwards.
- *   Scrolling up into an earlier clip shows that clip's first frame, never its end (`head`).
+ * - Forward only: the picture follows the scroll down and holds while it goes up, so the story never plays backwards,
+ *   and it never goes back to an earlier segment than the furthest one reached (`floor`): scrolling up holds the frame
+ *   on screen until the scroll comes back down past it.
  * - The current clip loads on entry; after the first scroll, once it has metadata, the next AHEAD clips below it load
  *   in parallel (one more while the scroll is fast), never past the next chapter. A clip on screen for under a second
  *   can't wait for its neighbour to finish buffering first.
@@ -18,8 +19,10 @@ import { cachedUrl } from './warmcache'
  * - One seek in flight; the newest target is applied on `seeked`. Targets outside `buffered` are held for HOLD ms, so the
  *   last presented frame stays up instead of stalling or flashing back to the poster; after that the picture follows the
  *   buffered frame nearest the target, so it keeps moving with the page as the download arrives.
- * - `fastSeek()` while the scroll is fast,
- *   exact `currentTime` once it settles. Frames count as presented from `requestVideoFrameCallback`.
+ * - `fastSeek()` only while the scroll is fast and that time is not yet in memory (no warm-cache blob,
+ *   not canplaythrough, and not inside `buffered`). Otherwise exact `currentTime`, so a preloaded clip
+ *   scrubs the real 24 fps frame instead of stepping to keyframes. Frames count as presented from
+ *   `requestVideoFrameCallback`.
  */
 interface Slot {
   v: HTMLVideoElement
@@ -43,7 +46,7 @@ const FRAME = 1 / 24
 const EPS = 1 / 48
 /** ms a target outside `buffered` is held before the picture moves to the nearest buffered frame */
 const HOLD = 250
-/** px per tick above which seeks use fastSeek (keyframe-accurate, cheaper) */
+/** px per tick above which an unbuffered seek may use fastSeek (keyframe-accurate, cheaper) */
 const FAST = 30
 const light = env.mobile || env.saveData || env.slow
 /** decoders on the stage (ScrubStage renders this many <video>s) */
@@ -105,13 +108,12 @@ const seqFor = (id: string) => {
 export const prefetchSeq = (id: string) => void seqFor(id)?.prefetch()
 /** 0..1 of a sequence clip's frames in the worker */
 export const seqProgress = (id: string) => seqs.get(id)?.progress ?? 0
-/** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the opening clip */
+/** neighbours are only prefetched after the visitor first scrolls, so the first screen costs just the first clip */
 let scrolled = false
-/**
- * The hero's looping video (#197) covers the start chapter: its clip loads in idle time after the loader's reveal (the
- * loader already buffered the path's first clip), so it's there on the first scroll without competing with the first screen.
- */
-let primed = false
+/** the furthest segment the stage has shown on this path: it never goes back above it (story flow lock) */
+let floor = -1
+/** a jump to a path's first chapter (engine/path.ts) starts the lock over */
+export const releaseFloor = () => void (floor = -1)
 let stopTick: (() => void) | null = null
 
 export function bindStage(el: HTMLElement, segments: Segment[]) {
@@ -126,19 +128,18 @@ export function bindStage(el: HTMLElement, segments: Segment[]) {
   if (ro && seqCanvas && seqStage) (ro.observe(seqCanvas), seqStage.resize())
   seqOn = false
   for (const s of slots) s.v.style.opacity = '0'
+  floor = -1
   cur = -1
   shown = null
   over = -1
   stopTick?.()
   stopTick = onTick(tick, -5)
   const stopReady = store.subscribe((st, was) => st.ready && !was.ready && cur >= 0 && loadPosters(cur))
-  const prime = () => ('requestIdleCallback' in window ? requestIdleCallback(() => (primed = true), { timeout: 1000 }) : setTimeout(() => (primed = true), 200))
-  const stopReveal = store.subscribe((st, was) => st.revealed && !was.revealed && prime())
-  if (store.getState().revealed) prime()
+  // with the warm cache on, every poster of the path loads now, under the intro (#preload): the warm cache waits for them
+  if (enabled) void avifReady.then(() => loadRange(0, segs.length - 1))
   return () => {
     ro?.disconnect()
     stopReady()
-    stopReveal()
     stopTick?.()
     stopTick = null
   }
@@ -268,11 +269,15 @@ function tick() {
   let i = segs.findIndex((s) => s.chapter === frame.index && frame.local < s.to)
   if (i < 0) i = segs.findLastIndex((s) => s.chapter === frame.index)
   if (i < 0) return
+  // flow lock: above the furthest segment reached, the stage holds it; it moves again once the scroll is back down there
+  const held = i < floor
+  if (held) i = floor
+  floor = i
   const seg = segs[i]
   const at = Math.min(1, Math.max(0, (frame.local - seg.from) / (seg.to - seg.from)))
-  // forward only: a segment entered from below starts on its first frame; inside a segment only a scroll down moves it
-  if (i !== cur) head = cur > i ? 0 : at
-  else if (frame.dir > 0) head = Math.max(head, at)
+  // forward only: inside a segment only a scroll down moves it
+  if (i !== cur) head = at
+  else if (frame.dir > 0 && !held) head = Math.max(head, at)
   const p = head
 
   if (i !== cur) enter(i, cur)
@@ -286,9 +291,7 @@ function tick() {
   const ahead = near.filter((id) => !isSeq(id))
   const keep = [want, ...ahead]
   let active: Slot | null = null
-  // the start clip waits for the reveal: the hero loop covers it, and the loader's budget goes to the first chapter
-  // of each path (#218); a deep link that is about to jump past the hero doesn't fetch it at all
-  if (want && !(landing.pending && i === 0) && (scrolled || primed || i > 0)) {
+  if (want) {
     active = slotFor(want, keep, i)
     if (active) {
       active.used = clock
@@ -319,8 +322,8 @@ function tick() {
   if (seqCanvas && on !== seqOn) seqCanvas.style.opacity = (seqOn = on) ? '1' : '0'
   if (seqCanvas && on) seqCanvas.dataset.frame = String(drawn)
   // a decoder still on its network source moves to the warm cache's blob once that clip is cached: right away when it's
-  // off screen, or while the hero still fully covers the start chapter, never under a clip the visitor is watching
-  for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && (s !== shown || (frame.index === 0 && frame.local < 0.05))) load(s, s.id)
+  // off screen, never under a clip the visitor is watching
+  for (const s of slots) if (s.id && !s.blob && cachedUrl(s.id) && s !== shown) load(s, s.id)
   probe.id = clip
   probe.chapter = seg.chapter
   probe.shown = seqNow ? on : shown !== null && shown === active
@@ -377,7 +380,8 @@ function seek(s: Slot, p: number, vel: number, t0 = 0) {
     return
   }
   if (Math.abs(v.currentTime - t) <= EPS) return
-  if (vel > FAST && v.fastSeek) v.fastSeek(t)
+  // a clip already in the warm cache, or buffered through this time, can land on the exact frame
+  if (vel > FAST && v.fastSeek && !s.blob && !s.ready && !buffered(v, t)) v.fastSeek(t)
   else v.currentTime = t
 }
 
@@ -419,7 +423,9 @@ function clearLayers(keep: number) {
 function loadPosters(i: number) {
   if (!scrolled) return
   const next = (segs[i]?.chapter ?? 0) + 1
-  const last = store.getState().ready ? Math.max(i + 2, segs.findLastIndex((s) => s.chapter <= next)) : i
+  loadRange(i, store.getState().ready ? Math.max(i + 2, segs.findLastIndex((s) => s.chapter <= next)) : i)
+}
+function loadRange(i: number, last: number) {
   for (let k = i; k <= last; k++) {
     const p = posters[k]
     // the URL is taken here, not at render: by now the page knows whether AVIF decodes

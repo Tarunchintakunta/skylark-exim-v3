@@ -36,6 +36,9 @@ export function Contact() {
           <a className="contact-band__cta" href="/quote">
             Request export quote →
           </a>
+          <a className="contact-band__pdf" href="/order">
+            Place an order →
+          </a>
           <a className="contact-band__pdf" href="/docs/skylark-exim-company-profile.pdf" download>
             Company profile (PDF)
           </a>
