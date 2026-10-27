@@ -1,6 +1,8 @@
 import { firstClip } from '../config/chapters'
+import { env } from '../engine/env'
 import { store, type Path } from '../engine/store'
-import { clipUrl, posterUrl } from '../film/segments'
+import { CLIPS } from '../film/manifest'
+import { avifReady, clipUrl, codecReady, isSeq, posterUrl, seqFrames, seqUrl } from '../film/segments'
 
 const hinted = new Set<string>()
 function hint(rel: 'modulepreload' | 'prefetch', href: string, as?: string) {
@@ -75,4 +77,30 @@ export function warmHomeImages() {
     go()
   })
   return off
+}
+
+/**
+ * The story, warmed from the homepage (#preload): once the intro has opened and the browser is idle, every clip and
+ * frame of the wild-catch path and then the farmed path is fetched at low priority, at the tier and codec /story will
+ * ask for. /media is immutable, so /story's warm cache then reads them from the HTTP cache and its intro opens almost
+ * at once. Save-Data and 2g/3g skip it.
+ */
+export function warmStory() {
+  if (env.saveData || env.slow) return () => {}
+  const ctl = new AbortController()
+  const go = async () => {
+    await Promise.all([codecReady, avifReady])
+    const seen = new Set<string>()
+    const urls = (['ocean', 'pond'] as const).flatMap((p) =>
+      CLIPS[p].flatMap((c) => (isSeq(c.id) ? Array.from({ length: seqFrames(c.id) }, (_, i) => seqUrl(c.id, i)) : [clipUrl(c.id)])),
+    ).filter((u) => !seen.has(u) && seen.add(u))
+    const one = (u: string) => fetch(u, { signal: ctl.signal, priority: 'low' } as RequestInit).then((r) => r.blob()).catch(() => null)
+    await Promise.all(Array.from({ length: 3 }, async () => {
+      while (urls.length && !ctl.signal.aborted) await one(urls.shift()!)
+    }))
+  }
+  const start = () => ('requestIdleCallback' in window ? requestIdleCallback(() => void go(), { timeout: 3000 }) : setTimeout(go, 500))
+  if (store.getState().revealed) start()
+  const off = store.subscribe((s, was) => s.revealed && !was.revealed && start())
+  return () => (off(), ctl.abort())
 }
