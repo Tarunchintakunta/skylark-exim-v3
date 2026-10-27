@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type CSSProperties } from 'react'
 import type { ChapterDef } from '../config/chapters'
 import { ChapterCopy } from './ChapterCopy'
-import { setChapters } from './controller'
+import { setChapters, unbindChapters } from './controller'
 import './film.css'
 
 /** Chapters are spacer sections; the visuals live on one fixed stage. */
@@ -9,6 +9,7 @@ export function Film({ chapters }: { chapters: ChapterDef[] }) {
   const refs = useRef<HTMLElement[]>([])
   useLayoutEffect(() => {
     setChapters(chapters, refs.current.slice(0, chapters.length))
+    return unbindChapters
   }, [chapters])
   return (
     <div className="film" id="story">
