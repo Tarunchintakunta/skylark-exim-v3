@@ -2,9 +2,9 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 
 /**
  * Intro (#218, #264, #preload): it paints before any JS, dark, with the wordmark, a hairline and 0 %. On every page it
- * locks the scroll and counts the page's media into memory from 0 % to 100 %, then opens: the homepage's city video and
- * every image on it, /story's whole active path. It runs on every visit (no session skip), no wheel opens it early,
- * reduced motion gets none, and a page whose script never runs still fades it at 3 s.
+ * locks the scroll and counts real opening work from 0 % to 100 %, then opens: the homepage's city video and hero
+ * poster, /story's first clip. The rest of each page keeps loading. It runs on every visit (no session skip), no wheel
+ * opens it early, reduced motion gets none, and a page whose script never runs still fades it at 3 s.
  */
 
 /** records when the loader handed over (data-ready on <html>) and when #boot left the DOM, in ms from navigation start */
@@ -40,7 +40,7 @@ for (const [name, viewport, mobile] of [
   ['390', { width: 390, height: 844 }, true],
   ['1440', { width: 1440, height: 900 }, false],
 ] as const) {
-  test(`homepage on Fast 4G (${name}): the intro counts 0 % to 100 % and opens with the city video and every image in memory`, async ({ browser }) => {
+  test(`homepage on Fast 4G (${name}): the intro counts 0 % to 100 % and opens once the city video and hero poster are ready`, async ({ browser }) => {
     test.setTimeout(120_000)
     const ctx = await browser.newContext({ viewport, isMobile: mobile, hasTouch: mobile })
     const page = await ctx.newPage()
@@ -61,13 +61,13 @@ for (const [name, viewport, mobile] of [
     const n = seen.map((p) => parseInt(p))
     expect(n.every((p, k) => k === 0 || p >= n[k - 1])).toBe(true)
     expect(n.at(-1)).toBe(100)
-    // what it waited for is in memory: the city video can play through and no image on the page is still loading
+    // what it waited for is in memory: the city video can play through and the hero poster has decoded
     const media = await page.evaluate(() => ({
       video: document.querySelector<HTMLVideoElement>('.home-hero video')?.readyState ?? 0,
-      pending: [...document.querySelectorAll('main img')].filter((i) => !(i as HTMLImageElement).complete).length,
+      poster: document.querySelector<HTMLImageElement>('.home-hero picture img')?.complete ?? false,
     }))
     expect(media.video).toBeGreaterThanOrEqual(3)
-    expect(media.pending).toBe(0)
+    expect(media.poster).toBe(true)
     // hand-off: scroll is unlocked and the static hero copy has given way to React's (same place, no shift)
     await expect(page.locator('html')).not.toHaveClass(/is-locked/)
     await expect(page.locator('#hero-static')).toHaveCount(0)
@@ -76,7 +76,7 @@ for (const [name, viewport, mobile] of [
   })
 }
 
-test('/story: the intro counts up to 100 % and opens once the whole path is in memory; the page holds still meanwhile', async ({ page }) => {
+test('/story: the intro counts up to 100 % and opens once the first clip is in memory; the page holds still meanwhile', async ({ page }) => {
   test.setTimeout(180_000)
   await page.goto('/story')
   await page.waitForSelector('#boot.is-gated', { timeout: 15_000 })
@@ -88,7 +88,10 @@ test('/story: the intro counts up to 100 % and opens once the whole path is in m
     await page.waitForTimeout(100)
   }
   console.log('percentages', [...seen].join(' '))
-  expect(await page.evaluate(() => (window as unknown as { __warmCache: { warm: boolean } }).__warmCache.warm)).toBe(true)
+  const cache = await page.evaluate(() => (window as unknown as { __warmCache: { path: string; ids: string[]; opening: boolean; warm: boolean } }).__warmCache)
+  expect(cache.path).toBe('ocean')
+  expect(cache.opening).toBe(true)
+  expect(cache.ids).toContain('hf-depart')
   await expect(page.locator('html')).not.toHaveClass(/is-locked/)
 })
 
@@ -123,7 +126,9 @@ test('a deep link loads its own path behind the intro and lands on it', async ({
   await page.goto('/story#pond')
   await page.waitForFunction(() => document.documentElement.dataset.ready === '1')
   await page.waitForSelector('#boot', { state: 'detached', timeout: 120_000 })
-  expect(await page.evaluate(() => (window as unknown as { __warmCache: { path: string; warm: boolean } }).__warmCache)).toMatchObject({ path: 'pond', warm: true })
+  const cache = await page.evaluate(() => (window as unknown as { __warmCache: { path: string; ids: string[]; opening: boolean } }).__warmCache)
+  expect(cache).toMatchObject({ path: 'pond', opening: true })
+  expect(cache.ids).toContain('hf-ponds')
   await expect.poll(() => page.evaluate(() => (window as unknown as { __scrub?: { id: string | null } }).__scrub?.id), { timeout: 10_000 }).toBe('hf-ponds')
 })
 

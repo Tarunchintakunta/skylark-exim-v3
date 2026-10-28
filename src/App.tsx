@@ -6,7 +6,7 @@ import { store, useApp } from './engine/store'
 import { scrollToY } from './engine/ticker'
 import { ScrubStage } from './film/ScrubStage'
 import { warm } from './film/scrub'
-import { onCache, pathReady, progress, startWarmCache } from './film/warmcache'
+import { onCache, openingProgress, openingReady, startWarmCache } from './film/warmcache'
 import { Loader, type Gate } from './ui/Loader'
 import { Header } from './ui/Header'
 
@@ -15,8 +15,8 @@ const Story = lazy(() => import('./Story'))
 // the chosen path's first clip (#ocean / #pond, else wild catch): started at mount, with nothing waiting on it (#264)
 const clip = firstClip(store.getState().path)
 const first = clip ? [clip.id] : []
-/** the intro holds until the active path is in memory (#preload) */
-const gate: Gate = { ready: pathReady, progress, onCache }
+/** the intro holds until the active path's first clip is in memory; the rest of the path keeps warming (#preload) */
+const gate: Gate = { ready: openingReady, progress: openingProgress, onCache }
 
 export default function App() {
   const path = useApp((s) => s.path)

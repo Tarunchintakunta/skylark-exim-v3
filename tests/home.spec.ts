@@ -11,7 +11,7 @@ const ready = async (page: Page) => {
 /**
  * anything of the film: its scripts, its clips (every .mp4 but the hero loop and the story entry's own card loops,
  * #268), its posters' end frames. The story warm-up after the intro (home/prefetch.ts warmStory, #preload) fetches the
- * clips into the HTTP cache: a `fetch`, not the page playing or loading the film, so it is left out.
+ * first clips of the active path into the HTTP cache: a `fetch`, not the page playing or loading the film, so it is left out.
  */
 const isStory = (url: string) => /\/assets\/(story|Story)-|\/media\/(?!hero-loop_|hf-catch-card_|hf-sample_)[^/]+\.mp4(\?|$)/.test(url)
 

@@ -13,7 +13,9 @@
   opacity: 0;
   pointer-events: none;
 }
-.caption__eyebrow { display: flex; align-items: baseline; gap: 0.75em; color: var(--brass); margin-bottom: 1.2rem; }
+.caption::before { content: ''; position: absolute; left: -14px; top: 0.35em; width: 1px; height: 2.75rem; background: rgba(224, 138, 95, 0.85); }
+.caption--light::before { background: var(--brass-ink); }
+.caption__eyebrow { display: flex; align-items: baseline; gap: 0.75em; color: var(--brass); margin-bottom: 1.2rem; letter-spacing: 0.06em; }
 .caption__num { font-family: var(--f-display); font-size: 1.6em; line-height: 1; color: var(--ice); font-variant-numeric: lining-nums tabular-nums; }
 .caption__title { font-size: var(--fs-h1); max-width: 13ch; text-wrap: balance; }
 /* right-hand column chapters: copy sits right, the scrim follows it */

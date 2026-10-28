@@ -6,14 +6,18 @@ import { prefetchSeq, seqProgress } from './scrub'
 import { W, avifReady, clipUrl, codec, codecReady, isSeq, served } from './segments'
 
 /**
- * Warm cache, all up front (Terminal Industries' pattern): at mount the whole active path goes into memory before the
- * story opens. Every video clip becomes a Blob (the stage's <video>s play from blob: URLs, so a seek never touches the
- * network) and every desktop frame sequence lands in the decode worker's byte store (sequence.ts), in story order. The
- * intro (Loader.tsx) shows the percentage and opens once the path is in hand; a path switch loads the other path's
- * clips the same way, keeping the chapters both share. Every image goes in too: the stage's posters and stills (scrub.ts
- * sets them all at mount) and the story's own photos, decoded. Only the active path, at the page's own tier, in one codec
- * (it waits for segments.ts to settle the codec). Save-Data and 2g/3g skip it: the scrub's distance prefetch (scrub.ts)
- * streams those.
+ * Warm cache. The intro opens once the active path's first clip is a Blob (openingReady). The rest of that path keeps
+ * loading behind it: every other video clip becomes a Blob (the stage's <video>s play from blob: URLs, so a seek never
+ * touches the network) and every desktop frame sequence lands in the decode worker's byte store (sequence.ts), in story
+ * order. progress() and `warm` still mean the whole active path, which the header hairline and the scroll tests wait
+ * for. A path switch loads the other path the same way and keeps the chapters both share. Every image goes in too: the
+ * stage's posters and stills (scrub.ts sets them all at mount) and the story's own photos, decoded. Only the active
+ * path, at the page's own tier, in one codec (it waits for segments.ts to settle the codec). Save-Data and 2g/3g skip
+ * it: the scrub's distance prefetch (scrub.ts) streams those.
+ *
+ * Story chapters stay video. docs/SEQUENCE_VS_VIDEO.md measured a full-path AVIF sequence at about 10× the AV1 clips,
+ * past the path budgets. The port film is the scroll-scrubbed canvas sequence (sequence.ts): coarse first, bounded
+ * decoded LRU, one shared rAF. The homepage hero stays a looping MP4.
  */
 /** clips fetched at once (Terminal's concurrency): 6 desktop, 3 phone */
 const PARALLEL = env.mobile ? 3 : 6
@@ -25,8 +29,13 @@ export const enabled = !(env.saveData || env.slow)
 const urls = new Map<string, string>()
 let path: Path | null = null
 let abort: AbortController | null = null
-/** the whole active path is in hand. Tests wait for this. */
+/** the whole active path is in hand. Tests that scroll with the network quiet wait for this. */
 let warm = false
+/** the first clip of the active path is a Blob, or its fetch was given up after OPEN_TRIES. The intro waits for this. */
+let opening = false
+/** bytes of the opening clip, received / declared. The intro's percentage is this, not the whole path. */
+let openingBytes = { have: 0, total: 1 }
+const OPEN_TRIES = 3
 /** the run's images, decoded / asked for; each counts as IMG bytes */
 let imgs = { done: 0, total: 0 }
 const IMG = 150e3
@@ -35,7 +44,9 @@ const emit = () => listeners.forEach((f) => f())
 
 // what the cache holds, for tests (navigator.webdriver) and ?debug only
 if (navigator.webdriver || new URLSearchParams(location.search).has('debug'))
-  Object.defineProperty(globalThis, '__warmCache', { get: () => ({ path, ids: [...urls.keys()], progress: progress(), warm }) })
+  Object.defineProperty(globalThis, '__warmCache', {
+    get: () => ({ path, ids: [...urls.keys()], progress: progress(), warm, opening, openingProgress: openingProgress() }),
+  })
 
 /** blob: URL for a cached clip of the active path, else null */
 export const cachedUrl = (id: string) => urls.get(id) ?? null
@@ -53,6 +64,13 @@ export function progress() {
   const have = all.reduce((a, c) => a + size(c) * (isSeq(c.id) ? seqProgress(c.id) : urls.has(c.id) ? 1 : 0), 0)
   return total ? (have + imgs.done * IMG) / (total + imgs.total * IMG) : 0
 }
+
+/** 0..1 of the opening clip. 1 once that clip is cached, or once the intro is allowed to open. */
+export function openingProgress() {
+  if (!enabled || opening) return 1
+  if (!path) return 0
+  return Math.min(1, openingBytes.have / Math.max(1, openingBytes.total))
+}
 export function onCache(f: () => void) {
   listeners.add(f)
   return () => void listeners.delete(f)
@@ -65,8 +83,48 @@ export const pathReady = () =>
     const off = onCache(() => warm && (off(), done()))
   })
 
+/** resolves once the first clip is in memory (at once where the cache is off). The intro uses this, not pathReady. */
+export const openingReady = () =>
+  new Promise<void>((done) => {
+    if (!enabled || opening) return done()
+    const off = onCache(() => opening && (off(), done()))
+  })
+
+/** Stream the opening clip and record real bytes. Returns false on a failed response; throws on abort. */
+async function fetchOpening(ctl: AbortController, c: Clip) {
+  const res = await fetch(clipUrl(c.id), { signal: ctl.signal, priority: 'high' } as RequestInit)
+  if (!res.ok) return false
+  const declared = Number(res.headers.get('Content-Length')) || size(c) || 1
+  openingBytes = { have: 0, total: declared }
+  emit()
+  const finish = (blob: Blob) => {
+    if (ctl.signal.aborted) return false
+    urls.set(c.id, URL.createObjectURL(blob))
+    openingBytes = { have: openingBytes.total, total: openingBytes.total }
+    emit()
+    return true
+  }
+  if (!res.body) return finish(await res.blob())
+  const reader = res.body.getReader()
+  const chunks: BlobPart[] = []
+  let have = 0
+  let reported = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (!value) continue
+    chunks.push(value)
+    have += value.byteLength
+    openingBytes = { have, total: Math.max(declared, have) }
+    if (have - reported >= 16_384) (reported = have), emit()
+  }
+  return finish(new Blob(chunks, { type: res.headers.get('Content-Type') || 'video/mp4' }))
+}
+
 async function run(p: Path) {
   warm = false
+  opening = false
+  openingBytes = { have: 0, total: 1 }
   abort?.abort()
   const ctl = (abort = new AbortController())
   await Promise.all([codecReady, avifReady])
@@ -86,7 +144,19 @@ async function run(p: Path) {
     decode([...document.querySelectorAll<HTMLImageElement>('.stage img[src]')]),
     storyReady.then(() => decode([...document.querySelectorAll<HTMLImageElement>('#main img')])),
   ])
-  // story order: the first chapter first, so a visitor who opens the intro early still finds the start in hand
+  // the first chapter's clip, byte by byte, before anything else on this path. Three tries, then the intro opens anyway.
+  const first = clips[0]
+  if (!first || urls.has(first.id)) {
+    opening = true
+    emit()
+  } else {
+    let ok = false
+    for (let attempt = 0; attempt < OPEN_TRIES && !ok && !ctl.signal.aborted; attempt++)
+      ok = await fetchOpening(ctl, first).catch(() => false)
+    if (ctl.signal.aborted) return
+    opening = true
+    emit()
+  }
   const queue = clips.filter((c) => !urls.has(c.id))
   const fetchOne = async (c: Clip) => {
     const res = await fetch(clipUrl(c.id), { signal: ctl.signal })
