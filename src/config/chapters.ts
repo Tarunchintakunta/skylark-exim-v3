@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip scroll may show; holds a push-in before it crops the subject */ until?: number }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -175,7 +175,7 @@ const PLANT_OCEAN: ChapterDef[] = [
   {
     id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      { kind: 'video', id: 'hf-fish-freeze', alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
+      { kind: 'video', id: 'hf-fish-freeze', until: 0.32, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
       { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
