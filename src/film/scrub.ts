@@ -306,8 +306,8 @@ function tick() {
     active = slotFor(want, keep, i)
     if (active) {
       active.used = clock
-      seek(active, p, vel, playUntil(seg))
-      probe.target = mediaTime(p, active.v.duration || 0, playUntil(seg))
+      seek(active, p, vel, playUntil(seg), playFrom(seg))
+      probe.target = mediaTime(p, active.v.duration || 0, playUntil(seg), playFrom(seg))
     }
   }
   // a deep link (#ocean / #pond) lands mid-film: measure the first scroll from there, so it doesn't prefetch on arrival
@@ -321,17 +321,22 @@ function tick() {
   }
   setShown(active && active.painted && !active.dead ? active : null)
   // the sequence clip on screen, and the sets coming up (fetch only); every other set gives back its bitmaps
+  const nextSeg = segs[i + 1]
+  const headSkipped = !!nextSeg && playFrom(nextSeg) > 0
   let drawn = -1
-  if (seqNow && seqStage) {
+  if (seqNow && seqStage && clip) {
     const sq = seqFor(clip)
     if (sq) {
-      drawn = seqStage.draw({ seq: sq, at: p })
-      probe.target = sq.index(p) / 24
+      const at = seqAt(p, sq.spec.frames, playUntil(seg), playFrom(seg))
+      // a far decoded neighbour of a trimmed clip is the frame this join skips (the seated spreader, the chassis gone)
+      const slack = playFrom(seg) > 0 || playUntil(seg) < 1 ? 2 : undefined
+      drawn = seqStage.draw({ seq: sq, at, slack })
+      probe.target = sq.index(at) / 24
     }
   }
-  // a set coming up has its first frames decoded already (its bytes are in memory), so the cut onto it draws at once
+  // a set coming up has its entry frame decoded already (its bytes are in memory), so the cut onto it draws at once
   if (scrolled || seqNow) {
-    for (const id of near) if (isSeq(id)) (prefetchSeq(id), id !== clip && seqFor(id)?.pump(0))
+    for (const id of near) if (isSeq(id)) (prefetchSeq(id), id !== clip && pumpEntry(id))
     for (const id of behind) if (isSeq(id)) (prefetchSeq(id), seqFor(id)?.pump(0))
   }
   for (const [id, sq] of seqs) if (id !== clip && !near.includes(id) && !behind.includes(id)) sq.release()
@@ -353,8 +358,9 @@ function tick() {
   const m = seg.media
   if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
-  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%)
-  const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
+  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%).
+  // A join that skips the next clip's head keeps the poster down: that poster is the frame the scroll no longer shows.
+  const fadeLen = headSkipped ? 0 : seg.join === 'crossfade' ? (nextSeg?.media.kind === 'globe' ? 0.15 : 0.03) : 0
   const a = fadeLen ? Math.max(0, (p - (1 - fadeLen)) / fadeLen) : 0
   const o = a > 0 ? i + 1 : -1
   if (o !== over && over >= 0 && posters[over]) {
@@ -379,20 +385,48 @@ function tick() {
   }
 }
 
+/** Where scroll starts inside a clip. 0 keeps the head, including a shared boundary frame. */
+function playFrom(seg: Segment) {
+  return seg.media.kind === 'video' && seg.media.from ? seg.media.from : 0
+}
+
 /** A clip may stop short of its last frame (`until`), so a push-in that crops the subject is never the picture on screen. */
 function playUntil(seg: Segment) {
   return seg.media.kind === 'video' && seg.media.until ? seg.media.until : 1
 }
 
-function mediaTime(p: number, duration: number, until: number) {
-  return p * Math.max(0, duration * until - FRAME)
+function mediaTime(p: number, duration: number, until: number, from = 0) {
+  const end = Math.max(0, duration * until - FRAME)
+  const start = Math.min(end, Math.max(0, duration * from))
+  return start + p * (end - start)
 }
 
-function seek(s: Slot, p: number, vel: number, until = 1) {
+/**
+ * Sequence progress for the same window a video uses. A full clip (`from` 0, `until` 1) stays `p`, so a shared
+ * boundary still meets the next clip's first frame. `until` of 1 still ends on the last frame.
+ */
+function seqAt(p: number, frames: number, until: number, from: number) {
+  if (from === 0 && until === 1) return p
+  const dur = frames / 24
+  const end = until >= 1 ? dur : Math.max(0, dur * until - FRAME)
+  const start = Math.min(end, Math.max(0, dur * from))
+  return Math.min(1, Math.max(0, (start + p * (end - start)) / dur))
+}
+
+/** Decode the frame a neighbour sequence is entered on, so a trimmed head is ready before the cut. */
+function pumpEntry(id: string) {
+  const sq = seqFor(id)
+  if (!sq) return
+  const seg = segs.find((s) => s.media.kind === 'video' && s.media.id === id)
+  if (!seg) return sq.pump(0)
+  sq.pump(sq.index(seqAt(0, sq.spec.frames, playUntil(seg), playFrom(seg))))
+}
+
+function seek(s: Slot, p: number, vel: number, until = 1, from = 0) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
   // no extra easing here: Lenis already smooths the scroll, a second lerp only adds lag behind the page
-  let t = mediaTime(p, v.duration, until)
+  let t = mediaTime(p, v.duration, until, from)
   // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it.
   // Held for more than HOLD ms: show the buffered frame nearest the target instead, so the picture doesn't sit still
   if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) {

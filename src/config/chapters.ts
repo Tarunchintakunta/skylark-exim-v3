@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string; /** share of the clip scroll may show; holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip scroll may show; holds a push-in before it crops the subject */ until?: number; /** share of the clip where scroll starts, when the head no longer matches the frame held before it */ from?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -195,11 +195,14 @@ const ENDING: ChapterDef[] = [
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      // #258: one continuous camera move, cut into five segments that share their boundary frames
+      // #258: one continuous camera move, cut into five segments that share their boundary frames.
+      // After the spreader meets the box the camera keeps pushing, and the empty chassis on the right leaves the frame.
+      // Hold while that chassis is still in the picture. The lift then starts with the container already off the truck,
+      // so this join cuts past the shared boundary frame.
       { kind: 'video', id: 'hf-port-1', alt: 'On the quay beside the moored container ship, the crane\'s yellow spreader hangs over a white refrigerated container on its red truck; the camera eases in.' },
       { kind: 'video', id: 'hf-port-2', alt: 'The camera keeps easing in on the truck parked under the ship-to-shore crane, its spreader above the container.' },
-      { kind: 'video', id: 'hf-port-3', alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
-      { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
+      { kind: 'video', id: 'hf-port-3', until: 0.43, alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
+      { kind: 'video', id: 'hf-port-4', from: 0.24, alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
       { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },
     ],
     captions: caps('port', [[0.03, 0.92]]),

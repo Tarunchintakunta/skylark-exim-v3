@@ -252,6 +252,8 @@ export interface StagePos {
   /** the sequence being crossed into, and how far the fade has gone (0..1) */
   next?: Sequence
   fade?: number
+  /** ignore a decoded neighbour further than this many frames from the one asked for */
+  slack?: number
 }
 
 /**
@@ -291,12 +293,14 @@ export function createStage(canvas: HTMLCanvasElement) {
     const i = pos.seq.index(pos.at)
     pos.seq.pump(i)
     const fade = pos.next && pos.fade ? Math.min(1, pos.fade) : 0
-    const now = pos.seq.nearest(i)
+    const close = (hit: { bitmap: ImageBitmap; at: number } | null, j: number) =>
+      hit && (pos.slack === undefined || Math.abs(hit.at - j) <= pos.slack) ? hit : null
+    const now = close(pos.seq.nearest(i), i)
     let into: { bitmap: ImageBitmap; at: number } | null = null
     if (pos.next) {
       const j = pos.next.index(0)
       pos.next.pump(j)
-      into = fade > 0 ? pos.next.nearest(j) : null
+      into = fade > 0 ? close(pos.next.nearest(j), j) : null
     }
     if (!now && !into) return shown
     const stamp = `${now?.at ?? -1}:${into?.at ?? -1}:${fade.toFixed(3)}`
