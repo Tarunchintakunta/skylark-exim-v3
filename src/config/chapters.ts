@@ -2,7 +2,7 @@ import { film, type CaptionCopy } from './content.ts'
 import { MARKET_COUNT } from './markets.ts'
 
 /**
- * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
+ * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still or a video sets `span`.
  * - video: public/media/<id>_{m,960,1280,1920}{.av1,.hevc,}.mp4 + <id>_{m,960,1280,1920}.{avif,webp} first-frame posters
  *   + <id>_end_1280.{avif,webp} (scripts/encode-hf.sh)
  * - still: a clip's first frame (every clip tier), or a ph-* stand-in at m / 960 / 1280 / 1920 / 2560, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string; /** share of the clip scroll may show; holds a push-in before it crops the subject */ until?: number }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip scroll may show; holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -173,12 +173,14 @@ const PLANT_OCEAN: ChapterDef[] = [
     captions: caps('process.ocean', [[0.04, 0.5], [0.5, 0.96]]),
   },
   {
-    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade', scrim: 'soft',
+    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 132, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      { kind: 'video', id: 'hf-fish-freeze', until: 0.32, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
+      // the freezer keeps a full load window (90vh). the aisle clip barely moves, so the rest of the chapter is short:
+      // a normal wheel on "Held cold until dispatch." reaches the paperwork chapter instead of scrubbing one still frame
+      { kind: 'video', id: 'hf-fish-freeze', until: 0.32, span: 0.68, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
       { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
-    captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
+    captions: caps('coldchain.ocean', [[0.04, 0.68], [0.68, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
   },
 ]
 

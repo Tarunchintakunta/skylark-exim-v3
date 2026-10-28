@@ -16,7 +16,7 @@ export interface Segment {
 }
 
 /**
- * A chapter's scroll length is split evenly across its media, unless a still sets its `span`.
+ * A chapter's scroll length is split evenly across its media, unless a still or a video sets its `span`.
  * Segments inside a chapter cross-fade (separate Higgsfield shots never share a boundary frame); the last one uses the chapter's join.
  */
 export function toSegments(chapters: ChapterDef[]): Segment[] {
@@ -32,7 +32,8 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
 export function segmentBounds(ch: ChapterDef): [number, number][] {
   let from = 0
   return ch.media.map((media, j, all) => {
-    const to = j === all.length - 1 ? 1 : from + ((media.kind === 'still' && media.span) || 1 / all.length)
+    const span = (media.kind === 'still' || media.kind === 'video') && media.span ? media.span : 1 / all.length
+    const to = j === all.length - 1 ? 1 : from + span
     const b: [number, number] = [from, to]
     from = to
     return b
