@@ -307,8 +307,8 @@ function tick() {
     active = slotFor(want, keep, i)
     if (active) {
       active.used = clock
-      seek(active, p, vel)
-      probe.target = p * Math.max(0, (active.v.duration || 0) - FRAME)
+      seek(active, p, vel, playUntil(seg))
+      probe.target = mediaTime(p, active.v.duration || 0, playUntil(seg))
     }
   }
   // a deep link (#ocean / #pond) lands mid-film: measure the first scroll from there, so it doesn't prefetch on arrival
@@ -326,8 +326,8 @@ function tick() {
   if (seqNow && seqStage) {
     const sq = seqFor(clip)
     if (sq) {
-      drawn = seqStage.draw({ seq: sq, at: p })
-      probe.target = sq.index(p) / 24
+      drawn = seqStage.draw({ seq: sq, at: p * playUntil(seg) })
+      probe.target = sq.index(p * playUntil(seg)) / 24
     }
   }
   // a set coming up has its first frames decoded already (its bytes are in memory), so the cut onto it draws at once
@@ -393,11 +393,15 @@ function tick() {
   }
 }
 
-function seek(s: Slot, p: number, vel: number, t0 = 0) {
+/** A clip may stop short of its last frame (`until`), so a push-in that crops the subject is never the picture on screen. */
+const playUntil = (seg: Segment) => (seg.media.kind === 'video' && seg.media.until) || 1
+const mediaTime = (p: number, duration: number, until: number) => p * Math.max(0, duration * until - FRAME)
+
+function seek(s: Slot, p: number, vel: number, until = 1) {
   const v = s.v
   if (v.readyState < 1 || !Number.isFinite(v.duration)) return
   // no extra easing here: Lenis already smooths the scroll, a second lerp only adds lag behind the page
-  let t = t0 + p * Math.max(0, v.duration - FRAME - t0)
+  let t = mediaTime(p, v.duration, until)
   // hold the last presented frame while the range is still downloading; if the browser stopped preloading, the seek asks for it.
   // Held for more than HOLD ms: show the buffered frame nearest the target instead, so the picture doesn't sit still
   if (!buffered(v, t) && v.networkState === v.NETWORK_LOADING) {

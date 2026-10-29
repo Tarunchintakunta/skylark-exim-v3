@@ -2,7 +2,7 @@ import { film, type CaptionCopy } from './content.ts'
 import { MARKET_COUNT } from './markets.ts'
 
 /**
- * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
+ * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still or a video sets `span`.
  * - video: public/media/<id>_{m,960,1280,1920}{.av1,.hevc,}.mp4 + <id>_{m,960,1280,1920}.{avif,webp} first-frame posters
  *   + <id>_end_1280.{avif,webp} (scripts/encode-hf.sh)
  * - still: a clip's first frame (every clip tier), or a ph-* stand-in at m / 960 / 1280 / 1920 / 2560, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip the scroll may show (0–1): holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
