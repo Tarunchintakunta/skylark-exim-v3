@@ -176,12 +176,15 @@ const PLANT_OCEAN: ChapterDef[] = [
     captions: caps('process.ocean', [[0.04, 0.5], [0.5, 0.96]]),
   },
   {
-    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade',
+    // 220: the cold store gets about a screen of scroll (≥ 600 px at 900 high); the freezer push-in crops the front
+    // worker's face in its last third, so its scroll stops at 0.6 of the clip
+    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 220, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-fish-freeze', alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
+      { kind: 'video', id: 'hf-fish-freeze', until: 0.6, span: 0.5, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
       { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
-    captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
+    // each caption 0.02 inside its shot's half, so the first one's exit is done before the second rises
+    captions: caps('coldchain.ocean', [[0.04, 0.48], [0.52, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
   },
 ]
 
