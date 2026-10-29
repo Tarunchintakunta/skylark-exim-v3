@@ -66,6 +66,7 @@ let hidden = false
 let isLight = false
 let isSoft = false
 let isRight = false
+let zoomKey = ''
 let lastY = 0
 /** px moved on the last tick, so a follow-up seek can stay on fastSeek until the wheel slows */
 let travel = 0
@@ -384,6 +385,14 @@ function tick() {
   if (soft !== isSoft) {
     isSoft = soft
     stage?.classList.toggle('is-soft', soft)
+  }
+  // a segment's desktop reframe (chapters.ts Media zoom), through two custom properties on the stage (stage.css)
+  const z = seg.media.kind === 'video' && !env.mobile ? seg.media.zoom : undefined
+  const zk = z ? `${z.scale} ${z.x}` : ''
+  if (zk !== zoomKey && stage) {
+    zoomKey = zk
+    stage.style.setProperty('--zoom', String(z?.scale ?? 1))
+    stage.style.setProperty('--zoom-x', `${(z?.x ?? 0.5) * 100}%`)
   }
   if (!!seg.right !== isRight) {
     isRight = !!seg.right

@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string; /** share of the clip the scroll may show (0–1): holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip the scroll may show (0–1): holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number; /** desktop reframe: the picture scaled by `scale` about `x` (0 left – 1 right), to keep a figure cut by the frame edge off screen */ zoom?: { scale: number; x: number } }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -154,7 +154,9 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
       { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
       { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
-      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
+      // a worker at the clip's left edge is cut in half by the frame in every frame: 1.3× anchored right starts the
+      // picture at ~26% of the source, past him (~0–21%)
+      { kind: 'video', id: 'hf-store', zoom: { scale: 1.3, x: 1 }, alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain', [[0.02, 0.23], [0.27, 0.48], [0.52, 0.73], [0.77, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
   },
@@ -187,7 +189,9 @@ const PLANT_OCEAN: ChapterDef[] = [
     id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 220, joinNext: 'crossfade',
     media: [
       { kind: 'video', id: 'hf-fish-freeze', until: 0.6, span: 0.5, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
-      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
+      // a worker at the clip's left edge is cut in half by the frame in every frame: 1.3× anchored right starts the
+      // picture at ~26% of the source, past him (~0–21%)
+      { kind: 'video', id: 'hf-store', zoom: { scale: 1.3, x: 1 }, alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     // each caption 0.02 inside its shot's half, so the first one's exit is done before the second rises
     captions: caps('coldchain.ocean', [[0.04, 0.48], [0.52, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),

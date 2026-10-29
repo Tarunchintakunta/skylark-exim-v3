@@ -7,6 +7,8 @@
 /* desktop frame sequences (#hd2): the canvas draws cover-fit itself, sized by its CSS box */
 .stage__seq { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: 0; pointer-events: none; }
 .stage__layer.is-over { z-index: 2; }
+/* a segment's reframe (chapters.ts Media zoom, set by scrub.ts): clip, frame sequence and poster scale together */
+.stage__video, .stage__seq, img.stage__layer { transform: scale(var(--zoom, 1)); transform-origin: var(--zoom-x, 50%) 50%; }
 .stage__gradient {
   /* sea placeholder: deep open-sea blue with a faint horizon */
   background:
