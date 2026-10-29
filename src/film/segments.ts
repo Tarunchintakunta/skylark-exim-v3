@@ -118,7 +118,7 @@ const stillUrl = (id: string, w: Tier) => (id.startsWith('ph-') ? img(`${id}_${s
  */
 export const isSeq = (id: string) => !env.mobile && W !== 960 && W !== 'm' && id in SEQ
 export const seqFrames = (id: string) => SEQ[id]?.frames ?? 0
-export const seqUrl = (id: string, i: number) => mediaUrl(`${id}-f_1920_${String(i).padStart(3, '0')}.${avif ? 'avif' : 'webp'}`)
+export const seqUrl = (id: string, i: number) => `/media/${id}-f_1920_${String(i).padStart(3, '0')}.${avif ? 'avif' : 'webp'}?v=${SEQ[id]?.v}`
 
 /** First-frame poster for a segment, or null for gradient/globe. `w` is the media tier (tests pass each one). */
 export function posterFor(m: Media, w: Tier = W): string | null {
