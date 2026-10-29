@@ -67,8 +67,14 @@ export const COPY_RIGHT = new Set(['o3', 'p2', 'process', 'port'])
  * Terminal Industries pattern): the port film's fast camera moves macroblocked and smeared in video at any byte rate a
  * path can afford. Every master frame as an AVIF still (scripts/clip-frames.sh), so each keeps its frame count and
  * timing. Phones keep the video: 289 phone frames would take most of the 12 MB phone path.
+ * hf-catch, hf-peel and hf-lab (#story-seq): the fastest-moving scenes whose 1920 set fits 5 MB, each path's 60 MB
+ * desktop budget and the 2560 tier for AV1 and HEVC (scripts/clip-manifest.ts topTier). Every frame of the shipped
+ * 2560 clip (FROM_SHIPPED=1 SHARPEN=1 SET_KB=5000 scripts/clip-frames.sh; several masters/ takes are not the footage on
+ * the site). SSIM against the 2560 source beats the 1920 video on the frames checked (hf-catch 0.95 vs 0.91-0.93).
+ * Left as video: hf-ship (4.6 MB on both paths puts the HEVC 2560 farmed path at 60.5 MB), hf-fish-freeze and hf-return
+ * (4.6 / 4.5 MB, no room next to hf-catch on the wild-catch path), hf-fish-wash (waits for new footage).
  */
-export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'hf-port-5']
+export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'hf-port-5', 'hf-catch', 'hf-peel', 'hf-lab']
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
