@@ -354,8 +354,17 @@ function tick() {
   const m = seg.media
   if (m.kind === 'still' || m.kind === 'gradient') posters[i]!.style.transform = `scale(${1 + 0.04 * p})`
 
-  // cross-fade join: next segment's poster fades in over the last 3% of scroll (the last sea shot → globe: 15%)
-  const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.03) : 0
+  // the clip is painted: its poster goes, with any cross-fade class it kept from the segment before, so the stage never
+  // shows a poster and a clip at once
+  const cover = posters[i]
+  if (cover && m.kind === 'video') {
+    const want = probe.shown ? '0' : '1'
+    if (cover.style.opacity !== want) cover.style.opacity = want
+    if (probe.shown) cover.classList.remove('is-over')
+  }
+
+  // cross-fade join: next segment's poster fades in over the last 1.5% of scroll (the last sea shot → globe: 15%)
+  const fadeLen = seg.join === 'crossfade' ? (segs[i + 1]?.media.kind === 'globe' ? 0.15 : 0.015) : 0
   const a = fadeLen ? Math.max(0, (p - (1 - fadeLen)) / fadeLen) : 0
   const o = a > 0 ? i + 1 : -1
   if (o !== over && over >= 0 && posters[over]) {
