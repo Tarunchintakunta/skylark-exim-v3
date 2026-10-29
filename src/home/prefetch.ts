@@ -91,8 +91,13 @@ export function homeGate(mounted: Promise<void>): Gate {
  * ask for. /media is immutable, so /story's warm cache then reads them from the HTTP cache and its intro opens almost
  * at once. Save-Data and 2g/3g skip it.
  */
+/** every story file warmStory fetches is in the HTTP cache: the homepage is warm. Tests (navigator.webdriver) and ?debug only. */
+const markWarm = () => {
+  if (navigator.webdriver || new URLSearchParams(location.search).has('debug')) (globalThis as { __homeWarm?: boolean }).__homeWarm = true
+}
+
 export function warmStory() {
-  if (env.saveData || env.slow) return () => {}
+  if (env.saveData || env.slow) return (markWarm(), () => {})
   const ctl = new AbortController()
   const go = async () => {
     await Promise.all([codecReady, avifReady])
@@ -104,6 +109,7 @@ export function warmStory() {
     await Promise.all(Array.from({ length: 3 }, async () => {
       while (urls.length && !ctl.signal.aborted) await one(urls.shift()!)
     }))
+    if (!ctl.signal.aborted) markWarm()
   }
   const start = () => ('requestIdleCallback' in window ? requestIdleCallback(() => void go(), { timeout: 3000 }) : setTimeout(go, 500))
   if (store.getState().revealed) start()
