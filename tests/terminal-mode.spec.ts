@@ -105,8 +105,11 @@ for (const [name, v] of Object.entries(VIEWPORTS)) {
       await page.evaluate(() => scrollTo(0, 0))
       await page.waitForTimeout(400)
       const flung: boolean[] = []
+      // 1200 px notches on desktop (Lenis eases them, so the hero is sampled on its way out); a phone scrolls natively,
+      // and a 1200 px notch takes its one-screen, non-sticky hero off screen before the first sample: 45% of the screen
+      const notch = v.mobile ? Math.round(v.viewport.height * 0.45) : 1200
       for (let i = 0; i < 6; i++) {
-        await page.mouse.wheel(0, 1200)
+        await page.mouse.wheel(0, notch)
         await page.waitForTimeout(120)
         const h = await heroState(page)
         if (h.visible) flung.push(h.painted && !h.paused)
