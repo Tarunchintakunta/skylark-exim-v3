@@ -9,7 +9,7 @@
 #    and left the other 17 clips 1.3 MB each at 2560, less than before the HD pass; the 1920 set is 20.8 MB at crf 36 and ~17 MB at crf 39, which leaves room to keep every other clip at least at its old 2560 bytes. Phones keep
 #    the clip's video (chapters.ts SEQ_CLIPS). AVIF (SVT-AV1 still) because on an hf-port-4 frame at 2560 crf 34 is
 #    96 KB at SSIM 0.985 where WebP needs q 80 and 184 KB for the same SSIM. crf 39; cap per frame 150 KB, a frame
-#    over it steps AVIF crf up by 3 (to 47), WebP q down by 5 (to 55).
+#    over it steps AVIF crf up by 3 (to 47), WebP q down by 5 (to 20; the WebP set is the fallback for a browser without AVIF).
 #    SHARPEN=1 adds a light unsharp=5:5:0.6 after the downscale. SET_KB=<n> caps the AVIF set: the whole set is encoded
 #    again from the next crf of 39 42 45 47 50 until it fits (the #story-seq scenes: FROM_SHIPPED=1 SHARPEN=1 SET_KB=5000). The WebP
 #    set is the fallback for a browser without AVIF and keeps its per-frame cap only.
@@ -31,7 +31,7 @@ for id in "$@"; do
         crf=$ladder; total=0; max=0; n=0
         for f in "$tmp/$tier"/*.png; do
           out="public/media/$id-f_${tier}_$(basename "${f%.png}").$ext"
-          for q in $([ $ext = avif ] && echo $crf || echo 75 70 65 60 55); do
+          for q in $([ $ext = avif ] && echo $crf || echo 75 70 65 60 55 50 45 40 35 30 25 20); do
             if [ $ext = avif ]; then
               ffmpeg -nostdin -v error -y -i "$f" -vf format=yuv420p -c:v libsvtav1 -preset 6 -crf $q -frames:v 1 "$out" 2>&1 | grep -v '^Svt' || true
             else cwebp -quiet -m 6 -q $q "$f" -o "$out"; fi
