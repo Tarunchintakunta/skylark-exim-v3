@@ -65,6 +65,7 @@ let over = -1
 let hidden = false
 let isLight = false
 let isSoft = false
+let isRight = false
 let lastY = 0
 /** px moved on the last tick, so a follow-up seek can stay on fastSeek until the wheel slows */
 let travel = 0
@@ -372,6 +373,10 @@ function tick() {
   if (soft !== isSoft) {
     isSoft = soft
     stage?.classList.toggle('is-soft', soft)
+  }
+  if (!!seg.right !== isRight) {
+    isRight = !!seg.right
+    stage?.classList.toggle('is-right', isRight)
   }
   if (o >= 0 && posters[o]) {
     posters[o]!.classList.add('is-over')

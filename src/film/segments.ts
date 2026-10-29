@@ -1,4 +1,4 @@
-import type { ChapterDef, Media } from '../config/chapters'
+import { COPY_RIGHT, type ChapterDef, type Media } from '../config/chapters'
 import { heroPoster } from '../config/hero'
 import { env } from '../engine/env'
 import { SEQ, TOP, type Codec, type Tier } from './manifest'
@@ -13,6 +13,8 @@ export interface Segment {
   /** set on the last segment of a chapter */
   join?: ChapterDef['joinNext']
   scrim?: ChapterDef['scrim']
+  /** the chapter's copy sits in the right-hand column (the soft scrim shades that side) */
+  right?: boolean
 }
 
 /**
@@ -23,7 +25,7 @@ export function toSegments(chapters: ChapterDef[]): Segment[] {
   return chapters.flatMap((ch, chapter) =>
     segmentBounds(ch).map(([from, to], j, all) => {
       const last = j === all.length - 1
-      return { media: ch.media[j], chapter, from, to, join: last ? ch.joinNext : ('crossfade' as const), scrim: ch.scrim }
+      return { media: ch.media[j], chapter, from, to, join: last ? ch.joinNext : ('crossfade' as const), scrim: ch.scrim, right: COPY_RIGHT.has(ch.id) }
     }),
   )
 }

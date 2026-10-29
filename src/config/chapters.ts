@@ -38,7 +38,7 @@ export interface ChapterDef {
   joinNext: Join
   /** copy colour scheme; the globe opens into daylight */
   theme?: 'light'
-  /** 'soft': a light, neutral bottom scrim instead of the deep-sea one, for daylight footage (the port) */
+  /** 'soft': a neutral black scrim (bottom, and the side the copy is on) instead of the deep-sea one, for daylight footage (the port) */
   scrim?: 'soft'
 }
 
@@ -58,6 +58,9 @@ export const CROP_X: Record<string, number> = {
   // the #258 port film, one camera move cut in five: one crop for all five, so the phone joins line up too
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
 }
+
+/** Chapters whose copy sits in a right-hand column instead of bottom-left, for editorial rhythm (redesign §6). */
+export const COPY_RIGHT = new Set(['o3', 'p2', 'process', 'port'])
 
 /**
  * Clips a desktop plays as a frame sequence on the stage canvas instead of a <video> (#hd2; src/film/sequence.ts, the
