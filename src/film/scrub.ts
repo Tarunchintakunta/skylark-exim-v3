@@ -330,12 +330,14 @@ function tick() {
       probe.target = sq.index(p * playUntil(seg)) / 24
     }
   }
-  // a set coming up has its first frames decoded already (its bytes are in memory), so the cut onto it draws at once
+  // a set coming up has its first frames decoded already (its bytes are in memory), so the cut onto it draws at once:
+  // the decoders' look-ahead, and always the next two scenes, whichever chapter they are in
+  const ahead2 = [i + 1, i + 2].map(videoId).filter((id): id is string => id !== null && isSeq(id))
   if (scrolled || seqNow) {
-    for (const id of near) if (isSeq(id)) (prefetchSeq(id), id !== clip && seqFor(id)?.pump(0))
+    for (const id of [...near, ...ahead2]) if (isSeq(id)) (prefetchSeq(id), id !== clip && seqFor(id)?.pump(0))
     for (const id of behind) if (isSeq(id)) (prefetchSeq(id), seqFor(id)?.pump(0))
   }
-  for (const [id, sq] of seqs) if (id !== clip && !near.includes(id) && !behind.includes(id)) sq.release()
+  for (const [id, sq] of seqs) if (id !== clip && !near.includes(id) && !ahead2.includes(id) && !behind.includes(id)) sq.release()
   const on = drawn >= 0
   if (seqCanvas && on !== seqOn) seqCanvas.style.opacity = (seqOn = on) ? '1' : '0'
   if (seqCanvas && on) seqCanvas.dataset.frame = String(drawn)
