@@ -212,10 +212,11 @@ const ENDING: ChapterDef[] = [
       // #258: one continuous camera move, cut into five segments that share their boundary frames.
       // After the spreader meets the box the camera keeps pushing, and the empty chassis on the right leaves the frame.
       // Hold while that chassis is still in the picture. The lift then starts with the container already off the truck,
-      // so this join cuts past the shared boundary frame.
+      // so this join cuts past the shared boundary frame. hf-port-3 plays 43% of its clip, so it gets 12% of the
+      // scroll, not a fifth: still ≥ 0.15 s per 100 px (scene-scrub.spec.ts). hf-port-5 takes the rest.
       { kind: 'video', id: 'hf-port-1', alt: 'On the quay beside the moored container ship, the crane\'s yellow spreader hangs over a white refrigerated container on its red truck; the camera eases in.' },
       { kind: 'video', id: 'hf-port-2', alt: 'The camera keeps easing in on the truck parked under the ship-to-shore crane, its spreader above the container.' },
-      { kind: 'video', id: 'hf-port-3', until: 0.43, alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
+      { kind: 'video', id: 'hf-port-3', until: 0.43, span: 0.12, alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
       { kind: 'video', id: 'hf-port-4', from: 0.24, alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
       { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },
     ],
