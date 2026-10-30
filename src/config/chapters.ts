@@ -2,7 +2,7 @@ import { film, type CaptionCopy } from './content.ts'
 import { MARKET_COUNT } from './markets.ts'
 
 /**
- * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still sets `span`.
+ * Visual source of one segment. A chapter's scroll length is split evenly across its segments, unless a still or a video sets `span`.
  * - video: public/media/<id>_{m,960,1280,1920}{.av1,.hevc,}.mp4 + <id>_{m,960,1280,1920}.{avif,webp} first-frame posters
  *   + <id>_end_1280.{avif,webp} (scripts/encode-hf.sh)
  * - still: a clip's first frame (every clip tier), or a ph-* stand-in at m / 960 / 1280 / 1920 / 2560, until the scene's clip lands (no label is ever shown; open stand-ins are listed in PR bodies)
@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip the scroll may show (0–1): holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number; /** desktop reframe: the picture scaled by `scale` about `x` (0 left – 1 right), to keep a figure cut by the frame edge off screen */ zoom?: { scale: number; x: number } }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -38,7 +38,7 @@ export interface ChapterDef {
   joinNext: Join
   /** copy colour scheme; the globe opens into daylight */
   theme?: 'light'
-  /** 'soft': a light, neutral bottom scrim instead of the deep-sea one, for daylight footage (the port) */
+  /** 'soft': a neutral black scrim (bottom, and the side the copy is on) instead of the deep-sea one, for daylight footage (the port) */
   scrim?: 'soft'
 }
 
@@ -59,13 +59,22 @@ export const CROP_X: Record<string, number> = {
   'hf-port-1': 0.45, 'hf-port-2': 0.45, 'hf-port-3': 0.45, 'hf-port-4': 0.45, 'hf-port-5': 0.45,
 }
 
+/** Chapters whose copy sits in a right-hand column instead of bottom-left, for editorial rhythm (redesign §6). */
+export const COPY_RIGHT = new Set(['o3', 'p2', 'process', 'port'])
+
 /**
  * Clips a desktop plays as a frame sequence on the stage canvas instead of a <video> (#hd2; src/film/sequence.ts, the
  * Terminal Industries pattern): the port film's fast camera moves macroblocked and smeared in video at any byte rate a
  * path can afford. Every master frame as an AVIF still (scripts/clip-frames.sh), so each keeps its frame count and
  * timing. Phones keep the video: 289 phone frames would take most of the 12 MB phone path.
+ * hf-catch, hf-peel and hf-lab (#story-seq): the fastest-moving scenes whose 1920 set fits 5 MB, each path's 60 MB
+ * desktop budget and the 2560 tier for AV1 and HEVC (scripts/clip-manifest.ts topTier). Every frame of the shipped
+ * 2560 clip (FROM_SHIPPED=1 SHARPEN=1 SET_KB=5000 scripts/clip-frames.sh; several masters/ takes are not the footage on
+ * the site). SSIM against the 2560 source beats the 1920 video on the frames checked (hf-catch 0.95 vs 0.91-0.93).
+ * Left as video: hf-ship (4.6 MB on both paths puts the HEVC 2560 farmed path at 60.5 MB), hf-fish-freeze and hf-return
+ * (4.6 / 4.5 MB, no room next to hf-catch on the wild-catch path), hf-fish-wash (waits for new footage).
  */
-export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'hf-port-5']
+export const SEQ_CLIPS = ['hf-port-1', 'hf-port-2', 'hf-port-3', 'hf-port-4', 'hf-port-5', 'hf-catch', 'hf-peel', 'hf-lab']
 
 const caps = (id: string, ranges: [number, number][]): Caption[] => film[id].map((c, i) => ({ ...c, at: ranges[i] }))
 
@@ -145,7 +154,9 @@ const PLANT_POND: ChapterDef[] = [
       { kind: 'video', id: 'hf-lab', alt: 'In the quality lab, a technician in a white coat inspects a raw shrimp with tweezers at the window bench.' },
       { kind: 'video', id: 'hf-iqf', alt: 'Individually spaced shrimp ride a stainless mesh belt into the IQF freezing tunnel through light cold vapour.' },
       { kind: 'video', id: 'hf-pack', alt: 'A packer in a white coverall places a bag of frozen shrimp into a plain brown carton and closes it.' },
-      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
+      // a worker at the clip's left edge is cut in half by the frame in every frame: 1.3× anchored right starts the
+      // picture at ~26% of the source, past him (~0–21%)
+      { kind: 'video', id: 'hf-store', zoom: { scale: 1.3, x: 1 }, alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
     captions: caps('coldchain', [[0.02, 0.23], [0.27, 0.48], [0.52, 0.73], [0.77, 1]]).map((c, i) => (i === 2 ? { ...c, extra: 'label-card' as const } : i === 3 ? { ...c, extra: 'other-path' as const } : c)),
   },
@@ -173,12 +184,17 @@ const PLANT_OCEAN: ChapterDef[] = [
     captions: caps('process.ocean', [[0.04, 0.5], [0.5, 0.96]]),
   },
   {
-    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 180, joinNext: 'crossfade',
+    // 220: the cold store gets about a screen of scroll (≥ 600 px at 900 high); the freezer push-in crops the front
+    // worker's face in its last third, so its scroll stops at 0.6 of the clip
+    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 220, joinNext: 'crossfade',
     media: [
-      { kind: 'video', id: 'hf-fish-freeze', alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
-      { kind: 'video', id: 'hf-store', alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
+      { kind: 'video', id: 'hf-fish-freeze', until: 0.6, span: 0.5, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
+      // a worker at the clip's left edge is cut in half by the frame in every frame: 1.3× anchored right starts the
+      // picture at ~26% of the source, past him (~0–21%)
+      { kind: 'video', id: 'hf-store', zoom: { scale: 1.3, x: 1 }, alt: 'In the cold store, masked workers in white coats walk an aisle between galvanised steel racks of steel boxes; one pulls a pallet jack by its handle.' },
     ],
-    captions: caps('coldchain.ocean', [[0.04, 0.5], [0.5, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
+    // each caption 0.02 inside its shot's half, so the first one's exit is done before the second rises
+    captions: caps('coldchain.ocean', [[0.04, 0.48], [0.52, 1]]).map((c, i) => (i === 1 ? { ...c, extra: 'other-path' as const } : c)),
   },
 ]
 
