@@ -61,7 +61,12 @@ export function staticHero(): Plugin {
     `<script>document.querySelector('.caption--static[data-path="'+(location.hash==='#pond'?'ocean':'pond')+'"]').remove()</script>`
   // held invisible until the fonts are in, like the hero copy (a fallback-font first paint would re-flow it: CLS)
   // (line-height: the 0.98 lines plus the 0.06em each SplitText line gets, so the title is as tall as the film's)
-  const captionCss = css('film/film.css') + '.fonts-in .caption--static{visibility:visible;opacity:1}.caption--static .caption__title{line-height:1.04}'
+  // (bottom: chrome.css's phone rule arrives with the app's CSS and film.css's comes back with the lazy story chunk; the
+  // film's caption ends on film.css's, so the static one keeps it throughout: no 29 px jump, CLS 0)
+  const bottom = readFileSync(new URL('../src/film/film.css', import.meta.url), 'utf8').match(/bottom:\s*(clamp\([^;]+\));/)![1]
+  const captionCss =
+    css('film/film.css') +
+    `.fonts-in .caption--static{visibility:visible;opacity:1}.caption--static .caption__title{line-height:1.04}.caption.caption--static{bottom:${bottom}}`
   // the hero poster (LCP image, #hd): AVIF preloads with the hero <picture>'s own sources, so the browser picks the same
   // file for both; browsers without AVIF skip them (type) and load the WebP from the <picture>
   const preload = () =>
