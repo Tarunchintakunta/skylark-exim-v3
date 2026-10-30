@@ -3,7 +3,7 @@ import { decodeAll } from '../engine/boot'
 import { env } from '../engine/env'
 import { store, type Path } from '../engine/store'
 import { CLIPS } from '../film/manifest'
-import { avifReady, clipUrl, codecReady, isSeq, posterUrl, seqFrames, seqUrl } from '../film/segments'
+import { avifReady, clipUrl, codecReady, isSeq, posterUrl } from '../film/segments'
 import { GLOBE_TEXTURE } from '../three/globeState'
 import type { Gate } from '../ui/Loader'
 import { heroReady } from './HomeHero'
@@ -61,35 +61,41 @@ export function bindStoryPrefetch() {
 }
 
 /**
- * The homepage's gate (#preload): the intro counts from 0 % to 100 % as the page's media lands, and opens at 100 %: the
- * city video able to play through, every image on the page decoded (the hero poster, the three story cards, the
- * products, the plant stills and the globe poster; lazy ones switched to eager), and the globe's earth texture fetched.
+ * The homepage's gate (#preload): the intro counts real work from 0 % to 100 % and opens when the city video can play
+ * through and the hero poster has decoded. The other page images and the globe texture continue in the background.
+ * Nothing here waits on /story.
  */
 export function homeGate(mounted: Promise<void>): Gate {
   let done = 0
   let total = 0
   const subs = new Set<() => void>()
   const tick = () => (done++, subs.forEach((f) => f()))
-  void heroReady.then(tick)
   let ready: Promise<void> | null = null
   return {
-    progress: () => (total ? done / total : 0),
+    progress: () => (total ? Math.min(1, done / total) : 0),
     onCache: (f) => (subs.add(f), () => void subs.delete(f)),
     ready: () =>
       (ready ??= mounted.then(async () => {
-        const imgs = [...document.querySelectorAll<HTMLImageElement>('main img')]
-        total = imgs.length + 2
-        const texture = GLOBE_TEXTURE.home.then((u) => fetch(u)).then((r) => r.blob()).catch(() => null)
-        await Promise.all([heroReady, decodeAll(imgs, tick), texture.then(tick)])
+        const poster = document.querySelector<HTMLImageElement>('.home-hero picture img')
+        const rest = [...document.querySelectorAll<HTMLImageElement>('main img')].filter((img) => img !== poster)
+        total = 2
+        subs.forEach((f) => f())
+        const posterJob = poster ? decodeAll([poster], tick) : Promise.resolve().then(tick)
+        await Promise.all([heroReady.then(tick), posterJob])
+        void decodeAll(rest, () => {})
+        void GLOBE_TEXTURE.home.then((u) => fetch(u)).then((r) => r.blob()).catch(() => null)
       })),
   }
 }
 
+/** clips of the active path warmed from the homepage after the intro. Not the other path, and not the port frames. */
+const STORY_LOOKAHEAD = 4
+
 /**
- * The story, warmed from the homepage (#preload): once the intro has opened and the browser is idle, every clip and
- * frame of the wild-catch path and then the farmed path is fetched at low priority, at the tier and codec /story will
- * ask for. /media is immutable, so /story's warm cache then reads them from the HTTP cache and its intro opens almost
- * at once. Save-Data and 2g/3g skip it.
+ * The story, warmed from the homepage (#preload): once the intro has opened and the browser is idle, the first clips
+ * of the active path are fetched at low priority, at the tier and codec /story will ask for. /media is immutable, so
+ * /story's warm cache then reads them from the HTTP cache. The other path and the port frame sequence wait until the
+ * visitor actually opens them. Save-Data and 2g/3g skip it.
  */
 /** every story file warmStory fetches is in the HTTP cache: the homepage is warm. Tests (navigator.webdriver) and ?debug only. */
 const markWarm = () => {
@@ -101,12 +107,12 @@ export function warmStory() {
   const ctl = new AbortController()
   const go = async () => {
     await Promise.all([codecReady, avifReady])
-    const seen = new Set<string>()
-    const urls = (['ocean', 'pond'] as const).flatMap((p) =>
-      CLIPS[p].flatMap((c) => (isSeq(c.id) ? Array.from({ length: seqFrames(c.id) }, (_, i) => seqUrl(c.id, i)) : [clipUrl(c.id)])),
-    ).filter((u) => !seen.has(u) && seen.add(u))
+    const urls = CLIPS[store.getState().path]
+      .filter((c) => !isSeq(c.id))
+      .slice(0, STORY_LOOKAHEAD)
+      .map((c) => clipUrl(c.id))
     const one = (u: string) => fetch(u, { signal: ctl.signal, priority: 'low' } as RequestInit).then((r) => r.blob()).catch(() => null)
-    await Promise.all(Array.from({ length: 3 }, async () => {
+    await Promise.all(Array.from({ length: 2 }, async () => {
       while (urls.length && !ctl.signal.aborted) await one(urls.shift()!)
     }))
     if (!ctl.signal.aborted) markWarm()

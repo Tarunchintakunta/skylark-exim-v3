@@ -2,9 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { CLIPS, SEQ } from '../src/film/manifest'
 import { scrollThrough } from './helpers'
 
-// #251, #preload: at mount the whole active path goes into memory (clips as Blobs, the port film's frame sets in the
-// decode worker) and the intro holds until it is there, so a scroll from top to bottom touches the network for no clip
-// or frame. Frame times only mean something with GPU=1.
+// #251, #preload: the intro opens on the first clip. The rest of the active path still goes into memory (clips as
+// Blobs, the port film's frame sets in the decode worker). Once that finishes, a scroll from top to bottom touches the
+// network for no clip or frame. Frame times only mean something with GPU=1.
 
 /** the path's video clips (the port film's frame sequences, #hd2, are the stage canvas's on desktop) */
 const videosOf = (path: 'ocean' | 'pond', mobile: boolean) => CLIPS[path].filter((c) => mobile || !(c.id in SEQ)).map((c) => c.id)
@@ -30,7 +30,7 @@ const DEVICES = {
 
 for (const [device, d] of Object.entries(DEVICES))
 for (const path of ['ocean', 'pond'] as const) {
-  test(`${device} /story#${path}: the intro opens with the whole path in memory, and a full scroll fetches no clip or frame`, async ({ browser }) => {
+  test(`${device} /story#${path}: after the path finishes warming, a full scroll fetches no clip or frame`, async ({ browser }) => {
     test.setTimeout(300_000)
     const ctx = await browser.newContext({ viewport: d.viewport, isMobile: d.mobile, hasTouch: d.mobile })
     const page = await ctx.newPage()
@@ -41,6 +41,7 @@ for (const path of ['ocean', 'pond'] as const) {
     await ready(page)
     const l = await lcp(page)
     await page.waitForSelector('#boot', { state: 'detached', timeout: 120_000 })
+    await page.waitForFunction(() => (window as unknown as { __warmCache?: { warm: boolean } }).__warmCache?.warm === true, null, { timeout: 180_000 })
     const held = await cache(page)
     const sets = await page.evaluate(() => ((window as unknown as { __sequences?: { id: string; complete: boolean }[] }).__sequences ?? []).filter((q) => q.id.startsWith('stage-hf-port')))
     phase = 'scroll'

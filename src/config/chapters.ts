@@ -11,7 +11,7 @@ import { MARKET_COUNT } from './markets.ts'
  * - globe: the R3F globe
  */
 export type Media =
-  | { kind: 'video'; id: string; alt: string; /** share of the clip the scroll may show (0–1): holds a push-in before it crops the subject */ until?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number; /** desktop reframe: the picture scaled by `scale` about `x` (0 left – 1 right), to keep a figure cut by the frame edge off screen */ zoom?: { scale: number; x: number } }
+  | { kind: 'video'; id: string; alt: string; /** share of the clip the scroll may show (0–1): holds a push-in before it crops the subject */ until?: number; /** share of the clip where scroll starts, when the head no longer matches the frame held before it */ from?: number; /** share of the chapter's scroll when this clip is not the last one */ span?: number; /** desktop reframe: the picture scaled by `scale` about `x` (0 left – 1 right), to keep a figure cut by the frame edge off screen */ zoom?: { scale: number; x: number } }
   | { kind: 'still'; poster: string; alt: string; /** share of the chapter's scroll, 0–1 (e.g. to end with its caption) */ span?: number }
   | { kind: 'gradient'; alt: string }
   | { kind: 'dom'; poster: string; alt: string }
@@ -38,7 +38,7 @@ export interface ChapterDef {
   joinNext: Join
   /** copy colour scheme; the globe opens into daylight */
   theme?: 'light'
-  /** 'soft': a neutral black scrim (bottom, and the side the copy is on) instead of the deep-sea one, for daylight footage (the port) */
+  /** 'soft': a neutral black scrim (bottom, and the side the copy is on) instead of the deep-sea one, for daylight footage and bright interiors (the port and the plant) */
   scrim?: 'soft'
 }
 
@@ -125,7 +125,7 @@ const POND_ONLY: ChapterDef[] = [
 /** The farmed path's plant: the shrimp footage and the full work flow (CONTENT.md, written for shrimp). */
 const PLANT_POND: ChapterDef[] = [
   {
-    id: 'intake', path: 'pond', label: 'Intake', vh: 360, joinNext: 'crossfade',
+    id: 'intake', path: 'pond', label: 'Intake', vh: 360, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
@@ -135,7 +135,7 @@ const PLANT_POND: ChapterDef[] = [
     captions: caps('intake', [[0.02, 0.92]]),
   },
   {
-    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'crossfade',
+    id: 'process', path: 'pond', label: 'Process', vh: 200, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-wash', alt: 'A bright processing hall mid-shift: shrimp ride a conveyor while workers in caps, masks and gloves grade them at the stainless tables beside it.' },
       { kind: 'video', id: 'hf-peel', alt: 'Workers peel and devein shrimp by hand at a stainless table.' },
@@ -146,7 +146,7 @@ const PLANT_POND: ChapterDef[] = [
     captions: caps('process', [[0.02, 0.24], [0.26, 0.48], [0.52, 0.98]]),
   },
   {
-    id: 'coldchain', path: 'pond', label: 'Lab · freeze · pack', vh: 360, joinNext: 'crossfade',
+    id: 'coldchain', path: 'pond', label: 'Lab · freeze · pack', vh: 360, joinNext: 'crossfade', scrim: 'soft',
     // one shot per caption: lab, IQF, packing, cold store (each a quarter of the scroll). Each caption sits 0.02 inside
     // its shot's quarter: a caption leaves through a 0.25 s exit before the next one rises, so with ranges on the clip
     // boundaries "Packed and labelled" stayed up over the cold store (and "Frozen at its best" over the packing)
@@ -165,7 +165,7 @@ const PLANT_POND: ChapterDef[] = [
 /** The wild-catch path's plant (#219): whole fish and tuna loins through the same plant, never a shrimp on screen or in the copy. */
 const PLANT_OCEAN: ChapterDef[] = [
   {
-    id: 'intake', path: 'ocean', label: 'Intake', vh: 480, joinNext: 'crossfade',
+    id: 'intake', path: 'ocean', label: 'Intake', vh: 480, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-arrive', alt: 'At dawn a white refrigerated truck drives in through the plant gate, its driver at the wheel and the cooling unit misting, and turns toward the loading docks.' },
       { kind: 'video', id: 'hf-reverse', alt: 'The truck reverses into the insulated dock bay, reverse lights on, as a worker in a hi-vis vest guides it with hand signals and the driver watches the side mirror.' },
@@ -176,7 +176,7 @@ const PLANT_OCEAN: ChapterDef[] = [
     captions: caps('intake.ocean', [[0.02, 0.92]]),
   },
   {
-    id: 'process', path: 'ocean', label: 'Washing and portioning', vh: 180, joinNext: 'crossfade',
+    id: 'process', path: 'ocean', label: 'Washing and portioning', vh: 180, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-fish-wash', alt: 'Whole seer fish and Indian mackerel are rinsed under chilled water on a stainless table and sorted by size into steel crates.' },
       { kind: 'video', id: 'hf-fish-cut', alt: 'A worker portions a deep-red tuna loin on a white board; finished loins lie on crushed ice beside it.' },
@@ -186,7 +186,7 @@ const PLANT_OCEAN: ChapterDef[] = [
   {
     // 220: the cold store gets about a screen of scroll (≥ 600 px at 900 high); the freezer push-in crops the front
     // worker's face in its last third, so its scroll stops at 0.6 of the clip
-    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 220, joinNext: 'crossfade',
+    id: 'coldchain', path: 'ocean', label: 'Freeze and store', vh: 220, joinNext: 'crossfade', scrim: 'soft',
     media: [
       { kind: 'video', id: 'hf-fish-freeze', until: 0.6, span: 0.5, alt: 'A worker in a white coat wheels a steel rack of whole fish and tuna loins into the blast freezer as cold vapour rolls out of the open door.' },
       // a worker at the clip's left edge is cut in half by the frame in every frame: 1.3× anchored right starts the
@@ -209,11 +209,14 @@ const ENDING: ChapterDef[] = [
   {
     id: 'port', path: 'shared', label: 'The port', vh: 560, joinNext: 'crossfade', scrim: 'soft',
     media: [
-      // #258: one continuous camera move, cut into five segments that share their boundary frames
+      // #258: one continuous camera move, cut into five segments that share their boundary frames.
+      // After the spreader meets the box the camera keeps pushing, and the empty chassis on the right leaves the frame.
+      // Hold while that chassis is still in the picture. The lift then starts with the container already off the truck,
+      // so this join cuts past the shared boundary frame.
       { kind: 'video', id: 'hf-port-1', alt: 'On the quay beside the moored container ship, the crane\'s yellow spreader hangs over a white refrigerated container on its red truck; the camera eases in.' },
       { kind: 'video', id: 'hf-port-2', alt: 'The camera keeps easing in on the truck parked under the ship-to-shore crane, its spreader above the container.' },
-      { kind: 'video', id: 'hf-port-3', alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
-      { kind: 'video', id: 'hf-port-4', alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
+      { kind: 'video', id: 'hf-port-3', until: 0.43, alt: 'The crane\'s yellow spreader comes down on its cables onto the white container and locks onto it.' },
+      { kind: 'video', id: 'hf-port-4', from: 0.24, alt: 'The crane lifts the container off the truck, carries it out over the ship and sets it down on the stack on deck.' },
       { kind: 'video', id: 'hf-port-5', alt: 'The camera pulls back and rises: a row of ship-to-shore cranes, the loaded container ship at the quay, and open sea beyond the breakwater.' },
     ],
     captions: caps('port', [[0.03, 0.92]]),

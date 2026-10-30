@@ -85,6 +85,7 @@ export function HomeHero({ sectionRef }: { sectionRef: RefObject<HTMLElement | n
           )}
         </div>
         <div className="hero__copy">
+          <p className="hero__eyebrow mono">{start.eyebrow}</p>
           <h1 className="hero__title">
             {lead} <em>world</em>.
           </h1>
