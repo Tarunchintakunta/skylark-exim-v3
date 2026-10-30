@@ -17,7 +17,7 @@ const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url),
 export function staticHero(): Plugin {
   const lead = start.title.replace(/ world\.$/, '')
   // the fork links over to /story (no aria-current: no path is chosen here)
-  const html = () => `<div class="hero hero--static" id="hero-static"><div class="hero__copy">
+  const html = () => `<div class="hero hero--static" id="hero-static" data-first-screen><div class="hero__copy">
 <p class="hero__eyebrow mono">${esc(start.eyebrow)}</p>
 <h1 class="hero__title">${esc(lead)} <em>world</em>.</h1>
 <p class="hero__body">${esc(start.body)}</p>
