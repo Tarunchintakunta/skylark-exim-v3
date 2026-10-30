@@ -1,12 +1,14 @@
 /**
  * #lcp: a page's app is requested only once its static first screen (`[data-first-screen]`: the homepage's hero copy,
- * /story's first frame) has painted. Lighthouse counts every request that finished before the LCP, so the app's script
+ * /story's opening caption) has painted. Lighthouse counts every request that finished before the LCP, so the app's script
  * stays out of it; the app's bytes still land right behind the first screen's, which they would only have shared the
  * link with. No imports: this is the whole entry chunk.
  */
 export function afterFirstScreen(boot: () => unknown) {
   let done = false
   const go = () => !done && ((done = true), boot())
+  // nothing static to wait for: boot at once
+  if (!document.querySelector('[data-first-screen]')) return void go()
   if (PerformanceObserver.supportedEntryTypes?.includes('largest-contentful-paint')) {
     // the entry arrives once the frame is on screen (a paint callback alone can run before it is presented)
     new PerformanceObserver((l, o) => {
